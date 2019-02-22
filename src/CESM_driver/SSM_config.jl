@@ -1,4 +1,4 @@
-include("/home/tienyiah/projects/SMARTSLAB/src/22_dev_MLMML/SSM.jl")
+include("../MLMML/SSM.jl")
 include("julia_lib/Mailbox.jl")
 include("julia_lib/BinaryIO.jl")
 include("julia_lib/NetCDFIO.jl")

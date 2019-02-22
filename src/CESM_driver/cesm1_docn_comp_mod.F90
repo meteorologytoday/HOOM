@@ -34,11 +34,12 @@ module docn_comp_mod
                                seq_flds_x2o_fields
 
 
-! XTT USES
+! ===== XTT MODIFIED BEGIN =====
 
   use field_tools
   use MailboxMod
 
+! ===== XTT MODIFIED END =====
 
 
 !
@@ -118,8 +119,7 @@ module docn_comp_mod
 
 
 
-  !--- XTT variables ---
-
+! ===== XTT MODIFIED BEGIN =====
   integer(IN)   :: ktaux, ktauy  ! field indices
  
   character(1024)       :: x_msg, x_fn, x_datetime_str
@@ -128,8 +128,10 @@ module docn_comp_mod
 
   real(R8), pointer     :: x_hflx(:), x_swflx(:), x_taux(:), x_tauy(:)
 
-  !--- XTT formats   ---
+  !--- formats   ---
   character(*), parameter :: x_F00 = "(a, '.ssm.', a, '.', a)" 
+
+! ===== XTT MODIFIED END =====
 
   !-------------------------------------------------------------------------------
 
@@ -654,8 +656,11 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
          o2x%rAttr(kq   ,n) = 0.0_r8
       enddo
 
-    case('SOM_AQUAP', 'SOM')
 
+! ===== XTT MODIFIED BEGIN =====
+
+    case('SOM_AQUAP', 'SOM')
+ 
       print *, "XTT modified code."
       
       ! CESM 1 does not provide shr_cal_ymdtod2string
@@ -744,6 +749,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                         ( x2o%rAttr(ksnow,n) + & 
                           x2o%rAttr(kioff,n) ) * latice ! latent by snow and roff
                        
+            x_taux(n) = o2x%rAttr(ktaux,n)
+            x_tauy(n) = o2x%rAttr(ktauy,n)
           end if
         end do
         print *, "Max of short wave: ", maxval(x_swflx)
@@ -787,6 +794,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
       endif
 
       print *, "SSM_AQUAP done."
+
+! ===== XTT MODIFIED END =====
 
    case('XSOM')
       lsize = mct_avect_lsize(o2x)
@@ -911,7 +920,13 @@ subroutine docn_comp_final()
    if (my_task == master_task) then
       write(logunit,F91) 
       write(logunit,F00) trim(myModelName),': end of main integration loop'
-      write(logunit,F91) 
+      write(logunit,F91)
+
+! ===== XTT MODIFIED BEGIN =====
+      x_msg = "MSG:END"
+      call mbm_send(x_MI, x_msg)
+! ===== XTT MODIFIED END =====
+ 
    end if
       
    call t_stopf('DOCN_FINAL')

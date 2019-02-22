@@ -1,11 +1,11 @@
 """
 
     stepOceanColumn!(;
-        oc  :: OceanColumn,
-        ua  :: Float64,
-        B0  :: Float64,
-        J0  :: Float64,
-        Δt  :: Float64 
+        oc      :: OceanColumn,
+        u_fric  :: Float64,
+        B0      :: Float64,
+        J0      :: Float64,
+        Δt      :: Float64 
     )
 
 # Description
@@ -13,11 +13,11 @@ This function update the OceanColumn forward in time.
 
 """
 function stepOceanColumn!(;
-    oc  :: OceanColumn,
-    ua  :: Float64, # Currently assumed to be u10
-    B0  :: Float64,
-    J0  :: Float64,
-    Δt  :: Float64 
+    oc     :: OceanColumn,
+    fric_u :: Float64, # Currently assumed to be u10
+    B0     :: Float64,
+    J0     :: Float64,
+    Δt     :: Float64 
 )
     # Pseudo code
     # Current using only Euler forward scheme:
@@ -46,7 +46,7 @@ function stepOceanColumn!(;
         Δb = 0.0
     end
 
-    fric_u = getFricU(ua=ua)
+    #fric_u = getFricU(ua=ua)
     flag, val = calWeOrMLD(; h_ML=oc.h_ML, B=B0+J0, fric_u=fric_u, Δb=Δb) 
     #println("Before:" , oc.bs[10], "; oc.FLDO = ", oc.FLDO, "; Δb = ", Δb)
 

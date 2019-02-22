@@ -27,7 +27,6 @@ end
 
 println("===== INITIALIZING SSM =====")
 
-
 stage = :INIT
 mail = MailboxInfo()
 map = NetCDFIO.MapInfo{Float64}(domain_file)
@@ -38,10 +37,6 @@ ncio = NetCDFIO.MapInfo{Float64}(domain_file)
 buffer2d  = zeros(UInt8, map.lsize * 8)
 sst       = zeros(Float64, map.lsize)
 mld       = copy(sst)
-hflx      = copy(sst)
-swflx     = copy(sst)
-taux      = copy(sst)
-tauy      = copy(sst)
 qflux2atm = copy(sst)
 
 sumflx      = copy(sst)
@@ -51,8 +46,8 @@ output_vars = Dict(
     "sst"       => reshape(sst,       map.nx, map.ny),
     "sumflx"    => reshape(sumflx,    map.nx, map.ny),
     "qflux2atm" => reshape(qflux2atm, map.nx, map.ny),
+    "fric_u"    => reshape(occ.wksp.fric_u, map.nx, map.ny),
 )
-
 
 # Mask data
 SSM.maskData!(occ, sst)
@@ -103,24 +98,22 @@ while true
         stage = :RUN
         
     elseif stage == :RUN && msg["MSG"] == "RUN"
-        readBinary!(msg["HFLX"],   hflx, buffer2d; endianess=:little_endian, delete=false)
-        readBinary!(msg["SWFLX"], swflx, buffer2d; endianess=:little_endian, delete=false)
-        readBinary!(msg["TAUX"],   taux, buffer2d; endianess=:little_endian, delete=false)
-        readBinary!(msg["TAUY"],   tauy, buffer2d; endianess=:little_endian, delete=false)
+        readBinary!(msg["HFLX"],   occ.wksp.hflx,  buffer2d; endianess=:little_endian, delete=false)
+        readBinary!(msg["SWFLX"],  occ.wksp.swflx, buffer2d; endianess=:little_endian, delete=false)
+        readBinary!(msg["TAUX"],   occ.wksp.taux,  buffer2d; endianess=:little_endian, delete=false)
+        readBinary!(msg["TAUY"],   occ.wksp.tauy,  buffer2d; endianess=:little_endian, delete=false)
 
-        hflx  .*= -1.0
-        swflx .*= -1.0
-        sumflx .= hflx + swflx
-        SSM.maskData!(occ, sumflx)
+        
+        occ.wksp.hflx  .*= -1.0
+        occ.wksp.swflx .*= -1.0
+        sumflx .= occ.wksp.hflx + occ.wksp.swflx
+
+
         
         println("Do complicated, magical calculations...")
         
         SSM.stepOceanColumnCollection!(
             occ   = occ,
-            u     = taux,
-            v     = tauy,
-            hflx  = hflx,
-            swflx = swflx,
             Δt    = parse(Float64, msg["DT"])
         )
 
@@ -130,6 +123,8 @@ while true
         writeBinary!(msg["SST_NEW"], sst, buffer2d; endianess=:little_endian)
         send(mail, msg["SST_NEW"])
 
+        SSM.maskData!(occ, sumflx)
+        SSM.maskData!(occ, occ.wksp.fric_u)
         NetCDFIO.write2NCFile(map, output_filename, output_vars; time=wrap_time(time_i), missing_value=map.missing_value)
         
         time_i += 1

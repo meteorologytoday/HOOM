@@ -11,21 +11,20 @@ using ..MLMML
 missing_value = 1e20
 
 
+include("Workspace.jl")
 include("OceanColumnCollection.jl")
 
 function stepOceanColumnCollection!(;
     occ   :: OceanColumnCollection,
-    u     :: Array{Float64, 1},
-    v     :: Array{Float64, 1},
-    hflx  :: Array{Float64, 1},
-    swflx :: Array{Float64, 1},
     Δt    :: Float64,
 
 )
+    wksp = occ.wksp
+    
 
-    ua   = (u.^2 + v.^2).^0.5
-    hflx  *= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
-    swflx *= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
+    wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 + (wksp.tauy).^2.0) / MLMML.ρ)
+    wksp.hflx   *= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
+    wksp.swflx  *= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
     
     for l = 1:occ.N_ocs
 
@@ -33,12 +32,12 @@ function stepOceanColumnCollection!(;
             continue
         end        
 
-        MLMML.stepOceanColumn!(
-            oc = occ.ocs[l],
-            ua = ua[l],
-            B0 = hflx[l],
-            J0 = swflx[l],
-            Δt = Δt,
+        MLMML.stepOceanColumn!(;
+            oc     = occ.ocs[l],
+            fric_u = wksp.fric_u[l],
+            B0     = wksp.hflx[l],
+            J0     = wksp.swflx[l],
+            Δt     = Δt,
         )
     end
 

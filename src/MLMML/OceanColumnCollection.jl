@@ -1,4 +1,3 @@
-
 mutable struct OceanColumnCollection
     N_ocs    :: Integer           # Number of columns
     N        :: Integer           # Number of layers
@@ -13,6 +12,9 @@ mutable struct OceanColumnCollection
 
     
     ocs    :: Array{MLMML.OceanColumn, 1}
+
+    # workspace
+    wksp   :: Workspace
 
     function OceanColumnCollection(;
         N_ocs  :: Integer,
@@ -56,7 +58,9 @@ mutable struct OceanColumnCollection
             )
         end 
 
-        return new(N_ocs, N, zs, K, mask, mask_idx, hs, Δzs, ocs)
+        wksp = Workspace(N_ocs)
+
+        return new(N_ocs, N, zs, K, mask, mask_idx, hs, Δzs, ocs, wksp)
     end
 
 end
