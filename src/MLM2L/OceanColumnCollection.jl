@@ -3,19 +3,15 @@ mutable struct OceanColumnCollection
     mask     :: Array{Float64}
     mask_idx :: Any
 
-    ocs    :: Array{MLMML.OceanColumn, 1}
+    Temp     :: Array{Float64}
+    h_ML     :: Array{Float64}
 
-    # workspace
     wksp   :: Workspace
 
     function OceanColumnCollection(;
         N_ocs  :: Integer,
-        N      :: Integer,
-        zs     :: Array{Float64, 1},
-        bs     :: Array{Float64, 1},
-        K      :: Float64,
-        b_ML   :: Float64,
-        h_ML   :: Float64,
+        Temp   :: Array{Float64},
+        h_ML   :: Array{Float64},
         FLDO   :: Integer,
         mask   :: Union{Array{Float64}, Nothing} = nothing,
     )
@@ -56,5 +52,6 @@ mutable struct OceanColumnCollection
     end
 
 end
+
 
 
