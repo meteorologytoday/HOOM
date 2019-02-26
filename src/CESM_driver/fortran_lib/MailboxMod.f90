@@ -241,7 +241,7 @@ subroutine mbm_hello(MI, max_try)
         return
     end if
 
-    if ((msg .eq. "<<TEST>>") .and. (len(msg) .eq. len("<<TEST>>"))) then
+    if (mbm_messageCompare(msg, "<<TEST>>")) then
         print *, "Recv hello!"
     else
         print *, len(msg), " : ", len("<<TEST>>")
