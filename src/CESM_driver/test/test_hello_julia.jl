@@ -12,7 +12,8 @@ MI = MailboxInfo()
 
 println("Program start.")
 
-hello(MI)
+send(MI, "xxx", 5)
+hello(MI; max_try=5)
 
 println("Program ends.")
 

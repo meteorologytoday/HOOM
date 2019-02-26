@@ -1,7 +1,10 @@
 
 module Mailbox
+using Formatting
 
 export MailboxInfo, hello, recv, send
+
+default_max_try = 100
 
 mutable struct MailboxInfo
 
@@ -30,35 +33,60 @@ function appendPath(MI::MailboxInfo, path::AbstractString)
     MI.lock_fn = joinpath(path, MI.lock_fn)
 end
 
-function lock(fn::Function, MI::MailboxInfo)
-    obtainLock(MI)
+function lock(
+    fn::Function,
+    MI::MailboxInfo,
+    max_try::Integer=default_max_try
+)
+
+
+    obtainLock(MI, max_try)
     fn()
     releaseLock(MI)
 end
 
 
-function obtainLock(MI::MailboxInfo)
-    while isfile(MI.lock_fn)
-        sleep(1)
-    end
+function obtainLock(MI::MailboxInfo, max_try::Integer)
+    
+    for i=1:max_try
+        if ! isfile(MI.lock_fn)
+            try
+                open(MI.lock_fn, "w") do io
+                end
+                break
+            catch
+            end
+        end
 
-    open(MI.lock_fn, "w") do io
+        if i != max_try
+            sleep(1)
+        else
+            throw(ErrorException(format("Cannot obtain lock: maximum try ({:d}) reached.", max_try)))
+        end
     end
-
 end
 
 function releaseLock(MI::MailboxInfo)
     rm(MI.lock_fn, force=true)
 end
 
-function recv(MI::MailboxInfo)
+function recv(MI::MailboxInfo, max_try::Integer=default_max_try)
     local result
 
-    while !isfile(MI.recv_fn)
-        sleep(1)
+    for i = 1:max_try
+        if isfile(MI.recv_fn)
+            get_through = true
+            break
+        end
+
+        if i != max_try
+            sleep(1)
+        else
+            throw(ErrorException(format("Error during receiving: maximum try ({:d}) reached.", max_try)))
+        end
     end
 
-    lock(MI) do
+    lock(MI, max_try) do
         open(MI.recv_fn, "r") do io
             result = strip(read(io, String))
         end
@@ -69,8 +97,8 @@ function recv(MI::MailboxInfo)
     return result
 end
 
-function send(MI::MailboxInfo, msg::AbstractString)
-    lock(MI) do
+function send(MI::MailboxInfo, msg::AbstractString, max_try::Integer=default_max_try)
+    lock(MI, max_try) do
         open(MI.send_fn, "w") do io
             write(io, msg)
         end
@@ -79,9 +107,9 @@ end
 
 
 
-function hello(MI::MailboxInfo)
-    send(MI, "<<TEST>>")
-    recv_msg = recv(MI) 
+function hello(MI::MailboxInfo; max_try::Integer=default_max_try)
+    send(MI, "<<TEST>>", max_try)
+    recv_msg = recv(MI, max_try) 
     if recv_msg != "<<TEST>>"
         throw(ErrorException("Weird message: " * recv_msg))
     end
