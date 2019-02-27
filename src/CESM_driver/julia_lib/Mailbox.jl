@@ -39,7 +39,6 @@ function lock(
     max_try::Integer=default_max_try
 )
 
-
     obtainLock(MI, max_try)
     fn()
     releaseLock(MI)
@@ -47,12 +46,16 @@ end
 
 
 function obtainLock(MI::MailboxInfo, max_try::Integer)
-    
+
+        
     for i=1:max_try
+        
+        print(format("\rGetting lock... {:d}/{:d}", i, max_try))
         if ! isfile(MI.lock_fn)
             try
                 open(MI.lock_fn, "w") do io
                 end
+                print("\r")
                 break
             catch
             end
@@ -73,9 +76,12 @@ end
 function recv(MI::MailboxInfo, max_try::Integer=default_max_try)
     local result
 
+
     for i = 1:max_try
+        print(format("\rDetect mail... ({:d}/{:d})", i, max_try))
         if isfile(MI.recv_fn)
             get_through = true
+            print("\r")
             break
         end
 
@@ -98,11 +104,14 @@ function recv(MI::MailboxInfo, max_try::Integer=default_max_try)
 end
 
 function send(MI::MailboxInfo, msg::AbstractString, max_try::Integer=default_max_try)
+
+    print("Sending... ")
     lock(MI, max_try) do
         open(MI.send_fn, "w") do io
             write(io, msg)
         end
     end
+    print("\r")
 end
 
 

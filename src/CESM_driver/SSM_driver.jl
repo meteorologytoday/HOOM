@@ -76,7 +76,7 @@ while true
     println(format("# Time counter : {:d}", time_i))
     println(format("# Stage        : {}", String(stage)))
 
-    msg = parseMsg(recv(mail))
+    msg = parseMsg(recv(mail, max_try))
     println("==== MESSAGE RECEIVED ====")
     print(json(msg, 4))
     println("==========================")
@@ -85,7 +85,7 @@ while true
 
         SSM.getInfo!(occ=occ, sst=sst, mld=mld)
         writeBinary!(msg["SST"], sst, buffer2d; endianess=:little_endian)
-        send(mail, msg["SST"])
+        send(mail, msg["SST"], max_try)
 
         NetCDFIO.write2NCFile(
             map, output_filename, output_vars;
@@ -121,7 +121,7 @@ while true
         SSM.getInfo!(occ=occ, sst=sst, mld=mld)
 
         writeBinary!(msg["SST_NEW"], sst, buffer2d; endianess=:little_endian)
-        send(mail, msg["SST_NEW"])
+        send(mail, msg["SST_NEW"], max_try)
 
         SSM.maskData!(occ, sumflx)
         SSM.maskData!(occ, occ.wksp.fric_u)
@@ -132,10 +132,9 @@ while true
     elseif stage == :RUN && msg["MSG"] == "END"
 
         println("Simulation ends peacefully.")
-        send(mail, "END")
         break
     else
-        send(mail, "CRASH")
+        send(mail, "CRASH", max_try)
         throw(ErrorException("Unknown status: stage " * stage * ", MSG: " * String(msg["MSG"])))
     end
 
