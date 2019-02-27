@@ -125,6 +125,7 @@ module docn_comp_mod
   character(1024)       :: x_msg, x_fn, x_datetime_str
   type(mbm_MailboxInfo) :: x_MI
   integer :: x_w_fd, x_r_fd, x_curr_ymd
+  integer :: x_stat, x_max_try
 
   real(R8), pointer     :: x_hflx(:), x_swflx(:), x_taux(:), x_tauy(:)
 
@@ -669,7 +670,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
       ! The following line is CESM 2 only 
       !call shr_cal_ymdtod2string(x_datetime_str, yy, mm, dd, currentTOD)
  
-      print *, "# WHAT TIME IS IT? ", x_datetime_str
+      print *, "# WHAT TIME IS IT? ", trim(x_datetime_str)
       
       lsize = mct_avect_lsize(o2x)
       do n = 1,SDOCN%nstreams
@@ -681,6 +682,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         ! I put all extra initialization here to avoid complication
 
+        x_max_try = 60 ! This is about 60 seconds
+        
         x_w_fd = mbm_get_file_unit()
         x_r_fd = mbm_get_file_unit()
 
@@ -715,10 +718,13 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         x_msg = "MSG:INIT;SST:"//trim(x_fn)//";"
          
         !call write_1Dfield(x_w_fd, x_fn, somtp, lsize)
-        call mbm_send(x_MI, x_msg)
+        call mbm_send(x_MI, x_msg, x_max_try, x_stat)
+        call stop_if_bad(x_stat, "INIT_SEND")
         
         print *, "Init msg sent: ", trim(x_msg), ". Now receiving ..."
-        call mbm_recv(x_MI, x_msg)
+        call mbm_recv(x_MI, x_msg, x_max_try, x_stat)
+        call stop_if_bad(x_stat, "INIT_RECV")
+
         if (mbm_messageCompare(x_msg, x_fn) .neqv. .true.) then
             print *, "SSM init failed. Recive message: ", x_msg
             call shr_sys_abort ('SSM init failed.')
@@ -775,11 +781,14 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         x_msg = trim(x_msg)//"SST_NEW:SST_NEW.bin;"
         write (x_msg, "(A, A, F10.2, A)") trim(x_msg), ";DT:", dt, ";"
-        call mbm_send(x_MI, x_msg)
-
+        call mbm_send(x_MI, x_msg, x_max_try, x_stat)
+        call stop_if_bad(x_stat, "RUN_SEND")
+ 
         ! SSM is doing some magical calculation...
 
-        call mbm_recv(x_MI, x_msg)
+        call mbm_recv(x_MI, x_msg, x_max_try, x_stat)
+        call stop_if_bad(x_stat, "RUN_RECV")
+
         call read_1Dfield(x_r_fd, trim(x_msg), somtp, lsize)
         call mbm_delFile(trim(x_msg), x_r_fd)
  
@@ -924,7 +933,8 @@ subroutine docn_comp_final()
 
 ! ===== XTT MODIFIED BEGIN =====
       x_msg = "MSG:END"
-      call mbm_send(x_MI, x_msg)
+      call mbm_send(x_MI, x_msg, x_max_try, x_stat)
+      call stop_if_bad(x_stat, "FINAL")
 ! ===== XTT MODIFIED END =====
  
    end if
@@ -935,5 +945,16 @@ end subroutine docn_comp_final
 !===============================================================================
 !===============================================================================
 
+! ===== XTT MODIFIED BEGIN =====
+subroutine stop_if_bad(stat, stage)
+    integer      :: stat
+    character(*) :: stage
+
+    if (stat /= 0) then
+          print *, 'MailBox error during stage ['//trim(stage)//']'
+          call shr_sys_abort('MailBox error during stage ['//trim(stage)//']')
+    end if
+end subroutine stop_if_bad
+! ===== XTT MODIFIED END   =====
 
 end module docn_comp_mod
