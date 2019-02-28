@@ -716,8 +716,9 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         !call write_1Dfield(x_w_fd, x_fn, somtp, lsize)
         call stop_if_bad(mbp_send(x_MI, x_msg), "INIT_SEND")
         
-        print *, "Init msg sent: ", trim(x_msg), ". Now receiving ..."
-        call stop_if_bad(mbp_send(x_MI, x_msg), "INIT_RECV")
+        print *, "Init msg sent: ", trim(x_msg), "."
+        print *, "Now receiving..."
+        call stop_if_bad(mbp_recv(x_MI, x_msg), "INIT_RECV")
 
         if (mbp_messageCompare(x_msg, x_fn) .neqv. .true.) then
             print *, "SSM init failed. Recive message: ", x_msg
