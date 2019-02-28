@@ -1,4 +1,4 @@
-include("SSM_config.jl")
+
 
 
 function parseMsg(msg::AbstractString)
