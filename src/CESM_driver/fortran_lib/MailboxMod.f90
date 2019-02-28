@@ -65,14 +65,18 @@ subroutine mbm_appendPath(MI, path)
 
 end subroutine 
 
-subroutine mbm_obtainLock(MI)
+subroutine mbm_obtainLock(MI, max_try, stat)
     type(mbm_MailboxInfo) :: MI
-
+    integer               :: max_try, stat
 
     logical :: file_exists
     integer :: io
 
-    do
+    logical :: get_through
+    integer :: try_cnt
+
+    get_through = .false.
+    do try_cnt = 1, max_try
         ! try to get lock
         inquire(file=MI%lock_fn, exist=file_exists)
         
@@ -80,19 +84,29 @@ subroutine mbm_obtainLock(MI)
             call sleep(1)
             cycle
         end if
-        
+       
+        ! Try to create a file 
         io = 0
         open(unit=MI%lock_fd, file=MI%lock_fn, form="formatted", access="stream", action="write", iostat=io)
         close(MI%lock_fd)
 
-        ! If open file fails then try again
+
         if (io == 0) then
+            ! If we did open a file then leave
+            get_through = .true.        
             exit
         else
+            ! But if open file fails then try again
             call sleep(1)
             cycle
         end if
     end do 
+
+    if (get_through .eqv. .true.) then
+        stat = 0
+    else
+        stat = 1
+    end if
 
 end subroutine
 
@@ -125,17 +139,24 @@ subroutine mbm_clean(MI)
 end subroutine
 
 
-subroutine mbm_recv(MI, msg)
+subroutine mbm_recv(MI, msg, max_try, stat)
     implicit none
     type(mbm_MailboxInfo)  :: MI
-    character(len=*) :: msg
+    character(len=*)       :: msg
+    integer                :: max_try
+    integer, intent(inout) :: stat
 
     integer :: io
     logical :: file_exists
+    integer :: try_cnt
 
-    do
+    logical :: get_through
+
+    get_through = .false.
+    do try_cnt = 1, max_try
         inquire(file=MI%recv_fn, exist=file_exists)
         if (file_exists .eqv. .true.) then
+            get_through = .true.
             exit
         else
             call sleep(1)
@@ -143,7 +164,17 @@ subroutine mbm_recv(MI, msg)
         end if
     end do
 
-    call mbm_obtainLock(MI)
+    if (get_through .eqv. .true.) then
+        stat = 0
+    else
+        stat = 1
+        return
+    end if
+
+    call mbm_obtainLock(MI, max_try, stat)
+    if (stat /= 0 ) then
+        return
+    end if
     
     io = 0
     open(unit=MI%recv_fd, file=MI%recv_fn, form="formatted", access="stream", action="read", iostat=io)
@@ -160,14 +191,21 @@ subroutine mbm_recv(MI, msg)
 end subroutine
 
 
-subroutine mbm_send(MI, msg)
+subroutine mbm_send(MI, msg, max_try, stat)
     implicit none
     type(mbm_MailboxInfo)  :: MI
-    character(len=*) :: msg
+    character(len=*)       :: msg
+    integer                :: max_try
+    integer, intent(inout) :: stat
+
 
     integer :: io
     
-    call mbm_obtainLock(MI)
+    call mbm_obtainLock(MI, max_try, stat)
+    if (stat /= 0 ) then
+        return
+    end if
+
     !print *, "Lock get" 
     io = 0
     open(unit=MI%send_fd, file=MI%send_fn, form="formatted", access="stream", action="write", iostat=io)
@@ -187,21 +225,35 @@ subroutine mbm_send(MI, msg)
 end subroutine
 
 
-subroutine mbm_hello(MI)
+subroutine mbm_hello(MI, max_try)
     implicit none
     type(mbm_MailboxInfo) :: MI
     character(256) :: msg
+    integer :: max_try
 
-    call mbm_recv(MI, msg)
+    integer :: stat
 
-    if ((msg .eq. "<<TEST>>") .and. (len(msg) .eq. len("<<TEST>>"))) then
+    print *, "Max try: ", max_try
+
+    call mbm_recv(MI, msg, max_try, stat)
+    if (stat /= 0) then
+        print *, "Something went wrong during recv stage... exit"
+        return
+    end if
+
+    if (mbm_messageCompare(msg, "<<TEST>>")) then
         print *, "Recv hello!"
     else
         print *, len(msg), " : ", len("<<TEST>>")
         print *, "Weird msg: [", msg, "]"
     end if
 
-    call mbm_send(MI, "<<TEST>>")
+    call mbm_send(MI, "<<TEST>>", max_try, stat)
+    if (stat /= 0) then
+        print *, "Something went wrong during send stage... exit"
+        return
+    end if
+
 
 end subroutine
 

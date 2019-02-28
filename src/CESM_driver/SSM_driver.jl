@@ -1,4 +1,4 @@
-include("SSM_config.jl")
+
 
 
 function parseMsg(msg::AbstractString)
@@ -132,7 +132,6 @@ while true
     elseif stage == :RUN && msg["MSG"] == "END"
 
         println("Simulation ends peacefully.")
-        send(mail, "END")
         break
     else
         send(mail, "CRASH")
