@@ -135,6 +135,7 @@ integer function mbp_send(MI, msg)
     mbp_send = 0
     open(unit=MI%send_fd, file=MI%send_fn, form="formatted", access="stream", action="write", iostat=mbp_send)
     if (mbp_send /= 0) then
+        print *, "[mbp_send] Error during open."
         close(MI%send_fd)
         return
     end if
@@ -142,6 +143,7 @@ integer function mbp_send(MI, msg)
     mbp_send = 0
     write (MI%send_fd, *, iostat=mbp_send) msg
     if (mbp_send /= 0) then
+        print *, "[mbp_send] Error during write."
         close(MI%send_fd)
         return
     end if

@@ -1,5 +1,5 @@
 include("../MLMML/SSM.jl")
-include("julia_lib/Mailbox.jl")
+include("julia_lib/MailboxPipe.jl")
 include("julia_lib/BinaryIO.jl")
 include("julia_lib/NetCDFIO.jl")
 
@@ -8,7 +8,7 @@ using ArgParse
 using Formatting
 using Printf
 using JSON
-using .Mailbox
+using .MailboxPipe
 using .BinaryIO
 using .SSM
 using .NetCDFIO
