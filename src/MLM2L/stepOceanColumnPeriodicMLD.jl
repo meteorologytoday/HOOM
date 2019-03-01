@@ -1,5 +1,4 @@
 """
-
     stepOceanColumn!(;
         oc  :: OceanColumn,
         ua  :: Float64,
@@ -12,15 +11,13 @@
 This function update the OceanColumn forward in time.
 
 """
-function stepOceanColumnPeriodic!(;
-    oc  :: OceanColumn,
-    ua  :: Float64, # Currently assumed to be u10
-    B0  :: Float64,
-    J0  :: Float64,
+function stepOceanColumnCollection!(;
+    occ  :: OceanColumnCollection,
+    F    :: Float64,
     Δt  :: Float64 
 )
     # Pseudo code
-    # Current using only Euler forward scheme:
+    # Current using only Trapidozal     forward scheme:
     # 1. Determine h at t+Δt
     # 2. Determine how many layers are going to be
     #    taken away by ML.
