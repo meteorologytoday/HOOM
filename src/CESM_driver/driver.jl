@@ -1,4 +1,18 @@
-include("parseMsg.jl")
+# This file should be included in a driver
+
+
+include("julia_lib/MailboxPipe.jl")
+include("julia_lib/BinaryIO.jl")
+include("julia_lib/NetCDFIO.jl")
+include("julia_lib/parseMsg.jl")
+
+using Formatting
+using Printf
+using JSON
+using .MailboxPipe
+using .BinaryIO
+using .SSM
+using .NetCDFIO
 
 if isdir(wdir)
     cd(wdir)
@@ -50,7 +64,7 @@ while true
 
         println("Calling initilizer")
         println("===== INITIALIZING MODEL: ", OM.name , " =====")
-        OM.init()
+        OMMODULE.init(OMDATA)
         println("===== ", OM.name, " IS READY =====")
 
         writeBinary!(msg["SST"], OM.getSST(), buffer2d; endianess=:little_endian)
@@ -67,7 +81,7 @@ while true
         end
        
         println("Calling ", OM.name, " to do MAGICAL calculations")
-        OM.run(
+        OMMODULE.run(OMDATA;
             t  = CESM_time,
             Δt = parse(Float64, msg["DT"])
         ) 
@@ -78,10 +92,12 @@ while true
         time_i += 1
 
     elseif stage == :RUN && msg["MSG"] == "END"
+        OMMODULE.final(OMDATA) 
 
         println("Simulation ends peacefully.")
         break
     else
+        OMMODULE.crash(OMDATA) 
         send(mail, "CRASH")
         throw(ErrorException("Unknown status: stage " * stage * ", MSG: " * String(msg["MSG"])))
     end
