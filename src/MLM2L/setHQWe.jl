@@ -20,11 +20,12 @@ function setHQWe(;
         data2 = occ.Q_ML, 
         period = occ.period, 
     )
-    println(occ.period)
-    println(t)
-    println(h_ML[1,:])
-    println(occ.t)
-    println(occ.h_ML[1,:])
+    
+    #println(occ.period)
+    #println(t)
+    #println(h_ML[1,:])
+    #println(occ.t)
+    #println(occ.h_ML[1,:])
 
     
 
