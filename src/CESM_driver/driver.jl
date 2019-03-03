@@ -14,21 +14,29 @@ using .BinaryIO
 using .SSM
 using .NetCDFIO
 
+vars_from_CESM = [
+    "SWFLX",
+    "HFLX",
+    "TAUX",
+    "TAUY",
+]
+
+vars_to_CESM = [
+    "SST",
+    "QFLX",
+]
+
+
 if isdir(wdir)
     cd(wdir)
 else
     throw(ErrorException("Working directory [ " * wdir * " ] does not exist."))
 end
 
-
-
 stage = :INIT
 mail = MailboxInfo()
 
 map = NetCDFIO.MapInfo{Float64}(domain_file)
-ncio = NetCDFIO.MapInfo{Float64}(domain_file)
-
-
 
 time_i = 1 
 wrap_time = i -> ((time_i-1) % output_record_length) + 1
@@ -64,7 +72,8 @@ while true
 
         println("Calling initilizer")
         println("===== INITIALIZING MODEL: ", OM.name , " =====")
-        OMMODULE.init(OMDATA)
+        OMDATA = OMMODULE.init(map)
+
         println("===== ", OM.name, " IS READY =====")
 
         writeBinary!(msg["SST"], OM.getSST(), buffer2d; endianess=:little_endian)
@@ -82,8 +91,9 @@ while true
        
         println("Calling ", OM.name, " to do MAGICAL calculations")
         OMMODULE.run(OMDATA;
-            t  = CESM_time,
-            Δt = parse(Float64, msg["DT"])
+            t     = CESM_time,
+            t_cnt = time_i,
+            Δt    = parse(Float64, msg["DT"])
         ) 
 
         writeBinary!(msg["SST_NEW"], OM.getSST(), buffer2d; endianess=:little_endian)
