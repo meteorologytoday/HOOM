@@ -714,8 +714,10 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
          
         call mbp_setDefault(x_MI)
 
+        x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"
+
         x_fn = "init_sst.bin"
-        x_msg = "MSG:INIT;SST:"//trim(x_fn)//";"
+        x_msg = trim(x_msg)//"SST:"//trim(x_fn)//";"
          
         !call write_1Dfield(x_w_fd, x_fn, somtp, lsize)
         call stop_if_bad(mbp_send(x_MI, x_msg), "INIT_SEND")
@@ -738,7 +740,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         end do
       else
 
-        x_msg = "MSG:RUN;"
+        x_msg = "MSG:RUN;CESMTIME:"//trim(x_datetime_str)//";"
+
         print *, "Not first call."
 
         do n = 1,lsize

@@ -70,12 +70,12 @@ while true
        
         println("Calling ", OMMODULE.name, " to do MAGICAL calculations")
         OMMODULE.run(OMDATA;
-            t     = CESM_time,
+            t     = [parse(Float64, msg["CESMTIME"])],
             t_cnt = time_i,
             Δt    = parse(Float64, msg["DT"])
         ) 
 
-        writeBinary!(msg["SST_NEW"], OM.getSST(), buffer2d; endianess=:little_endian)
+        writeBinary!(msg["SST_NEW"], OMDATA.sst, buffer2d; endianess=:little_endian)
         send(mail, msg["SST_NEW"])
 
         time_i += 1
@@ -91,6 +91,7 @@ while true
         throw(ErrorException("Unknown status: stage " * stage * ", MSG: " * String(msg["MSG"])))
     end
 
+    flush(stdout)
 end
 
 

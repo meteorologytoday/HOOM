@@ -69,6 +69,8 @@ subroutine docn_comp_run(clock, dt)
          
         call mbp_setDefault(x_MI)
 
+        x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"
+        
         x_fn = "init_sst.bin"
         call write_1Dfield(x_w_fd, x_fn, x_hflx, lsize)
  
@@ -76,7 +78,7 @@ subroutine docn_comp_run(clock, dt)
         call write_1Dfield(x_w_fd, x_fn, x_hflx, lsize)
         
         x_fn = "init_sst.bin"
-        x_msg = "MSG:INIT;SST:"//trim(x_fn)//";"
+        x_msg = trim(x_msg)//"SST:"//trim(x_fn)//";"
 
          
         call stop_if_bad(mbp_send(x_MI, x_msg), "INIT_SEND")
@@ -99,7 +101,7 @@ subroutine docn_comp_run(clock, dt)
         !end do
       else
 
-        x_msg = "MSG:RUN;"
+        x_msg = "MSG:RUN;CESMTIME:"//trim(x_datetime_str)//";"
         print *, "Not first call."
 
         ! ... Extract information from coupler ...
@@ -162,7 +164,7 @@ subroutine stop_if_bad(stat, stage)
     integer      :: stat
     character(*) :: stage
 
-    if (stat /= 0) then
+    if (stat > 0) then
           print *, 'MailBox error during stage ['//trim(stage)//']. Error state: ', stat
           call shr_sys_abort('MailBox error during stage ['//trim(stage)//']')
     end if
