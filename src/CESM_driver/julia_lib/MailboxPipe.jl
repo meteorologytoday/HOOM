@@ -2,7 +2,7 @@
 module MailboxPipe
 using Formatting
 
-export MailboxInfo, hello, recv, send
+export MailboxInfo, hello, recv, send, mkPipe, rmPipe
 
 default_max_try = 100
 
@@ -29,7 +29,23 @@ function verify(MI::MailboxInfo)
     end
 end
 
+function rmPipe(MI::MailboxInfo)
+    
+    for fn in [MI.send_fn, MI.recv_fn]
+        rm(fn, force=true)
+    end
 
+end
+
+
+function mkPipe(MI::MailboxInfo)
+    
+    rmPipe(MI) 
+    for fn in [MI.send_fn, MI.recv_fn]
+        run(`mkfifo $fn`)
+    end
+
+end
 
 
 function appendPath(MI::MailboxInfo, path::AbstractString)

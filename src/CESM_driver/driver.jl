@@ -1,5 +1,23 @@
 println("===== Universal Driver Initialization BEGIN =====")
 
+if isdir(wdir)
+    cd(wdir)
+else
+    throw(ErrorException("Working directory [ " * wdir * " ] does not exist."))
+end
+
+
+function parseCESMTIME!(ts::AbstractString, timeinfo::AbstractArray{Float64})
+
+    timeinfo[1] = parse(Float64, ts[1:4])
+    timeinfo[2] = parse(Float64, ts[5:6])
+    timeinfo[3] = parse(Float64, ts[7:8])
+    timeinfo[4] = parse(Float64, ts[10:17])
+end
+
+
+output_vars = Dict()
+
 vars_from_CESM = [
     "SWFLX",
     "HFLX",
@@ -12,33 +30,35 @@ vars_to_CESM = [
     "QFLX",
 ]
 
-if isdir(wdir)
-    cd(wdir)
-else
-    throw(ErrorException("Working directory [ " * wdir * " ] does not exist."))
-end
-
 stage = :INIT
 mail = MailboxInfo()
+#mkPipe(mail)
+
 map = NetCDFIO.MapInfo{Float64}(domain_file)
 
-time_i = 1 
+loop_i = 1
+nc_cnt = 1 
 output_filename = ""
-buffer2d  = zeros(UInt8, map.lsize * 8)
+buffer2d = zeros(UInt8, map.lsize * 8)
+timeinfo = zeros(Float64, 4) 
 
 println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
 OMDATA = OMMODULE.init(map)
+for (varname, var) in OMDATA.output_vars
+    output_vars[varname] = reshape(var, map.nx, map.ny)
+end
+
 println("===== ", OMMODULE.name, " IS READY =====")
 
 beg_time = Base.time()
 while true
 
-    global OMDATA, stage, time_i, output_filename
+    global OMDATA, stage, loop_i, output_filename, nc_cnt
 
     end_time = Base.time()
 
     println(format("Execution time: {:d}", floor(end_time - beg_time)))
-    println(format("# Time counter : {:d}", time_i))
+    println(format("# Time counter : {:d}", loop_i))
     println(format("# Stage        : {}", String(stage)))
 
     msg = parseMsg(recv(mail))
@@ -46,13 +66,31 @@ while true
     print(json(msg, 4))
     println("==========================")
 
-    # need to parse time
+    if msg["MSG"] in ["INIT", "RUN"]
+        parseCESMTIME!(msg["CESMTIME"], timeinfo)
+        if loop_i == 1 || (timeinfo[2] == 1.0 && timeinfo[3] == 1.0 && timeinfo[4] == 0.0)
+            output_filename = format("SSM_output_{:04d}.nc", Int(timeinfo[1]))
+            NetCDFIO.createNCFile(map, output_filename)
+            nc_cnt = 1
+        end
+    end
 
     if stage == :INIT && msg["MSG"] == "INIT"
 
         writeBinary!(msg["SST"], OMDATA.sst, buffer2d; endianess=:little_endian)
         send(mail, msg["SST"])
-        time_i += 1
+
+
+
+        NetCDFIO.write2NCFile(
+            map,
+            output_filename,
+            output_vars;
+            time=nc_cnt,
+            missing_value=map.missing_value
+        )
+        nc_cnt += 1
+
 
         stage = :RUN
         
@@ -70,19 +108,30 @@ while true
        
         println("Calling ", OMMODULE.name, " to do MAGICAL calculations")
         OMMODULE.run(OMDATA;
-            t     = [parse(Float64, msg["CESMTIME"])],
-            t_cnt = time_i,
+            t     = timeinfo,
+            t_cnt = loop_i,
             Δt    = parse(Float64, msg["DT"])
         ) 
+
+        NetCDFIO.write2NCFile(
+            map,
+            output_filename,
+            output_vars;
+            time=nc_cnt,
+            missing_value=map.missing_value
+        )
+        nc_cnt += 1
 
         writeBinary!(msg["SST_NEW"], OMDATA.sst, buffer2d; endianess=:little_endian)
         send(mail, msg["SST_NEW"])
 
-        time_i += 1
+
 
     elseif stage == :RUN && msg["MSG"] == "END"
         OMMODULE.final(OMDATA) 
-
+        
+        # Print some report... ?
+        
         println("Simulation ends peacefully.")
         break
     else
@@ -91,6 +140,7 @@ while true
         throw(ErrorException("Unknown status: stage " * stage * ", MSG: " * String(msg["MSG"])))
     end
 
+    loop_i += 1
     flush(stdout)
 end
 

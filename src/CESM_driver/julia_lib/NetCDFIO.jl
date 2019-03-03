@@ -81,7 +81,7 @@ function write2NCFile(
 ) where T <: float
 
     for (varname, var) in vars
-        println("varname: ", varname)
+        #println("varname: ", varname)
         write2NCFile(
             mi, filename, varname, var;
             time=time,
@@ -133,17 +133,15 @@ function write2NCFile(
         if time == nothing # append at last
 
             old_time_len = size(ds_var, 3)
-
             _beg = 1 + old_time_len
             _end = _beg + append_time_len - 1
+
             ds_var[:, :, _beg:_end] = var
 
         elseif typeof(time) <: Integer
 
             _beg = time
             _end = _beg + append_time_len - 1
-
-            #println(_beg , "; ", _end)
 
             ds_var[:, :, _beg:_end] = var
 

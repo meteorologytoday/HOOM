@@ -669,7 +669,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
       print *, "XTT modified code."
       
       ! CESM 1 does not provide shr_cal_ymdtod2string
-      write(x_datetime_str, '(2i8)') currentYMD, currentTOD
+      write(x_datetime_str, '(i0.8, A, i0.8)') currentYMD, "-", currentTOD
     
       ! The following line is CESM 2 only 
       !call shr_cal_ymdtod2string(x_datetime_str, yy, mm, dd, currentTOD)

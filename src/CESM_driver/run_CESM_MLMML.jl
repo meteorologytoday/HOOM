@@ -21,6 +21,7 @@ mutable struct MLMML_DATA
     occ         :: SSM.OceanColumnCollection
 
     CESM_containers :: Dict
+    output_vars     :: Dict
 
     sst :: AbstractArray{Float64}
     mld :: AbstractArray{Float64}
@@ -60,12 +61,11 @@ function init(map::NetCDFIO.MapInfo)
     )
  
     containers = Dict(
-        "SWFLX" => zeros(Float64, map.lsize),
-        "HFLX"  => zeros(Float64, map.lsize),
-        "TAUX"  => zeros(Float64, map.lsize),
-        "TAUY"  => zeros(Float64, map.lsize),
+        "SWFLX" => occ.wksp.swflx,
+        "HFLX"  => occ.wksp.hflx,
+        "TAUX"  => occ.wksp.taux,
+        "TAUY"  => occ.wksp.tauy,
     )
-
 
     sst       = zeros(Float64, map.lsize)
     mld       = copy(sst)
@@ -79,22 +79,24 @@ function init(map::NetCDFIO.MapInfo)
     SSM.maskData!(occ, sumflx)
 
     output_vars = Dict(
-        "mld"       => reshape(mld,       map.nx, map.ny),
-        "sst"       => reshape(sst,       map.nx, map.ny),
-        "sumflx"    => reshape(sumflx,    map.nx, map.ny),
-        "qflux2atm" => reshape(qflux2atm, map.nx, map.ny),
-        "fric_u"    => reshape(occ.wksp.fric_u, map.nx, map.ny),
+        "mld"       => mld,
+        "sst"       => sst,
+        "sumflx"    => sumflx,
+        "qflux2atm" => qflux2atm,
+        "fric_u"    => occ.wksp.fric_u,
     )
+    
+    SSM.getInfo!(occ=occ, sst=sst, mld=mld)
 
-       
     return MLMML_DATA(
         map,
         occ,
         containers,
+        output_vars,
         sst,
         mld,
         qflux2atm,
-        sumflx
+        sumflx,
     )
 
 end
@@ -105,16 +107,20 @@ function run(
     t_cnt :: Integer,
     Δt    :: Float64,
 )
-
+    
     wksp = MD.occ.wksp
-    wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 + (wksp.tauy).^2.0) / MLMML.ρ)
-    wksp.hflx   *= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
-    wksp.swflx  *= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
+    wksp.hflx   .*= -1
+    wksp.swflx  .*= -1
+
+    MD.sumflx .= wksp.hflx + wksp.swflx
 
     SSM.stepOceanColumnCollection!(;
         occ = MD.occ,
         Δt  = Δt,
     )
+
+    SSM.getInfo!(occ=MD.occ; sst=MD.sst, mld=MD.mld)
+
 end
 
 function final(MD::MLMML_DATA)

@@ -19,6 +19,5 @@ domain_file = "/home/tienyiah/cesm_inputdata/cesm1/share/domains/domain.ocn.gx3v
 zs = collect(Float64, range(0, -500, step=-5))
 K = 1e-5
 
-
 println("===== Default library, config END =====")
 

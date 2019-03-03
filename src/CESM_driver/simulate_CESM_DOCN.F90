@@ -9,7 +9,7 @@ program CESM_SIMULATE
 
     character(1024)       :: x_msg, x_fn, x_datetime_str
     type(mbp_MailboxInfo) :: x_MI
-    integer :: x_w_fd, x_r_fd, x_curr_ymd
+    integer :: x_w_fd, x_r_fd, x_curr_ymd, x_curr_tod
     integer :: x_stat, x_max_try
 
     real(8), pointer     :: x_hflx(:), x_swflx(:), x_taux(:), x_tauy(:)
@@ -24,25 +24,31 @@ program CESM_SIMULATE
 
     allocate(somtp(lsize))
 
+    x_curr_ymd = 10101
+    x_curr_tod = 1800
+
+
     call docn_comp_init()
     do t = 1, max_time
-        call docn_comp_run(t, 86400.0d0)
+        write (x_datetime_str, '(i0.8,A,i0.8)') x_curr_ymd, "-", x_curr_tod
+        call docn_comp_run(x_datetime_str, t, 86400.0d0)
     end do
     call docn_comp_final()
 
 
 CONTAINS
 
-subroutine docn_comp_run(clock, dt)
+subroutine docn_comp_run(clock, t, dt)
     implicit none
-    integer :: clock
+    character(*) :: clock
+    integer :: t
+    real(8) :: dt
 
     integer :: n, stat
     logical :: firstcall
-    real(8) :: dt
+
     
-    write (x_datetime_str, '(I5)') clock 
-    if (clock == 1) then
+    if (t == 1) then
         firstcall = .true.
     else
         firstcall = .false.

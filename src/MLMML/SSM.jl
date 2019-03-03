@@ -21,10 +21,9 @@ function stepOceanColumnCollection!(;
 )
     wksp = occ.wksp
     
-
     wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 + (wksp.tauy).^2.0) / MLMML.ρ)
-    wksp.hflx   *= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
-    wksp.swflx  *= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
+    wksp.hflx   .*= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
+    wksp.swflx  .*= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
     
     for l = 1:occ.N_ocs
 
