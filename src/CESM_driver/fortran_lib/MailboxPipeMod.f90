@@ -108,6 +108,7 @@ integer function mbp_recv(MI, msg)
     mbp_recv = 0
     open(unit=MI%recv_fd, file=MI%recv_fn, form="formatted", access="stream", action="read", iostat=mbp_recv)
     if (mbp_recv /= 0) then
+        print *, "ERROR OPENING PIPE STOP RECV"
         close(MI%recv_fd)
         return
     end if
@@ -115,6 +116,8 @@ integer function mbp_recv(MI, msg)
     mbp_recv = 0
     read (MI%recv_fd, '(A)', iostat=mbp_recv) msg
     if (mbp_recv /= 0) then
+        print *, msg
+        print *, "ERROR READING PIPE STOP RECV"
         close(MI%recv_fd)
         return
     end if

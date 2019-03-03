@@ -1,21 +1,18 @@
+include("default_config.jl")
+
 include("../MLMML/SSM.jl")
-include("julia_lib/MailboxPipe.jl")
-include("julia_lib/BinaryIO.jl")
-include("julia_lib/NetCDFIO.jl")
 
 using ArgParse
 using Printf
-using Formatting
-using JSON
 
-using .BinaryIO
-using .MailboxPipe
-using .NetCDFIO
-using .SSM
-
-
+#using .NetCDFIO
+#using .SSM
 
 module CESM_CORE_MLMML
+
+using ..NetCDFIO
+using ..SSM
+using ..MLMML
 
 name = "MLMML"
 
@@ -38,6 +35,9 @@ function init(map::NetCDFIO.MapInfo)
     init_h_ML     = MLMML.h_ML_min
     init_b_slope  = 30.0 / 5000.0 * MLMML.g * MLMML.α
     init_Δb       = 1.0 * MLMML.g * MLMML.α
+
+    zs = collect(Float64, range(0, -500, step=-5))
+    K = 1e-5
 
     tmp_oc = MLMML.makeSimpleOceanColumn(;
         zs       = zs,
@@ -123,8 +123,6 @@ end
 
 end
 
-include("default_config.jl")
-
 # ===== READ ALL CONFIG BEGIN =====
 function parse_commandline()
     s = ArgParseSettings()
@@ -150,6 +148,9 @@ if config_file != nothing
     include(config_file)
 end
 # ===== READ ALL CONFIG END =====
+
+OMMODULE = Main.CESM_CORE_MLMML
+
 
 
 include("driver.jl")
