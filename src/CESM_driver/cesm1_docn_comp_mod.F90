@@ -2,8 +2,12 @@
 @PROCESS ALIAS_SIZE(805306368)
 #endif
 
+! XTT MODIFICATION BEGIN
 include "./fortran_lib/field_tools.f90"
 include "./fortran_lib/MailboxPipeMod.f90"
+! XTT MODIFICATION ENDS
+
+
 
 module docn_comp_mod
 

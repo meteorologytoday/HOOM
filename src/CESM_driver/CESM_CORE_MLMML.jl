@@ -13,11 +13,22 @@ using .MailboxPipe
 using .NetCDFIO
 using .SSM
 
+
+
 module CESM_CORE_MLMML
+
+name = "MLMML"
 
 mutable struct MLMML_DATA
     map         :: NetCDFIO.MapInfo
     occ         :: SSM.OceanColumnCollection
+
+    CESM_containers :: Dict
+
+    sst :: AbstractArray{Float64}
+    mld :: AbstractArray{Float64}
+    qflux2atm :: AbstractArray{Float64} 
+    sumflx :: AbstractArray{Float64} 
 end
 
 
@@ -36,7 +47,6 @@ function init(map::NetCDFIO.MapInfo)
         Δb       = init_Δb,
     )
 
-
     occ = SSM.OceanColumnCollection(
         N_ocs = map.lsize,
         N     = length(zs)-1,
@@ -48,8 +58,44 @@ function init(map::NetCDFIO.MapInfo)
         FLDO  = tmp_oc.FLDO,
         mask  = map.mask
     )
-    
-    return MLMML_DATA(map, occ)
+ 
+    containers = Dict(
+        "SWFLX" => zeros(Float64, map.lsize),
+        "HFLX"  => zeros(Float64, map.lsize),
+        "TAUX"  => zeros(Float64, map.lsize),
+        "TAUY"  => zeros(Float64, map.lsize),
+    )
+
+
+    sst       = zeros(Float64, map.lsize)
+    mld       = copy(sst)
+    qflux2atm = copy(sst)
+    sumflx      = copy(sst)
+
+    # Mask data
+    SSM.maskData!(occ, sst)
+    SSM.maskData!(occ, mld)
+    SSM.maskData!(occ, qflux2atm)
+    SSM.maskData!(occ, sumflx)
+
+    output_vars = Dict(
+        "mld"       => reshape(mld,       map.nx, map.ny),
+        "sst"       => reshape(sst,       map.nx, map.ny),
+        "sumflx"    => reshape(sumflx,    map.nx, map.ny),
+        "qflux2atm" => reshape(qflux2atm, map.nx, map.ny),
+        "fric_u"    => reshape(occ.wksp.fric_u, map.nx, map.ny),
+    )
+
+       
+    return MLMML_DATA(
+        map,
+        occ,
+        containers,
+        sst,
+        mld,
+        qflux2atm,
+        sumflx
+    )
 
 end
 

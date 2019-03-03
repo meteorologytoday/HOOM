@@ -1,5 +1,7 @@
 # This file should be included in a driver
 
+println("===== Universal Driver Initialization BEGIN =====")
+
 
 include("julia_lib/MailboxPipe.jl")
 include("julia_lib/BinaryIO.jl")
@@ -46,7 +48,7 @@ output_filename = ""
 beg_time = Base.time()
 while true
 
-    global stage, time_i, output_filename
+    global OMDATA, stage, time_i, output_filename
 
     end_time = Base.time()
 
@@ -85,8 +87,14 @@ while true
         
     elseif stage == :RUN && msg["MSG"] == "RUN"
 
-        for varname in needed_varnames 
-            readBinary!(msg[varname],   needed_var_containers[varname], buffer2d; endianess=:little_endian, delete=false)
+        for (varname, container) in OMDATA.CESM_containers
+            readBinary!(
+                msg[varname],
+                container,
+                buffer2d;
+                endianess=:little_endian,
+                delete=false
+            )
         end
        
         println("Calling ", OM.name, " to do MAGICAL calculations")
