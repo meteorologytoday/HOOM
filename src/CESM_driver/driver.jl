@@ -9,10 +9,10 @@ end
 
 function parseCESMTIME!(ts::AbstractString, timeinfo::AbstractArray{Integer})
 
-    timeinfo[1] = parse(Integer, ts[1:4])
-    timeinfo[2] = parse(Integer, ts[5:6])
-    timeinfo[3] = parse(Integer, ts[7:8])
-    timeinfo[4] = parse(Integer, ts[10:17])
+    timeinfo[1] = parse(Int, ts[1:4])
+    timeinfo[2] = parse(Int, ts[5:6])
+    timeinfo[3] = parse(Int, ts[7:8])
+    timeinfo[4] = parse(Int, ts[10:17])
 end
 
 
@@ -42,12 +42,6 @@ output_filename = ""
 buffer2d = zeros(UInt8, map.lsize * 8)
 timeinfo = zeros(Integer, 4) 
 
-println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
-OMDATA = OMMODULE.init(map)
-for (varname, var) in OMDATA.output_vars
-    output_vars[varname] = reshape(var, map.nx, map.ny)
-end
-
 println("===== ", OMMODULE.name, " IS READY =====")
 
 beg_time = Base.time()
@@ -76,6 +70,13 @@ while true
     end
 
     if stage == :INIT && msg["MSG"] == "INIT"
+
+        println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
+        OMDATA = OMMODULE.init(map=map, t=timeinfo)
+        for (varname, var) in OMDATA.output_vars
+            output_vars[varname] = reshape(var, map.nx, map.ny)
+        end
+
 
         writeBinary!(msg["SST"], OMDATA.sst, buffer2d; endianess=:little_endian)
         send(mail, msg["SST"])

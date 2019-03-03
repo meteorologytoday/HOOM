@@ -6,18 +6,27 @@ function setHQWe(;
 )
 
     interpolatePeriodic!(
-        time1 :: t,
-        data1 :: h_ML,
-        time2 :: occ.t,
-        data2 :: occ.h_ML 
+        time1 = t,
+        data1 = h_ML,
+        time2 = occ.t,
+        data2 = occ.h_ML,
+        period = occ.period, 
     )
 
     interpolatePeriodic!(
-        time1 :: t,
-        data1 :: Q_ML,
-        time2 :: occ.t,
-        data2 :: occ.Q_ML 
+        time1 = t,
+        data1 = Q_ML,
+        time2 = occ.t,
+        data2 = occ.Q_ML, 
+        period = occ.period, 
     )
+    println(occ.period)
+    println(t)
+    println(h_ML[1,:])
+    println(occ.t)
+    println(occ.h_ML[1,:])
+
+    
 
     Δtt = 2.0 * occ.Δt
     for i = 1:occ.N_ocs

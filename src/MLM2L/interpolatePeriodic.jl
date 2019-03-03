@@ -42,15 +42,21 @@ function _interpolateMatrix(
     time1_ext = zeros(Float64, N_ext)
 
     time1_ext[1]       = time1[end] - period
-    time1_ext[2:end-1] = time1[1:end]
+
+    if length(time1) > 1
+        time1_ext[2:end-1] = time1[1:end]
+    end
+
     time1_ext[end]     = time1[1] + period
 
     mtx = spzeros(Float64, length(time2), length(time1))
    
-    println(time1_ext)
-    println(time2)
-
- 
+    if length(time1) == 1
+        mtx .= 1.0
+        return mtx
+    end
+    
+    # The algorithm below assume length(time1) > 1
     i_2 = 1
     done = false
     for i = 1:N_ext-1
@@ -61,9 +67,11 @@ function _interpolateMatrix(
             Δt = tb - ta
             ia = (i   ==     1  ) ? length(time1) : i-1
             ib = (i   == N_ext-1) ? 1             : i
-            println("i_2: ", i_2, "; i: ", i, " | ", ia, ":", ib)
+            
             mtx[i_2, ia] = (tb - time2[i_2]) / Δt
             mtx[i_2, ib] = (time2[i_2] - ta) / Δt
+
+            #println(tb - time2[i_2], "; ", time2[i_2] - ta, "; ", Δt, "; ", ia, " , ", ib)
 
             if i_2 < length(time2)
                 i_2 += 1

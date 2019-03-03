@@ -24,6 +24,8 @@ function stepOceanColumnCollection!(;
                 - occ.we[i, idx] * (occ.b_ML[i] - occ.b_DO[i])
                 + αgρc * (F[i] + occ.Q_ML[i, idx])
             ) / occ.h_ML[i, idx]
+
+        #println(occ.we[i, idx], "; ", F[i] + occ.Q_ML[i, idx])
     end
 
 end

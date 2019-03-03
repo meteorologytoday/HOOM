@@ -30,9 +30,9 @@ mutable struct MLMML_DATA
 end
 
 
-function init(
+function init(;
     map :: NetCDFIO.MapInfo,
-    t   :: AbstractArray{Float64},
+    t   :: AbstractArray{Integer},
 )
 
     init_b_ML     = 280.0 * MLMML.g * MLMML.α
@@ -106,7 +106,7 @@ end
 
 function run(
     MD    :: MLMML_DATA;
-    t     :: AbstractArray{Float64},
+    t     :: AbstractArray{Integer},
     t_cnt :: Integer,
     Δt    :: Float64,
 )

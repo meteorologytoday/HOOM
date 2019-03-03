@@ -27,17 +27,12 @@ mutable struct MLM2L_DATA
 end
 
 
-function init(
+function init(;
     map::NetCDFIO.MapInfo,
     t     :: AbstractArray{Integer},
 )
 
     daycnt = date2daycnt(t[2], t[3])
-
-    init_b_ML     = 280.0 * MLM2L.g * MLM2L.α
-    init_h_ML     = MLM2L.h_ML_min
-
-    b_DO          = (273.15 + 2.0) * MLM2L.g * MLM2L.α
 
     occ = MLM2L.makeBlankOceanColumnCollection(
         N_ocs    = map.lsize,
@@ -46,6 +41,24 @@ function init(
         t        = collect(Float64, 0:364) * 86400.0,
         mask  = map.mask,
     )
+
+    # 
+    # Need to add code to specify h and Q.
+    #
+
+    init_b_ML = (273.15 + 10.0) * MLM2L.g * MLM2L.α
+    b_DO      = (273.15 +  2.0) * MLM2L.g * MLM2L.α
+
+    h_ML = zeros(Float64, map.lsize, 1)
+    Q_ML = copy(h_ML)
+    t    = [1.0]
+
+    h_ML .= 30.0
+
+    MLM2L.setHQWe(occ=occ, h_ML=h_ML, Q_ML=Q_ML, t=t)
+    occ.b_DO .= b_DO
+    occ.b_ML .= init_b_ML
+
  
     sst       = zeros(Float64, map.lsize)
     mld       = copy(sst)
@@ -85,7 +98,7 @@ function run(
     t_cnt :: Integer,
     Δt    :: Float64,
 )
-    daycnt = date2daycnt(t[2], t[3]),
+    daycnt = date2daycnt(t[2], t[3])
    
     MD.sumflx .=  MD.CESM_containers["HFLX"]
     MD.sumflx .+= MD.CESM_containers["SWFLX"]
@@ -97,7 +110,7 @@ function run(
         Δt  = Δt,
     )
 
-    SSM.getInfo!(occ=MD.occ; sst=MD.sst, mld=MD.mld, idx=daycnt)
+    MLM2L.getInfo!(occ=MD.occ; sst=MD.sst, mld=MD.mld, idx=daycnt)
 
 end
 
@@ -121,6 +134,8 @@ function date2daycnt(
     end
 
     return beg_of_m[m] + d - 1
+end
+
 end
 
 # ===== READ ALL CONFIG BEGIN =====
