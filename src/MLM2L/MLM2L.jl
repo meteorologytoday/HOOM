@@ -7,6 +7,7 @@ include("constants.jl")
 include("OceanColumnCollection.jl")
 include("stepOceanColumnCollection.jl")
 include("interpolatePeriodic.jl")
-include("calWe.jl")
+include("setHQWe.jl")
+include("getInfo.jl")
 
 end

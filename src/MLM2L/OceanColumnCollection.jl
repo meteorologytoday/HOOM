@@ -54,7 +54,7 @@ function makeBlankOceanColumnCollection(;
     if period == nothing
         period = convert(Float64, period_n)
     end
-    println("!!", period_n)
+    
     return OceanColumnCollection(
         N_ocs  = N_ocs,
         b_ML   = zeros(Float64, N_ocs),

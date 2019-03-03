@@ -1,4 +1,4 @@
-function setHQ(;
+function setHQWe(;
     occ :: OceanColumnCollection,
     h_ML:: Array{Float64, 2},
     Q_ML:: Array{Float64, 2},

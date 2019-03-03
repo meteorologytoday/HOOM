@@ -7,12 +7,12 @@ else
 end
 
 
-function parseCESMTIME!(ts::AbstractString, timeinfo::AbstractArray{Float64})
+function parseCESMTIME!(ts::AbstractString, timeinfo::AbstractArray{Integer})
 
-    timeinfo[1] = parse(Float64, ts[1:4])
-    timeinfo[2] = parse(Float64, ts[5:6])
-    timeinfo[3] = parse(Float64, ts[7:8])
-    timeinfo[4] = parse(Float64, ts[10:17])
+    timeinfo[1] = parse(Integer, ts[1:4])
+    timeinfo[2] = parse(Integer, ts[5:6])
+    timeinfo[3] = parse(Integer, ts[7:8])
+    timeinfo[4] = parse(Integer, ts[10:17])
 end
 
 
@@ -40,7 +40,7 @@ loop_i = 1
 nc_cnt = 1 
 output_filename = ""
 buffer2d = zeros(UInt8, map.lsize * 8)
-timeinfo = zeros(Float64, 4) 
+timeinfo = zeros(Integer, 4) 
 
 println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
 OMDATA = OMMODULE.init(map)
@@ -68,7 +68,7 @@ while true
 
     if msg["MSG"] in ["INIT", "RUN"]
         parseCESMTIME!(msg["CESMTIME"], timeinfo)
-        if loop_i == 1 || (timeinfo[2] == 1.0 && timeinfo[3] == 1.0 && timeinfo[4] == 0.0)
+        if loop_i == 1 || (timeinfo[2] == 1 && timeinfo[3] == 1 && timeinfo[4] == 0)
             output_filename = format("SSM_output_{:04d}.nc", Int(timeinfo[1]))
             NetCDFIO.createNCFile(map, output_filename)
             nc_cnt = 1
