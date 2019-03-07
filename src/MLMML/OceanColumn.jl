@@ -11,6 +11,9 @@ mutable struct OceanColumn
     hs     :: Array{Float64, 1} # Thickness of layers
     Δzs    :: Array{Float64, 1} # Δz between layers
 
+
+    qflux2atm :: Float64        # The energy flux to atmosphere if freezes
+
     function OceanColumn(;
         N      :: Integer,
         zs     :: Array{Float64, 1},
@@ -31,7 +34,7 @@ mutable struct OceanColumn
             Δzs = (hs[1:end-1] + hs[2:end]) / 2.0
         end
 
-        return new(N, zs, Base.copy(bs), K, b_ML, h_ML, FLDO, hs, Δzs)
+        return new(N, zs, Base.copy(bs), K, b_ML, h_ML, FLDO, hs, Δzs, 0.0)
     end
 end
 

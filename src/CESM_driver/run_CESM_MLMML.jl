@@ -73,8 +73,8 @@ function init(;
 
     sst       = zeros(Float64, map.lsize)
     mld       = copy(sst)
-    qflx2atm = copy(sst)
-    sumflx      = copy(sst)
+    qflx2atm  = copy(sst)
+    sumflx    = copy(sst)
 
     # Mask data
     SSM.maskData!(occ, sst)
