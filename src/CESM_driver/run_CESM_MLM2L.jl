@@ -21,7 +21,7 @@ mutable struct MLM2L_DATA
 
     sst :: AbstractArray{Float64}
     mld :: AbstractArray{Float64}
-    qflux2atm :: AbstractArray{Float64} 
+    qflx2atm :: AbstractArray{Float64} 
     sumflx :: AbstractArray{Float64}
 
 end
@@ -62,7 +62,7 @@ function init(;
  
     sst       = zeros(Float64, map.lsize)
     mld       = copy(sst)
-    qflux2atm = copy(sst)
+    qflx2atm = copy(sst)
     sumflx    = copy(sst)
 
     CESM_containers = Dict(
@@ -74,10 +74,10 @@ function init(;
         "mld"       => mld,
         "sst"       => sst,
         "sumflx"    => sumflx,
-        "qflux2atm" => qflux2atm,
+        "qflx2atm" => qflx2atm,
     )
     
-    MLM2L.getInfo!(occ=occ, sst=sst, mld=mld, idx=daycnt)
+    MLM2L.getInfo!(occ=occ, sst=sst, mld=mld, idx=daycnt, qflx2atm=qflx2atm)
 
     return MLM2L_DATA(
         map,
@@ -86,7 +86,7 @@ function init(;
         output_vars,
         sst,
         mld,
-        qflux2atm,
+        qflx2atm,
         sumflx,
     )
 

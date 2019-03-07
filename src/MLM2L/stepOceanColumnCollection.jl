@@ -25,6 +25,10 @@ function stepOceanColumnCollection!(;
                 + αgρc * (F[i] + occ.Q_ML[i, idx])
             ) / occ.h_ML[i, idx]
 
+        T = occ.b_ML[i] / (α * g) + T_ref
+        occ.qflx2atm[i] = (T_sw_frz - T) * ρ * c_p * occ.h_ML[i, idx] / Δt
+        occ.b_ML[i] = max(b_sw_frz, occ.b_ML[i])
+ 
         #println(occ.we[i, idx], "; ", F[i] + occ.Q_ML[i, idx])
     end
 

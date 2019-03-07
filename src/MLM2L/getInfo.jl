@@ -3,6 +3,7 @@ function getInfo!(;
     sst :: Union{Array{Float64}, Nothing} = nothing,
     mld :: Union{Array{Float64}, Nothing} = nothing,
     idx :: Union{Integer, Nothing} = nothing,
+    qflx2atm :: Union{Array{Float64}, Nothing} = nothing,
 )
     if mld != nothing
         if idx == nothing
@@ -18,9 +19,7 @@ function getInfo!(;
     end
 
     if sst != nothing
-
         for l = 1:occ.N_ocs
-
           if occ.mask[l] == 0.0
               continue
           end
@@ -28,6 +27,17 @@ function getInfo!(;
         end
 
     end
+
+    if qflx2atm != nothing
+        for l = 1:occ.N_ocs
+            if occ.mask[l] == 0.0
+                continue
+            end
+            qflx2atm[l] = occ.qflx2atm[l]
+        end
+    end
+
+
 end
 
 
