@@ -23,6 +23,7 @@ vars_from_CESM = [
     "HFLX",
     "TAUX",
     "TAUY",
+    "IFRAC",
 ]
 
 vars_to_CESM = [
@@ -77,11 +78,9 @@ while true
             output_vars[varname] = reshape(var, map.nx, map.ny)
         end
 
-
         writeBinary!(msg["SST"], OMDATA.sst, buffer2d; endianess=:little_endian)
-        send(mail, msg["SST"])
-
-
+        writeBinary!(msg["QFLX"], OMDATA.qflx2atm, buffer2d; endianess=:little_endian)
+        send(mail, "OK")
 
         NetCDFIO.write2NCFile(
             map,
@@ -123,10 +122,9 @@ while true
         )
         nc_cnt += 1
 
-        writeBinary!(msg["SST_NEW"], OMDATA.sst, buffer2d; endianess=:little_endian)
-        send(mail, msg["SST_NEW"])
-
-
+        writeBinary!(msg["SST"], OMDATA.sst, buffer2d; endianess=:little_endian)
+        writeBinary!(msg["QFLX"], OMDATA.qflx2atm, buffer2d; endianess=:little_endian)
+        send(mail, "OK")
 
     elseif stage == :RUN && msg["MSG"] == "END"
         OMMODULE.final(OMDATA) 

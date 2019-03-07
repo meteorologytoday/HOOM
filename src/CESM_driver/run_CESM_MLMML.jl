@@ -25,7 +25,7 @@ mutable struct MLMML_DATA
 
     sst :: AbstractArray{Float64}
     mld :: AbstractArray{Float64}
-    qflux2atm :: AbstractArray{Float64} 
+    qflx2atm :: AbstractArray{Float64} 
     sumflx :: AbstractArray{Float64} 
 end
 
@@ -68,25 +68,27 @@ function init(;
         "HFLX"  => occ.wksp.hflx,
         "TAUX"  => occ.wksp.taux,
         "TAUY"  => occ.wksp.tauy,
+        "IFRAC"  => occ.wksp.ifrac,
     )
 
     sst       = zeros(Float64, map.lsize)
     mld       = copy(sst)
-    qflux2atm = copy(sst)
+    qflx2atm = copy(sst)
     sumflx      = copy(sst)
 
     # Mask data
     SSM.maskData!(occ, sst)
     SSM.maskData!(occ, mld)
-    SSM.maskData!(occ, qflux2atm)
+    SSM.maskData!(occ, qflx2atm)
     SSM.maskData!(occ, sumflx)
 
     output_vars = Dict(
         "mld"       => mld,
         "sst"       => sst,
         "sumflx"    => sumflx,
-        "qflux2atm" => qflux2atm,
+        "qflx2atm" => qflx2atm,
         "fric_u"    => occ.wksp.fric_u,
+        "ifrac"    => occ.wksp.ifrac,
     )
     
     SSM.getInfo!(occ=occ, sst=sst, mld=mld)
@@ -98,7 +100,7 @@ function init(;
         output_vars,
         sst,
         mld,
-        qflux2atm,
+        qflx2atm,
         sumflx,
     )
 
