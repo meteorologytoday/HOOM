@@ -3,7 +3,8 @@ using Printf
 using Formatting
 using SparseArrays
 
-include("constants.jl")
+include("../share/constants.jl")
+include("extra_constants.jl")
 include("OceanColumn.jl")
 include("calWeOrMLD.jl")
 include("doConvectiveAdjustment.jl")

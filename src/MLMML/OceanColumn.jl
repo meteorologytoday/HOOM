@@ -12,7 +12,7 @@ mutable struct OceanColumn
     Δzs    :: Array{Float64, 1} # Δz between layers
 
 
-    qflux2atm :: Float64        # The energy flux to atmosphere if freezes
+    qflx2atm :: Float64        # The energy flux to atmosphere if freezes
 
     function OceanColumn(;
         N      :: Integer,

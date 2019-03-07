@@ -89,6 +89,13 @@ function stepOceanColumn!(;
     
     OC_doDiffusion_EulerBackward!(oc, Δt=Δt)
     if_convective_adjustment = OC_doConvectiveAdjustment!(oc)
+
+    # Freeze potential. Calculation mimics the one written in CESM1 docn_comp_mod.F90
+    T = oc.b_ML / (α * g) + T_ref
+    oc.qflx2atm = (T_sw_frz - T) * ρ * c_p * oc.h_ML / Δt
+    oc.b_ML = max(b_sw_frz, oc.b_ML)
+    
+
     #println(oc.b_ML - oc.bs[oc.FLDO])
     return Dict(
         :flag => flag,

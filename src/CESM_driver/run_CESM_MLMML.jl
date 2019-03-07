@@ -35,9 +35,9 @@ function init(;
     t   :: AbstractArray{Integer},
 )
 
-    init_b_ML     = 280.0 * MLMML.g * MLMML.α
+    init_b_ML     = (280.0 - MLMML.T_ref) * MLMML.g * MLMML.α
     init_h_ML     = MLMML.h_ML_min
-    init_b_slope  = 30.0 / 5000.0 * MLMML.g * MLMML.α
+    init_b_slope  = 10.0 / 5000.0 * MLMML.g * MLMML.α
     init_Δb       = 1.0 * MLMML.g * MLMML.α
 
     zs = collect(Float64, range(0, -500, step=-5))
@@ -86,12 +86,12 @@ function init(;
         "mld"       => mld,
         "sst"       => sst,
         "sumflx"    => sumflx,
-        "qflx2atm" => qflx2atm,
+        "qflx2atm"  => qflx2atm,
         "fric_u"    => occ.wksp.fric_u,
-        "ifrac"    => occ.wksp.ifrac,
+        "ifrac"     => occ.wksp.ifrac,
     )
     
-    SSM.getInfo!(occ=occ, sst=sst, mld=mld)
+    SSM.getInfo!(occ=occ, sst=sst, mld=mld, qflx2atm=qflx2atm)
 
     return MLMML_DATA(
         map,
@@ -124,7 +124,7 @@ function run(
         Δt  = Δt,
     )
 
-    SSM.getInfo!(occ=MD.occ; sst=MD.sst, mld=MD.mld)
+    SSM.getInfo!(occ=MD.occ; sst=MD.sst, mld=MD.mld, qflx2atm=MD.qflx2atm)
 
 end
 

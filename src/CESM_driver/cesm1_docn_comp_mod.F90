@@ -726,7 +726,6 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"
 
         x_msg = trim(x_msg)//"SST:SST.bin;QFLX:QFLX.bin;"
-
         call stop_if_bad(mbp_send(x_MI, x_msg), "INIT_SEND")
         
         print *, "Init msg sent: ", trim(x_msg), "."
