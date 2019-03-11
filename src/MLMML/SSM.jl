@@ -13,6 +13,7 @@ missing_value = 1e20
 
 include("Workspace.jl")
 include("OceanColumnCollection.jl")
+include("takeSnapshot.jl")
 
 function stepOceanColumnCollection!(;
     occ   :: OceanColumnCollection,
