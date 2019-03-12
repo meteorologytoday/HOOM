@@ -73,7 +73,7 @@ while true
     if stage == :INIT && msg["MSG"] == "INIT"
 
         println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
-        OMDATA = OMMODULE.init(map=map, t=timeinfo)
+        OMDATA = OMMODULE.init(map=map, init_file=init_file, t=timeinfo)
         for (varname, var) in OMDATA.output_vars
             output_vars[varname] = reshape(var, map.nx, map.ny)
         end

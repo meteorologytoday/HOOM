@@ -26,7 +26,8 @@ tmp_oc = MLMML.makeSimpleOceanColumn(;
 
 
 occ = SSM.OceanColumnCollection(
-    N_ocs = map.lsize,
+    Nx    = map.nx,
+    Ny    = map.ny,
     N     = length(zs)-1,
     zs    = zs,
     bs    = tmp_oc.bs,
@@ -38,3 +39,6 @@ occ = SSM.OceanColumnCollection(
 )
 
 SSM.takeSnapshot(occ, "snapshot01.nc")
+occ2 = SSM.loadSnapshot("snapshot01.nc")
+
+SSM.takeSnapshot(occ, "snapshot02.nc")

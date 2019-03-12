@@ -31,38 +31,52 @@ end
 
 
 function init(;
-    map :: NetCDFIO.MapInfo,
-    t   :: AbstractArray{Integer},
+    map       :: NetCDFIO.MapInfo,
+    init_file :: Union{Nothing, AbstractString},
+    t         :: AbstractArray{Integer},
 )
 
-    init_b_ML     = (280.0 - MLMML.T_ref) * MLMML.g * MLMML.α
-    init_h_ML     = MLMML.h_ML_min
-    init_b_slope  = 10.0 / 5000.0 * MLMML.g * MLMML.α
-    init_Δb       = 1.0 * MLMML.g * MLMML.α
+    if init_file == nothing
+        occ = let
 
-    zs = collect(Float64, range(0, -500, step=-5))
-    K = 1e-5
+            zs = collect(Float64, range(0, -500, step=-5))
+            K = 1e-5
 
-    tmp_oc = MLMML.makeSimpleOceanColumn(;
-        zs       = zs,
-        b_slope  = init_b_slope,
-        b_ML     = init_b_ML,
-        h_ML     = MLMML.h_ML_min,
-        Δb       = init_Δb,
-    )
+            init_b_ML     = 280.0 * MLMML.g * MLMML.α
+            init_h_ML     = MLMML.h_ML_min
+            init_b_slope  = 30.0 / 5000.0 * MLMML.g * MLMML.α
+            init_Δb       = 1.0 * MLMML.g * MLMML.α
 
-    occ = SSM.OceanColumnCollection(
-        N_ocs = map.lsize,
-        N     = length(zs)-1,
-        zs    = zs,
-        bs    = tmp_oc.bs,
-        K     = K,
-        b_ML  = tmp_oc.b_ML,
-        h_ML  = tmp_oc.h_ML,
-        FLDO  = tmp_oc.FLDO,
-        mask  = map.mask
-    )
- 
+            tmp_oc = MLMML.makeSimpleOceanColumn(;
+                zs       = zs,
+                b_slope  = init_b_slope,
+                b_ML     = init_b_ML,
+                h_ML     = MLMML.h_ML_min,
+                Δb       = init_Δb,
+            )
+
+
+
+            return SSM.OceanColumnCollection(
+                Nx    = map.nx,
+                Ny    = map.ny,
+                N     = length(zs)-1,
+                zs    = zs,
+                bs    = tmp_oc.bs,
+                K     = K,
+                b_ML  = tmp_oc.b_ML,
+                h_ML  = tmp_oc.h_ML,
+                FLDO  = tmp_oc.FLDO,
+                mask  = map.mask
+            )
+
+
+        end
+    else
+        occ = SSM.loadSnapshot(init_file)
+    end
+
+
     containers = Dict(
         "SWFLX" => occ.wksp.swflx,
         "HFLX"  => occ.wksp.hflx,
@@ -112,6 +126,12 @@ function run(
     t_cnt :: Integer,
     Δt    :: Float64,
 )
+
+
+    # Take snapshot every first day of the year.
+    if t[2] == 1 && t[3] == 1 && t[4] == 0
+        SSM.takeSnapshot(occ, format("Snapshot_{:04d}0101_00000.nc", t[1]))
+    end
     
     wksp = MD.occ.wksp
     wksp.hflx   .*= -1
@@ -142,6 +162,9 @@ function parse_commandline()
         "--config"
             help = "Configuration file."
             arg_type = String
+        "--init-file"
+            help = "Initial profile of ocean. If not provided then a default profile will be used."
+            arg_type = String
     end
 
     return parse_args(s)
@@ -158,6 +181,17 @@ if config_file != nothing
     println("Load config file: ", config_file)
     include(config_file)
 end
+
+init_file = parsed_args["init-file"]
+if init_file != nothing
+    init_file = normpath( (isabspath(init_file)) ? init_file : joinpath(pwd(), init_file) )
+    println("Ocean init file : ", init_file)
+
+    if !isfile(init_file)
+        throw(ErrorException("File missing: ", init_file))
+    end
+end
+
 # ===== READ ALL CONFIG END =====
 
 OMMODULE = Main.CESM_CORE_MLMML

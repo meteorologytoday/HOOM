@@ -18,7 +18,6 @@ include("takeSnapshot.jl")
 function stepOceanColumnCollection!(;
     occ   :: OceanColumnCollection,
     Δt    :: Float64,
-
 )
     wksp = occ.wksp
     
