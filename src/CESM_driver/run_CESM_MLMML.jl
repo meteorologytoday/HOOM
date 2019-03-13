@@ -10,6 +10,7 @@ using Printf
 
 module CESM_CORE_MLMML
 
+using Formatting
 using ..NetCDFIO
 using ..SSM
 using ..MLMML
@@ -37,12 +38,13 @@ function init(;
 )
 
     if init_file == nothing
+        println("No initial ocean profile. Using the naive one.")
         occ = let
 
             zs = collect(Float64, range(0, -500, step=-5))
             K = 1e-5
 
-            init_b_ML     = 280.0 * MLMML.g * MLMML.α
+            init_b_ML     = (280.0 - MLMML.T_ref) * MLMML.g * MLMML.α
             init_h_ML     = MLMML.h_ML_min
             init_b_slope  = 30.0 / 5000.0 * MLMML.g * MLMML.α
             init_Δb       = 1.0 * MLMML.g * MLMML.α
@@ -57,7 +59,7 @@ function init(;
 
 
 
-            return SSM.OceanColumnCollection(
+            SSM.OceanColumnCollection(
                 Nx    = map.nx,
                 Ny    = map.ny,
                 N     = length(zs)-1,
@@ -69,13 +71,15 @@ function init(;
                 FLDO  = tmp_oc.FLDO,
                 mask  = map.mask
             )
-
-
         end
+        snapshot_file = format("Snapshot_{:04d}0101_00000.nc", t[1])
+        println("Output snapshot: ", snapshot_file)
+        SSM.takeSnapshot(occ, snapshot_file)
+
     else
+        println("Initial ocean with profile: ", init_file)
         occ = SSM.loadSnapshot(init_file)
     end
-
 
     containers = Dict(
         "SWFLX" => occ.wksp.swflx,
@@ -85,7 +89,7 @@ function init(;
         "IFRAC"  => occ.wksp.ifrac,
     )
 
-    sst       = zeros(Float64, map.lsize)
+    sst       = zeros(Float64, map.nx, map.ny)
     mld       = copy(sst)
     qflx2atm  = copy(sst)
     sumflx    = copy(sst)
@@ -127,10 +131,11 @@ function run(
     Δt    :: Float64,
 )
 
-
     # Take snapshot every first day of the year.
     if t[2] == 1 && t[3] == 1 && t[4] == 0
-        SSM.takeSnapshot(occ, format("Snapshot_{:04d}0101_00000.nc", t[1]))
+        snapshot_file = format("Snapshot_{:04d}0101_00000.nc", t[1])
+        println("Output snapshot: ", snapshot_file)
+        SSM.takeSnapshot(MD.occ, snapshot_file)
     end
     
     wksp = MD.occ.wksp
@@ -162,9 +167,11 @@ function parse_commandline()
         "--config"
             help = "Configuration file."
             arg_type = String
+
         "--init-file"
             help = "Initial profile of ocean. If not provided then a default profile will be used."
             arg_type = String
+
     end
 
     return parse_args(s)

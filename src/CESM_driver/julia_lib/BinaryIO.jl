@@ -5,8 +5,8 @@ export readBinary!, writeBinary!
 
 function readBinary!(
     filename::AbstractString,
-    arr::Array{Float64,1},
-    buffer::Array{UInt8,1};
+    arr::Array{Float64},
+    buffer::Array{UInt8};
     endianess::Symbol=:little_endian,
     delete::Bool=false
 )
@@ -45,8 +45,8 @@ end
 
 function writeBinary!(
     filename::AbstractString,
-    arr::Array{Float64,1},
-    buffer::Array{UInt8,1};
+    arr::Array{Float64},
+    buffer::Array{UInt8};
     endianess::Symbol=:little_endian
 )
     local func

@@ -91,7 +91,7 @@ function _write2NCFile(
     var_data      :: AbstractArray{T},
     missing_value :: T) where T 
 
-    println("Write : ", varname)
+    #println("Write : ", varname)
 
     ds_var = defVar(ds, varname, eltype(var_data), dim)
     ds_var.attrib["_FillValue"] = missing_value
