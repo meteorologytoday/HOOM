@@ -2,11 +2,11 @@ module MLMML
 using Printf
 using Formatting
 using SparseArrays
+using NCDatasets
 
 include("../share/constants.jl")
 include("extra_constants.jl")
 
-include("Workspace.jl")
 include("OceanColumnCollection.jl")
 
 include("trivial_functions.jl")
@@ -19,5 +19,6 @@ include("stepOceanColumnCollection.jl")
 
 
 include("setOceanColumn.jl")
+include("takeSnapshot.jl")
 
 end

@@ -21,6 +21,11 @@ function stepOceanColumnCollection!(
 )
 
     for i = 1:occ.Nx, j = 1:occ.Ny
+
+        if occ.mask[i, j] == 0.0
+            continue
+        end
+
         # Pseudo code
         # Current using only Euler forward scheme:
         # 1. Determine h at t+Δt
@@ -96,11 +101,12 @@ function stepOceanColumnCollection!(
         OC_doConvectiveAdjustment!(occ, i, j)
 
         # Freeze potential. Calculation mimics the one written in CESM1 docn_comp_mod.F90
-        T = occ.b_ML[i, j] / (α * g) + T_ref
-        occ.qflx2atm[i, j] = (T_sw_frz - T) * ρ * c_p * occ.h_ML[i, j] / Δt
+        occ.qflx2atm[i, j] = (T_sw_frz - b2T(occ.b_ML[i, j])) * ρ * c_p * occ.h_ML[i, j] / Δt
         occ.b_ML[i, j] = max(b_sw_frz, occ.b_ML[i, j])
         
     end
+
+    updateSST!(occ)
 end
 
 

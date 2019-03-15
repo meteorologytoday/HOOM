@@ -1,33 +1,30 @@
 include("default_config.jl")
 
-include("../MLMML/SSM.jl")
+include("../MLMML/MLMML.jl")
 
 using ArgParse
 using Printf
-
-#using .NetCDFIO
-#using .SSM
 
 module CESM_CORE_MLMML
 
 using Formatting
 using ..NetCDFIO
-using ..SSM
 using ..MLMML
 
 name = "MLMML"
 
+include("Workspace_MLMML.jl")
+
 mutable struct MLMML_DATA
     map         :: NetCDFIO.MapInfo
-    occ         :: SSM.OceanColumnCollection
+    occ         :: MLMML.OceanColumnCollection
 
-    CESM_containers :: Dict
-    output_vars     :: Dict
+    x2o         :: Dict
+    o2x         :: Dict
 
-    sst :: AbstractArray{Float64}
-    mld :: AbstractArray{Float64}
-    qflx2atm :: AbstractArray{Float64} 
-    sumflx :: AbstractArray{Float64} 
+    output_vars :: Dict
+    wksp :: Workspace
+
 end
 
 
@@ -49,77 +46,57 @@ function init(;
             init_b_slope  = 30.0 / 5000.0 * MLMML.g * MLMML.α
             init_Δb       = 1.0 * MLMML.g * MLMML.α
 
-            tmp_oc = MLMML.makeSimpleOceanColumn(;
-                zs       = zs,
+            MLMML.makeBasicOceanColumnCollection(
+                map.nx, map.ny, zs;
                 b_slope  = init_b_slope,
                 b_ML     = init_b_ML,
                 h_ML     = MLMML.h_ML_min,
                 Δb       = init_Δb,
-            )
-
-
-
-            SSM.OceanColumnCollection(
-                Nx    = map.nx,
-                Ny    = map.ny,
-                N     = length(zs)-1,
-                zs    = zs,
-                bs    = tmp_oc.bs,
-                K     = K,
-                b_ML  = tmp_oc.b_ML,
-                h_ML  = tmp_oc.h_ML,
-                FLDO  = tmp_oc.FLDO,
-                mask  = map.mask
+                K        = K,
+                mask     = map.mask,
             )
         end
+
         snapshot_file = format("Snapshot_{:04d}0101_00000.nc", t[1])
         println("Output snapshot: ", snapshot_file)
-        SSM.takeSnapshot(occ, snapshot_file)
+        MLMML.takeSnapshot(occ, snapshot_file)
 
     else
         println("Initial ocean with profile: ", init_file)
-        occ = SSM.loadSnapshot(init_file)
+        occ = MLMML.loadSnapshot(init_file)
     end
 
-    containers = Dict(
-        "SWFLX" => occ.wksp.swflx,
-        "HFLX"  => occ.wksp.hflx,
-        "TAUX"  => occ.wksp.taux,
-        "TAUY"  => occ.wksp.tauy,
-        "IFRAC"  => occ.wksp.ifrac,
+    wksp = Workspace(occ.Nx, occ.Ny, occ.Nz)
+
+    x2o = Dict(
+        "SWFLX" => wksp.swflx,
+        "HFLX"  => wksp.hflx,
+        "TAUX"  => wksp.taux,
+        "TAUY"  => wksp.tauy,
+        "IFRAC" => wksp.ifrac,
     )
 
-    sst       = zeros(Float64, map.nx, map.ny)
-    mld       = copy(sst)
-    qflx2atm  = copy(sst)
-    sumflx    = copy(sst)
-
-    # Mask data
-    SSM.maskData!(occ, sst)
-    SSM.maskData!(occ, mld)
-    SSM.maskData!(occ, qflx2atm)
-    SSM.maskData!(occ, sumflx)
+    o2x = Dict(
+        "SST"      => occ.sst,
+        "QFLX2ATM" => occ.qflx2atm,
+    )
 
     output_vars = Dict(
-        "mld"       => mld,
-        "sst"       => sst,
-        "sumflx"    => sumflx,
-        "qflx2atm"  => qflx2atm,
-        "fric_u"    => occ.wksp.fric_u,
-        "ifrac"     => occ.wksp.ifrac,
+        "mld"       => occ.h_ML,
+        "sst"       => occ.sst,
+        "qflx2atm"  => occ.qflx2atm,
+        "sumflx"    => wksp.sumflx,
+        "fric_u"    => wksp.fric_u,
+        "ifrac"     => wksp.ifrac,
     )
     
-    SSM.getInfo!(occ=occ, sst=sst, mld=mld, qflx2atm=qflx2atm)
-
     return MLMML_DATA(
         map,
         occ,
-        containers,
+        x2o,
+        o2x,
         output_vars,
-        sst,
-        mld,
-        qflx2atm,
-        sumflx,
+        wksp,
     )
 
 end
@@ -138,18 +115,26 @@ function run(
         SSM.takeSnapshot(MD.occ, snapshot_file)
     end
     
-    wksp = MD.occ.wksp
+    wksp = MD.wksp
+
     wksp.hflx   .*= -1
     wksp.swflx  .*= -1
 
-    MD.sumflx .= wksp.hflx + wksp.swflx
+    wksp.sumflx .= wksp.hflx + wksp.swflx
+    
+    wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / MLMML.ρ)
+    wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
 
-    SSM.stepOceanColumnCollection!(;
-        occ = MD.occ,
-        Δt  = Δt,
+    wksp.hflx   .*= MLMML.αgρc
+    wksp.swflx  .*= MLMML.αgρc
+    
+    MLMML.stepOceanColumnCollection!(
+        MD.occ;
+        fric_u = wksp.weighted_fric_u,
+        B0     = wksp.hflx,
+        J0     = wksp.swflx,
+        Δt     = Δt,
     )
-
-    SSM.getInfo!(occ=MD.occ; sst=MD.sst, mld=MD.mld, qflx2atm=MD.qflx2atm)
 
 end
 

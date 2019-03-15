@@ -101,4 +101,10 @@ function getFricU(;
     return √(getWindStress(u10=ua) / ρ)
 end
 
+function b2T(b::Float64)
+    return b / (α * g) + T_ref
+end
 
+function updateSST!(occ::OceanColumnCollection)
+    occ.sst .= b2T.(occ.b_ML)    
+end

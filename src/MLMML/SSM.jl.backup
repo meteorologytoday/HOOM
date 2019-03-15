@@ -10,31 +10,41 @@ using ..MLMML
 
 missing_value = 1e20
 
+
+include("Workspace.jl")
+include("OceanColumnCollection.jl")
 include("takeSnapshot.jl")
 
 function stepOceanColumnCollection!(;
-    occ   :: MLMML.OceanColumnCollection,
+    occ   :: OceanColumnCollection,
     Δt    :: Float64,
 )
 
     wksp = occ.wksp
     
     wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / MLMML.ρ)
-    wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
 
     wksp.hflx   .*= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
     wksp.swflx  .*= (MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p)
     
-    MLMML.stepOceanColumnCollection!(
-        occ;
-        fric_u = wksp.weighted_fric_u,
-        B0     = wksp.hflx,
-        J0     = wksp.swflx,
-        Δt     = Δt,
-    )
+    for l = 1:occ.N_ocs
+
+        if occ.mask[l] == 0.0
+            continue
+        end        
+
+        MLMML.stepOceanColumn!(;
+            oc     = occ.ocs[l],
+            fric_u = wksp.fric_u[l] * (1.0 - wksp.ifrac[l]),
+            B0     = wksp.hflx[l],
+            J0     = wksp.swflx[l],
+            Δt     = Δt,
+        )
+    end
+
 end
 
-function maskData!(occ::MLMML.OceanColumnCollection, arr::AbstractArray{Float64})
+function maskData!(occ::OceanColumnCollection, arr::Array{Float64})
     for i = 1:occ.N_ocs
         if occ.mask[i] == 0.0
             arr[i] = missing_value
@@ -42,13 +52,11 @@ function maskData!(occ::MLMML.OceanColumnCollection, arr::AbstractArray{Float64}
     end
 end
 
-
-#=
 function getInfo!(;
-    occ      :: MLMML.OceanColumnCollection,
-    sst      :: Union{AbstractArray{Float64}, Nothing} = nothing,
-    mld      :: Union{AbstractArray{Float64}, Nothing} = nothing,
-    qflx2atm :: Union{AbstractArray{Float64}, Nothing} = nothing,
+    occ      :: OceanColumnCollection,
+    sst      :: Union{Array{Float64}, Nothing} = nothing,
+    mld      :: Union{Array{Float64}, Nothing} = nothing,
+    qflx2atm :: Union{Array{Float64}, Nothing} = nothing,
 )
     if mld != nothing
         for l = 1:occ.N_ocs
@@ -81,7 +89,7 @@ function getInfo!(;
     end
 
 end
-=#
+
 
 
 end

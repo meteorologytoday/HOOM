@@ -1,4 +1,4 @@
-include("../SSM.jl")
+include("../MLMML.jl")
 include("../../CESM_driver/julia_lib/NetCDFIO.jl")
 
 using .NetCDFIO
@@ -16,29 +16,18 @@ init_h_ML     = MLMML.h_ML_min
 init_b_slope  = 30.0 / 5000.0 * MLMML.g * MLMML.α
 init_Δb       = 1.0 * MLMML.g * MLMML.α
 
-tmp_oc = MLMML.makeSimpleOceanColumn(;
-    zs       = zs,
-    b_slope  = init_b_slope,
-    b_ML     = init_b_ML,
-    h_ML     = MLMML.h_ML_min,
-    Δb       = init_Δb,
-)
 
-
-occ = SSM.OceanColumnCollection(
-    Nx    = map.nx,
-    Ny    = map.ny,
-    N     = length(zs)-1,
-    zs    = zs,
-    bs    = tmp_oc.bs,
+occ = MLMML.makeBasicOceanColumnCollection(
+    map.nx, map.ny, zs;
+    b_slope = init_b_slope,
+    b_ML  = init_b_ML,
+    h_ML  = init_h_ML,
+    Δb    = init_Δb,
     K     = K,
-    b_ML  = tmp_oc.b_ML,
-    h_ML  = tmp_oc.h_ML,
-    FLDO  = tmp_oc.FLDO,
-    mask  = map.mask
+    mask  = map.mask,
 )
 
-SSM.takeSnapshot(occ, "snapshot01.nc")
-occ2 = SSM.loadSnapshot("snapshot01.nc")
+MLMML.takeSnapshot(occ, "snapshot01.nc")
+occ2 = MLMML.loadSnapshot("snapshot01.nc")
 
-SSM.takeSnapshot(occ, "snapshot02.nc")
+MLMML.takeSnapshot(occ, "snapshot02.nc")

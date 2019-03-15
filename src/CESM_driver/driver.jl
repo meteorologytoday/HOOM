@@ -18,7 +18,7 @@ end
 
 output_vars = Dict()
 
-vars_from_CESM = [
+vars_x2o = [
     "SWFLX",
     "HFLX",
     "TAUX",
@@ -26,7 +26,7 @@ vars_from_CESM = [
     "IFRAC",
 ]
 
-vars_to_CESM = [
+vars_o2x = [
     "SST",
     "QFLX",
 ]
@@ -78,8 +78,8 @@ while true
             output_vars[varname] = reshape(var, map.nx, map.ny)
         end
 
-        writeBinary!(msg["SST"], OMDATA.sst, buffer2d; endianess=:little_endian)
-        writeBinary!(msg["QFLX"], OMDATA.qflx2atm, buffer2d; endianess=:little_endian)
+        writeBinary!(msg["SST"], OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        writeBinary!(msg["QFLX"], OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
         send(mail, "OK")
 
         NetCDFIO.write2NCFile(
@@ -96,7 +96,7 @@ while true
         
     elseif stage == :RUN && msg["MSG"] == "RUN"
 
-        for (varname, container) in OMDATA.CESM_containers
+        for (varname, container) in OMDATA.x2o
             readBinary!(
                 msg[varname],
                 container,
@@ -122,8 +122,8 @@ while true
         )
         nc_cnt += 1
 
-        writeBinary!(msg["SST"], OMDATA.sst, buffer2d; endianess=:little_endian)
-        writeBinary!(msg["QFLX"], OMDATA.qflx2atm, buffer2d; endianess=:little_endian)
+        writeBinary!(msg["SST"], OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        writeBinary!(msg["QFLX"], OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
         send(mail, "OK")
 
     elseif stage == :RUN && msg["MSG"] == "END"

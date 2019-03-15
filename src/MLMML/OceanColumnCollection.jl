@@ -9,11 +9,12 @@ mutable struct OceanColumnCollection
     mask     :: AbstractArray{Float64, 2}
     mask_idx :: Any
 
+    sst      :: AbstractArray{Float64, 2}
     b_ML     :: AbstractArray{Float64, 2}
     h_ML     :: AbstractArray{Float64, 2}
 
     bs       :: AbstractArray{Float64, 3}
-    FLDO     :: AbstractArray{Integer, 2}
+    FLDO     :: AbstractArray{Int64, 2}
     qflx2atm :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
 
     # Derived quantities
@@ -21,17 +22,14 @@ mutable struct OceanColumnCollection
     hs     :: AbstractArray{Float64, 1} # Thickness of layers
     Δzs    :: AbstractArray{Float64, 1} # Δz between layers
 
-    # workspace
-    wksp   :: Workspace
-
     function OceanColumnCollection(;
         Nx     :: Integer,
         Ny     :: Integer,
         zs     :: AbstractArray{Float64, 1},
-        bs     :: AbstractArray{Float64, 1},
-        K      :: Float64,
-        b_ML   :: Float64,
-        h_ML   :: Float64,
+        bs     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
+        K      :: Float64 = 0.0,
+        b_ML   :: Float64 = 0.0,
+        h_ML   :: Float64 = 0.0,
         mask   :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
     )
 
@@ -50,28 +48,31 @@ mutable struct OceanColumnCollection
         _b_ML     = zeros(Float64, Nx, Ny)
 
         _bs       = zeros(Float64, Nx, Ny, Nz)
-        _FLDO     = zeros(Integer, Nx, Ny)
+        _FLDO     = zeros(Int64, Nx, Ny)
         qflx2atm  = zeros(Float64, Nx, Ny)
-
-        wksp = Workspace(Nx, Ny, Nz)
+        sst       = zeros(Float64, Nx, Ny)
 
         _h_ML .= h_ML
         _b_ML .= b_ML
         _FLDO .= getFLDO(zs=zs, h_ML=h_ML)
-        
-        for i=1:Nx, j=1:Ny
-            _bs[i, j, :] = bs
+        sst   .= b2T(b_ML)
+       
+        if bs != nothing 
+            for i=1:Nx, j=1:Ny
+                _bs[i, j, :] = bs
+            end
         end
 
 
-        return new(
+        occ = new(
             Nx, Ny, Nz,
             zs, K,
             mask, mask_idx,
-            _b_ML, _h_ML, _bs, _FLDO, qflx2atm,
-            Nx * Ny, hs, Δzs,
-            wksp
+            sst, _b_ML, _h_ML, _bs, _FLDO, qflx2atm,
+            Nx * Ny, hs, Δzs
         )
+
+        return occ
     end
 
 end
@@ -87,9 +88,6 @@ function makeBlankOceanColumnCollection(
         Nx   = Nx,
         Ny   = Ny,
         zs   = zs,
-        bs   = zeros(Float64, N),
-        K    = 0.0,
-        b_ML = 0.0,
         h_ML = h_ML_min,
         mask = mask,
     )
