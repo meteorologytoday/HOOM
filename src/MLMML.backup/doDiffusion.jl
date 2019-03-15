@@ -1,6 +1,5 @@
 using LinearAlgebra
 
-#=
 """
 
 function doDiffusion!(oc::OceanColumn)
@@ -94,31 +93,27 @@ function doDiffusion!(;
     return new_b_ML
 end
 
-=#
 
-function OC_doDiffusion_EulerBackward!(
-    occ :: OceanColumnCollection,
-    i   :: Integer,
-    j   :: Integer;
-    Δt  :: Float64,
-)
+
+function OC_doDiffusion_EulerBackward!(oc::OceanColumn; Δt::Float64)
     
-    occ.b_ML[i, j] = doDiffusion_BackwardEuler!(
-        zs   = occ.zs,
-        bs   = view(occ.bs, i, j, :),
-        b_ML = occ.b_ML[i, j],
-        h_ML = occ.h_ML[i, j],
-        K    = occ.K,
-        FLDO = occ.FLDO[i, j],
-        Δt   = Δt,
+    new_b_ML = doDiffusion_BackwardEuler!(
+        zs=oc.zs,
+        bs=oc.bs,
+        b_ML=oc.b_ML,
+        h_ML=oc.h_ML,
+        K=oc.K,
+        FLDO=oc.FLDO,
+        Δt=Δt,
     )
 
+    oc.b_ML = new_b_ML
 end
 
 
 function doDiffusion_BackwardEuler!(;
-    zs   :: AbstractArray{Float64, 1}, 
-    bs   :: AbstractArray{Float64, 1}, 
+    zs   :: Array{Float64, 1}, 
+    bs   :: Array{Float64, 1}, 
     b_ML :: Float64,
     h_ML :: Float64,
     K    :: Float64,

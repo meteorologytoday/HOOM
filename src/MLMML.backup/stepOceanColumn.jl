@@ -49,6 +49,7 @@ function stepOceanColumn!(;
     #fric_u = getFricU(ua=ua)
     flag, val = calWeOrMLD(; h_ML=oc.h_ML, B=B0+J0, fric_u=fric_u, Δb=Δb) 
     #println("Before:" , oc.bs[10], "; oc.FLDO = ", oc.FLDO, "; Δb = ", Δb)
+    #println("B: ", B0+J0, ";Δb: ", Δb , "; fric_u: ", fric_u)
 
     # 1
     if flag == :MLD
@@ -59,7 +60,7 @@ function stepOceanColumn!(;
         new_h_ML = oc.h_ML + Δt * we
     end
     new_h_ML = boundMLD(new_h_ML; h_ML_max=min(h_ML_max, oc.zs[1]-oc.zs[end]))
-
+    println("flag: ", String(flag), "; val: ", val, "; new_h_ML: ", new_h_ML)
     # 2
     # 3
 
