@@ -1,23 +1,23 @@
 """
 
     stepOceanColumn!(;
-        oc  :: OceanColumn,
-        ua  :: Float64,
-        B0  :: Float64,
-        J0  :: Float64,
-        Δt  :: Float64 
+        oc      :: OceanColumn,
+        u_fric  :: Float64,
+        B0      :: Float64,
+        J0      :: Float64,
+        Δt      :: Float64 
     )
 
 # Description
 This function update the OceanColumn forward in time.
 
 """
-function stepOceanColumnPeriodic!(;
-    oc  :: OceanColumn,
-    ua  :: Float64, # Currently assumed to be u10
-    B0  :: Float64,
-    J0  :: Float64,
-    Δt  :: Float64 
+function stepOceanColumn!(;
+    oc     :: OceanColumn,
+    fric_u :: Float64, # Currently assumed to be u10
+    B0     :: Float64,
+    J0     :: Float64,
+    Δt     :: Float64 
 )
     # Pseudo code
     # Current using only Euler forward scheme:
@@ -36,6 +36,21 @@ function stepOceanColumnPeriodic!(;
     #println("FLDO:", oc.FLDO)
 
 
+    Δb = (oc.FLDO != -1) ? oc.b_ML - oc.bs[oc.FLDO] : 0.0
+
+    # After convective adjustment, there still might
+    # be some numerical error making Δb slightly negative
+    # (the one I got is like -1e-15). So I set a tolarence
+    # ( 0.001 K ≈ 3e-6 m/s^2 ).
+    if Δb < 0.0 && abs(Δb) <= 3e-6
+        Δb = 0.0
+    end
+
+    #fric_u = getFricU(ua=ua)
+    flag, val = calWeOrMLD(; h_ML=oc.h_ML, B=B0+J0, fric_u=fric_u, Δb=Δb) 
+    #println("Before:" , oc.bs[10], "; oc.FLDO = ", oc.FLDO, "; Δb = ", Δb)
+    #println("B: ", B0+J0, ";Δb: ", Δb , "; fric_u: ", fric_u)
+
     # 1
     if flag == :MLD
         we = 0.0
@@ -45,7 +60,7 @@ function stepOceanColumnPeriodic!(;
         new_h_ML = oc.h_ML + Δt * we
     end
     new_h_ML = boundMLD(new_h_ML; h_ML_max=min(h_ML_max, oc.zs[1]-oc.zs[end]))
-
+    println("flag: ", String(flag), "; val: ", val, "; new_h_ML: ", new_h_ML)
     # 2
     # 3
 
@@ -75,6 +90,13 @@ function stepOceanColumnPeriodic!(;
     
     OC_doDiffusion_EulerBackward!(oc, Δt=Δt)
     if_convective_adjustment = OC_doConvectiveAdjustment!(oc)
+
+    # Freeze potential. Calculation mimics the one written in CESM1 docn_comp_mod.F90
+    T = oc.b_ML / (α * g) + T_ref
+    oc.qflx2atm = (T_sw_frz - T) * ρ * c_p * oc.h_ML / Δt
+    oc.b_ML = max(b_sw_frz, oc.b_ML)
+    
+
     #println(oc.b_ML - oc.bs[oc.FLDO])
     return Dict(
         :flag => flag,

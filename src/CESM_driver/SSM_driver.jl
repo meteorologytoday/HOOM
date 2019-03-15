@@ -1,6 +1,3 @@
-
-
-
 function parseMsg(msg::AbstractString)
     pairs = split(msg, ";")
     d = Dict{AbstractString, Any}()
@@ -108,9 +105,7 @@ while true
         occ.wksp.swflx .*= -1.0
         sumflx .= occ.wksp.hflx + occ.wksp.swflx
 
-
-        
-        println("Do complicated, magical calculations...")
+        println("Doing complicated, MAGICAL calculations...")
         
         SSM.stepOceanColumnCollection!(
             occ   = occ,

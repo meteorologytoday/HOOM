@@ -1,15 +1,10 @@
-function OC_doConvectiveAdjustment!(
-        occ :: OceanColumnCollection,
-        i   :: Integer,
-        j   :: Integer,
-    )
-
-    if_adjust, occ.b_ML[i, j], occ.h_ML[i, j], occ.FLDO[i, j] = doConvectiveAdjustment!(
-        zs   = occ.zs,
-        bs   = view(occ.bs, i, j, :),
-        h_ML = occ.h_ML[i, j],
-        b_ML = occ.b_ML[i, j],
-        FLDO = occ.FLDO[i, j],
+function OC_doConvectiveAdjustment!(oc::OceanColumn)
+    if_adjust, oc.b_ML, oc.h_ML, oc.FLDO = doConvectiveAdjustment!(
+        zs   = oc.zs,
+        bs   = oc.bs,
+        h_ML = oc.h_ML,
+        b_ML = oc.b_ML,
+        FLDO = oc.FLDO,
     )
 
     return if_adjust
@@ -23,8 +18,8 @@ It searches for the lowest layer that has larger buoyancy than mixed-layer then 
 
 """
 function doConvectiveAdjustment!(;
-    zs   :: AbstractArray{Float64, 1},
-    bs   :: AbstractArray{Float64, 1},
+    zs   :: Array{Float64, 1},
+    bs   :: Array{Float64, 1},
     h_ML :: Float64,
     b_ML :: Float64,
     FLDO :: Integer,

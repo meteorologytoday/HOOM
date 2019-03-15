@@ -1,4 +1,4 @@
-module NetCDFIO
+module ModelMap
 
 using NCDatasets
 

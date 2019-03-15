@@ -2,8 +2,12 @@
 @PROCESS ALIAS_SIZE(805306368)
 #endif
 
+! XTT MODIFICATION BEGIN
 include "./fortran_lib/field_tools.f90"
 include "./fortran_lib/MailboxPipeMod.f90"
+! XTT MODIFICATION ENDS
+
+
 
 module docn_comp_mod
 
@@ -120,14 +124,15 @@ module docn_comp_mod
 
 
 ! ===== XTT MODIFIED BEGIN =====
-  integer(IN)   :: ktaux, ktauy  ! field indices
+  integer(IN)   :: ktaux, ktauy, kifrac  ! field indices
  
   character(1024)       :: x_msg, x_fn, x_datetime_str
   type(mbp_MailboxInfo) :: x_MI
   integer :: x_w_fd, x_r_fd, x_curr_ymd
   integer :: x_stat, x_max_try
 
-  real(R8), pointer     :: x_hflx(:), x_swflx(:), x_taux(:), x_tauy(:)
+  real(R8), pointer     :: x_hflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
+                           x_ifrac(:), x_q(:) 
 
   !--- formats   ---
   character(*), parameter :: x_F00 = "(a, '.ssm.', a, '.', a)" 
@@ -665,7 +670,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
       print *, "XTT modified code."
       
       ! CESM 1 does not provide shr_cal_ymdtod2string
-      write(x_datetime_str, '(2i8)') currentYMD, currentTOD
+      write(x_datetime_str, '(i0.8, A, i0.8)') currentYMD, "-", currentTOD
     
       ! The following line is CESM 2 only 
       !call shr_cal_ymdtod2string(x_datetime_str, yy, mm, dd, currentTOD)
@@ -689,52 +694,60 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         ! $CESM1_root/models/drv/shr/seq_flds_mod.F90 (line 1101)
         ktaux  = mct_aVect_indexRA(x2o,'Foxx_taux')
         ktauy  = mct_aVect_indexRA(x2o,'Foxx_tauy')
+        kifrac = mct_aVect_indexRA(x2o,'Si_ifrac')
 
         allocate(x_hflx(lsize))
         allocate(x_swflx(lsize))
         allocate(x_taux(lsize))
         allocate(x_tauy(lsize))
+        allocate(x_ifrac(lsize))
+        allocate(x_q(lsize))
 
         do n = 1,lsize
             if (.not. read_restart) then
                 somtp(n) = o2x%rAttr(kt,n) + TkFrz
             end if
-            o2x%rAttr(kt,n) = somtp(n)
-            o2x%rAttr(kq,n) = 0.0_R8
 
+            x_q(n) = 0.0_R8 
             x_hflx(n)  = 0.0_R8
             x_swflx(n) = 0.0_R8
             x_taux(n)  = 0.0_R8
             x_tauy(n)  = 0.0_R8
+            x_ifrac(n)  = 0.0_R8
+
+            o2x%rAttr(kt,n) = somtp(n)
+            o2x%rAttr(kq,n) = x_q(n)
+
+
         end do
          
         call mbp_setDefault(x_MI)
 
-        x_fn = "init_sst.bin"
-        x_msg = "MSG:INIT;SST:"//trim(x_fn)//";"
-         
-        !call write_1Dfield(x_w_fd, x_fn, somtp, lsize)
+        x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"
+
+        x_msg = trim(x_msg)//"SST:SST.bin;QFLX:QFLX.bin;"
         call stop_if_bad(mbp_send(x_MI, x_msg), "INIT_SEND")
         
         print *, "Init msg sent: ", trim(x_msg), "."
         print *, "Now receiving..."
         call stop_if_bad(mbp_recv(x_MI, x_msg), "INIT_RECV")
 
-        if (mbp_messageCompare(x_msg, x_fn) .neqv. .true.) then
+        if (mbp_messageCompare(x_msg, "OK") .neqv. .true.) then
             print *, "SSM init failed. Recive message: ", x_msg
             call shr_sys_abort ('SSM init failed.')
         end if
-        
-        call read_1Dfield(x_r_fd, trim(x_fn), somtp, lsize)
-        call mbp_delFile(trim(x_fn), x_r_fd)
+         
+        call read_1Dfield(x_r_fd, "SST.bin", somtp, lsize)
+        call read_1Dfield(x_r_fd, "QFLX.bin", x_q, lsize)
 
         do n = 1, lsize
           o2x%rAttr(kt,n) = somtp(n)
-          o2x%rAttr(kq,n) = 0.0_R8
+          o2x%rAttr(kq,n) = x_q(n)
         end do
       else
 
-        x_msg = "MSG:RUN;"
+        x_msg = "MSG:RUN;CESMTIME:"//trim(x_datetime_str)//";"
+
         print *, "Not first call."
 
         do n = 1,lsize
@@ -750,11 +763,12 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                         ( x2o%rAttr(ksnow,n) + & 
                           x2o%rAttr(kioff,n) ) * latice ! latent by snow and roff
                        
-            x_taux(n) = o2x%rAttr(ktaux,n)
-            x_tauy(n) = o2x%rAttr(ktauy,n)
+            x_taux(n)  = x2o%rAttr(ktaux,n)
+            x_tauy(n)  = x2o%rAttr(ktauy,n)
+            x_ifrac(n) = x2o%rAttr(kifrac,n)
           end if
         end do
-        print *, "Max of short wave: ", maxval(x_swflx)
+        !print *, "Max of short wave: ", maxval(x_swflx)
 
         x_fn = "HFLX.bin"
         x_msg = trim(x_msg)//"HFLX:"//trim(x_fn)//";"
@@ -772,18 +786,25 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         x_msg = trim(x_msg)//"TAUY:"//trim(x_fn)//";"
         call write_1Dfield(x_w_fd, x_fn, x_tauy, lsize)
 
+        x_fn = "IFRAC.bin"
+        x_msg = trim(x_msg)//"IFRAC:"//trim(x_fn)//";"
+        call write_1Dfield(x_w_fd, x_fn, x_ifrac, lsize)
 
+        x_msg = trim(x_msg)//"SST:SST.bin;QFLX:QFLX.bin;"
 
-        x_msg = trim(x_msg)//"SST_NEW:SST_NEW.bin;"
         write (x_msg, "(A, A, F10.2, A)") trim(x_msg), ";DT:", dt, ";"
         call stop_if_bad(mbp_send(x_MI, x_msg), "RUN_SEND")
  
         ! SSM is doing some MAGICAL calculation...
         
         call stop_if_bad(mbp_recv(x_MI, x_msg), "RUN_RECV")
-
-        call read_1Dfield(x_r_fd, trim(x_msg), somtp, lsize)
-        call mbp_delFile(trim(x_msg), x_r_fd)
+        if (mbp_messageCompare(x_msg, "OK") .neqv. .true.) then
+            print *, "Ocean model calculation failed. Recive message: ", x_msg
+            call shr_sys_abort ('Ocean model calculation failed.')
+        end if
+ 
+        call read_1Dfield(x_r_fd, "SST.bin", somtp, lsize)
+        call read_1Dfield(x_r_fd, "QFLX.bin", x_q, lsize)
  
         do n = 1, lsize
 !            o2x%rAttr(kq,n) = (tfreeze(n) - o2x%rAttr(kt,n))*(cpsw*rhosw*hn)/dt  ! ice formed q>0
