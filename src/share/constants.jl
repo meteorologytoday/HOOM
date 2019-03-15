@@ -13,3 +13,5 @@ g   = 9.8      # m / s^2
 αgρc = α * g / (ρ * c_p)
 
 b_sw_frz = α * g * (T_sw_frz - T_ref)
+
+missing_value = 1e20

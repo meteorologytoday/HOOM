@@ -33,6 +33,8 @@ mutable struct OceanColumnCollection
         mask   :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
     )
 
+        zs = copy(zs)
+
         Nz = length(zs) - 1
 
         hs  = zs[1:end-1] - zs[2:end]
@@ -41,7 +43,10 @@ mutable struct OceanColumnCollection
         if mask == nothing
             mask = zeros(Float64, Nx, Ny)
             mask .+= 1.0
+        else
+            mask = copy(mask)
         end
+
         mask_idx = (mask .== 0.0)
 
         _h_ML     = zeros(Float64, Nx, Ny)
@@ -76,6 +81,31 @@ mutable struct OceanColumnCollection
     end
 
 end
+
+function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
+
+    if (fr_occ.Nx, fr_occ.Ny, fr_occ.Nz) != (to_occ.Nx, to_occ.Ny, to_occ.Nz)
+        throw(ErrorException("These two OceanColumnCollection have different dimensions."))
+    end
+    
+    to_occ.K = fr_occ.K
+    to_occ.sst[:, :]       = fr_occ.sst
+    to_occ.b_ML[:, :]      = fr_occ.b_ML
+    to_occ.h_ML[:, :]      = fr_occ.h_ML
+    to_occ.FLDO[:, :]      = fr_occ.FLDO
+    to_occ.qflx2atm[:, :]  = fr_occ.qflx2atm
+    to_occ.bs[:, :, :]     = fr_occ.bs
+
+end
+
+
+function copyOCC(occ::OceanColumnCollection)
+    occ2 = makeBlankOceanColumnCollection(occ.Nx, occ.Ny, occ.zs; mask=mask)
+    copyOCC!(occ, occ2)
+    
+    return occ2
+end
+
 
 function makeBlankOceanColumnCollection(
     Nx   :: Integer,

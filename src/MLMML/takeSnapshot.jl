@@ -25,6 +25,26 @@ function takeSnapshot(
     filename::AbstractString;
     missing_value::Float64=1e20
 )
+    _createNCFile(occ, filename, missing_value)
+
+    Dataset(filename, "a") do ds
+   
+        _write2NCFile(ds, "zs", ("N_zs",), occ.zs, missing_value)
+        _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
+
+        _write2NCFile(ds, "bs", ("Nx", "Ny", "N_lays"), occ.bs, missing_value)
+        _write2NCFile(ds, "b_ML", ("Nx", "Ny",), occ.b_ML, missing_value)
+        _write2NCFile(ds, "h_ML", ("Nx", "Ny",), occ.h_ML, missing_value)
+        _write2NCFile(ds, "FLDO", ("Nx", "Ny",), convert(Array{Float64}, occ.FLDO), missing_value)
+    end
+
+end
+
+function _createNCFile(
+    occ::OceanColumnCollection,
+    filename::AbstractString,
+    missing_value::Float64,
+)
 
     Dataset(filename, "c") do ds
 
@@ -37,16 +57,10 @@ function takeSnapshot(
         ds.attrib["_FillValue"] = missing_value
         ds.attrib["K"] = occ.K
         
-        _write2NCFile(ds, "zs", ("N_zs",), occ.zs, missing_value)
-        _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
-
-        _write2NCFile(ds, "bs", ("Nx", "Ny", "N_lays"), occ.bs, missing_value)
-        _write2NCFile(ds, "b_ML", ("Nx", "Ny",), occ.b_ML, missing_value)
-        _write2NCFile(ds, "h_ML", ("Nx", "Ny",), occ.h_ML, missing_value)
-        _write2NCFile(ds, "FLDO", ("Nx", "Ny",), convert(Array{Float64}, occ.FLDO), missing_value)
     end
 
 end
+
 
 function _write2NCFile(
     ds            :: Dataset,

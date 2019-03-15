@@ -10,10 +10,14 @@ module CESM_CORE_MLMML
 using Formatting
 using ..NetCDFIO
 using ..MLMML
+using NCDatasets
 
 name = "MLMML"
 
 include("Workspace_MLMML.jl")
+include("../share/StatObj.jl")
+
+days_of_mon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 mutable struct MLMML_DATA
     map         :: NetCDFIO.MapInfo
@@ -23,8 +27,9 @@ mutable struct MLMML_DATA
     o2x         :: Dict
 
     output_vars :: Dict
-    wksp :: Workspace
+    wksp        :: Workspace
 
+    sobj        :: StatObj
 end
 
 
@@ -97,6 +102,12 @@ function init(;
         o2x,
         output_vars,
         wksp,
+        StatObj(Dict(
+            "mld" => occ.h_ML,
+            "sst" => occ.sst,
+            "sumflx" => wksp.sumflx,
+            "fric_u" => wksp.fric_u,
+        )),
     )
 
 end
@@ -108,11 +119,42 @@ function run(
     Δt    :: Float64,
 )
 
+
+    if t_cnt == 1 
+        zeroStatObj!(MD.sobj)
+    end
+
+    addStatObj!(MD.sobj, Dict(
+        "mld" => MD.occ.h_ML,
+        "sst" => MD.occ.sst,
+        "sumflx" => MD.wksp.sumflx,
+        "fric_u" => MD.wksp.fric_u,
+    ))
+    
+    # Do monthly average and output it by the end of month
+    if days_of_mon[t[2]] == t[3] && t[4] == 0
+        avg_file = format("avg_{:04d}{:02d}.nc", t[1], t[2])
+        
+        normStatObj!(MD.sobj)
+
+        MLMML._createNCFile(MD.occ, avg_file, MD.map.missing_value)
+
+        Dataset(avg_file, "a") do ds
+            for v in ("mld", "sst", "sumflx", "fric_u")
+                MLMML._write2NCFile(ds, v,    ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
+            end
+        end
+        println("Output monthly average: ", avg_file)
+        
+       zeroStatObj!(MD.sobj)
+    end
+
+
     # Take snapshot every first day of the year.
     if t[2] == 1 && t[3] == 1 && t[4] == 0
-        snapshot_file = format("Snapshot_{:04d}0101_00000.nc", t[1])
+        snapshot_file = format("Snapshot_{:04d}{:02d}{:02d}_00000.nc", t[1], t[2], t[3])
+        MLMML.takeSnapshot(MD.occ, snapshot_file)
         println("Output snapshot: ", snapshot_file)
-        SSM.takeSnapshot(MD.occ, snapshot_file)
     end
     
     wksp = MD.wksp
@@ -135,6 +177,8 @@ function run(
         J0     = wksp.swflx,
         Δt     = Δt,
     )
+
+
 
 end
 
