@@ -103,12 +103,22 @@ function OC_doDiffusion_EulerBackward!(
     Δt  :: Float64,
 )
     
-    occ.b_ML[i, j] = doDiffusion_BackwardEuler!(
+    occ.T_ML[i, j] = doDiffusion_BackwardEuler!(
         zs   = occ.zs,
-        bs   = view(occ.bs, i, j, :),
-        b_ML = occ.b_ML[i, j],
+        qs   = view(occ.Ts, i, j, :),
+        q_ML = occ.T_ML[i, j],
         h_ML = occ.h_ML[i, j],
-        K    = occ.K,
+        K    = occ.K_T,
+        FLDO = occ.FLDO[i, j],
+        Δt   = Δt,
+    )
+
+    occ.S_ML[i, j] = doDiffusion_BackwardEuler!(
+        zs   = occ.zs,
+        qs   = view(occ.Ss, i, j, :),
+        q_ML = occ.S_ML[i, j],
+        h_ML = occ.h_ML[i, j],
+        K    = occ.K_S,
         FLDO = occ.FLDO[i, j],
         Δt   = Δt,
     )
@@ -118,29 +128,29 @@ end
 
 function doDiffusion_BackwardEuler!(;
     zs   :: AbstractArray{Float64, 1}, 
-    bs   :: AbstractArray{Float64, 1}, 
-    b_ML :: Float64,
+    qs   :: AbstractArray{Float64, 1}, 
+    q_ML :: Float64,
     h_ML :: Float64,
     K    :: Float64,
     FLDO :: Integer,
     Δt   :: Float64,
 )
     if FLDO == -1
-        return b_ML
+        return q_ML
     end
 
     # Diffusion of all layers
     # b_flux[i] means the flux from layer i+1 to i (upward > 0)
     # the extra b_flux[end] is artificial for easier programming
-    n   = length(bs) - (FLDO - 1) + 1
+    n   = length(qs) - (FLDO - 1) + 1
     Δzs = zeros(Float64, n-1)
     hs  = zeros(Float64, n)
-    bs_RHS = zeros(Float64, n)
+    qs_RHS = zeros(Float64, n)
 
-    bs_RHS[1] = b_ML
-    bs_RHS[2:end] = bs[FLDO:end]
+    qs_RHS[1] = q_ML
+    qs_RHS[2:end] = qs[FLDO:end]
 
-    #println("bs[end]", bs[end])
+    #println("qs[end]", qs[end])
 
     #println("length(hs) = ", length(hs))
     #println("length(zs) = ", length(zs))
@@ -178,12 +188,12 @@ function doDiffusion_BackwardEuler!(;
         println("A: ", A)
     end
     =#
-    bs_new = A \ bs_RHS
-    new_b_ML = bs_new[1]
+    qs_new = A \ qs_RHS
+    new_q_ML = qs_new[1]
     if FLDO > 1
-        bs[1:FLDO-1] .= new_b_ML
+        qs[1:FLDO-1] .= new_q_ML
     end
-    bs[FLDO:end] = bs_new[2:end]
+    qs[FLDO:end] = qs_new[2:end]
 
-    return new_b_ML
+    return new_q_ML
 end

@@ -45,6 +45,10 @@ function stepOceanColumnCollection!(
         #println("### h: ", oc.h)
         #println("FLDO:", oc.FLDO)
 
+        total_Tflx = ( swflx[i, j] + nswflx[i, j] ) / (ρ*c) 
+        total_Sflx = - frwflx[i, j] * occ.S_ML[i, j]
+        total_bflx = g * ( α * total_Tflx - β * total_Sflx )
+        
         FLDO = occ.FLDO[i, j]
         Δb = (FLDO != -1) ? occ.b_ML[i, j] - occ.bs[i, j, FLDO] : 0.0
 
@@ -56,12 +60,12 @@ function stepOceanColumnCollection!(
             Δb = 0.0
         end
 
-        total_b_flx = αgρc * ( swflx[i, j] + nswflx[i, j] ) - β * g * frwflx[i, j] * occ.S_ML[i, j] / occ.h_ML[i, j]
+
 
         #fric_u = getFricU(ua=ua)
         flag, val = calWeOrMLD(;
             h_ML   = occ.h_ML[i, j],
-            B      = total_b_flx,
+            B      = total_bflx,
             fric_u = fric_u[i, j],
             Δb     = Δb
         )
@@ -87,29 +91,28 @@ function stepOceanColumnCollection!(
         #         be conserved purely through entrainment
         #     ii: Add to total buoyancy
 
-        hb_new = OC_getIntegratedBuoyancy(occ, i, j; target_z = -new_h_ML)
-      
-        hb_chg_by_F = - total_flx * Δt
-
-        #println(new_h, "; ", hb_new, ", ")
-        new_b_ML = (hb_new + hb_chg_by_F) / new_h_ML
+        new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - total_Tflux * Δt) / new_h_ML
+        new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - total_Sflux * Δt) / new_h_ML
         
         OC_setMixedLayer!(
             occ, i, j;
-            b_ML=new_b_ML,
+            T_ML=new_T_ML,
+            S_ML=new_S_ML,
             h_ML=new_h_ML,
-        )
-        
+        ) 
         OC_doDiffusion_EulerBackward!(occ, i, j; Δt=Δt)
+
+        updateB!(occ, i, j)
+        
         OC_doConvectiveAdjustment!(occ, i, j)
 
         # Freeze potential. Calculation mimics the one written in CESM1 docn_comp_mod.F90
-        occ.qflx2atm[i, j] = (T_sw_frz - b2T(occ.b_ML[i, j])) * ρ * c_p * occ.h_ML[i, j] / Δt
-        occ.b_ML[i, j] = max(b_sw_frz, occ.b_ML[i, j])
+        occ.qflx2atm[i, j] = (T_sw_frz - occ.T_ML[i, j]) * ρ * c_p * occ.h_ML[i, j] / Δt
+        occ.T_ML[i, j] = max(T_sw_frz, occ.T_ML[i, j])
         
     end
 
-    updateSST!(occ)
+    updateB!(occ)
 end
 
 

@@ -105,6 +105,19 @@ function TS2b(T::Float64, S::Float64)
     return g * (α * (T - T_ref) - β * (S - S_ref))
 end
 
+function updateB!(
+    occ :: OceanColumnCollection,
+    i   :: Integer,
+    j   :: Integer,
+)
+
+    occ.b_ML[i, j] = TS2b(occ.T_ML[i, j], occ.S_ML[i, j])
+    for k=1:occ.Nz
+        occ.bs[i, j, k] = TS2b(occ.Ts[i, j, k], occ.Ss[i, j, k])
+    end
+
+end
+
 function updateB!(occ::OceanColumnCollection)
 
     for i=1:occ.Nx, j=1:occ.Ny

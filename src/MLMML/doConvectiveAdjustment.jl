@@ -4,11 +4,15 @@ function OC_doConvectiveAdjustment!(
         j   :: Integer,
     )
 
-    if_adjust, occ.b_ML[i, j], occ.h_ML[i, j], occ.FLDO[i, j] = doConvectiveAdjustment!(
+    if_adjust, occ.T_ML[i, j], occ.S_ML[i, j], occ.h_ML[i, j], occ.FLDO[i, j] = doConvectiveAdjustment!(
         zs   = occ.zs,
         bs   = view(occ.bs, i, j, :),
+        Ts   = view(occ.Ts, i, j, :),
+        Ss   = view(occ.Ss, i, j, :),
         h_ML = occ.h_ML[i, j],
         b_ML = occ.b_ML[i, j],
+        T_ML = occ.T_ML[i, j],
+        S_ML = occ.S_ML[i, j],
         FLDO = occ.FLDO[i, j],
     )
 
@@ -21,29 +25,38 @@ end
 This function only do convective adjustment for the upper most mixed layer.
 It searches for the lowest layer that has larger buoyancy than mixed-layer then mixed all layers above it.
 
+By default it only mixes T and S but not b
+
+
 """
 function doConvectiveAdjustment!(;
     zs   :: AbstractArray{Float64, 1},
     bs   :: AbstractArray{Float64, 1},
+    Ts   :: AbstractArray{Float64, 1},
+    Ss   :: AbstractArray{Float64, 1},
     h_ML :: Float64,
     b_ML :: Float64,
+    T_ML :: Float64,
+    S_ML :: Float64,
     FLDO :: Integer,
 )
     
     if_adjust = false
 
     if FLDO == -1
-        return if_adjust, b_ML, h_ML, FLDO 
+        return if_adjust, T_ML, S_ML, h_ML, FLDO 
     end
 
     # 1. Search from bottom to see if buoyancy is monotically increasing
     # 2. If not, record the peak, then keep detecting until hitting the 
-    #    layer having equal or greater buoyancy. Record this interval.
+    #    layer X_top having equal or greater buoyancy. Record this interval.
     # 3. Find the minimum value in this interval b_min.
-    # 4. Use b_min to decide the bottom layer going to be mixed.
-    # 5. Mix this interval.
+    # 4. Use b_min to decide the bottom layer X_bot going to be mixed (Search 
+    #    downward).
+    # 5. Mix layers between X_bot ~ X_top.
 
-    new_b_ML = b_ML
+    new_T_ML = T_ML
+    new_S_ML = S_ML
     new_h_ML = h_ML
     new_FLDO = FLDO
 
@@ -135,28 +148,44 @@ function doConvectiveAdjustment!(;
             top_z = (top_layer == -1) ? 0.0 : (
                  (top_layer == FLDO) ? -h_ML : zs[top_layer]
             )
+            Δz = top_z - bot_z
 
-            new_b = (getIntegratedBuoyancy(
+            mixed_T = (getIntegratedQuantity(
                 zs       =  zs,
-                bs       =  bs,
-                b_ML     =  b_ML,
+                qs       =  Ts,
+                q_ML     =  T_ML,
                 h_ML     =  h_ML,
                 target_z =  bot_z
-            ) - getIntegratedBuoyancy(
+            ) - getIntegratedQuantity(
                 zs       =  zs,
-                bs       =  bs,
-                b_ML     =  b_ML,
+                qs       =  Ts,
+                b_ML     =  T_ML,
                 h_ML     =  h_ML,
                 target_z =  top_z
-            ))  / (top_z - bot_z)
+            ))  / Δz
+ 
+            mixed_S = (getIntegratedQuantity(
+                zs       =  zs,
+                qs       =  Ss,
+                q_ML     =  S_ML,
+                h_ML     =  h_ML,
+                target_z =  bot_z
+            ) - getIntegratedQuantity(
+                zs       =  zs,
+                qs       =  Ss,
+                b_ML     =  S_ML,
+                h_ML     =  h_ML,
+                target_z =  top_z
+            ))  / Δz
            
-        
-            if top_layer == -1
-                new_b_ML = new_b
+            if top_layer == -1  # Even the mixed layer is mixed
+                new_T_ML = mixed_T
+                new_S_ML = mixed_S
                 new_h_ML = (bot_layer == length(bs)) ? zs[1] - zs[end] : zs[1] - zs[bot_layer + 1]
-                new_FLDO = setMixedLayer!(bs=bs, zs=zs, b_ML=new_b_ML,h_ML=new_h_ML)
+                new_FLDO = setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML=new_h_ML)
             else
-                bs[top_layer:bot_layer] .= new_b
+                Ts[top_layer:bot_layer] .= mixed_T
+                Ss[top_layer:bot_layer] .= mixed_S
             end 
 
             stage = :reset 
@@ -164,7 +193,7 @@ function doConvectiveAdjustment!(;
 
     end
 
-    return if_adjust, new_b_ML, new_h_ML, new_FLDO
+    return if_adjust, new_T_ML, new_S_ML, new_h_ML, new_FLDO
 end
 
            

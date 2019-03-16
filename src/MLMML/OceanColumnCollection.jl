@@ -4,7 +4,8 @@ mutable struct OceanColumnCollection
     Nz       :: Integer           # Number of layers
     
     zs       :: AbstractArray{Float64, 1} # Position of (N+1) grid points
-    K        :: Float64           # Diffusion coes
+    K_T      :: Float64           # Diffusion coe of temperature
+    K_S      :: Float64           # Diffusion coe of salinity
 
     mask     :: AbstractArray{Float64, 2}
     mask_idx :: Any
@@ -31,7 +32,8 @@ mutable struct OceanColumnCollection
         zs     :: AbstractArray{Float64, 1},
         Ss     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         Ts     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
-        K      :: Float64 = 0.0,
+        K_T    :: Float64 = 0.0,
+        K_S    :: Float64 = 0.0,
         S_ML   :: Float64 = 0.0,
         T_ML   :: Float64 = 0.0,
         h_ML   :: Float64 = 0.0,
@@ -84,7 +86,7 @@ mutable struct OceanColumnCollection
 
         occ = new(
             Nx, Ny, Nz,
-            zs, K,
+            zs, K_T, K_S,
             mask, mask_idx,
             _b_ML, _S_ML, _T_ML, _h_ML,
             _bs,   _Ss,   _Ts,
@@ -106,7 +108,8 @@ function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
         throw(ErrorException("These two OceanColumnCollection have different dimensions."))
     end
     
-    to_occ.K = fr_occ.K
+    to_occ.K_T = fr_occ.K_T
+    to_occ.K_S = fr_occ.K_S
 
     to_occ.b_ML[:, :]      = fr_occ.b_ML
     to_occ.T_ML[:, :]      = fr_occ.T_ML
@@ -157,7 +160,8 @@ function makeBasicOceanColumnCollection(
     h_ML    :: Float64 = h_ML_min,
     ΔT      :: Float64 = 2.0,
     ΔS      :: Float64 = 0.0,
-    K       :: Float64 = 1e-5,
+    K_T     :: Float64 = 1e-5,
+    K_S     :: Float64 = 1e-5,
     mask :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
 )
     Ts = zeros(Float64, length(zs)-1)
@@ -179,7 +183,8 @@ function makeBasicOceanColumnCollection(
         zs   = zs,
         Ts   = Ts,
         Ss   = Ss,
-        K    = K,
+        K_T  = K_T,
+        K_S  = K_S,
         T_ML = T_ML,
         S_ML = S_ML,
         h_ML = h_ML,
