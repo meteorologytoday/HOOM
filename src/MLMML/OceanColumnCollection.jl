@@ -92,6 +92,9 @@ mutable struct OceanColumnCollection
             Nx * Ny, hs, Δzs
         )
 
+        updateB!(occ)
+        
+
         return occ
     end
 
@@ -104,12 +107,16 @@ function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
     end
     
     to_occ.K = fr_occ.K
-    to_occ.sst[:, :]       = fr_occ.sst
+
     to_occ.b_ML[:, :]      = fr_occ.b_ML
+    to_occ.T_ML[:, :]      = fr_occ.T_ML
+    to_occ.S_ML[:, :]      = fr_occ.S_ML
     to_occ.h_ML[:, :]      = fr_occ.h_ML
     to_occ.FLDO[:, :]      = fr_occ.FLDO
     to_occ.qflx2atm[:, :]  = fr_occ.qflx2atm
     to_occ.bs[:, :, :]     = fr_occ.bs
+    to_occ.Ts[:, :, :]     = fr_occ.Ts
+    to_occ.Ss[:, :, :]     = fr_occ.Ss
 
 end
 
@@ -143,20 +150,26 @@ function makeBasicOceanColumnCollection(
     Nx      :: Integer,
     Ny      :: Integer,
     zs      :: AbstractArray{Float64, 1};
-    b_slope :: Float64 = 30.0 / 5000.0 * g * α,
-    b_ML    :: Float64 = 1.0,
+    T_slope :: Float64 = 10.0 / 4000.0,
+    S_slope :: Float64 = 0.0,
+    T_ML    :: Float64 = T_ref,
+    S_ML    :: Float64 = S_ref,
     h_ML    :: Float64 = h_ML_min,
-    Δb      :: Float64 = 0.0,
+    ΔT      :: Float64 = 2.0,
+    ΔS      :: Float64 = 0.0,
     K       :: Float64 = 1e-5,
     mask :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
 )
-    bs = zeros(Float64, length(zs)-1)
-    for i = 1:length(bs)
+    Ts = zeros(Float64, length(zs)-1)
+    Ss = zeros(Float64, length(zs)-1)
+    for i = 1:length(Ts)
         z = (zs[i] + zs[i+1]) / 2.0
         if z > -h_ML
-            bs[i] = b_ML
+            Ts[i] = T_ML
+            Ss[i] = S_ML
         else
-            bs[i] = b_ML - Δb - b_slope * (-z - h_ML)
+            Ts[i] = T_ML - ΔT - T_slope * (-z - h_ML)
+            Ss[i] = S_ML - ΔS - S_slope * (-z - h_ML)
         end
     end
 
@@ -164,9 +177,11 @@ function makeBasicOceanColumnCollection(
         Nx   = Nx,
         Ny   = Ny,
         zs   = zs,
-        bs   = bs,
+        Ts   = Ts,
+        Ss   = Ss,
         K    = K,
-        b_ML = b_ML,
+        T_ML = T_ML,
+        S_ML = S_ML,
         h_ML = h_ML,
         mask = mask,
     )

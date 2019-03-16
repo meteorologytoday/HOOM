@@ -167,14 +167,15 @@ function run(
     wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / MLMML.ρ)
     wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
 
-    wksp.hflx   .*= MLMML.αgρc
-    wksp.swflx  .*= MLMML.αgρc
+    #wksp.hflx   .*= MLMML.αgρc
+    #wksp.swflx  .*= MLMML.αgρc
     
     MLMML.stepOceanColumnCollection!(
         MD.occ;
         fric_u = wksp.weighted_fric_u,
-        B0     = wksp.hflx,
-        J0     = wksp.swflx,
+        I0     = wksp.swflx,
+        Tf0    = wksp.nswflx,
+        Sf0    = wksp.salflx,
         Δt     = Δt,
     )
 

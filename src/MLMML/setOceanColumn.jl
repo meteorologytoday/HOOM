@@ -1,15 +1,19 @@
  function setMixedLayer!(;
-    bs   :: AbstractArray{Float64, 1},
+    Ts   :: AbstractArray{Float64, 1},
+    Ss   :: AbstractArray{Float64, 1},
     zs   :: AbstractArray{Float64, 1},
-    b_ML :: Float64,
+    T_ML :: Float64,
+    S_ML :: Float64,
     h_ML :: Float64,
 )
     FLDO = getFLDO(zs=zs, h_ML=h_ML)
 
     if FLDO > 1
-        bs[1:FLDO-1] .= b_ML
+        Ts[1:FLDO-1] .= T_ML
+        Ss[1:FLDO-1] .= S_ML
     elseif FLDO == -1
-        bs[:] .= b_ML
+        Ts[:] .= T_ML
+        Ss[:] .= S_ML
     end
    
     return FLDO 
@@ -19,17 +23,20 @@ function OC_setMixedLayer!(
     occ  :: OceanColumnCollection,
     i    :: Integer,
     j    :: Integer;
-    b_ML :: Float64,
+    T_ML :: Float64,
+    S_ML :: Float64,
     h_ML :: Float64,
 )
 
     occ.h_ML[i, j] = h_ML
-    occ.b_ML[i, j] = b_ML
+    occ.T_ML[i, j] = T_ML
+    occ.S_ML[i, j] = S_ML
     occ.FLDO[i, j] = setMixedLayer!(
-        bs   = view(occ.bs, i, j, :),
+        Ts   = view(occ.Ts, i, j, :),
+        Ss   = view(occ.Ss, i, j, :),
         zs   = occ.zs,
-        b_ML = b_ML,
-        h_ML = h_ML,
+        T_ML = T_ML,
+        S_ML = S_ML,
     )
 
 end

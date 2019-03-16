@@ -15,10 +15,13 @@ This function update the OceanColumn forward in time.
 function stepOceanColumnCollection!(
     occ    :: OceanColumnCollection;
     fric_u :: AbstractArray{Float64, 2}, # Currently assumed to be u10
-    B0     :: AbstractArray{Float64, 2},
-    J0     :: AbstractArray{Float64, 2},
-    Δt     :: Float64 
+    swflx  :: AbstractArray{Float64, 2}, # Shortwave     energy flux at the surface (     J  / s m^2)
+    nswflx :: AbstractArray{Float64, 2}, # Non-shortwave energy flux at the surface (     J  / s m^2)
+    frwflx :: AbstractArray{Float64, 2}, # Freshwater           flux at the surface (     m  / s m^2)
+    Δt     :: Float64, 
 )
+
+    # It is assumed here that buoyancy has already been updated.
 
     for i = 1:occ.Nx, j = 1:occ.Ny
 
@@ -49,16 +52,16 @@ function stepOceanColumnCollection!(
         # be some numerical error making Δb slightly negative
         # (the one I got is like -1e-15). So I set a tolarence
         # ( 0.001 K ≈ 3e-6 m/s^2 ).
-        if Δb < 0.0 && abs(Δb) <= 3e-6
+        if Δb < 0.0 && -Δb <= 3e-6
             Δb = 0.0
         end
 
-        total_flx = B0[i, j] + J0[i, j]
+        total_b_flx = αgρc * ( swflx[i, j] + nswflx[i, j] ) - β * g * frwflx[i, j] * occ.S_ML[i, j] / occ.h_ML[i, j]
 
         #fric_u = getFricU(ua=ua)
         flag, val = calWeOrMLD(;
             h_ML   = occ.h_ML[i, j],
-            B      = total_flx,
+            B      = total_b_flx,
             fric_u = fric_u[i, j],
             Δb     = Δb
         )
