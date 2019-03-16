@@ -9,11 +9,14 @@ mutable struct OceanColumnCollection
     mask     :: AbstractArray{Float64, 2}
     mask_idx :: Any
 
-    sst      :: AbstractArray{Float64, 2}
     b_ML     :: AbstractArray{Float64, 2}
+    S_ML     :: AbstractArray{Float64, 2}
+    T_ML     :: AbstractArray{Float64, 2}
     h_ML     :: AbstractArray{Float64, 2}
 
     bs       :: AbstractArray{Float64, 3}
+    Ss       :: AbstractArray{Float64, 3}
+    Ts       :: AbstractArray{Float64, 3}
     FLDO     :: AbstractArray{Int64, 2}
     qflx2atm :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
 
@@ -26,9 +29,11 @@ mutable struct OceanColumnCollection
         Nx     :: Integer,
         Ny     :: Integer,
         zs     :: AbstractArray{Float64, 1},
-        bs     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
+        Ss     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
+        Ts     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         K      :: Float64 = 0.0,
-        b_ML   :: Float64 = 0.0,
+        S_ML   :: Float64 = 0.0,
+        T_ML   :: Float64 = 0.0,
         h_ML   :: Float64 = 0.0,
         mask   :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
     )
@@ -49,31 +54,41 @@ mutable struct OceanColumnCollection
 
         mask_idx = (mask .== 0.0)
 
-        _h_ML     = zeros(Float64, Nx, Ny)
+
         _b_ML     = zeros(Float64, Nx, Ny)
+        _S_ML     = zeros(Float64, Nx, Ny)
+        _T_ML     = zeros(Float64, Nx, Ny)
+        _h_ML     = zeros(Float64, Nx, Ny)
 
         _bs       = zeros(Float64, Nx, Ny, Nz)
+        _Ss       = zeros(Float64, Nx, Ny, Nz)
+        _Ts       = zeros(Float64, Nx, Ny, Nz)
         _FLDO     = zeros(Int64, Nx, Ny)
         qflx2atm  = zeros(Float64, Nx, Ny)
-        sst       = zeros(Float64, Nx, Ny)
 
         _h_ML .= h_ML
-        _b_ML .= b_ML
-        _FLDO .= getFLDO(zs=zs, h_ML=h_ML)
-        sst   .= b2T(b_ML)
+        _S_ML .= S_ML
+        _T_ML .= T_ML
        
-        if bs != nothing 
+        if Ts != nothing 
             for i=1:Nx, j=1:Ny
-                _bs[i, j, :] = bs
+                _Ts[i, j, :] = Ts
             end
         end
 
+        if Ss != nothing 
+            for i=1:Nx, j=1:Ny
+                _Ss[i, j, :] = Ss
+            end
+        end
 
         occ = new(
             Nx, Ny, Nz,
             zs, K,
             mask, mask_idx,
-            sst, _b_ML, _h_ML, _bs, _FLDO, qflx2atm,
+            _b_ML, _S_ML, _T_ML, _h_ML,
+            _bs,   _Ss,   _Ts,
+            _FLDO, qflx2atm,
             Nx * Ny, hs, Δzs
         )
 
