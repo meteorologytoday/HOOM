@@ -1,15 +1,18 @@
 """
 
     stepOceanColumn!(;
-        oc      :: OceanColumn,
-        u_fric  :: Float64,
-        B0      :: Float64,
-        J0      :: Float64,
-        Δt      :: Float64 
+
+        occ    :: OceanColumnCollection;
+        fric_u :: AbstractArray{Float64, 2}, # Currently assumed to be u10
+        swflx  :: AbstractArray{Float64, 2}, # Shortwave     energy flux at the surface (     J  / s m^2)
+        nswflx :: AbstractArray{Float64, 2}, # Non-shortwave energy flux at the surface (     J  / s m^2)
+        frwflx :: AbstractArray{Float64, 2}, # Freshwater           flux at the surface (     m  / s m^2)
+        Δt     :: Float64, 
+
     )
 
 # Description
-This function update the OceanColumn forward in time.
+This function update the OceanColumnCollection forward in time.
 
 """
 function stepOceanColumnCollection!(

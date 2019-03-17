@@ -8,13 +8,22 @@ function loadSnapshot(filename::AbstractString)
         )
 
 
-        occ.K = ds.attrib["K"]
-        occ.b_ML[:, :]  = nomissing( ds["b_ML"][:], NaN )
+        occ.K_T = ds.attrib["K_T"]
+        occ.K_S = ds.attrib["K_S"]
+
         occ.h_ML[:, :]  = nomissing( ds["h_ML"][:], NaN )
-        occ.FLDO[:, :]  = nomissing( ds["FLDO"][:], NaN )
-        occ.bs[:, :, :] = nomissing( ds["bs"][:], NaN )
+
+        occ.Ts[:, :, :] = nomissing( ds["Ts"][:], NaN )
+        occ.Ss[:, :, :] = nomissing( ds["Ss"][:], NaN )
+
+        occ.T_ML[:, :]  = nomissing( ds["T_ML"][:], NaN )
+        occ.S_ML[:, :]  = nomissing( ds["S_ML"][:], NaN )
+
 
     end
+
+    updateFLDO!(occ)
+    updateB!(occ)
 
     return occ 
 end
@@ -32,10 +41,11 @@ function takeSnapshot(
         _write2NCFile(ds, "zs", ("N_zs",), occ.zs, missing_value)
         _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
 
-        _write2NCFile(ds, "bs", ("Nx", "Ny", "N_lays"), occ.bs, missing_value)
-        _write2NCFile(ds, "b_ML", ("Nx", "Ny",), occ.b_ML, missing_value)
+        _write2NCFile(ds, "Ts", ("Nx", "Ny", "N_lays"), occ.Ts, missing_value)
+        _write2NCFile(ds, "Ss", ("Nx", "Ny", "N_lays"), occ.Ss, missing_value)
+        _write2NCFile(ds, "T_ML", ("Nx", "Ny",), occ.T_ML, missing_value)
+        _write2NCFile(ds, "S_ML", ("Nx", "Ny",), occ.S_ML, missing_value)
         _write2NCFile(ds, "h_ML", ("Nx", "Ny",), occ.h_ML, missing_value)
-        _write2NCFile(ds, "FLDO", ("Nx", "Ny",), convert(Array{Float64}, occ.FLDO), missing_value)
     end
 
 end
@@ -55,7 +65,8 @@ function _createNCFile(
         defDim(ds, "N_zs",   length(occ.zs))
        
         ds.attrib["_FillValue"] = missing_value
-        ds.attrib["K"] = occ.K
+        ds.attrib["K_T"] = occ.K_T
+        ds.attrib["K_S"] = occ.K_S
         
     end
 
