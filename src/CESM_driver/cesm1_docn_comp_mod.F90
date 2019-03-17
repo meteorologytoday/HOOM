@@ -124,7 +124,7 @@ module docn_comp_mod
 
 
 ! ===== XTT MODIFIED BEGIN =====
-  integer(IN)   :: ktaux, ktauy, kifrac  ! field indices
+  integer(IN)   :: ktaux, ktauy, kifrac, kprec, kevap  ! field indices
  
   character(1024)       :: x_msg, x_fn, x_datetime_str
   type(mbp_MailboxInfo) :: x_MI
@@ -132,7 +132,7 @@ module docn_comp_mod
   integer :: x_stat, x_max_try
 
   real(R8), pointer     :: x_hflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
-                           x_ifrac(:), x_q(:) 
+                           x_ifrac(:), x_q(:), x_frwflx(:) 
 
   !--- formats   ---
   character(*), parameter :: x_F00 = "(a, '.ssm.', a, '.', a)" 
@@ -695,6 +695,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         ktaux  = mct_aVect_indexRA(x2o,'Foxx_taux')
         ktauy  = mct_aVect_indexRA(x2o,'Foxx_tauy')
         kifrac = mct_aVect_indexRA(x2o,'Si_ifrac')
+        kprec  = mct_aVect_indexRA(x2o,'Faxa_prec')
+        kevap  = mct_aVect_indexRA(x2o,'Foxx_evap')
 
         allocate(x_hflx(lsize))
         allocate(x_swflx(lsize))
@@ -702,18 +704,20 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         allocate(x_tauy(lsize))
         allocate(x_ifrac(lsize))
         allocate(x_q(lsize))
+        allocate(x_frwflx(lsize))
 
         do n = 1,lsize
             if (.not. read_restart) then
                 somtp(n) = o2x%rAttr(kt,n) + TkFrz
             end if
 
-            x_q(n) = 0.0_R8 
-            x_hflx(n)  = 0.0_R8
-            x_swflx(n) = 0.0_R8
-            x_taux(n)  = 0.0_R8
-            x_tauy(n)  = 0.0_R8
-            x_ifrac(n)  = 0.0_R8
+            x_q(n)       = 0.0_R8 
+            x_hflx(n)    = 0.0_R8
+            x_swflx(n)   = 0.0_R8
+            x_taux(n)    = 0.0_R8
+            x_tauy(n)    = 0.0_R8
+            x_ifrac(n)   = 0.0_R8
+            x_frwflx(n)  = 0.0_R8
 
             o2x%rAttr(kt,n) = somtp(n)
             o2x%rAttr(kq,n) = x_q(n)
@@ -762,6 +766,10 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                           x2o%rAttr(kmelth, n) + &    ! ice melt
                         ( x2o%rAttr(ksnow,n) + & 
                           x2o%rAttr(kioff,n) ) * latice ! latent by snow and roff
+ 
+            ! fresh water flux in terms of m / s
+            x_frwflx(n) = ( x2o%rAttr(kevap, n) - &
+                            x2o%rAttr(kprec, n) ) / SHR_CONST_RHOFW 
                        
             x_taux(n)  = x2o%rAttr(ktaux,n)
             x_tauy(n)  = x2o%rAttr(ktauy,n)
@@ -789,6 +797,12 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         x_fn = "IFRAC.bin"
         x_msg = trim(x_msg)//"IFRAC:"//trim(x_fn)//";"
         call write_1Dfield(x_w_fd, x_fn, x_ifrac, lsize)
+
+        x_fn = "FRWFLX.bin"
+        x_msg = trim(x_msg)//"FRWFLX:"//trim(x_fn)//";"
+        call write_1Dfield(x_w_fd, x_fn, x_frwflx, lsize)
+
+
 
         x_msg = trim(x_msg)//"SST:SST.bin;QFLX:QFLX.bin;"
 

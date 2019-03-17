@@ -37,6 +37,7 @@ function OC_setMixedLayer!(
         zs   = occ.zs,
         T_ML = T_ML,
         S_ML = S_ML,
+        h_ML = h_ML,
     )
 
 end

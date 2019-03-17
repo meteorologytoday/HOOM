@@ -23,11 +23,14 @@ zs *= -1.0
 
 N = length(zs) - 1
 
-Δb_0 = 0.5 * 10.0 * MLMML.α * MLMML.g  
-b_ML_0 = 1.0
+ΔT_0 = 5.0
+ΔS_0 = 0.0
+T_ML_0 = 300.0
+S_ML_0 = 35e-3
 h_ML_0 = MLMML.h_ML_min
 
-b_slope = 2.0 / 4000.0 * MLMML.g * MLMML.α
+T_slope = 2.0 / 4000.0
+S_slope = 0.0
 
 SECS_PER_DAY = 86400.0
 DAYS_PER_MON = 30
@@ -35,8 +38,8 @@ MONS_PER_YEAR= 12
 DAYS_PER_YEAR = DAYS_PER_MON * MONS_PER_YEAR
 SECS_PER_YEAR = DAYS_PER_YEAR * SECS_PER_DAY
 
-SPINUP_YEARS = 10
-YEARS_WANTED = 50
+SPINUP_YEARS = 20
+YEARS_WANTED = 1000
 TOTAL_YEARS = SPINUP_YEARS + YEARS_WANTED
 
 TOTAL_DAYS = TOTAL_YEARS * DAYS_PER_YEAR
@@ -44,6 +47,7 @@ TOTAL_SECS = TOTAL_DAYS * SECS_PER_DAY
 
 SPINUP_DAYS = SPINUP_YEARS * DAYS_PER_YEAR
 DAYS_WANTED = YEARS_WANTED * DAYS_PER_YEAR
+MONS_WANTED = YEARS_WANTED * MONS_PER_YEAR
 
 ω = 2π/360.0/86400.0
 t_sim = collect(Float64, range(0.0, step=SECS_PER_DAY, stop=TOTAL_SECS))[1:end-1]
@@ -53,73 +57,83 @@ t = t_sim[SPINUP_DAYS+1:end]
 t .-= t[1]
 
 
-J0 = 125.0 * MLMML.α * MLMML.g / MLMML.ρ / MLMML.c_p
-
-J = J0 * cos.(ω*t_sim)
+swflx = 125.0 * cos.(ω*t_sim)
+nswflx = swflx * 0.0
+frwflx = swflx * 0.0
 
 U10 = zeros(Float64, length(t_sim))
 U10 .= 8.0 .+ 2.0 * cos.(ω*t_sim)
 
 occ = MLMML.makeBasicOceanColumnCollection(
     1, 1, zs,
-    b_slope = b_slope,
-    b_ML    = b_ML_0,
+    T_slope = T_slope,
+    S_slope = S_slope,
+    T_ML    = T_ML_0,
+    S_ML    = S_ML_0,
     h_ML    = h_ML_0,
-    Δb      = Δb_0,
-    K       = 1e-5
+    ΔT      = ΔT_0,
+    ΔS      = ΔS_0,
+    K_T     = 1e-5,
+    K_S     = 1e-5
 )
 
 using PyPlot
 mid_zs = (zs[1:end-1] + zs[2:end]) / 2.0
 plt[:figure]()
-plt[:plot](mid_zs, occ.bs[1,1,:])
+plt[:plot](occ.bs[1,1,:], mid_zs)
 
-mon_bs_detrend = zeros(Float64, occ.Nz, MONS_PER_YEAR)
-mon_bs = zeros(Float64, occ.Nz, MONS_PER_YEAR)
-trends = zeros(Float64, occ.Nz)
-means = zeros(Float64, occ.Nz)
 
-h_rec = zeros(Float64, DAYS_WANTED)
-b_rec = copy(h_rec)
-hb_rec = copy(h_rec)
-J_rec = copy(h_rec)
-#we_rec = copy(h_rec)
-#convadj_rec = copy(h_rec)
-Δb_rec = copy(h_rec)
-bs_rec = zeros(Float64, occ.Nz, DAYS_WANTED)
 
-fric_u = zeros(Float64, 1, 1)
-B0 = zeros(Float64, 1, 1)
-J0 = zeros(Float64, 1, 1)
+
+rec = Dict(
+    "b"  => zeros(Float64, occ.Nz, DAYS_WANTED),
+    "T"  => zeros(Float64, occ.Nz, DAYS_WANTED),
+    "S"  => zeros(Float64, occ.Nz, DAYS_WANTED),
+    "h"  => zeros(Float64, DAYS_WANTED),
+    "hb" => zeros(Float64, DAYS_WANTED),
+    "swflx" => zeros(Float64, DAYS_WANTED),
+    "nswflx" => zeros(Float64, DAYS_WANTED),
+    "frwflx" => zeros(Float64, DAYS_WANTED),
+)
+
+fric_u  = zeros(Float64, 1, 1)
+_swflx  = zeros(Float64, 1, 1)
+_nswflx = zeros(Float64, 1, 1)
+_frwflx = zeros(Float64, 1, 1)
 
 for k = 1:length(t_sim)
-    println("iteration = ", k, "/", length(t_sim))
+    if (k-1)%DAYS_PER_YEAR == 0
+        println(format("Iteration = {:d}/{:d} ({:.1f}%)", k, length(t_sim), k / length(t_sim) * 100.0))
+    end
 
-    fric_u[1,1] = MLMML.getFricU(ua=U10[k])
-    J0[1,1] = J[k]
+    fric_u[1,1]  = MLMML.getFricU(ua=U10[k])
+    _swflx[1,1]  = swflx[k]
+    _nswflx[1,1] = nswflx[k]
+    _frwflx[1,1] = frwflx[k]
 
     if k != 0
         MLMML.stepOceanColumnCollection!(
             occ;
-            fric_u=fric_u,
-            B0=B0,
-            J0=J0,
-            Δt=Δt,
+            fric_u = fric_u,
+            swflx  = _swflx,
+            nswflx = _nswflx,
+            frwflx = _frwflx,
+            Δt     = Δt,
         )
     end
 
     if k > SPINUP_DAYS
 
         i = k - SPINUP_DAYS
-        J_rec[i]       = J[k]
-        h_rec[i]       = occ.h_ML[1, 1]
-        b_rec[i]       = occ.b_ML[1, 1]
-        #Δb_rec[i]      = info[:Δb]
-        hb_rec[i]      = MLMML.OC_getIntegratedBuoyancy(occ, 1, 1)
-        #we_rec[i]      = ( info[:flag] == :we ) ? info[:val] : NaN
-        #convadj_rec[i] = info[:convective_adjustment]
-        bs_rec[:, i]   = occ.bs[1, 1, :]
-        #println(occ.bs[1,1,1], ",", bs_rec[1, i])
+        rec["swflx"][i]   = swflx[k]
+        rec["nswflx"][i]  = nswflx[k]
+        rec["frwflx"][i]  = frwflx[k]
+        rec["h"][i]       = occ.h_ML[1, 1]
+        rec["b"][i]       = occ.b_ML[1, 1]
+        rec["hb"][i]      = MLMML.OC_getIntegratedBuoyancy(occ, 1, 1)
+        rec["b"][:, i]   = occ.bs[1, 1, :]
+        rec["T"][:, i]   = occ.Ts[1, 1, :]
+        rec["S"][:, i]   = occ.Ss[1, 1, :]
     end
 end
 
@@ -127,64 +141,59 @@ end
 using Statistics
 
 # Doing Monthly Average
-avg_t = zeros(Int(length(t)/DAYS_PER_MON))
-avg_bs_rec = zeros(occ.Nz, length(avg_t))
-avg_h_rec  = zeros(length(avg_t))
-avg_J_rec = zeros(length(avg_t))
-avg_convadj_rec = zeros(length(avg_t))
-for i = 1:length(avg_t)
-    avg_rng = (1+DAYS_PER_MON*(i-1)):DAYS_PER_MON*i
-    avg_t[i] = mean(t[avg_rng])
-    avg_h_rec[i] = mean(h_rec[avg_rng])
-    avg_J_rec[i] = mean(J[avg_rng])
-    avg_bs_rec[:, i] = mean(bs_rec[:, avg_rng], dims=2)
+mon_len = Int(length(t)/DAYS_PER_MON)
+mon = Dict(
+    "t" => zeros(mon_len),
+    "b" => zeros(occ.Nz, mon_len),
+    "T" => zeros(occ.Nz, mon_len),
+    "S" => zeros(occ.Nz, mon_len),
+    "h" => zeros(mon_len),
+)
 
-    #avg_convadj_rec[i] = (sum(convadj_rec[avg_rng]) != 0) ? 1.0 : 0.0
-end
-avg_t .-= avg_t[1]
+mon_rmsc = Dict()
+total_trends = Dict()     # trends of every layer
+mon_means  = Dict()     # means  of every layer and every month
 
-t=avg_t
-bs_rec=avg_bs_rec
-h_rec=avg_h_rec
-J_rec = avg_J_rec
-#convadj_rec = avg_convadj_rec
 
-# Remove seasonal cycle
-for i=1:occ.Nz
-    b_timeseries = bs_rec[i, :]
-    mon_bs[i, :] = mean( reshape( b_timeseries, MONS_PER_YEAR, :), dims=2)[:,1]
-
-    # Detrend
-    β = LinearRegression(t, b_timeseries)
-    b_timeseries -= β[1] .+ β[2] * t
-    mon_bs_detrend[i, :] = mean( reshape( b_timeseries, MONS_PER_YEAR, :), dims=2)[:,1]
-    
-    means[i]  = β[1]
-    trends[i] = β[2]
-
-    
-    b_cyc_signal = repeat(mon_bs_detrend[i, :], outer=(YEARS_WANTED,))
-    bs_rec[i, :] = b_timeseries - b_cyc_signal
-end
+for i = 1:mon_len
+    mon_rng = (1+DAYS_PER_MON*(i-1)):DAYS_PER_MON*i
+    mon["t"][i] = mean(t[mon_rng])
+    mon["h"][i] = mean(rec["h"][mon_rng])
+    mon["b"][:, i] = mean(rec["b"][:, mon_rng], dims=2)
+    mon["T"][:, i] = mean(rec["T"][:, mon_rng], dims=2)
+    mon["S"][:, i] = mean(rec["S"][:, mon_rng], dims=2)
 end
 
-t_day = t / 86400.0
-t_mon = t / 86400 / 30.0
+mon["t"] .-= mon["t"][1]
+
+
+for k in ("b", "T", "S")
+    total_trends[k] = zeros(occ.Nz)
+    mon_means[k]    = zeros(occ.Nz, MONS_PER_YEAR)
+    mon_rmsc[k]     = zeros(occ.Nz, mon_len)
+    for i=1:occ.Nz
+        d_timeseries = mon[k][i, :]
+
+        # Because detrending is not uniform across different layers,
+        # here I just simply average them to get avg profile
+        mon_means[k][i, :] = mean( reshape( d_timeseries, MONS_PER_YEAR, :), dims=2)[:,1]
+        β = LinearRegression(mon["t"], d_timeseries)
+        d_timeseries -= β[1] .+ β[2] * mon["t"]
+        total_trends[k][i] = β[2]
+       
+        seasonality = repeat(
+            mean( reshape( d_timeseries, MONS_PER_YEAR, :), dims=2)[:,1]
+            , outer=(YEARS_WANTED,)
+        )
+        mon_rmsc[k][i, :] = d_timeseries - seasonality
+    end
+end
+
+
+end
+
+t_yr = mon["t"] / SECS_PER_YEAR
 mid_zs = (zs[1:end-1] + zs[2:end]) / 2.0
-b2T = 1.0 / (MLMML.α * MLMML.g)
-
-#SST_rec = mean( reshape(bs_rec[1,:] * b2T, 12*5, :), dims=1)[1, :]
-#t_SST_rec = mean( reshape(t_day, 12*5, :), dims=1)[1, :]
-
-SST_rec = bs_rec[1, :] * b2T
-t_SST_rec = t_day
-
-T_rec = bs_rec * b2T
-mon_SST = mon_bs * b2T
-mon_SST_detrend = mon_bs_detrend * b2T
-T_means = means * b2T
-T_trends = trends * b2T
-
 
 #=
 auto_SST = autocor(SST_rec, collect(0:120); demean=true) 
@@ -193,11 +202,6 @@ auto_SST_yr = collect(Float64, 0:length(auto_SST)-1) / 12.0
 plt[:figure]()
 plt[:plot](auto_SST_yr, auto_SST)
 =#
-
-
-
-
-
 
 # Hovmoller diagram
 gs0 = GS.GridSpec(1, 2, width_ratios=[100,5])
@@ -210,8 +214,8 @@ cax = plt[:subplot](gs0[2])
 
 
 # SST record
-ax1[:plot]([t_day[1], t_day[end]], [0, 0], "k--")
-ax1[:plot](t_SST_rec, SST_rec, label="SST")
+ax1[:plot]([t_yr[1], t_yr[end]], [0, 0], "k--")
+ax1[:plot](t_yr, mon_rmsc["T"][1, :], label="SST")
 
 
 cmap = plt[:get_cmap]("jet")
@@ -220,26 +224,20 @@ clevs = - [0.5, 0.2]
 append!(clevs, collect(range(-0.1, stop=0.0, length=6)))
 append!(clevs, -clevs[end-1:-1:1])
 
-clevs = (range(-0.5, stop=0.5, length=51) |> collect ) * 0.2 
-cbmapping = ax2[:contourf](t_day, mid_zs, T_rec * 1e1, clevs, cmap=cmap, extend="both", zorder=1, antialiased=false)
+clevs = (range(-0.5, stop=0.5, length=51) |> collect ) * 0.1 
+cbmapping = ax2[:contourf](t_yr, mid_zs, mon_rmsc["T"], clevs, cmap=cmap, extend="both", zorder=1, antialiased=false)
 cb = plt[:colorbar](cbmapping, cax=cax)
 
 cb[:set_label]("Temperature anomaly [\$ \\times \\, 10^{-1} \\, \\mathrm{K} \$]")
 
 
 #convadj_rec[convadj_rec .== 0.0] .= NaN
-
 #ax2[:scatter](t_day, -600.0 * convadj_rec, marker="^")
-
-
 #ax2[:plot](t_day, - h_rec , "r--", linewidth=2, zorder=10)
+
 ax2[:set_ylim]([-1500, 0])
 
-
-
-
-
-tlim = [t_day[1], t_day[end]]
+tlim = [t_yr[1], t_yr[end]]
 ax1[:set_xlim](tlim)
 ax2[:set_xlim](tlim)
 
@@ -248,8 +246,8 @@ ax1[:set_ylabel]("SST anomaly\n[\$\\mathrm{K}\$]")
 ax2[:set_ylabel]("Z [m]")
 ax2[:set_xlabel]("Time [year]")
 
-ticks      = collect(0:DAYS_PER_YEAR * 50:DAYS_WANTED)
-ticklabels = [format("{:d}", ticks[i]/DAYS_PER_YEAR) for i=1:length(ticks)]
+ticks      = collect(0:5:YEARS_WANTED)
+ticklabels = [format("{:d}", ticks[i]) for i=1:length(ticks)]
 
 ax1[:set_xticks](ticks)
 ax2[:set_xticks](ticks)
@@ -266,39 +264,34 @@ plt[:show]()
 
 
 # Monthly structure
-fig, ax = plt[:subplots](1, 4, figsize=(20,6), sharey=true)
+fig, ax = plt[:subplots](1, 3, figsize=(15,6), sharey=true)
 
 fig[:suptitle]("Vertical profile of monthly mean buoyancy")
 
-for i = 1:size(mon_bs)[2]
+for i = 1:size(mon_means["T"])[2]
 
     offset =  i
 
-    ax[1][:plot](mon_SST[:, i], mid_zs, label="$i")
-    ax[1][:text](mon_SST[1, i], zs[1]+offset, "$i", va="bottom", ha="center")
+    ax[1][:plot](mon_means["T"][:, i], mid_zs, label="$i")
+    ax[1][:text](mon_means["T"][1, i], zs[1]+offset, "$i", va="bottom", ha="center")
 
-    ax[2][:plot](mon_SST_detrend[:, i], mid_zs, label="$i")
-    ax[2][:text](mon_SST_detrend[1, i], zs[1]+offset, "$i", va="bottom", ha="center")
 end
 
 ax[1][:set_title]("Original")
-ax[2][:set_title]("After Detrend")
 
 ax[1][:set_ylim]([-200, 20])
 ax[1][:legend]()
-ax[2][:legend]()
 
 ax[1][:set_xlabel]("Temperature anomaly [\$\\mathrm{K}\$]")
-ax[2][:set_xlabel]("Temperature anomaly [\$\\mathrm{K}\$]")
 
 
-ax[3][:plot]([0, 0], [-200, 20], "--", color="#888888")
-ax[3][:plot](T_trends * SECS_PER_YEAR * 1e4, mid_zs, "r-", label="trend")
-ax[3][:set_title]("Trend for each layer")
+ax[2][:plot]([0, 0], [-200, 20], "--", color="#888888")
+ax[2][:plot](total_trends["T"] * SECS_PER_YEAR, mid_zs, "r-", label="trend")
+ax[2][:set_title]("Trend for each layer")
 
-ax[4][:plot](T_means, mid_zs, "r-", label="mean")
-ax[4][:set_title]("Mean for each layer")
+ax[3][:plot](mean(mon_means["T"], dims=2)[:, 1], mid_zs, "r-", label="mean")
+ax[3][:set_title]("Mean for each layer")
 
-ax[3][:set_xlabel]("Trend of Temperature [\$\\times\\,10^{-4}\\,\\mathrm{K}\\,\\mathrm{yr}^{-1} \$]")
-ax[4][:set_xlabel]("Mean Temperature [\$\\mathrm{K}\$]")
+ax[2][:set_xlabel]("Trend of Temperature [\$\\times\\,10^{-4}\\,\\mathrm{K}\\,\\mathrm{yr}^{-1} \$]")
+ax[3][:set_xlabel]("Mean Temperature [\$\\mathrm{K}\$]")
 plt[:show]()

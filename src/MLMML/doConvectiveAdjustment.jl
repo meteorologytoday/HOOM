@@ -159,7 +159,7 @@ function doConvectiveAdjustment!(;
             ) - getIntegratedQuantity(
                 zs       =  zs,
                 qs       =  Ts,
-                b_ML     =  T_ML,
+                q_ML     =  T_ML,
                 h_ML     =  h_ML,
                 target_z =  top_z
             ))  / Δz
@@ -173,7 +173,7 @@ function doConvectiveAdjustment!(;
             ) - getIntegratedQuantity(
                 zs       =  zs,
                 qs       =  Ss,
-                b_ML     =  S_ML,
+                q_ML     =  S_ML,
                 h_ML     =  h_ML,
                 target_z =  top_z
             ))  / Δz

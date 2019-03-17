@@ -45,7 +45,7 @@ function stepOceanColumnCollection!(
         #println("### h: ", oc.h)
         #println("FLDO:", oc.FLDO)
 
-        total_Tflx = ( swflx[i, j] + nswflx[i, j] ) / (ρ*c) 
+        total_Tflx = ( swflx[i, j] + nswflx[i, j] ) / (ρ*c_p) 
         total_Sflx = - frwflx[i, j] * occ.S_ML[i, j]
         total_bflx = g * ( α * total_Tflx - β * total_Sflx )
         
@@ -91,8 +91,8 @@ function stepOceanColumnCollection!(
         #         be conserved purely through entrainment
         #     ii: Add to total buoyancy
 
-        new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - total_Tflux * Δt) / new_h_ML
-        new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - total_Sflux * Δt) / new_h_ML
+        new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - total_Tflx * Δt) / new_h_ML
+        new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - total_Sflx * Δt) / new_h_ML
         
         OC_setMixedLayer!(
             occ, i, j;
@@ -102,7 +102,7 @@ function stepOceanColumnCollection!(
         ) 
         OC_doDiffusion_EulerBackward!(occ, i, j; Δt=Δt)
 
-        updateB!(occ, i, j)
+        OC_updateB!(occ, i, j)
         
         OC_doConvectiveAdjustment!(occ, i, j)
 

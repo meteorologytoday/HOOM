@@ -95,6 +95,7 @@ mutable struct OceanColumnCollection
         )
 
         updateB!(occ)
+        updateFLDO!(occ)
         
 
         return occ
