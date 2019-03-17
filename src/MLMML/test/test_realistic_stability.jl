@@ -38,8 +38,8 @@ MONS_PER_YEAR= 12
 DAYS_PER_YEAR = DAYS_PER_MON * MONS_PER_YEAR
 SECS_PER_YEAR = DAYS_PER_YEAR * SECS_PER_DAY
 
-SPINUP_YEARS = 20
-YEARS_WANTED = 1000
+SPINUP_YEARS = 50
+YEARS_WANTED = 100
 TOTAL_YEARS = SPINUP_YEARS + YEARS_WANTED
 
 TOTAL_DAYS = TOTAL_YEARS * DAYS_PER_YEAR
@@ -57,9 +57,9 @@ t = t_sim[SPINUP_DAYS+1:end]
 t .-= t[1]
 
 
-swflx = 125.0 * cos.(ω*t_sim)
+swflx  = 125.0 * cos.(ω*t_sim)
 nswflx = swflx * 0.0
-frwflx = swflx * 0.0
+frwflx = (40.0 / 1000.0 / 86400.0) * (- cos.(ω*t_sim))
 
 U10 = zeros(Float64, length(t_sim))
 U10 .= 8.0 .+ 2.0 * cos.(ω*t_sim)
@@ -79,9 +79,14 @@ occ = MLMML.makeBasicOceanColumnCollection(
 
 using PyPlot
 mid_zs = (zs[1:end-1] + zs[2:end]) / 2.0
-plt[:figure]()
-plt[:plot](occ.bs[1,1,:], mid_zs)
+fig, ax = plt[:subplots](1, 3, sharey=true)
+ax[1][:plot](occ.bs[1,1,:], mid_zs)
+ax[2][:plot](occ.Ts[1,1,:], mid_zs)
+ax[3][:plot](occ.Ss[1,1,:] * 1e3, mid_zs)
 
+ax[1][:set_title]("Init b [m/s^2]")
+ax[1][:set_title]("Init T [K]")
+ax[1][:set_title]("Init S [g/Kg]")
 
 
 
@@ -224,7 +229,7 @@ clevs = - [0.5, 0.2]
 append!(clevs, collect(range(-0.1, stop=0.0, length=6)))
 append!(clevs, -clevs[end-1:-1:1])
 
-clevs = (range(-0.5, stop=0.5, length=51) |> collect ) * 0.1 
+clevs = (range(-0.5, stop=0.5, length=51) |> collect ) * 0.01 
 cbmapping = ax2[:contourf](t_yr, mid_zs, mon_rmsc["T"], clevs, cmap=cmap, extend="both", zorder=1, antialiased=false)
 cb = plt[:colorbar](cbmapping, cax=cax)
 
@@ -271,7 +276,6 @@ fig[:suptitle]("Vertical profile of monthly mean buoyancy")
 for i = 1:size(mon_means["T"])[2]
 
     offset =  i
-
     ax[1][:plot](mon_means["T"][:, i], mid_zs, label="$i")
     ax[1][:text](mon_means["T"][1, i], zs[1]+offset, "$i", va="bottom", ha="center")
 
@@ -292,6 +296,37 @@ ax[2][:set_title]("Trend for each layer")
 ax[3][:plot](mean(mon_means["T"], dims=2)[:, 1], mid_zs, "r-", label="mean")
 ax[3][:set_title]("Mean for each layer")
 
-ax[2][:set_xlabel]("Trend of Temperature [\$\\times\\,10^{-4}\\,\\mathrm{K}\\,\\mathrm{yr}^{-1} \$]")
+ax[2][:set_xlabel]("Trend of Temperature [\$\\times\\,\\mathrm{K}\\,\\mathrm{yr}^{-1} \$]")
 ax[3][:set_xlabel]("Mean Temperature [\$\\mathrm{K}\$]")
+plt[:show]()
+
+
+# ===== MONTHLY STRUCTURE =====
+
+fig, ax = plt[:subplots](1, 3, figsize=(15,6), sharey=true)
+
+fig[:suptitle]("Monthly mean structure")
+
+for i = 1:size(mon_means["S"])[2]
+    offset =  i * 5
+    ax[1][:plot](mon_means["b"][:, i], mid_zs, label="$i")
+    ax[1][:text](mon_means["b"][1, i], zs[1]+offset, "$i", va="bottom", ha="center")
+
+    ax[2][:plot](mon_means["T"][:, i] .- MLMML.T_ref, mid_zs, label="$i")
+    ax[2][:text](mon_means["T"][1, i] .- MLMML.T_ref, zs[1]+offset, "$i", va="bottom", ha="center")
+
+    ax[3][:plot]((mon_means["S"][:, i].- MLMML.S_ref) * 1e3, mid_zs, label="$i")
+    ax[3][:text]((mon_means["S"][1, i].- MLMML.S_ref) * 1e3, zs[1]+offset, "$i", va="bottom", ha="center")
+end
+
+ax[1][:set_title]("Mean b")
+ax[2][:set_title]("Mean T")
+ax[3][:set_title]("Mean S")
+
+ax[1][:set_xlabel]("b [m / s^2]")
+ax[2][:set_xlabel]("T - T_ref [K]")
+ax[3][:set_xlabel]("S - S_ref [g/Kg]")
+
+
+ax[1][:set_ylim]([-1100, 20])
 plt[:show]()
