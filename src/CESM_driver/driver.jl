@@ -52,9 +52,9 @@ while true
 
     end_time = Base.time()
 
-    println(format("Execution time: {:d}", floor(end_time - beg_time)))
-    println(format("# Time counter : {:d}", loop_i))
-    println(format("# Stage        : {}", String(stage)))
+    println(format("Execution time       : {:d} s", floor(end_time - beg_time)))
+    println(format("# Time Index counter : {:d}", loop_i))
+    println(format("# Stage              : {}", String(stage)))
 
     msg = parseMsg(recv(mail))
     println("==== MESSAGE RECEIVED ====")

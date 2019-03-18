@@ -131,7 +131,7 @@ module docn_comp_mod
   integer :: x_w_fd, x_r_fd, x_curr_ymd
   integer :: x_stat, x_max_try
 
-  real(R8), pointer     :: x_hflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
+  real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
                            x_ifrac(:), x_q(:), x_frwflx(:) 
 
   !--- formats   ---
@@ -698,7 +698,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         kprec  = mct_aVect_indexRA(x2o,'Faxa_prec')
         kevap  = mct_aVect_indexRA(x2o,'Foxx_evap')
 
-        allocate(x_hflx(lsize))
+        allocate(x_nswflx(lsize))
         allocate(x_swflx(lsize))
         allocate(x_taux(lsize))
         allocate(x_tauy(lsize))
@@ -712,7 +712,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             end if
 
             x_q(n)       = 0.0_R8 
-            x_hflx(n)    = 0.0_R8
+            x_nswflx(n)    = 0.0_R8
             x_swflx(n)   = 0.0_R8
             x_taux(n)    = 0.0_R8
             x_tauy(n)    = 0.0_R8
@@ -759,7 +759,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_swflx(n)  = x2o%rAttr(kswnet, n) 
 
 
-            x_hflx(n)   = x2o%rAttr(klwup, n)  + &    ! upward longwave
+            x_nswflx(n) = x2o%rAttr(klwup, n)  + &    ! upward longwave
                           x2o%rAttr(klwdn, n)  + &    ! downward longwave
                           x2o%rAttr(ksen, n)   + &    ! sensible heat flux
                           x2o%rAttr(klat, n)   + &    ! latent heat flux
@@ -778,9 +778,9 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         end do
         !print *, "Max of short wave: ", maxval(x_swflx)
 
-        x_fn = "HFLX.bin"
-        x_msg = trim(x_msg)//"HFLX:"//trim(x_fn)//";"
-        call write_1Dfield(x_w_fd, x_fn, x_hflx, lsize)
+        x_fn = "NSWFLX.bin"
+        x_msg = trim(x_msg)//"NSWFLX:"//trim(x_fn)//";"
+        call write_1Dfield(x_w_fd, x_fn, x_nswflx, lsize)
 
         x_fn = "SWFLX.bin"
         x_msg = trim(x_msg)//"SWFLX:"//trim(x_fn)//";"

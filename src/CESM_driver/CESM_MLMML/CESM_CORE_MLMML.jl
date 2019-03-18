@@ -93,7 +93,9 @@ module CESM_CORE_MLMML
             "QFLX2ATM" => occ.qflx2atm,
         )
 
-        output_vars = Dict(#=
+        output_vars = Dict(
+      #      "rain"       => wksp.frwflx,
+#=
             "mld"       => occ.h_ML,
             "sst"       => occ.sst,
             "qflx2atm"  => occ.qflx2atm,
@@ -103,9 +105,9 @@ module CESM_CORE_MLMML
         =#)
         
         sobj_dict = Dict(
-            "mld" => occ.h_ML,
-            "T" => occ.T_ML,
-            "S" => occ.S_ML,
+            "mld"    => occ.h_ML,
+            "T"      => occ.Ts,
+            "S"      => occ.Ss,
             "sumflx" => wksp.sumflx,
             "fric_u" => wksp.fric_u,
             "frwflx" => wksp.frwflx,
@@ -148,9 +150,15 @@ module CESM_CORE_MLMML
             MLMML._createNCFile(MD.occ, avg_file, MD.map.missing_value)
 
             Dataset(avg_file, "a") do ds
-                for v in ("mld", "sst", "sumflx", "fric_u")
-                    MLMML._write2NCFile(ds, v,    ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
+
+                for v in ["mld", "sumflx", "fric_u", "frwflx"]
+                    MLMML._write2NCFile(ds, v, ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
                 end
+
+                for v in ["T", "S"]
+                    MLMML._write2NCFile(ds, v, ("Nx", "Ny", "Nz"), MD.sobj.vars[v], MD.map.missing_value)
+                end
+
             end
             println("Output monthly average: ", avg_file)
             
@@ -170,7 +178,6 @@ module CESM_CORE_MLMML
 
         wksp.nswflx .*= -1.0
         wksp.swflx  .*= -1.0
-        wksp.frwflx .*= -1.0
 
         #wksp.sumflx[:, :]  = wksp.nswflx
         #wksp.sumflx      .+= wksp.swflx

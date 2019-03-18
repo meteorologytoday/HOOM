@@ -41,8 +41,8 @@ function takeSnapshot(
         _write2NCFile(ds, "zs", ("N_zs",), occ.zs, missing_value)
         _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
 
-        _write2NCFile(ds, "Ts", ("Nx", "Ny", "N_lays"), occ.Ts, missing_value)
-        _write2NCFile(ds, "Ss", ("Nx", "Ny", "N_lays"), occ.Ss, missing_value)
+        _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz"), occ.Ts, missing_value)
+        _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz"), occ.Ss, missing_value)
         _write2NCFile(ds, "T_ML", ("Nx", "Ny",), occ.T_ML, missing_value)
         _write2NCFile(ds, "S_ML", ("Nx", "Ny",), occ.S_ML, missing_value)
         _write2NCFile(ds, "h_ML", ("Nx", "Ny",), occ.h_ML, missing_value)
@@ -61,7 +61,7 @@ function _createNCFile(
         defDim(ds, "N_ocs", occ.N_ocs)
         defDim(ds, "Nx", occ.Nx)
         defDim(ds, "Ny", occ.Ny)
-        defDim(ds, "N_lays", occ.Nz)
+        defDim(ds, "Nz", occ.Nz)
         defDim(ds, "N_zs",   length(occ.zs))
        
         ds.attrib["_FillValue"] = missing_value
