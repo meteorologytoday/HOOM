@@ -133,7 +133,7 @@ module CESM_CORE_MLMML
         Δt    :: Float64,
     )
 
-
+        #=
         # ===== monthly statistics begin =====
         if t_cnt == 1 
             zeroStatObj!(MD.sobj)
@@ -165,7 +165,7 @@ module CESM_CORE_MLMML
            zeroStatObj!(MD.sobj)
         end
         # ===== monthly statistics end =====
-
+        =#
 
         # Take snapshot every first day of the year.
         if t[2] == 1 && t[3] == 1 && t[4] == 0

@@ -52,8 +52,9 @@ function stepOceanColumnCollection!(
         total_Sflx = - frwflx[i, j] * occ.S_ML[i, j]
         total_bflx = g * ( α * total_Tflx - β * total_Sflx )
         
-        FLDO = occ.FLDO[i, j]
-        Δb = (FLDO != -1) ? occ.b_ML[i, j] - occ.bs[i, j, FLDO] : 0.0
+        old_FLDO = occ.FLDO[i, j]
+        old_h_ML = occ.h_ML[i, j]
+        Δb = (old_FLDO != -1) ? occ.b_ML[i, j] - occ.bs[i, j, old_FLDO] : 0.0
 
         # After convective adjustment, there still might
         # be some numerical error making Δb slightly negative
@@ -67,7 +68,7 @@ function stepOceanColumnCollection!(
 
         #fric_u = getFricU(ua=ua)
         flag, val = calWeOrMLD(;
-            h_ML   = occ.h_ML[i, j],
+            h_ML   = old_h_ML,
             B      = total_bflx,
             fric_u = fric_u[i, j],
             Δb     = Δb
@@ -81,7 +82,7 @@ function stepOceanColumnCollection!(
             new_h_ML  = val
         elseif flag == :we
             we = val 
-            new_h_ML = occ.h_ML[i, j] + Δt * we
+            new_h_ML = old_h_ML + Δt * we
         end
         new_h_ML = boundMLD(new_h_ML; h_ML_max=min(h_ML_max, occ.zs[1] - occ.zs[end]))
 
@@ -93,6 +94,27 @@ function stepOceanColumnCollection!(
         #      i: Calculate integrated buoyancy that should
         #         be conserved purely through entrainment
         #     ii: Add to total buoyancy
+
+
+        # If new_h_ML < old_h_ML, then the FLDO layer should get extra T or S due to mixing
+        if new_h_ML < old_h_ML
+
+            new_FLDO = getFLDO(zs=occ.zs, h_ML=new_h_ML)
+            new_FLDO_T = 0.0
+            new_FLDO_S = 0.0
+
+            FLDO_Δz =  -occ.zs[old_FLDO+1] - old_h_ML
+            retreat_Δz =  old_h_ML - ((new_FLDO == old_FLDO) ? new_h_ML : (-occ.zs[old_FLDO]) )
+
+            occ.Ts[i, j, new_FLDO] = (
+                occ.Ts[i, j, old_FLDO] * FLDO_Δz + occ.T_ML[i, j] * retreat_Δz
+            ) / (FLDO_Δz + retreat_Δz)
+
+            occ.Ss[i, j, new_FLDO] = (
+                occ.Ss[i, j, old_FLDO] * FLDO_Δz + occ.S_ML[i, j] * retreat_Δz
+            ) / (FLDO_Δz + retreat_Δz)
+
+        end
 
         new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - total_Tflx * Δt) / new_h_ML
         new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - total_Sflx * Δt) / new_h_ML

@@ -39,7 +39,7 @@ DAYS_PER_YEAR = DAYS_PER_MON * MONS_PER_YEAR
 SECS_PER_YEAR = DAYS_PER_YEAR * SECS_PER_DAY
 
 SPINUP_YEARS = 50
-YEARS_WANTED = 100
+YEARS_WANTED = 50
 TOTAL_YEARS = SPINUP_YEARS + YEARS_WANTED
 
 TOTAL_DAYS = TOTAL_YEARS * DAYS_PER_YEAR
@@ -59,7 +59,10 @@ t .-= t[1]
 
 swflx  = 125.0 * cos.(ω*t_sim)
 nswflx = swflx * 0.0
-frwflx = (40.0 / 1000.0 / 86400.0) * (- cos.(ω*t_sim))
+
+frwflx = 0*(40.0 / 1000.0 / 86400.0) * (- cos.(ω*t_sim))
+
+
 
 U10 = zeros(Float64, length(t_sim))
 U10 .= 8.0 .+ 2.0 * cos.(ω*t_sim)
@@ -108,7 +111,7 @@ _frwflx = zeros(Float64, 1, 1)
 
 for k = 1:length(t_sim)
     if (k-1)%DAYS_PER_YEAR == 0
-        println(format("Iteration = {:d}/{:d} ({:.1f}%)", k, length(t_sim), k / length(t_sim) * 100.0))
+        print(format("\rIteration = {:d}/{:d} ({:.1f}%)", k, length(t_sim), k / length(t_sim) * 100.0))
     end
 
     fric_u[1,1]  = MLMML.getFricU(ua=U10[k])
@@ -142,8 +145,39 @@ for k = 1:length(t_sim)
     end
 end
 
-
+println()
 using Statistics
+
+
+# Doing Dayily RMSC
+day = rec
+day_rmsc = Dict()
+day_means  = Dict()     # means  of every layer of every day
+day_len = length(t)
+
+for k in ("b", "T", "S")
+    
+    day_means[k]    = zeros(occ.Nz, DAYS_PER_YEAR)
+    day_rmsc[k]     = zeros(occ.Nz, day_len)
+    for i=1:occ.Nz
+        d_timeseries = day[k][i, :]
+
+        # Because detrending is not uniform across different layers,
+        # here I just simply average them to get avg profile
+        day_means[k][i, :] = mean( reshape( d_timeseries, DAYS_PER_YEAR, :), dims=2)[:,1]
+        β = LinearRegression(t, d_timeseries)
+        d_timeseries -= β[1] .+ β[2] * t
+       
+        seasonality = repeat(
+            mean( reshape( d_timeseries, DAYS_PER_YEAR, :), dims=2)[:,1]
+            , outer=(YEARS_WANTED,)
+        )
+        day_rmsc[k][i, :] = d_timeseries - seasonality
+    end
+end
+
+
+
 
 # Doing Monthly Average
 mon_len = Int(length(t)/DAYS_PER_MON)
@@ -197,6 +231,10 @@ end
 
 end
 
+println(format("Average of total trends: {:.2e} K / yr", mean(total_trends["T"]) * SECS_PER_YEAR))
+println(format("Average of total trends: {:.2e} g/Kg / yr", mean(total_trends["S"]) * SECS_PER_YEAR))
+
+
 t_yr = mon["t"] / SECS_PER_YEAR
 mid_zs = (zs[1:end-1] + zs[2:end]) / 2.0
 
@@ -221,6 +259,7 @@ cax = plt[:subplot](gs0[2])
 # SST record
 ax1[:plot]([t_yr[1], t_yr[end]], [0, 0], "k--")
 ax1[:plot](t_yr, mon_rmsc["T"][1, :], label="SST")
+#ax1[:plot](t / SECS_PER_YEAR, day_rmsc["T"][1, :], label="SST")
 
 
 cmap = plt[:get_cmap]("jet")
@@ -229,23 +268,20 @@ clevs = - [0.5, 0.2]
 append!(clevs, collect(range(-0.1, stop=0.0, length=6)))
 append!(clevs, -clevs[end-1:-1:1])
 
-clevs = (range(-0.5, stop=0.5, length=51) |> collect ) * 0.01 
-cbmapping = ax2[:contourf](t_yr, mid_zs, mon_rmsc["T"], clevs, cmap=cmap, extend="both", zorder=1, antialiased=false)
+clevs = (range(-0.5, stop=0.5, length=21) |> collect )  
+#cbmapping = ax2[:contourf](t_yr, mid_zs, mon_rmsc["T"] * 10.0, clevs, cmap=cmap, extend="both", zorder=1, antialiased=false)
+cbmapping = ax2[:contourf](t/SECS_PER_YEAR, mid_zs, day_rmsc["T"] * 10.0, clevs, cmap=cmap, extend="both", zorder=1, antialiased=false)
 cb = plt[:colorbar](cbmapping, cax=cax)
 
-cb[:set_label]("Temperature anomaly [\$ \\times \\, 10^{-1} \\, \\mathrm{K} \$]")
+cb[:set_label]("Temperature anomaly [\$ \\times 10^{-1} \\, \\mathrm{K} \$]")
+
+#ax2[:plot](t_yr, - mon["h"], "r--")
+ax2[:plot](t / SECS_PER_YEAR, - rec["h"], "r--")
 
 
 #convadj_rec[convadj_rec .== 0.0] .= NaN
 #ax2[:scatter](t_day, -600.0 * convadj_rec, marker="^")
 #ax2[:plot](t_day, - h_rec , "r--", linewidth=2, zorder=10)
-
-ax2[:set_ylim]([-1500, 0])
-
-tlim = [t_yr[1], t_yr[end]]
-ax1[:set_xlim](tlim)
-ax2[:set_xlim](tlim)
-
 
 ax1[:set_ylabel]("SST anomaly\n[\$\\mathrm{K}\$]")
 ax2[:set_ylabel]("Z [m]")
@@ -259,6 +295,19 @@ ax2[:set_xticks](ticks)
 
 ax1[:set_xticklabels](ticklabels)
 ax2[:set_xticklabels](ticklabels)
+
+
+ax2[:set_ylim]([-1500, 0])
+ax2[:set_ylim]([-1100, 0])
+
+tlim = [t_yr[1], t_yr[end]]
+tlim = [20, 30]
+
+
+ax1[:set_ylim]([-0.5, 0.5])
+ax1[:set_xlim](tlim)
+ax2[:set_xlim](tlim)
+
 
 using Formatting
 fig[:suptitle](
@@ -296,7 +345,7 @@ ax[2][:set_title]("Trend for each layer")
 ax[3][:plot](mean(mon_means["T"], dims=2)[:, 1], mid_zs, "r-", label="mean")
 ax[3][:set_title]("Mean for each layer")
 
-ax[2][:set_xlabel]("Trend of Temperature [\$\\times\\,\\mathrm{K}\\,\\mathrm{yr}^{-1} \$]")
+ax[2][:set_xlabel]("Trend of Temperature [\$\\mathrm{K}\\,\\mathrm{yr}^{-1} \$]")
 ax[3][:set_xlabel]("Mean Temperature [\$\\mathrm{K}\$]")
 plt[:show]()
 
@@ -308,7 +357,7 @@ fig, ax = plt[:subplots](1, 3, figsize=(15,6), sharey=true)
 fig[:suptitle]("Monthly mean structure")
 
 for i = 1:size(mon_means["S"])[2]
-    offset =  i * 5
+    offset =  i 
     ax[1][:plot](mon_means["b"][:, i], mid_zs, label="$i")
     ax[1][:text](mon_means["b"][1, i], zs[1]+offset, "$i", va="bottom", ha="center")
 
@@ -328,5 +377,5 @@ ax[2][:set_xlabel]("T - T_ref [K]")
 ax[3][:set_xlabel]("S - S_ref [g/Kg]")
 
 
-ax[1][:set_ylim]([-1100, 20])
+ax[1][:set_ylim]([-200, 20])
 plt[:show]()
