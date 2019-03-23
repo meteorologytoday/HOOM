@@ -1,5 +1,3 @@
-
-
 const T_fw_frz = 273.15              # Freeze point of freshwater in Kelvin
 const T_sw_frz = T_fw_frz - 1.8      # Freeze point of seawater in Kelvin
 
@@ -14,5 +12,9 @@ const g   = 9.8      # m / s^2
 const αgρc = α * g / (ρ * c_p)
 
 const b_sw_frz = α * (T_sw_frz - T_ref)
+
+
+const S_surf_avg = 35e-3    # The average surface salinity used to update salinity when raining/evaporating.
+
 
 const missing_value = 1e20

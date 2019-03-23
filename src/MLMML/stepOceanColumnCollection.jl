@@ -49,7 +49,7 @@ function stepOceanColumnCollection!(
         #println("FLDO:", oc.FLDO)
 
         total_Tflx = ( swflx[i, j] + nswflx[i, j] ) / (ρ*c_p) 
-        total_Sflx = - frwflx[i, j] * occ.S_ML[i, j]
+        total_Sflx = - frwflx[i, j] * S_surf_avg
         total_bflx = g * ( α * total_Tflx - β * total_Sflx )
         
         old_FLDO = occ.FLDO[i, j]
