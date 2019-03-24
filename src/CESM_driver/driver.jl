@@ -1,9 +1,9 @@
 println("===== Universal Driver Initialization BEGIN =====")
 
-if isdir(wdir)
-    cd(wdir)
+if isdir(configs["wdir"])
+    cd(configs["wdir"])
 else
-    throw(ErrorException("Working directory [ " * wdir * " ] does not exist."))
+    throw(ErrorException("Working directory [ " * configs["wdir"] * " ] does not exist."))
 end
 
 
@@ -35,7 +35,7 @@ stage = :INIT
 mail = MailboxInfo()
 #mkPipe(mail)
 
-map = NetCDFIO.MapInfo{Float64}(domain_file)
+map = NetCDFIO.MapInfo{Float64}(configs["domain_file"])
 
 loop_i = 1
 nc_cnt = 1 

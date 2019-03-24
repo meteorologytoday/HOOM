@@ -30,3 +30,7 @@ After creating a CESM case, this is what typically needs to be done.
 1. Run `$CASEROOT/$CASE.run`
 2. Run `julia $SMARTSLABDEV_ROOT/src/CESM_driver/CESM_MLMML/run_CESM_MLMML.jl --config=`$SMARTSLAB_CONFIG`
 
+
+# TODO
+
+- `output_vars` seems to be useless in driver. Maybe I should delete that.
