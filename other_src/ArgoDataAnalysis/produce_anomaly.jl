@@ -5,10 +5,6 @@ using Formatting
 include("config.jl")
 
 
-
-
-
-
 Buoy = (α * readModelVar(ifilename_Temp, "ARGO_TEMPERATURE_ANOMALY") - β * readModelVar(ifilename_Psal, "ARGO_SALINITY_ANOMALY")) * g
 
 
