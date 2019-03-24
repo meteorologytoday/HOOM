@@ -4,6 +4,11 @@ configs = Dict(
     "domain_file" => "/home/tienyiah/cesm_inputdata/cesm1/share/domains/domain.ocn.gx3v7.120323.nc",
     "short_term_archive_dir" => pwd(),
     "long_term_archive_dir"  => pwd(),
+    "enable_short_term_archive" => false,
+    "enable_long_term_archive"  => false,
+    "monthly_record"  => true,
+    "yearly_snapshot"  => true,
+    "short_term_archive_list" => "SMARTSLAB_short_term_archive_list.txt",
 )
 
 function parse_commandline()
@@ -71,5 +76,10 @@ end
 =#
 
 
-
+function appendLine(filename, content)
+    open(filename, "a") do io
+        write(io, content)
+        write(io, "\n")
+    end
+end
 

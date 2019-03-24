@@ -21,11 +21,14 @@ module CESMCORE_MLMML
         x2o         :: Dict
         o2x         :: Dict
 
+        configs       :: Dict
+
         output_vars :: Dict
         wksp        :: Workspace
 
         sobj        :: StatObj
         sobj_dict   :: Dict
+
     end
 
 
@@ -33,6 +36,7 @@ module CESMCORE_MLMML
         map       :: NetCDFIO.MapInfo,
         init_file :: Union{Nothing, AbstractString},
         t         :: AbstractArray{Integer},
+        configs   :: Dict,
     )
 
         if init_file == nothing
@@ -70,8 +74,8 @@ module CESMCORE_MLMML
 
             snapshot_file = format("Snapshot_{:04d}0101_00000.nc", t[1])
             println("Output snapshot: ", snapshot_file)
-            MLMML.takeSnapshot(occ, snapshot_file)
-
+            MLMML.takeSnapshot(occ, joinpath(MD.configs["short_term_archive_dir"], snapshot_file))
+            appendLine(configs["short_term_archive_list"], snapshot_file)
         else
             println("Initial ocean with profile: ", init_file)
             occ = MLMML.loadSnapshot(init_file)
@@ -118,6 +122,7 @@ module CESMCORE_MLMML
             occ,
             x2o,
             o2x,
+            configs,
             output_vars,
             wksp,
             StatObj(sobj_dict),
@@ -133,47 +138,53 @@ module CESMCORE_MLMML
         Δt    :: Float64,
     )
 
-        #=
-        # ===== monthly statistics begin =====
-        if t_cnt == 1 
-            zeroStatObj!(MD.sobj)
-        end
-
-        addStatObj!(MD.sobj, MD.sobj_dict)
-        
-        # Do monthly average and output it by the end of month
-        if days_of_mon[t[2]] == t[3] && t[4] == 0
-            avg_file = format("avg_{:04d}{:02d}.nc", t[1], t[2])
-            
-            normStatObj!(MD.sobj)
-
-            MLMML._createNCFile(MD.occ, avg_file, MD.map.missing_value)
-
-            Dataset(avg_file, "a") do ds
-
-                for v in ["mld", "sumflx", "fric_u", "frwflx"]
-                    MLMML._write2NCFile(ds, v, ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
+        if MD.configs["enable_short_term_archive"]
+            if MD.configs["monthly_record"]
+                # ===== monthly statistics begin =====
+                if t_cnt == 1 
+                    zeroStatObj!(MD.sobj)
                 end
 
-                for v in ["T", "S"]
-                    MLMML._write2NCFile(ds, v, ("Nx", "Ny", "Nz"), MD.sobj.vars[v], MD.map.missing_value)
-                end
+                addStatObj!(MD.sobj, MD.sobj_dict)
+                
+                # Do monthly average and output it by the end of month
+                if days_of_mon[t[2]] == t[3] && t[4] == 0
 
+                    avg_file = format("avg_{:04d}{:02d}.nc", t[1], t[2])
+                    
+                    normStatObj!(MD.sobj)
+
+                    MLMML._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], avg_file), MD.map.missing_value)
+                    Dataset(avg_file, "a") do ds
+
+                        for v in ["mld", "sumflx", "fric_u", "frwflx"]
+                            MLMML._write2NCFile(ds, v, ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
+                        end
+
+                        for v in ["T", "S"]
+                            MLMML._write2NCFile(ds, v, ("Nx", "Ny", "Nz"), MD.sobj.vars[v], MD.map.missing_value)
+                        end
+
+                    end
+                    println("Output monthly average: ", avg_file)
+                    appendLine(MD.configs["short_term_archive_list"], avg_file)
+                    
+                    zeroStatObj!(MD.sobj)
+                end
             end
-            println("Output monthly average: ", avg_file)
-            
-           zeroStatObj!(MD.sobj)
-        end
-        # ===== monthly statistics end =====
-        =#
 
-        # Take snapshot every first day of the year.
-        if t[2] == 1 && t[3] == 1 && t[4] == 0
-            snapshot_file = format("Snapshot_{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
-            MLMML.takeSnapshot(MD.occ, snapshot_file)
-            println("Output snapshot: ", snapshot_file)
+            if MD.configs["yearly_snapshot"]
+                # Take snapshot every first day of the year.
+                if t[2] == 1 && t[3] == 1 && t[4] == 0
+                    snapshot_file = format("Snapshot_{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
+
+                    MLMML.takeSnapshot(MD.occ, joinpath(MD.configs["short_term_archive_dir"], snapshot_file))
+                    println("Output snapshot: ", snapshot_file)
+                    appendLine(MD.configs["short_term_archive_list"], snapshot_file)
+                end
+            end
         end
-        
+ 
         wksp = MD.wksp
 
         wksp.nswflx .*= -1.0

@@ -73,7 +73,10 @@ while true
     if stage == :INIT && msg["MSG"] == "INIT"
 
         println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
-        OMDATA = OMMODULE.init(map=map, init_file=init_file, t=timeinfo)
+        OMDATA = OMMODULE.init(map=map, init_file=init_file, t=timeinfo, configs=configs)
+        
+        rm(configs["short_term_archive_list"], force=true)
+
         for (varname, var) in OMDATA.output_vars
             output_vars[varname] = reshape(var, map.nx, map.ny)
         end
@@ -127,6 +130,28 @@ while true
         send(mail, "OK")
 
     elseif stage == :RUN && msg["MSG"] == "END"
+
+        # move short_term_archive_files to long term archive directory
+        if configs["enable_long_term_archive"]
+            println("===== Long term archiving files BEGIN =====")
+            sdir = configs["short_term_archive_dir"]
+            ldir = configs["long_term_archive_dir"]
+            mkpath(ldir)
+            for fname in eachline(configs["short_term_archive_list"])
+                src = joinpath(sdir, fname)
+                dst = joinpath(ldir, fname)
+                
+                if isfile(src)
+                    mv(src, dst, force=true)
+                    println("Long term archiving file: ", fname)
+                else
+                    println("File does not exist: ", fname)
+                end
+            end
+
+            println("===== Long term archiving files END =====")
+        end
+
         OMMODULE.final(OMDATA) 
         
         # Print some report... ?
