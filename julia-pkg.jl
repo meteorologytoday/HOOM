@@ -1,7 +1,7 @@
 using Pkg 
 
 
-plist = "Formatting, NCDatasets, StatsBase, Hwloc"
+plist = "Formatting, NCDatasets, StatsBase, ArgParse"
 
 for pname in split(replace(plist, " "=>""), ",")
     println("Target Package: ", pname)
