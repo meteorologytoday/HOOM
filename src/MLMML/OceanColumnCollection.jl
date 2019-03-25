@@ -21,10 +21,15 @@ mutable struct OceanColumnCollection
     FLDO     :: AbstractArray{Int64, 2}
     qflx2atm :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
 
+    h_ML_min :: Float64
+    h_ML_max :: Float64
+    we_max   :: Float64
+
     # Derived quantities
     N_ocs  :: Integer           # Number of columns
     hs     :: AbstractArray{Float64, 1} # Thickness of layers
     Δzs    :: AbstractArray{Float64, 1} # Δz between layers
+    H      :: Integer
 
     function OceanColumnCollection(;
         Nx     :: Integer,
@@ -32,16 +37,22 @@ mutable struct OceanColumnCollection
         zs     :: AbstractArray{Float64, 1},
         Ss     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         Ts     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
-        K_T    :: Float64 = 0.0,
-        K_S    :: Float64 = 0.0,
-        S_ML   :: Float64 = 0.0,
-        T_ML   :: Float64 = 0.0,
-        h_ML   :: Float64 = 0.0,
+        K_T    :: Float64,
+        K_S    :: Float64,
+        S_ML   :: Float64,
+        T_ML   :: Float64,
+        h_ML   :: Float64,
+        h_ML_min :: Float64,
+        h_ML_max :: Float64,
+        we_max   :: Float64,
         mask   :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
     )
 
-        zs = copy(zs)
+        if -h_ML_max < zs[end]
+            throw(ErrorException("h_ML_max should not be equal or greater than ocean max depth."))
+        end
 
+        zs = copy(zs)
         Nz = length(zs) - 1
 
         hs  = zs[1:end-1] - zs[2:end]
@@ -91,7 +102,8 @@ mutable struct OceanColumnCollection
             _b_ML, _S_ML, _T_ML, _h_ML,
             _bs,   _Ss,   _Ts,
             _FLDO, qflx2atm,
-            Nx * Ny, hs, Δzs
+            h_ML_min, h_ML_max, we_max,
+            Nx * Ny, hs, Δzs, zs[1] - zs[end]
         )
 
         updateB!(occ)
@@ -111,6 +123,9 @@ function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
     
     to_occ.K_T = fr_occ.K_T
     to_occ.K_S = fr_occ.K_S
+    to_occ.h_ML_max = fr_occ.h_ML_max
+    to_occ.h_ML_min = fr_occ.h_ML_min
+    to_occ.we_max = fr_occ.we_max
 
     to_occ.b_ML[:, :]      = fr_occ.b_ML
     to_occ.T_ML[:, :]      = fr_occ.T_ML
@@ -121,7 +136,6 @@ function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
     to_occ.bs[:, :, :]     = fr_occ.bs
     to_occ.Ts[:, :, :]     = fr_occ.Ts
     to_occ.Ss[:, :, :]     = fr_occ.Ss
-
 end
 
 
@@ -144,7 +158,14 @@ function makeBlankOceanColumnCollection(
         Nx   = Nx,
         Ny   = Ny,
         zs   = zs,
-        h_ML = h_ML_min,
+        h_ML = -zs[2],
+        K_T  = 0.0,
+        K_S  = 0.0,
+        S_ML = 0.0,
+        T_ML = 0.0,
+        h_ML_min = -zs[2],
+        h_ML_max = -zs[end-1],
+        we_max   = 0.0,
         mask = mask,
     )
 end
@@ -154,15 +175,18 @@ function makeBasicOceanColumnCollection(
     Nx      :: Integer,
     Ny      :: Integer,
     zs      :: AbstractArray{Float64, 1};
-    T_slope :: Float64 = 10.0 / 4000.0,
-    S_slope :: Float64 = 0.0,
-    T_ML    :: Float64 = T_ref,
-    S_ML    :: Float64 = S_ref,
-    h_ML    :: Float64 = h_ML_min,
-    ΔT      :: Float64 = 2.0,
-    ΔS      :: Float64 = 0.0,
-    K_T     :: Float64 = 1e-5,
-    K_S     :: Float64 = 1e-5,
+    T_slope :: Float64,
+    S_slope :: Float64,
+    T_ML    :: Float64,
+    S_ML    :: Float64,
+    h_ML    :: Float64,
+    ΔT      :: Float64,
+    ΔS      :: Float64,
+    K_T     :: Float64,
+    K_S     :: Float64,
+    h_ML_min:: Float64,
+    h_ML_max:: Float64,
+    we_max  :: Float64,
     mask :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
 )
     Ts = zeros(Float64, length(zs)-1)
@@ -189,6 +213,9 @@ function makeBasicOceanColumnCollection(
         T_ML = T_ML,
         S_ML = S_ML,
         h_ML = h_ML,
+        h_ML_min = h_ML_min,        
+        h_ML_max = h_ML_max,
+        we_max = we_max,
         mask = mask,
     )
 end

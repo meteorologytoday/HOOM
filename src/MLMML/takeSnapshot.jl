@@ -10,6 +10,9 @@ function loadSnapshot(filename::AbstractString)
 
         occ.K_T = ds.attrib["K_T"]
         occ.K_S = ds.attrib["K_S"]
+        occ.h_ML_min = ds.attrib["h_ML_min"]
+        occ.h_ML_max = ds.attrib["h_ML_max"]
+        occ.we_max = ds.attrib["we_max"]
 
         occ.h_ML[:, :]  = nomissing( ds["h_ML"][:], NaN )
 
@@ -67,6 +70,9 @@ function _createNCFile(
         ds.attrib["_FillValue"] = missing_value
         ds.attrib["K_T"] = occ.K_T
         ds.attrib["K_S"] = occ.K_S
+        ds.attrib["h_ML_min"] = occ.h_ML_min
+        ds.attrib["h_ML_max"] = occ.h_ML_max
+        ds.attrib["we_max"] = occ.we_max
         
     end
 

@@ -25,6 +25,7 @@ function calWeOrMLD(;
 
 
     if Δb < 0
+        println("Δb = " , Δb)
         throw(ErrorException("Δb cannot be negative."))
     end
 
@@ -49,7 +50,7 @@ function calWeOrMLD(;
         else
             h_ML_diag = - Term1 / Term2
         end
-
+        
         h_ML_diag = h_ML_diag
 
         return :MLD, h_ML_diag

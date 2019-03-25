@@ -42,7 +42,7 @@ end
 
 =#
 
-function boundMLD(h_ML; h_ML_min::Float64=h_ML_min, h_ML_max::Float64=h_ML_max)
+function boundMLD(h_ML::Float64; h_ML_min::Float64, h_ML_max::Float64)
     return max(min(h_ML, h_ML_max), h_ML_min)
 end
 
@@ -91,6 +91,7 @@ function getFLDO(;
     end
 
     return -1
+    #throw(ErrorException("h_ML cannot be equal or greather than -z[end]"))
 end
 
 function getWindStress(;

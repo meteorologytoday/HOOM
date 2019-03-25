@@ -1,3 +1,4 @@
+overwrite_configs = Dict()
 configs = Dict(
     "wdir"        => pwd(),
     "caseroot"    => pwd(),
@@ -22,11 +23,9 @@ function parse_commandline()
         "--core"
             help = "Core of the model."
             arg_type = String
-        #=
         "--init-file"
             help = "Initial profile of ocean. If not provided then a default profile will be used."
             arg_type = String
-        =#
     end
 
     return parse_args(s)
@@ -58,12 +57,20 @@ if !(@isdefined OMMODULE)
 end
 
 println("===== Defining variables BEGIN =====")
+for (k, v) in overwrite_configs
+    if k in keys(configs)
+        println("Overwrite config ", k, "...")
+    else
+        println("Add config ", k, "...")
+    end
+
+    configs[k] = v
+end
 print(json(configs, 4))
 println("===== Defining variables END =====")
 
 
 
-#=
 init_file = parsed_args["init-file"]
 if init_file != nothing
     init_file = normpath( (isabspath(init_file)) ? init_file : joinpath(pwd(), init_file) )
@@ -73,13 +80,6 @@ if init_file != nothing
         throw(ErrorException("File missing: ", init_file))
     end
 end
-=#
 
 
-function appendLine(filename, content)
-    open(filename, "a") do io
-        write(io, content)
-        write(io, "\n")
-    end
-end
 

@@ -84,7 +84,9 @@ function stepOceanColumnCollection!(
             we = val 
             new_h_ML = old_h_ML + Δt * we
         end
-        new_h_ML = boundMLD(new_h_ML; h_ML_max=min(h_ML_max, occ.zs[1] - occ.zs[end]))
+        #println("old: ", old_h_ML, "; new: ", new_h_ML, "; we: ", we, ";")    
+        #println("h_ML_min: ", occ.h_ML_min, "; h_ML_max: ", occ.h_ML_max)    
+        new_h_ML = boundMLD(new_h_ML; h_ML_max=occ.h_ML_max, h_ML_min=occ.h_ML_min)
 
         #println("flag: ", String(flag), "; val: ", val, "; new_h_ML: ", new_h_ML)
         # 2
@@ -100,31 +102,38 @@ function stepOceanColumnCollection!(
         if new_h_ML < old_h_ML
 
             new_FLDO = getFLDO(zs=occ.zs, h_ML=new_h_ML)
-            new_FLDO_T = 0.0
-            new_FLDO_S = 0.0
 
-            FLDO_Δz =  -occ.zs[old_FLDO+1] - old_h_ML
-            retreat_Δz =  old_h_ML - ((new_FLDO == old_FLDO) ? new_h_ML : (-occ.zs[old_FLDO]) )
+            if old_FLDO == -1
 
-            occ.Ts[i, j, new_FLDO] = (
-                occ.Ts[i, j, old_FLDO] * FLDO_Δz + occ.T_ML[i, j] * retreat_Δz
-            ) / (FLDO_Δz + retreat_Δz)
+                occ.Ts[i, j, new_FLDO:end] .= occ.T_ML[i, j]
+                occ.Ss[i, j, new_FLDO:end] .= occ.S_ML[i, j]
 
-            occ.Ss[i, j, new_FLDO] = (
-                occ.Ss[i, j, old_FLDO] * FLDO_Δz + occ.S_ML[i, j] * retreat_Δz
-            ) / (FLDO_Δz + retreat_Δz)
+            else
+                FLDO_Δz =  -occ.zs[old_FLDO+1] - old_h_ML
+                retreat_Δz =  old_h_ML - ( (new_FLDO == old_FLDO) ? new_h_ML : (-occ.zs[old_FLDO]) )
 
+                occ.Ts[i, j, new_FLDO] = (
+                    occ.Ts[i, j, old_FLDO] * FLDO_Δz + occ.T_ML[i, j] * retreat_Δz
+                ) / (FLDO_Δz + retreat_Δz)
+
+                occ.Ss[i, j, new_FLDO] = (
+                    occ.Ss[i, j, old_FLDO] * FLDO_Δz + occ.S_ML[i, j] * retreat_Δz
+                ) / (FLDO_Δz + retreat_Δz)
+            end
         end
-
+        
         new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - total_Tflx * Δt) / new_h_ML
         new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - total_Sflx * Δt) / new_h_ML
-        
+
         OC_setMixedLayer!(
             occ, i, j;
             T_ML=new_T_ML,
             S_ML=new_S_ML,
             h_ML=new_h_ML,
-        ) 
+        )
+
+
+ 
         OC_doDiffusion_EulerBackward!(occ, i, j; Δt=Δt)
 
         OC_updateB!(occ, i, j)

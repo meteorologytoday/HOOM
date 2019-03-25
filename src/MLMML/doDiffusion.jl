@@ -111,6 +111,7 @@ function OC_doDiffusion_EulerBackward!(
         K    = occ.K_T,
         FLDO = occ.FLDO[i, j],
         Δt   = Δt,
+        h_ML_min = occ.h_ML_min,
     )
 
     occ.S_ML[i, j] = doDiffusion_BackwardEuler!(
@@ -121,6 +122,7 @@ function OC_doDiffusion_EulerBackward!(
         K    = occ.K_S,
         FLDO = occ.FLDO[i, j],
         Δt   = Δt,
+        h_ML_min = occ.h_ML_min,
     )
 
 end
@@ -134,6 +136,7 @@ function doDiffusion_BackwardEuler!(;
     K    :: Float64,
     FLDO :: Integer,
     Δt   :: Float64,
+    h_ML_min :: Float64,
 )
     if FLDO == -1
         return q_ML

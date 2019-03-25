@@ -46,8 +46,11 @@ module CESMCORE_MLMML
                 zs = collect(Float64, range(0, -500, step=-5))
                 K_T = 1e-5
                 K_S = 1e-5
+                h_ML_min = 10.0
+                h_ML_max = 499.0
+                we_max   = 1e-2
 
-                init_h_ML     = MLMML.h_ML_min
+                init_h_ML     = h_ML_min
                 
                 init_T_ML     = 288.0
                 init_T_slope  = 2.0 / 4000.0
@@ -65,16 +68,19 @@ module CESMCORE_MLMML
                     S_ML     = init_S_ML,
                     ΔS       = init_ΔS,
                     S_slope  = init_S_slope,
-                    h_ML     = MLMML.h_ML_min,
+                    h_ML     = h_ML_min,
                     K_T      = K_T,
                     K_S      = K_S,
+                    h_ML_min = h_ML_min,
+                    h_ML_max = h_ML_max,
+                    we_max   = we_max,
                     mask     = map.mask,
                 )
             end
 
             snapshot_file = format("Snapshot_{:04d}0101_00000.nc", t[1])
             println("Output snapshot: ", snapshot_file)
-            MLMML.takeSnapshot(occ, joinpath(MD.configs["short_term_archive_dir"], snapshot_file))
+            MLMML.takeSnapshot(occ, joinpath(configs["short_term_archive_dir"], snapshot_file))
             appendLine(configs["short_term_archive_list"], snapshot_file)
         else
             println("Initial ocean with profile: ", init_file)
@@ -211,6 +217,13 @@ module CESMCORE_MLMML
 
     function final(MD::MLMML_DATA)
         
+    end
+
+    function appendLine(filename, content)
+        open(filename, "a") do io
+            write(io, content)
+            write(io, "\n")
+        end
     end
 
 end

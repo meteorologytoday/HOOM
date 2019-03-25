@@ -5,7 +5,6 @@ using SparseArrays
 using NCDatasets
 
 include("../share/constants.jl")
-include("extra_constants.jl")
 
 include("OceanColumnCollection.jl")
 

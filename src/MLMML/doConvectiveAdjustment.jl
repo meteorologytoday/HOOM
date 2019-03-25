@@ -14,6 +14,7 @@ function OC_doConvectiveAdjustment!(
         T_ML = occ.T_ML[i, j],
         S_ML = occ.S_ML[i, j],
         FLDO = occ.FLDO[i, j],
+        h_ML_max = occ.h_ML_max,
     )
 
     return if_adjust
@@ -39,6 +40,7 @@ function doConvectiveAdjustment!(;
     T_ML :: Float64,
     S_ML :: Float64,
     FLDO :: Integer,
+    h_ML_max :: Float64,
 )
     
     if_adjust = false
@@ -144,7 +146,10 @@ function doConvectiveAdjustment!(;
 
         if stage == :start_adjustment
             #println(":start_adjustment")
+
+            
             bot_z = zs[bot_layer+1]
+            #println(zs[bot_layer+1]," v.s.  ", -h_ML_max, "; bot_z: ", bot_z)
             top_z = (top_layer == -1) ? 0.0 : (
                  (top_layer == FLDO) ? -h_ML : zs[top_layer]
             )
@@ -181,8 +186,14 @@ function doConvectiveAdjustment!(;
             if top_layer == -1  # Even the mixed layer is mixed
                 new_T_ML = mixed_T
                 new_S_ML = mixed_S
-                new_h_ML = (bot_layer == length(bs)) ? zs[1] - zs[end] : zs[1] - zs[bot_layer + 1]
+                new_h_ML = - bot_z
+
                 new_FLDO = setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML=new_h_ML)
+                
+                if new_h_ML > h_ML_max
+                    new_FLDO = getFLDO(zs=zs, h_ML=h_ML_max)
+                end
+
             else
                 Ts[top_layer:bot_layer] .= mixed_T
                 Ss[top_layer:bot_layer] .= mixed_S
