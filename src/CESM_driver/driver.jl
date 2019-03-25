@@ -1,9 +1,9 @@
 println("===== Universal Driver Initialization BEGIN =====")
 
-if isdir(configs["wdir"])
-    cd(configs["wdir"])
+if isdir(configs["caseroot"])
+    cd(configs["caseroot"])
 else
-    throw(ErrorException("Working directory [ " * configs["wdir"] * " ] does not exist."))
+    throw(ErrorException("Caseroot directory [ " * configs["caseroot"] * " ] does not exist."))
 end
 
 
@@ -32,8 +32,8 @@ vars_o2x = [
 ]
 
 stage = :INIT
-mail = MailboxInfo(configs["wdir"])
-#mkPipe(mail)
+mail = MailboxInfo(configs["caserun"])
+mkPipe(mail)
 
 map = NetCDFIO.MapInfo{Float64}(configs["domain_file"])
 

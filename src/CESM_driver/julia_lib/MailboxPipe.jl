@@ -42,9 +42,12 @@ end
 
 function mkPipe(MI::MailboxInfo)
     
-    rmPipe(MI) 
     for fn in [MI.send_fn, MI.recv_fn]
-        run(`mkfifo $fn`)
+        if !isfile(fn) || !isfifo(fn)
+            println(fn, " is not a fifo or does not exist. Remove it and create a new one.")
+            rm(fn, force=true)
+            run(`mkfifo $fn`)
+        end
     end
 
 end
