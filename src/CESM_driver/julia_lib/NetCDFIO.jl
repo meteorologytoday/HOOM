@@ -9,12 +9,12 @@ mutable struct MapInfo{T <: float}
     ny :: Integer
     lsize :: Integer
  
-    xc :: Array{T, 2}
-    yc :: Array{T, 2}
+    xc :: AbstractArray{T, 2}
+    yc :: AbstractArray{T, 2}
     
-    mask :: Array{T, 2}
-    area :: Array{T, 2}
-    frac :: Array{T, 2}
+    mask :: AbstractArray{T, 2}
+    area :: AbstractArray{T, 2}
+    frac :: AbstractArray{T, 2}
 
     missing_value :: T
 
@@ -96,7 +96,7 @@ function write2NCFile(
     mi          :: MapInfo{T},
     filename    :: String,
     varname     :: String,
-    var         :: Array{T};
+    var         :: AbstractArray{T};
     time        :: Union{Nothing, UnitRange, Integer} = nothing,
     time_exists :: Bool = true,
     missing_value :: Union{T, Nothing} = nothing,

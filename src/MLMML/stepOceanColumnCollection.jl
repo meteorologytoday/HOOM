@@ -25,8 +25,10 @@ function stepOceanColumnCollection!(
 )
 
     # It is assumed here that buoyancy has already been updated.
+    @time @sync @distributed  for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
 
-    for i = 1:occ.Nx, j = 1:occ.Ny
+        i = idx[1]
+        j = idx[2]
 
         if occ.mask[i, j] == 0.0
             continue

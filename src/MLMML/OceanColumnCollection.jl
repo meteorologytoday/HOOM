@@ -59,7 +59,7 @@ mutable struct OceanColumnCollection
         Δzs = (hs[1:end-1] + hs[2:end]) / 2.0
 
         if mask == nothing
-            mask = zeros(Float64, Nx, Ny)
+            mask = SharedArray{Float64}(Nx, Ny)
             mask .+= 1.0
         else
             mask = copy(mask)
@@ -68,16 +68,16 @@ mutable struct OceanColumnCollection
         mask_idx = (mask .== 0.0)
 
 
-        _b_ML     = zeros(Float64, Nx, Ny)
-        _S_ML     = zeros(Float64, Nx, Ny)
-        _T_ML     = zeros(Float64, Nx, Ny)
-        _h_ML     = zeros(Float64, Nx, Ny)
+        _b_ML     = SharedArray{Float64}(Nx, Ny)
+        _S_ML     = SharedArray{Float64}(Nx, Ny)
+        _T_ML     = SharedArray{Float64}(Nx, Ny)
+        _h_ML     = SharedArray{Float64}(Nx, Ny)
 
-        _bs       = zeros(Float64, Nx, Ny, Nz)
-        _Ss       = zeros(Float64, Nx, Ny, Nz)
-        _Ts       = zeros(Float64, Nx, Ny, Nz)
+        _bs       = SharedArray{Float64}(Nx, Ny, Nz)
+        _Ss       = SharedArray{Float64}(Nx, Ny, Nz)
+        _Ts       = SharedArray{Float64}(Nx, Ny, Nz)
         _FLDO     = zeros(Int64, Nx, Ny)
-        qflx2atm  = zeros(Float64, Nx, Ny)
+        qflx2atm  = SharedArray{Float64}(Nx, Ny)
 
         _h_ML .= h_ML
         _S_ML .= S_ML

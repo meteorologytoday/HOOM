@@ -1,23 +1,31 @@
-module MLMML
+using Distributed
+
+@everywhere module MLMML
+
 using Printf
 using Formatting
+using SharedArrays
+using Distributed
 using SparseArrays
 using NCDatasets
 
-include("../share/constants.jl")
+macro hinclude(path)
+    return :(include(joinpath(@__DIR__, $path)))
+end
+    
+@hinclude("../share/constants.jl")
+@hinclude("OceanColumnCollection.jl")
+@hinclude("trivial_functions.jl")
 
-include("OceanColumnCollection.jl")
-
-include("trivial_functions.jl")
-
-include("calWeOrMLD.jl")
-include("doConvectiveAdjustment.jl")
-include("doDiffusion.jl")
-include("getIntegratedBuoyancy.jl")
-include("stepOceanColumnCollection.jl")
+@hinclude("calWeOrMLD.jl")
+@hinclude("doConvectiveAdjustment.jl")
+@hinclude("doDiffusion.jl")
+@hinclude("getIntegratedBuoyancy.jl")
+@hinclude("stepOceanColumnCollection.jl")
 
 
-include("setOceanColumn.jl")
-include("takeSnapshot.jl")
+@hinclude("setOceanColumn.jl")
+@hinclude("takeSnapshot.jl")
 
 end
+
