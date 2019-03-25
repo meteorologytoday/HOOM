@@ -32,7 +32,7 @@ vars_o2x = [
 ]
 
 stage = :INIT
-mail = MailboxInfo()
+mail = MailboxInfo(configs["wdir"])
 #mkPipe(mail)
 
 map = NetCDFIO.MapInfo{Float64}(configs["domain_file"])
