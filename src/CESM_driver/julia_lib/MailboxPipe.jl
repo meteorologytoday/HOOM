@@ -18,8 +18,10 @@ mutable struct MailboxInfo
         return new(recv, send)
     end
 
-    function MailboxInfo()
-        return new("cesm2mymodel.pipe", "mymodel2cesm.pipe")
+    function MailboxInfo(path)
+        MI = new("cesm2mymodel.pipe", "mymodel2cesm.pipe")
+        appendPath(MI, path)
+        return MI
     end
 end
 
