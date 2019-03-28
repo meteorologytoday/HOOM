@@ -25,7 +25,7 @@ integer function mbp_get_file_unit()
     integer :: lu, iostat
     logical :: opened
       
-    do lu = 99, 1,-1
+    do lu = 999, 1,-1
        inquire (unit=lu, opened=opened, iostat=iostat)
        if (iostat.ne.0) cycle
        if (.not.opened) exit
@@ -76,18 +76,18 @@ integer function mbp_recv_txt(MI, msg)
     logical :: file_exists
 
     mbp_recv_txt = 0
-    open(unit=MI%recv_fd, file=MI%recv_txt_fn, form="formatted", access="stream", action="read", iostat=mbp_recv_txt)
-    if (mbp_recv_txt /= 0) then
-        print *, "ERROR OPENING RECV TXT PIPE STOP RECV"
+    open(unit=MI%recv_txt_fd, file=MI%recv_txt_fn, form="formatted", access="stream", action="read", iostat=mbp_recv_txt)
+    if (mbp_recv_txt .gt. 0) then
+        print *, "ERROR OPENING RECV TXT PIPE, errcode:", mbp_recv_txt
         close(MI%recv_txt_fd)
         return
     end if
 
     mbp_recv_txt = 0
     read (MI%recv_txt_fd, '(A)', iostat=mbp_recv_txt) msg
-    if (mbp_recv_txt /= 0) then
+    if (mbp_recv_txt .gt. 0) then
         print *, msg
-        print *, "ERROR READING RECV TXT PIPE STOP RECV"
+        print *, "ERROR READING RECV TXT PIPE, errcode:", mbp_recv_txt
         close(MI%recv_txt_fd)
         return
     end if
@@ -106,15 +106,15 @@ integer function mbp_send_txt(MI, msg)
 
     mbp_send_txt = 0
     open(unit=MI%send_txt_fd, file=MI%send_txt_fn, form="formatted", access="stream", action="write", iostat=mbp_send_txt)
-    if (mbp_send_txt /= 0) then
+    if (mbp_send_txt .gt. 0) then
         print *, "[mbp_send] Error during open."
-        close(MI%send_fd_txt)
+        close(MI%send_txt_fd)
         return
     end if
 
     mbp_send_txt = 0
     write (MI%send_txt_fd, *, iostat=mbp_send_txt) msg
-    if (mbp_send_txt /= 0) then
+    if (mbp_send_txt .gt. 0) then
         print *, "[mbp_send] Error during write."
         close(MI%send_txt_fd)
         return
@@ -129,27 +129,26 @@ end function
 integer function mbp_recv_bin(MI, dat, n)
     implicit none
     type(mbp_MailboxInfo)  :: MI
-    real(8), intent(in)    :: dat(n)
+    real(8), intent(inout) :: dat(n)
     integer, intent(in)    :: n
     integer                :: i
 
 
     mbp_recv_bin = 0
-    open(unit=MI%recv_bin_fd, file=MI%recv_bin_fn, form="unformatted", status="old", &
-         access="direct", action="read", recl=8*n, iostat=mbp_recv_bin,  &
+    open(unit=MI%recv_bin_fd, file=MI%recv_bin_fn, form="unformatted", &
+         access="stream", action="read", iostat=mbp_recv_bin,  &
          convert='LITTLE_ENDIAN')
 
-    if (mbp_recv_bin /= 0) then
-        print *, "ERROR OPENING RECV BIN PIPE STOP RECV"
+    if (mbp_recv_bin .gt. 0) then
+        print *, "ERROR OPENING RECV BIN PIPE, errcode: ", mbp_recv_bin
         close(MI%recv_bin_fd)
         return
     end if
 
     mbp_recv_bin = 0
-    read (MI%recv_bin_fd, rec=1, iostat=mbp_recv_bin) (dat(i),i=1,n,1)
-    if (mbp_recv_bin /= 0) then
-        print *, msg
-        print *, "ERROR READING RECV BIN PIPE STOP RECV"
+    read (MI%recv_bin_fd, iostat=mbp_recv_bin) (dat(i),i=1,n,1)
+    if (mbp_recv_bin .gt. 0) then
+        print *, "ERROR READING RECV BIN PIPE, errcode:", mbp_recv_bin
         close(MI%recv_bin_fd)
         return
     end if
@@ -167,20 +166,20 @@ integer function mbp_send_bin(MI, dat, n)
     integer                :: i
 
     mbp_send_bin = 0
-    open(unit=MI%send_bin_fd, file=MI%send_bin_fn, form="unformatted", status="old" &
-         access="direct", action="write", recl=8*n, iostat=mbp_send_bin,  &
+    open(unit=MI%send_bin_fd, file=MI%send_bin_fn, form="unformatted", &
+         access="stream", action="write", iostat=mbp_send_bin,  &
          convert='LITTLE_ENDIAN')
 
-    if (mbp_send_txt /= 0) then
+    if (mbp_send_bin .gt. 0) then
         print *, "[mbp_send_bin] Error during open."
-        close(MI%send_fd_bin)
+        close(MI%send_bin_fd)
         return
     end if
 
     mbp_send_bin = 0
-    write (MI%send_bin_fd, rec=1, iostat=mbp_send_txt) (dat(i), i=1,n,1)
-    if (mbp_send_txt /= 0) then
-        print *, "[mbp_send_bin] Error during write."
+    write (MI%send_bin_fd, iostat=mbp_send_bin) (dat(i), i=1,n,1)
+    if (mbp_send_bin .gt. 0) then
+        print *, "[mbp_send_bin] Error during write, err code: ", mbp_send_bin
         close(MI%send_bin_fd)
         return
     end if
@@ -198,7 +197,7 @@ subroutine mbp_hello(MI)
     integer :: stat
 
     stat = mbp_recv_txt(MI, msg)
-    if (stat /= 0) then
+    if (stat .gt. 0) then
         print *, "Something went wrong during recv stage. Error io stat: ", stat
         return
     end if
@@ -211,7 +210,7 @@ subroutine mbp_hello(MI)
     end if
 
     stat = mbp_send_txt(MI, "<<TEST>>")
-    if (stat /= 0) then
+    if (stat .gt. 0) then
         print *, "Something went wrong during send stage. Error io stat: ", stat
         return
     end if

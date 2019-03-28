@@ -1,6 +1,8 @@
 
 module BinaryIO
 
+using Formatting
+
 export readBinary!, writeBinary!
 
 function readBinary!(

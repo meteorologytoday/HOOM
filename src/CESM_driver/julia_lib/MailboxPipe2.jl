@@ -102,8 +102,8 @@ end
 
 
 function hello(MI::MailboxInfo)
-    send(MI, "<<TEST>>")
-    recv_msg = recv_txt(MI) 
+    sendText(MI, "<<TEST>>")
+    recv_msg = recvText(MI) 
     if recv_msg != "<<TEST>>"
         throw(ErrorException("Weird message: " * recv_msg))
     end
