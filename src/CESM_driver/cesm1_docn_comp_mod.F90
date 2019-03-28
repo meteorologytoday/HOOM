@@ -126,10 +126,10 @@ module docn_comp_mod
 ! ===== XTT MODIFIED BEGIN =====
   integer(IN)   :: ktaux, ktauy, kifrac, kprec, kevap  ! field indices
  
-  character(1024)       :: x_msg, x_fn, x_datetime_str
+  character(1024)       :: x_msg, x_fn, x_datetime_str, x_cwd
   type(mbp_MailboxInfo) :: x_MI
   integer :: x_w_fd, x_r_fd, x_curr_ymd
-  integer :: x_stat, x_max_try
+  integer :: x_iostat
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
                            x_ifrac(:), x_q(:), x_frwflx(:) 
@@ -669,6 +669,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
  
       print *, "XTT modified code."
       
+      call GETCWD(x_cwd) 
+      print *, "Current working directory: ", trim(x_cwd)
       ! CESM 1 does not provide shr_cal_ymdtod2string
       write(x_datetime_str, '(i0.8, A, i0.8)') currentYMD, "-", currentTOD
     

@@ -1,9 +1,9 @@
 println("===== Universal Driver Initialization BEGIN =====")
 
-if isdir(configs["caseroot"])
-    cd(configs["caseroot"])
+if isdir(configs["caserun"])
+    cd(configs["caserun"])
 else
-    throw(ErrorException("Caseroot directory [ " * configs["caseroot"] * " ] does not exist."))
+    throw(ErrorException("Caserun directory [ " * configs["caserun"] * " ] does not exist."))
 end
 
 
