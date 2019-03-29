@@ -20,14 +20,14 @@ while true
 
     println("Try to recv new msg")
     msg = MailboxPipe2.recvText(MI)
-    println("Msg recv: ", msg)
+    println("Msg recv: [", msg, "]")
 
     if msg == "<<END>>"
         println("Simulation ends!")
         break
     end
 
-    MailboxPipe2.recvBinary!(MI, data, buffer)
+    MailboxPipe2.recvBinary!(MI, "FLX", data, buffer)
     println("Received binary data: ", data)
 
     println("Now I am doing some magical SMARTSLAB computation.")
@@ -40,7 +40,7 @@ while true
     MailboxPipe2.sendText(MI, sst_fn)
 
     
-    MailboxPipe2.sendBinary!(MI, data, buffer)
+    MailboxPipe2.sendBinary!(MI, "SST", data, buffer)
     println("Received binary data: ", data)
 
 

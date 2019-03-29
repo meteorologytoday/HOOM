@@ -14,7 +14,7 @@ MailboxPipe2.sendText(MI, format("{:d}", length(data)))
 
 println("Going to send: ", data)
 
-MailboxPipe2.sendBinary!(MI, data, buffer)
+MailboxPipe2.sendBinary!(MI, "SST", data, buffer)
 
 
 

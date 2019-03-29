@@ -1,12 +1,21 @@
 
-module MailboxPipe2
+module ChatChat
 
 using Formatting
 using ..BinaryIO
 
-export MailboxInfo, hello, recv, send, mkPipe, rmPipe
+export Wand, hello, recv, send, mkPipe
 
-default_max_try = 100
+mutable struct 
+    fns :: AbstractArray{AbstractString}
+    ptr :: Integer
+
+    function 
+        return new( , 1)
+    end
+end
+
+function
 
 mutable struct MailboxInfo
 
@@ -82,19 +91,29 @@ end
 
 function recvBinary!(
     MI        :: MailboxInfo,
+    msg       :: AbstractString,
     arr       :: AbstractArray{Float64},
     buffer    :: AbstractArray{UInt8};
     endianess :: Symbol=:little_endian,
 )
+    recv_msg = recvText(MI)
+    println("[", recv_msg, "]")
+    if recv_msg != msg
+        throw(ErrorException("Expect message ", msg, ", but get ", recv_msg))
+    end
+
     BinaryIO.readBinary!(MI.recv_bin_fn, arr, buffer; endianess=endianess)
 end
 
 function sendBinary!(
-    MI        ::MailboxInfo, 
+    MI        :: MailboxInfo,
+    msg       :: AbstractString, 
     arr       :: AbstractArray{Float64},
     buffer    :: AbstractArray{UInt8};
     endianess :: Symbol=:little_endian,
 )
+
+    sendText(MI, msg)
     BinaryIO.writeBinary!(MI.send_bin_fn, arr, buffer, endianess=endianess)
 end
 

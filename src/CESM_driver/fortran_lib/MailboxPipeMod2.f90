@@ -126,13 +126,23 @@ end function
 
 
 
-integer function mbp_recv_bin(MI, dat, n)
+integer function mbp_recv_bin(MI, msg, dat, n)
     implicit none
     type(mbp_MailboxInfo)  :: MI
+    character(len=*)       :: msg
     real(8), intent(inout) :: dat(n)
     integer, intent(in)    :: n
     integer                :: i
 
+    character(256)         :: recv_msg
+
+    mbp_recv_bin = mbp_recv_txt(MI, recv_msg)
+    if (mbp_messageCompare(msg, recv_msg) .eqv. .false.) then
+        print *, "Wrong expected message. Expect ", msg, " but receive ", &
+                 recv_msg
+        mbp_recv_bin = 1
+        return
+    end if
 
     mbp_recv_bin = 0
     open(unit=MI%recv_bin_fd, file=MI%recv_bin_fn, form="unformatted", &
@@ -158,12 +168,16 @@ integer function mbp_recv_bin(MI, dat, n)
 end function
 
 
-integer function mbp_send_bin(MI, dat, n)
+integer function mbp_send_bin(MI, msg, dat, n)
     implicit none
     type(mbp_MailboxInfo)  :: MI
+    character(len=*)       :: msg
     real(8), intent(in)    :: dat(n)
     integer, intent(in)    :: n
     integer                :: i
+
+
+    mbp_send_bin = mbp_send_txt(MI, msg)
 
     mbp_send_bin = 0
     open(unit=MI%send_bin_fd, file=MI%send_bin_fn, form="unformatted", &
@@ -171,7 +185,7 @@ integer function mbp_send_bin(MI, dat, n)
          convert='LITTLE_ENDIAN')
 
     if (mbp_send_bin .gt. 0) then
-        print *, "[mbp_send_bin] Error during open."
+        print *, "[_mbp_send_bin] Error during open."
         close(MI%send_bin_fd)
         return
     end if
@@ -179,7 +193,7 @@ integer function mbp_send_bin(MI, dat, n)
     mbp_send_bin = 0
     write (MI%send_bin_fd, iostat=mbp_send_bin) (dat(i), i=1,n,1)
     if (mbp_send_bin .gt. 0) then
-        print *, "[mbp_send_bin] Error during write, err code: ", mbp_send_bin
+        print *, "[_mbp_send_bin] Error during write, err code: ", mbp_send_bin
         close(MI%send_bin_fd)
         return
     end if

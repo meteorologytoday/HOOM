@@ -11,7 +11,7 @@ data = zeros(Float64, n)
 buffer = zeros(UInt8, length(data) * 8)
 
 
-MailboxPipe2.recvBinary!(MI, data, buffer)
+MailboxPipe2.recvBinary!(MI, "SST", data, buffer)
 
 println("What I got here?")
 println(data)

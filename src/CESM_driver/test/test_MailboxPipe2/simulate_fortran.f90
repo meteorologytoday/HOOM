@@ -49,8 +49,10 @@ use MailboxPipeMod2
             exit
         end if
         
-        stat = mbp_send_bin(MI, dat, n)
-        print *, "Sending binary: ", dat
+
+        stat = mbp_send_bin(MI, "FLX", dat, n)
+        print *, "Binary sent: ", dat
+
 
         print *, "Receiving message ... "
         stat = mbp_recv_txt(MI, msg)
@@ -62,8 +64,8 @@ use MailboxPipeMod2
 
         print *, "Message received: [", trim(msg), "]"
         
-        stat = mbp_recv_bin(MI, dat, n)
-        print *, "Received binary: ", dat
+        stat = mbp_recv_bin(MI, "SST", dat, n)
+        print *, "Binary received: ", dat
 
 
     end do

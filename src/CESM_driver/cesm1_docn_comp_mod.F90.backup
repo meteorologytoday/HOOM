@@ -3,7 +3,8 @@
 #endif
 
 ! XTT MODIFICATION BEGIN
-include "./fortran_lib/MailboxPipeMod2.f90"
+include "./fortran_lib/field_tools.f90"
+include "./fortran_lib/MailboxPipeMod.f90"
 ! XTT MODIFICATION ENDS
 
 
@@ -39,7 +40,8 @@ module docn_comp_mod
 
 ! ===== XTT MODIFIED BEGIN =====
 
-  use MailboxPipeMod2
+  use field_tools
+  use MailboxPipeMod
 
 ! ===== XTT MODIFIED END =====
 
@@ -712,7 +714,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             end if
 
             x_q(n)       = 0.0_R8 
-            x_nswflx(n)  = 0.0_R8
+            x_nswflx(n)    = 0.0_R8
             x_swflx(n)   = 0.0_R8
             x_taux(n)    = 0.0_R8
             x_tauy(n)    = 0.0_R8
@@ -727,21 +729,22 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
          
         call mbp_setDefault(x_MI)
 
-        write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
-        x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
-        call stop_if_bad(mbp_send_txt(x_MI, x_msg), "INIT_SEND")
+        x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"
+
+        x_msg = trim(x_msg)//"SST:SST.bin;QFLX:QFLX.bin;"
+        call stop_if_bad(mbp_send(x_MI, x_msg), "INIT_SEND")
         
         print *, "Init msg sent: ", trim(x_msg), "."
         print *, "Now receiving..."
-        call stop_if_bad(mbp_recv_txt(x_MI, x_msg), "INIT_RECV")
+        call stop_if_bad(mbp_recv(x_MI, x_msg), "INIT_RECV")
 
         if (mbp_messageCompare(x_msg, "OK") .neqv. .true.) then
             print *, "SSM init failed. Recive message: ", x_msg
             call shr_sys_abort ('SSM init failed.')
         end if
          
-        call stop_if_bad(mbp_recv_bin(MI, "SST", somtp, lsize))
-        call stop_if_bad(mbp_recv_bin(MI, "QFLX",  x_q,   lsize))
+        call read_1Dfield(x_r_fd, "SST.bin", somtp, lsize)
+        call read_1Dfield(x_r_fd, "QFLX.bin", x_q, lsize)
 
         do n = 1, lsize
           o2x%rAttr(kt,n) = somtp(n)
@@ -777,19 +780,39 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         end do
         !print *, "Max of short wave: ", maxval(x_swflx)
 
-        write (x_msg, "(A, A, F10.2, A)") trim(x_msg), "DT:", dt, ";"
+        x_fn = "NSWFLX.bin"
+        x_msg = trim(x_msg)//"NSWFLX:"//trim(x_fn)//";"
+        call write_1Dfield(x_w_fd, x_fn, x_nswflx, lsize)
 
-        x_msg = trim(x_msg)//"VAR2D:[NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX];"
+        x_fn = "SWFLX.bin"
+        x_msg = trim(x_msg)//"SWFLX:"//trim(x_fn)//";"
+        call write_1Dfield(x_w_fd, x_fn, x_swflx, lsize)
+
+        x_fn = "TAUX.bin"
+        x_msg = trim(x_msg)//"TAUX:"//trim(x_fn)//";"
+        call write_1Dfield(x_w_fd, x_fn, x_taux, lsize)
+
+        x_fn = "TAUY.bin"
+        x_msg = trim(x_msg)//"TAUY:"//trim(x_fn)//";"
+        call write_1Dfield(x_w_fd, x_fn, x_tauy, lsize)
+
+        x_fn = "IFRAC.bin"
+        x_msg = trim(x_msg)//"IFRAC:"//trim(x_fn)//";"
+        call write_1Dfield(x_w_fd, x_fn, x_ifrac, lsize)
+
+        x_fn = "FRWFLX.bin"
+        x_msg = trim(x_msg)//"FRWFLX:"//trim(x_fn)//";"
+        call write_1Dfield(x_w_fd, x_fn, x_frwflx, lsize)
+
+
+
+        x_msg = trim(x_msg)//"SST:SST.bin;QFLX:QFLX.bin;"
+
+        write (x_msg, "(A, A, F10.2, A)") trim(x_msg), ";DT:", dt, ";"
         call stop_if_bad(mbp_send(x_MI, x_msg), "RUN_SEND")
-        
-        call stop_if_bad(mbp_send_bin(MI, x_nswflx, lsize))
-        call stop_if_bad(mbp_send_bin(MI, x_swflx, lsize))
-        call stop_if_bad(mbp_send_bin(MI, x_taux, lsize))
-        call stop_if_bad(mbp_send_bin(MI, x_tauy, lsize))
-        call stop_if_bad(mbp_send_bin(MI, x_ifrac, lsize))
-        call stop_if_bad(mbp_send_bin(MI, x_frwflx, lsize))
-        
+ 
         ! SSM is doing some MAGICAL calculation...
+        
         call stop_if_bad(mbp_recv(x_MI, x_msg), "RUN_RECV")
         if (mbp_messageCompare(x_msg, "OK") .neqv. .true.) then
             print *, "Ocean model calculation failed. Recive message: ", x_msg
