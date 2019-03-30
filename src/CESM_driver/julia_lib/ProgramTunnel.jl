@@ -6,7 +6,7 @@ using Formatting
 using ..BinaryIO
 
 export recvText, sendText, recvBinary!, sendBinary!,
-       mkTunnel, defaultTunnelSet, iterTunnel!, reverseRole!
+       mkTunnel, defaultTunnelSet, getTunnelFilename!, reverseRole!
 
 mutable struct Tunnel
     fns      :: AbstractArray{AbstractString}
@@ -53,14 +53,14 @@ mutable struct TunnelSet
 end
 
 
-function iterTunnel!(tnl::Tunnel)
+function getTunnelFilename!(tnl::Tunnel)
     next_ptr = tnl.next_ptr
     tnl.next_ptr = mod(next_ptr, length(tnl.fns)) + 1
     return tnl.fns[next_ptr]
 end
 
-function iterTunnel!(ts::TunnelSet, key::Symbol)
-    return iterTunnel!(ts.tnls[key])
+function getTunnelFilename!(ts::TunnelSet, key::Symbol)
+    return getTunnelFilename!(ts.tnls[key])
 end
 
 
@@ -96,7 +96,7 @@ end
 function recvText(TS::TunnelSet)
     local result
 
-    open(iterTunnel!(TS, :recv_txt), "r") do io
+    open(getTunnelFilename!(TS, :recv_txt), "r") do io
         result = strip(read(io, String))
     end
 
@@ -105,7 +105,7 @@ end
 
 function sendText(TS::TunnelSet, msg::AbstractString)
 
-    open(iterTunnel!(TS, :send_txt), "w") do io
+    open(getTunnelFilename!(TS, :send_txt), "w") do io
         write(io, msg)
     end
 end
@@ -124,7 +124,7 @@ function recvBinary!(
     #end
 
     BinaryIO.readBinary!(
-        iterTunnel!(TS, :recv_bin),
+        getTunnelFilename!(TS, :recv_bin),
         arr,
         buffer;
         endianess=endianess
@@ -141,7 +141,7 @@ function sendBinary!(
 
     #sendText(TS, msg)
     BinaryIO.writeBinary!(
-        iterTunnel!(TS, :send_bin),
+        getTunnelFilename!(TS, :send_bin),
         arr,
         buffer;
         endianess=endianess

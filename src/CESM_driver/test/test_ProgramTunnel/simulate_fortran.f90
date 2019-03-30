@@ -38,7 +38,7 @@ use ProgramTunnelMod
         print *, "CESM doing other stuff... ", i
         
         write (msg, "(A, I5)") "Step : ", i
-        call sleep(3)
+        !call sleep(3)
 
         print *, "Send message: [", trim(msg), "]"
         stat = ptm_sendText(TS, msg)
@@ -49,7 +49,7 @@ use ProgramTunnelMod
         end if
         
 
-        stat = ptm_sendBinary(TS, "FLX", dat, n)
+        stat = ptm_sendBinary(TS, dat, n)
         print *, "Binary sent: ", dat
 
 
@@ -63,7 +63,7 @@ use ProgramTunnelMod
 
         print *, "Message received: [", trim(msg), "]"
         
-        stat = ptm_recvBinary(TS, "SST", dat, n)
+        stat = ptm_recvBinary(TS, dat, n)
         print *, "Binary received: ", dat
 
 

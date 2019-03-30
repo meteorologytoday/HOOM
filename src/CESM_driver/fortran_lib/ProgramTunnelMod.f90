@@ -43,7 +43,7 @@ subroutine ptm_makeFilename(filename, id, n)
 
 end subroutine
 
-subroutine ptm_setDefault(TS)
+subroutine ptm_setDefaultTunnelSet(TS)
     implicit none
     type(ptm_TunnelSet) :: TS
     integer :: i, j
@@ -80,33 +80,50 @@ subroutine ptm_printSummary(TS)
 
 end subroutine
 
-subroutine ptm_iterTunnel(TS, n)
+subroutine ptm_iterTunnel(tnl)
     implicit none
-    type(ptm_TunnelSet) :: TS
-    integer :: tmp, n 
+    type(ptm_Tunnel) :: tnl
+    integer :: tmp
 
     !tmp = TS%tnls(n)%next_idx 
-    TS%tnls(n)%next_idx = mod(TS%tnls(n)%next_idx, 2) + 1
+    tnl%next_idx = mod(tnl%next_idx, 2) + 1
     !print *, "What is the tunnel file you get? ", trim(TS%tnls(n)%fns(tmp))
 
 end subroutine
 
-integer function ptm_sendText(TS, msg)
+subroutine ptm_getTunnelInfo(TS, n, fd, fn, update)
     implicit none
     type(ptm_TunnelSet), target  :: TS
+    integer                      :: n
+    integer                      :: fd
+    character(*), pointer        :: fn
+    logical                      :: update
+
+    type(ptm_Tunnel), pointer :: tnl
+    integer                   :: idx
+    
+    tnl => TS%tnls(n)
+    idx = tnl%next_idx
+ 
+    fd =  tnl%fds(idx)
+    fn => tnl%fns(idx)
+
+    if (update .eqv. .true.) then
+        call ptm_iterTunnel(tnl)
+    end if
+
+end subroutine
+
+
+integer function ptm_sendText(TS, msg)
+    implicit none
+    type(ptm_TunnelSet)  :: TS
     character(len=*)     :: msg
 
     character(len=256), pointer :: fn
-    type(ptm_Tunnel), pointer :: tnl
-    integer :: idx, fd
+    integer :: fd
 
-    tnl => TS%tnls(c_send_txt)
-    idx = tnl%next_idx
- 
-    fd =  tnl%fds(idx)   
-    fn => tnl%fns(idx)
-
-    call ptm_iterTunnel(TS, c_send_txt)
+    call ptm_getTunnelInfo(TS, c_send_txt, fd, fn, .true.)
 
     ptm_sendText = 0
     open(unit=fd, file=fn, form="formatted", access="stream", action="write", iostat=ptm_sendText)
@@ -127,6 +144,113 @@ integer function ptm_sendText(TS, msg)
     close(fd)
     
 end function
+
+integer function ptm_recvText(TS, msg)
+    implicit none
+    type(ptm_TunnelSet)  :: TS
+    character(len=*)     :: msg
+ 
+    character(len=256), pointer :: fn
+    integer :: fd
+
+    call ptm_getTunnelInfo(TS, c_recv_txt, fd, fn, .true.)
+
+    ptm_recvText = 0
+    open(unit=fd, file=fn, form="formatted", access="stream", action="read", iostat=ptm_recvText)
+    if (ptm_recvText .gt. 0) then
+        print *, "ERROR OPENING RECV TXT PIPE, errcode:", ptm_recvText
+        close(fd)
+        return
+    end if
+
+    ptm_recvText = 0
+    read (fd, '(A)', iostat=ptm_recvText) msg
+    if (ptm_recvText .gt. 0) then
+        print *, msg
+        print *, "ERROR READING RECV TXT PIPE, errcode:", ptm_recvText
+        close(fd)
+        return
+    end if
+
+    close(fd)
+    
+    msg = trim(msg)
+
+end function
+
+integer function ptm_sendBinary(TS, dat, n)
+    implicit none
+    type(ptm_TunnelSet)  :: TS
+    real(8), intent(in)  :: dat(n)
+    integer, intent(in)  :: n
+    integer              :: i
+
+    character(len=256), pointer :: fn
+    integer :: fd
+
+    call ptm_getTunnelInfo(TS, c_send_bin, fd, fn, .true.)
+    
+    ptm_sendBinary = 0
+    open(unit=fd, file=fn, form="unformatted", &
+         access="stream", action="write", iostat=ptm_sendBinary,  &
+         convert='LITTLE_ENDIAN')
+
+    if (ptm_sendBinary .gt. 0) then
+        print *, "[_ptm_sendBinary] Error during open."
+        close(fd)
+        return
+    end if
+
+    ptm_sendBinary = 0
+    write (fd, iostat=ptm_sendBinary) (dat(i), i=1,n,1)
+    if (ptm_sendBinary .gt. 0) then
+        print *, "[_ptm_sendBinary] Error during write, err code: ", ptm_sendBinary
+        close(fd)
+        return
+    end if
+   
+    close(fd)
+
+end function
+
+
+
+integer function ptm_recvBinary(TS, dat, n)
+    implicit none
+    type(ptm_TunnelSet)    :: TS
+    real(8), intent(inout) :: dat(n)
+    integer, intent(in)    :: n
+    integer                :: i
+
+    character(len=256), pointer :: fn
+    integer :: fd
+
+    call ptm_getTunnelInfo(TS, c_recv_bin, fd, fn, .true.)
+
+    ptm_recvBinary = 0
+    open(unit=fd, file=fn, form="unformatted", &
+         access="stream", action="read", iostat=ptm_recvBinary,  &
+         convert='LITTLE_ENDIAN')
+
+    if (ptm_recvBinary .gt. 0) then
+        print *, "ERROR OPENING RECV BIN PIPE, errcode: ", ptm_recvBinary
+        close(fd)
+        return
+    end if
+
+    ptm_recvBinary = 0
+    read (fd, iostat=ptm_recvBinary) (dat(i),i=1,n,1)
+    if (ptm_recvBinary .gt. 0) then
+        print *, "ERROR READING RECV BIN PIPE, errcode:", ptm_recvBinary
+        close(fd)
+        return
+    end if
+
+    close(fd)
+    
+end function
+
+
 
 
 logical function ptm_messageCompare(msg1, msg2)
