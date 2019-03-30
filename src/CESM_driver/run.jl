@@ -4,14 +4,12 @@ using Formatting
 using Printf
 using ArgParse
 
-include("julia_lib/MailboxPipe.jl")
-include("julia_lib/BinaryIO.jl")
+include("julia_lib/ProgramTunnel.jl")
 include("julia_lib/NetCDFIO.jl")
 include("julia_lib/parseMsg.jl")
 
 using JSON
-using .MailboxPipe
-using .BinaryIO
+using .ProgramTunnel
 using .NetCDFIO
 
 

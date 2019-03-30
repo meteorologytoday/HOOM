@@ -32,8 +32,9 @@ vars_o2x = [
 ]
 
 stage = :INIT
-mail = MailboxInfo(configs["caserun"])
-mkPipe(mail)
+TS = defaultTunnelSet(path=configs["caserun"])
+reverseRole!(TS)
+mkTunnel(TS)
 
 map = NetCDFIO.MapInfo{Float64}(configs["domain_file"])
 
@@ -41,6 +42,7 @@ loop_i = 1
 nc_cnt = 1 
 output_filename = ""
 buffer2d = zeros(UInt8, map.lsize * 8)
+null2d   = zeros(Float64, map.lsize)
 timeinfo = zeros(Integer, 4) 
 
 println("===== ", OMMODULE.name, " IS READY =====")
@@ -56,7 +58,7 @@ while true
     println(format("# Time Index counter : {:d}", loop_i))
     println(format("# Stage              : {}", String(stage)))
 
-    msg = parseMsg(recv(mail))
+    msg = parseMsg(recvText(TS))
     println("==== MESSAGE RECEIVED ====")
     print(json(msg, 4))
     println("==========================")
@@ -81,9 +83,14 @@ while true
             output_vars[varname] = reshape(var, map.nx, map.ny)
         end
 
-        writeBinary!(msg["SST"], OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
-        writeBinary!(msg["QFLX"], OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
-        send(mail, "OK")
+        global x2o_available_varnames  = split(msg["VAR2D"], ",")
+        global x2o_wanted_varnames = keys(OMDATA.x2o)
+        global x2o_wanted_flag     = [(x2o_available_varnames[i] in x2o_wanted_varnames) for i = 1:length(x2o_available_varnames)]
+
+        sendText(TS, "OK")
+
+        sendBinary!(TS, OMDATA.o2x["SST"],      buffer2d; endianess=:little_endian)
+        sendBinary!(TS, OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
 
         NetCDFIO.write2NCFile(
             map,
@@ -99,13 +106,13 @@ while true
         
     elseif stage == :RUN && msg["MSG"] == "RUN"
 
-        for (varname, container) in OMDATA.x2o
-            readBinary!(
-                msg[varname],
-                container,
+        for i = 1:length(x2o_available_varnames)
+            varname = x2o_available_varnames[i]
+            recvBinary!(
+                TS,
+                (x2o_wanted_flag[i]) ? OMDATA.x2o[varname] : null2d,
                 buffer2d;
                 endianess=:little_endian,
-                delete=false
             )
         end
        
@@ -125,9 +132,10 @@ while true
         )
         nc_cnt += 1
 
-        writeBinary!(msg["SST"], OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
-        writeBinary!(msg["QFLX"], OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
-        send(mail, "OK")
+        sendText(TS, "OK")
+        
+        sendBinary!(TS, OMDATA.o2x["SST"],      buffer2d; endianess=:little_endian)
+        sendBinary!(TS, OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
 
     elseif stage == :RUN && msg["MSG"] == "END"
 
@@ -160,7 +168,7 @@ while true
         break
     else
         OMMODULE.crash(OMDATA) 
-        send(mail, "CRASH")
+        sendText(TS, "CRASH")
         throw(ErrorException("Unknown status: stage " * stage * ", MSG: " * String(msg["MSG"])))
     end
 

@@ -104,15 +104,14 @@ module CESMCORE_MLMML
         )
 
         output_vars = Dict(
-      #      "rain"       => wksp.frwflx,
-#=
+            "rain"      => wksp.frwflx,
             "mld"       => occ.h_ML,
-            "sst"       => occ.sst,
+            "sst"       => occ.T_ML,
             "qflx2atm"  => occ.qflx2atm,
             "sumflx"    => wksp.sumflx,
             "fric_u"    => wksp.fric_u,
             "ifrac"     => wksp.ifrac,
-        =#)
+        )
         
         sobj_dict = Dict(
             "mld"    => occ.h_ML,

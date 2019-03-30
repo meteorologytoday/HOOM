@@ -3,7 +3,7 @@
 #endif
 
 ! XTT MODIFICATION BEGIN
-include "./fortran_lib/MailboxPipeMod2.f90"
+include "./fortran_lib/ProgramTunnelMod.f90"
 ! XTT MODIFICATION ENDS
 
 
@@ -39,7 +39,7 @@ module docn_comp_mod
 
 ! ===== XTT MODIFIED BEGIN =====
 
-  use MailboxPipeMod2
+  use ProgramTunnelMod
 
 ! ===== XTT MODIFIED END =====
 
@@ -124,9 +124,10 @@ module docn_comp_mod
 ! ===== XTT MODIFIED BEGIN =====
   integer(IN)   :: ktaux, ktauy, kifrac, kprec, kevap  ! field indices
  
-  character(1024)       :: x_msg, x_fn, x_datetime_str, x_cwd
-  type(mbp_MailboxInfo) :: x_MI
-  integer :: x_w_fd, x_r_fd, x_curr_ymd
+  character(1024)       :: x_msg, x_datetime_str, x_cwd
+  type(ptm_TunnelSet) :: x_TS
+  integer :: x_curr_ymd
+
   integer :: x_iostat
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
@@ -687,9 +688,6 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         ! I put all extra initialization here to avoid complication
 
-        x_w_fd = mbp_get_file_unit()
-        x_r_fd = mbp_get_file_unit()
-
         ! variable name are refereced from
         ! $CESM1_root/models/drv/shr/seq_flds_mod.F90 (line 1101)
         ktaux  = mct_aVect_indexRA(x2o,'Foxx_taux')
@@ -725,23 +723,24 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         end do
          
-        call mbp_setDefault(x_MI)
+        call ptm_setDefaultTunnelSet(x_TS)
 
         write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
-        call stop_if_bad(mbp_send_txt(x_MI, x_msg), "INIT_SEND")
+        x_msg = trim(x_msg)//"VAR2D:NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
+        call stop_if_bad(ptm_sendText(x_TS, x_msg), "INIT_SEND")
         
         print *, "Init msg sent: ", trim(x_msg), "."
         print *, "Now receiving..."
-        call stop_if_bad(mbp_recv_txt(x_MI, x_msg), "INIT_RECV")
+        call stop_if_bad(ptm_recvText(x_TS, x_msg), "INIT_RECV")
 
-        if (mbp_messageCompare(x_msg, "OK") .neqv. .true.) then
+        if (ptm_messageCompare(x_msg, "OK") .neqv. .true.) then
             print *, "SSM init failed. Recive message: ", x_msg
             call shr_sys_abort ('SSM init failed.')
         end if
          
-        call stop_if_bad(mbp_recv_bin(MI, "SST", somtp, lsize))
-        call stop_if_bad(mbp_recv_bin(MI, "QFLX",  x_q,   lsize))
+        call stop_if_bad(ptm_recvBinary(x_TS, somtp, lsize), "RECV_SST")
+        call stop_if_bad(ptm_recvBinary(x_TS, x_q,   lsize), "RECV_QFLX2ATM")
 
         do n = 1, lsize
           o2x%rAttr(kt,n) = somtp(n)
@@ -779,25 +778,25 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         write (x_msg, "(A, A, F10.2, A)") trim(x_msg), "DT:", dt, ";"
 
-        x_msg = trim(x_msg)//"VAR2D:[NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX];"
-        call stop_if_bad(mbp_send(x_MI, x_msg), "RUN_SEND")
+
+        call stop_if_bad(ptm_sendText(x_TS, x_msg), "RUN_SEND")
         
-        call stop_if_bad(mbp_send_bin(MI, x_nswflx, lsize))
-        call stop_if_bad(mbp_send_bin(MI, x_swflx, lsize))
-        call stop_if_bad(mbp_send_bin(MI, x_taux, lsize))
-        call stop_if_bad(mbp_send_bin(MI, x_tauy, lsize))
-        call stop_if_bad(mbp_send_bin(MI, x_ifrac, lsize))
-        call stop_if_bad(mbp_send_bin(MI, x_frwflx, lsize))
+        call stop_if_bad(ptm_sendBinary(x_TS, x_nswflx, lsize), "SEND_NSWFLX")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_swflx,  lsize), "SEND_SWFLX")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_taux,   lsize), "SEND_TAUX")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_tauy,   lsize), "SEND_TAUY")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_ifrac,  lsize), "SEND_IFRAC")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_frwflx, lsize), "SEND_FRWFLX")
         
         ! SSM is doing some MAGICAL calculation...
-        call stop_if_bad(mbp_recv(x_MI, x_msg), "RUN_RECV")
-        if (mbp_messageCompare(x_msg, "OK") .neqv. .true.) then
+        call stop_if_bad(ptm_recvText(x_TS, x_msg), "RUN_RECV")
+        if (ptm_messageCompare(x_msg, "OK") .neqv. .true.) then
             print *, "Ocean model calculation failed. Recive message: ", x_msg
             call shr_sys_abort ('Ocean model calculation failed.')
         end if
  
-        call read_1Dfield(x_r_fd, "SST.bin", somtp, lsize)
-        call read_1Dfield(x_r_fd, "QFLX.bin", x_q, lsize)
+        call stop_if_bad(ptm_recvBinary(x_TS, somtp, lsize), "RECV_SST")
+        call stop_if_bad(ptm_recvBinary(x_TS, x_q,   lsize), "RECV_QFLX2ATM")
  
         do n = 1, lsize
 !            o2x%rAttr(kq,n) = (tfreeze(n) - o2x%rAttr(kt,n))*(cpsw*rhosw*hn)/dt  ! ice formed q>0
@@ -940,7 +939,7 @@ subroutine docn_comp_final()
 
 ! ===== XTT MODIFIED BEGIN =====
       x_msg = "MSG:END"
-      call stop_if_bad(mbp_send(x_MI, x_msg), "FINAL")
+      call stop_if_bad(ptm_sendText(x_TS, x_msg), "FINAL")
 
 ! ===== XTT MODIFIED END =====
  
