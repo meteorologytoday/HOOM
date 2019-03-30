@@ -1,17 +1,17 @@
 include("BinaryIO.jl")
-include("MailboxPipe2.jl")
+include("ProgramTunnel.jl")
 
+using Formatting
+using .ProgramTunnel
+TS = defaultTunnelSet(path=".")
 
-
-MI = MailboxPipe2.MailboxInfo(".")
-
-n = parse(Int, MailboxPipe2.recvText(MI))
+n = parse(Int, recvText(TS))
 
 data = zeros(Float64, n)
 buffer = zeros(UInt8, length(data) * 8)
 
 
-MailboxPipe2.recvBinary!(MI, "SST", data, buffer)
+MailboxPipe2.recvBinary!(TS, data, buffer)
 
 println("What I got here?")
 println(data)
