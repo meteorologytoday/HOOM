@@ -8,11 +8,6 @@ classdef MailboxPipe
             self.recv_fn = fullfile(path, '/cesm2mymodel.pipe');
             self.send_fn = fullfile(path, '/mymodel2cesm.pipe');
         end
-       
-
-        function somefun(self)
-            display('somefun()')
-        end
  
         function msg = recv(self)
             fd = fopen(self.recv_fn, 'r');

@@ -66,10 +66,10 @@ end
 
 function defaultTunnelSet(;path::AbstractString=".")
     return TunnelSet(
-        recv_txt = "cesm2mymodel_txt",
-        send_txt = "mymodel2cesm_txt",
-        recv_bin = "cesm2mymodel_bin",
-        send_bin = "mymodel2cesm_bin",
+        send_txt = "X2Y_txt",
+        recv_txt = "Y2X_txt",
+        send_bin = "X2Y_bin",
+        recv_bin = "Y2X_bin",
         path = path,
     )
 end

@@ -6,6 +6,8 @@ using .ProgramTunnel
 TS = defaultTunnelSet(path=".")
 reverseRole!(TS)
 
+mkTunnel(TS)
+
 data = rand(Float64, 8)
 buffer = zeros(UInt8, length(data) * 8)
 
