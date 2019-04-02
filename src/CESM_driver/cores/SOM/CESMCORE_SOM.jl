@@ -57,6 +57,7 @@ module CESMCORE_SOM
         x2o = Dict(
             "SWFLX"  => wksp.swflx,
             "NSWFLX" => wksp.nswflx,
+            "TFCNVG" => wksp.tfcnvg,
         )
 
         o2x = Dict(
@@ -66,7 +67,8 @@ module CESMCORE_SOM
 
         output_vars = Dict(
             "sst"       => occ.T_ML,
-            "eflx"    => wksp.eflx,
+            "eflx"      => wksp.eflx,
+            "tfcnvg"    => wksp.tfcnvg,
             #=
             "rain"      => wksp.frwflx,
             "mld"       => occ.h_ML,

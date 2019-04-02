@@ -18,6 +18,7 @@ end
 
 output_vars = Dict()
 
+#=
 vars_x2o = [
     "SWFLX",
     "HFLX",
@@ -30,7 +31,7 @@ vars_o2x = [
     "SST",
     "QFLX",
 ]
-
+=#
 stage = :INIT
 TS = defaultTunnelSet(path=configs["caserun"])
 reverseRole!(TS)
