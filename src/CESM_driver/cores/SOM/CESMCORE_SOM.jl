@@ -66,11 +66,12 @@ module CESMCORE_SOM
             "QFLX2ATM" => occ.qflx2atm,
         )
 
-        output_vars = Dict(
+        output_vars = Dict(#=
             "T_ML"      => occ.T_ML,
             "h_ML"      => occ.h_ML,
             "eflx"      => wksp.eflx,
             "tfdiv"     => wksp.tfdiv,
+            =#
         )
         
         sobj_dict = Dict(
