@@ -8,9 +8,10 @@ mutable struct OceanColumnCollection
     mask_idx :: Any
 
     T_ML     :: AbstractArray{Float64, 2}
+    h_ML     :: AbstractArray{Float64, 2}
     qflx2atm :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
 
-    h_ML     :: Float64
+
 
     # Derived quantities
     N_ocs  :: Integer           # Number of columns
@@ -35,16 +36,17 @@ mutable struct OceanColumnCollection
 
 
         _T_ML     = SharedArray{Float64}(Nx, Ny)
+        _h_ML     = SharedArray{Float64}(Nx, Ny)
         qflx2atm  = SharedArray{Float64}(Nx, Ny)
 
         _T_ML .= T_ML
+        _h_ML .= h_ML
        
         occ = new(
             Nx, Ny, 
             Kh_T,
             mask, mask_idx,
-            _T_ML, qflx2atm,
-            h_ML,
+            _T_ML, _h_ML, qflx2atm,
             Nx * Ny
         )
 
@@ -60,8 +62,8 @@ function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
     end
     
     to_occ.Kh_T = fr_occ.Kh_T
-    to_occ.h_ML = fr_occ.h_ML
     to_occ.T_ML[:, :]      = fr_occ.T_ML
+    to_occ.h_ML[:, :]      = fr_occ.h_ML
     to_occ.qflx2atm[:, :]  = fr_occ.qflx2atm
 end
 

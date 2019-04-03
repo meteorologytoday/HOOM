@@ -13,11 +13,10 @@ function stepOceanColumnCollection!(
             continue
         end
 
-        occ.T_ML[i, j] += -eflx[i, j] / ( occ.h_ML * ρ * c_p ) * Δt
-
+        occ.T_ML[i, j] += -eflx[i, j] / ( occ.h_ML[i, j] * ρ * c_p ) * Δt
 
         # Freeze potential. Calculation mimics the one written in CESM1 docn_comp_mod.F90
-        occ.qflx2atm[i, j] = (T_sw_frz - occ.T_ML[i, j]) * ρ * c_p * occ.h_ML / Δt
+        occ.qflx2atm[i, j] = (T_sw_frz - occ.T_ML[i, j]) * ρ * c_p * occ.h_ML[i, j] / Δt
         occ.T_ML[i, j] = max(T_sw_frz, occ.T_ML[i, j])
         
     end

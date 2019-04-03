@@ -131,7 +131,7 @@ module docn_comp_mod
   integer :: x_iostat
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
-                           x_ifrac(:), x_q(:), x_frwflx(:), x_tfcnvg(:) 
+                           x_ifrac(:), x_q(:), x_frwflx(:), x_tfdiv(:), x_mld(:) 
 
   !--- formats   ---
   character(*), parameter :: x_F00 = "(a, '.ssm.', a, '.', a)" 
@@ -679,6 +679,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
       print *, "# WHAT TIME IS IT? ", trim(x_datetime_str)
       
       lsize = mct_avect_lsize(o2x)
+      ! XTT: This line dumps every stream data from `SDOCN%avs(n)` into `avstrm`
+      ! where dumped variables are specified by `avifld` and its mapping `avofld`.
       do n = 1,SDOCN%nstreams
         call shr_dmodel_translateAV(SDOCN%avs(n),avstrm,avifld,avofld,rearr)
       enddo
@@ -696,7 +698,9 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         kprec  = mct_aVect_indexRA(x2o,'Faxa_prec')
         kevap  = mct_aVect_indexRA(x2o,'Foxx_evap')
 
-        allocate(x_tfcnvg(lsize))
+
+        allocate(x_tfdiv(lsize))
+        allocate(x_mld(lsize))
         allocate(x_nswflx(lsize))
         allocate(x_swflx(lsize))
         allocate(x_taux(lsize))
@@ -710,7 +714,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                 somtp(n) = o2x%rAttr(kt,n) + TkFrz
             end if
 
-            x_tfcnvg(n)  = 0.0_R8
+            x_tfdiv(n)   = 0.0_R8
+            x_mld(n)     = 0.0_R8
             x_q(n)       = 0.0_R8 
             x_nswflx(n)  = 0.0_R8
             x_swflx(n)   = 0.0_R8
@@ -718,6 +723,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_tauy(n)    = 0.0_R8
             x_ifrac(n)   = 0.0_R8
             x_frwflx(n)  = 0.0_R8
+    
+
 
             o2x%rAttr(kt,n) = somtp(n)
             o2x%rAttr(kq,n) = x_q(n)
@@ -729,7 +736,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
-        x_msg = trim(x_msg)//"VAR2D:TFCNVG,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
+        x_msg = trim(x_msg)//"VAR2D:TFDIV,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
         call stop_if_bad(ptm_sendText(x_TS, x_msg), "INIT_SEND")
         
         print *, "Init msg sent: ", trim(x_msg), "."
@@ -775,7 +782,9 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_tauy(n)  = x2o%rAttr(ktauy,n)
             x_ifrac(n) = x2o%rAttr(kifrac,n)
 
-            x_tfcnvg(n)  = avstrm%rAttr(kqbot ,n)
+            x_tfdiv(n) = avstrm%rAttr(kqbot,n)
+            x_mld(n)   = avstrm%rAttr(kh,n)
+
           end if
         end do
         !print *, "Max of short wave: ", maxval(x_swflx)
@@ -785,7 +794,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         call stop_if_bad(ptm_sendText(x_TS, x_msg), "RUN_SEND")
                 
-        call stop_if_bad(ptm_sendBinary(x_TS, x_tfcnvg, lsize), "SEND_TFCNVG")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_tfdiv,  lsize), "SEND_TFDIV")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_mld,    lsize), "SEND_MLD")
         call stop_if_bad(ptm_sendBinary(x_TS, x_nswflx, lsize), "SEND_NSWFLX")
         call stop_if_bad(ptm_sendBinary(x_TS, x_swflx,  lsize), "SEND_SWFLX")
         call stop_if_bad(ptm_sendBinary(x_TS, x_taux,   lsize), "SEND_TAUX")
@@ -957,6 +967,17 @@ end subroutine docn_comp_final
 !===============================================================================
 
 ! ===== XTT MODIFIED BEGIN =====
+subroutine test_weird_number(num, stage)
+    real(8)      :: num
+    character(*) :: stage
+
+    if ((isnan(num) .eqv. .true.) .or. &
+         (num .gt. huge(num))) then
+                print *, stage, " got werid number: ", num
+        call shr_sys_abort ('Got non-real number')
+    end if
+end subroutine test_weird_number
+
 subroutine stop_if_bad(stat, stage)
     integer      :: stat
     character(*) :: stage

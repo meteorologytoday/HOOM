@@ -9,9 +9,9 @@ function loadSnapshot(filename::AbstractString)
 
 
         occ.Kh_T = ds.attrib["Kh_T"]
-        occ.h_ML = ds.attrib["h_ML"]
 
         occ.T_ML[:, :]  = nomissing( ds["T_ML"][:], NaN )
+        occ.h_ML[:, :]  = nomissing( ds["h_ML"][:], NaN )
 
     end
 
@@ -30,6 +30,7 @@ function takeSnapshot(
    
         _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
         _write2NCFile(ds, "T_ML", ("Nx", "Ny",), occ.T_ML, missing_value)
+        _write2NCFile(ds, "h_ML", ("Nx", "Ny",), occ.h_ML, missing_value)
 
     end
 
@@ -49,7 +50,6 @@ function _createNCFile(
        
         ds.attrib["_FillValue"] = missing_value
         ds.attrib["Kh_T"] = occ.Kh_T
-        ds.attrib["h_ML"] = occ.h_ML
         
     end
 

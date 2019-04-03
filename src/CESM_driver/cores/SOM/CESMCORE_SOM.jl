@@ -40,7 +40,7 @@ module CESMCORE_SOM
             println("No initial ocean profile. Using the naive one.")
             occ = SOM.makeBlankOceanColumnCollection(map.nx, map.ny, map.mask)
             occ.Kh_T = 0.0
-            occ.h_ML = 30.0
+            occ.h_ML .= 30.0
             occ.T_ML .= 288.0
 
             snapshot_file = format("Snapshot_{:04d}0101_00000.nc", t[1])
@@ -57,7 +57,8 @@ module CESMCORE_SOM
         x2o = Dict(
             "SWFLX"  => wksp.swflx,
             "NSWFLX" => wksp.nswflx,
-            "TFCNVG" => wksp.tfcnvg,
+            "TFDIV"  => wksp.tfdiv,
+            "MLD"    => occ.h_ML,
         )
 
         o2x = Dict(
@@ -66,23 +67,15 @@ module CESMCORE_SOM
         )
 
         output_vars = Dict(
-            "sst"       => occ.T_ML,
+            "T_ML"      => occ.T_ML,
+            "h_ML"      => occ.h_ML,
             "eflx"      => wksp.eflx,
-            "tfcnvg"    => wksp.tfcnvg,
-            #=
-            "rain"      => wksp.frwflx,
-            "mld"       => occ.h_ML,
-            "sst"       => occ.T_ML,
-            "qflx2atm"  => occ.qflx2atm,
-            "sumflx"    => wksp.sumflx,
-            "fric_u"    => wksp.fric_u,
-            "ifrac"     => wksp.ifrac,
-            =#
+            "tfdiv"     => wksp.tfdiv,
         )
         
         sobj_dict = Dict(
             "T_ML"   => occ.T_ML,
-            "eflx"   => wksp.eflx,
+        #    "eflx"   => wksp.eflx,
         )
 
         return SOM_DATA(
@@ -125,7 +118,7 @@ module CESMCORE_SOM
                     SOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], avg_file), MD.map.missing_value)
                     Dataset(avg_file, "a") do ds
 
-                        for v in ["eflx", "T_ML"]
+                        for v in keys(MD.sobj_dict)
                             SOM._write2NCFile(ds, v, ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
                         end
 
@@ -155,7 +148,8 @@ module CESMCORE_SOM
 
         wksp.eflx[:, :] = wksp.nswflx[:, :]
         wksp.eflx .+= wksp.swflx
-
+        wksp.eflx .+= wksp.tfdiv
+        
         SOM.stepOceanColumnCollection!(
             MD.occ;
             eflx   = wksp.eflx,
