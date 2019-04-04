@@ -75,8 +75,11 @@ module CESMCORE_SOM
         )
         
         sobj_dict = Dict(
-            "T_ML"   => occ.T_ML,
-        #    "eflx"   => wksp.eflx,
+            "T_ML"     => occ.T_ML,
+            "swflx"    => wksp.swflx,
+            "nswflx"   => wksp.nswflx,
+            "tfdiv"    => wksp.tfdiv,
+            "eflx"     => wksp.eflx,
         )
 
         return SOM_DATA(

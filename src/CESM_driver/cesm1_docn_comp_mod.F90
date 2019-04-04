@@ -666,7 +666,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
     case('SOM_AQUAP', 'SOM')
  
-      print *, "XTT modified code."
+      print *, "XTT modified code. This proves its modified."
       
       call GETCWD(x_cwd) 
       print *, "Current working directory: ", trim(x_cwd)
@@ -818,7 +818,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 !            o2x%rAttr(kt,n) = max(tfreeze(n),o2x%rAttr(kt,n))                    ! reset temp
 
           o2x%rAttr(kt,n) = somtp(n)
-          o2x%rAttr(kq,n) = 0.0_R8
+          o2x%rAttr(kq,n) = x_q(n)
         end do
      
       endif
