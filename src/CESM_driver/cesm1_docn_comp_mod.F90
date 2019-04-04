@@ -766,13 +766,13 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_swflx(n)  = x2o%rAttr(kswnet, n) 
 
 
-            x_nswflx(n) = x2o%rAttr(klwup, n)  + &    ! upward longwave
-                          x2o%rAttr(klwdn, n)  + &    ! downward longwave
-                          x2o%rAttr(ksen, n)   + &    ! sensible heat flux
-                          x2o%rAttr(klat, n)   + &    ! latent heat flux
-                          x2o%rAttr(kmelth, n) + &    ! ice melt
-                        ( x2o%rAttr(ksnow,n) + & 
-                          x2o%rAttr(kioff,n) ) * latice ! latent by snow and roff
+            x_nswflx(n) = x2o%rAttr(klwup, n)    &    ! upward longwave
+                        + x2o%rAttr(klwdn, n)    &    ! downward longwave
+                        + x2o%rAttr(ksen, n)     &    ! sensible heat flux
+                        + x2o%rAttr(klat, n)     &    ! latent heat flux
+                        + x2o%rAttr(kmelth, n)   &    ! ice melt
+                        - (   x2o%rAttr(ksnow,n) & 
+                            + x2o%rAttr(kioff,n) ) * latice ! latent by snow and roff
  
             ! fresh water flux in terms of m / s
             x_frwflx(n) = ( x2o%rAttr(kevap, n) - &
