@@ -137,7 +137,7 @@ while true
         nc_cnt += 1
 
         println("Gonna send \"OK\"")
-        sendText(TS, "OK!!")
+        sendText(TS, "OK")
         
         sendBinary!(TS, OMDATA.o2x["SST"],      buffer2d; endianess=:little_endian)
         sendBinary!(TS, OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)

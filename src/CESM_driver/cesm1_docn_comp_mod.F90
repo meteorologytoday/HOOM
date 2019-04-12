@@ -128,7 +128,7 @@ module docn_comp_mod
   type(ptm_TunnelSet) :: x_TS
   integer :: x_curr_ymd
 
-  integer :: x_iostat
+  integer :: x_iostat, x_fds(8)
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
                            x_ifrac(:), x_q(:), x_frwflx(:), x_tfdiv(:), x_mld(:) 
@@ -732,7 +732,14 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         end do
          
-        call ptm_setDefaultTunnelSet(x_TS)
+        do n = 1, 8
+            x_fds(n) = shr_file_getUnit()
+            !call shr_file_freeUnit(nu)
+        enddo
+        print *, "ProgramTunnel get file unit: ", x_fds
+
+
+        call ptm_setDefaultTunnelSet(x_TS, x_fds)
 
         write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
@@ -758,8 +765,6 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
       else
 
         x_msg = "MSG:RUN;CESMTIME:"//trim(x_datetime_str)//";"
-
-        print *, "Not first call."
 
         do n = 1,lsize
           if (imask(n) /= 0) then
@@ -787,8 +792,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
           end if
         end do
-        !print *, "Max of short wave: ", maxval(x_swflx)
-
+        
         write (x_msg, "(A, A, F10.2, A)") trim(x_msg), "DT:", dt, ";"
 
 
@@ -805,8 +809,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         
         ! SSM is doing some MAGICAL calculation...
         call stop_if_bad(ptm_recvText(x_TS, x_msg), "RUN_RECV")
-        if (ptm_messageCompare(x_msg, "OK!!") .neqv. .true.) then
-            print *, "Ocean model calculation failed. Recive message:[", trim(x_msg), "]"
+        if (ptm_messageCompare(x_msg, "OK") .neqv. .true.) then
+            print *, "Ocean model calculation failed. Recive message: [", trim(x_msg), "]"
             call shr_sys_abort ('Ocean model calculation failed.')
         end if
  
@@ -814,9 +818,6 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         call stop_if_bad(ptm_recvBinary(x_TS, x_q,   lsize), "RECV_QFLX2ATM")
  
         do n = 1, lsize
-!            o2x%rAttr(kq,n) = (tfreeze(n) - o2x%rAttr(kt,n))*(cpsw*rhosw*hn)/dt  ! ice formed q>0
-!            o2x%rAttr(kt,n) = max(tfreeze(n),o2x%rAttr(kt,n))                    ! reset temp
-
           o2x%rAttr(kt,n) = somtp(n)
           o2x%rAttr(kq,n) = x_q(n)
         end do
@@ -942,6 +943,13 @@ subroutine docn_comp_final()
    character(*), parameter :: F91   = "('(docn_comp_final) ',73('-'))"
    character(*), parameter :: subName = "(docn_comp_final) "
    integer :: rcode
+
+! ===== XTT MODIFIED BEGIN =====
+   integer :: n
+! ===== XTT MODIFIED END =====
+
+
+
 !-------------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
@@ -953,8 +961,13 @@ subroutine docn_comp_final()
       write(logunit,F91)
 
 ! ===== XTT MODIFIED BEGIN =====
+
       x_msg = "MSG:END"
       call stop_if_bad(ptm_sendText(x_TS, x_msg), "FINAL")
+
+      do n = 1, 8
+          call shr_file_freeUnit(x_fds(n))
+      enddo
 
 ! ===== XTT MODIFIED END =====
  
