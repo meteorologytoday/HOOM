@@ -118,11 +118,14 @@ while true
         end
        
         println("Calling ", OMMODULE.name, " to do MAGICAL calculations")
-        OMMODULE.run(OMDATA;
+
+        cost = @elapsed OMMODULE.run(OMDATA;
             t     = timeinfo,
             t_cnt = loop_i,
             Δt    = parse(Float64, msg["DT"])
-        ) 
+        )
+
+        println(format("*** It takes {:.1f} secs. ***", cost))
 
         NetCDFIO.write2NCFile(
             map,
@@ -133,7 +136,8 @@ while true
         )
         nc_cnt += 1
 
-        sendText(TS, "OK")
+        println("Gonna send \"OK\"")
+        sendText(TS, "OK!!")
         
         sendBinary!(TS, OMDATA.o2x["SST"],      buffer2d; endianess=:little_endian)
         sendBinary!(TS, OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)

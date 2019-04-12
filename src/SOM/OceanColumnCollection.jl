@@ -78,7 +78,7 @@ end
 
 function makeBlankOceanColumnCollection(
     Nx   :: Integer,
-    Ny   :: Integer,
+    Ny   :: Integer;
     mask :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
 )
 

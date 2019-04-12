@@ -805,8 +805,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         
         ! SSM is doing some MAGICAL calculation...
         call stop_if_bad(ptm_recvText(x_TS, x_msg), "RUN_RECV")
-        if (ptm_messageCompare(x_msg, "OK") .neqv. .true.) then
-            print *, "Ocean model calculation failed. Recive message: ", x_msg
+        if (ptm_messageCompare(x_msg, "OK!!") .neqv. .true.) then
+            print *, "Ocean model calculation failed. Recive message:[", trim(x_msg), "]"
             call shr_sys_abort ('Ocean model calculation failed.')
         end if
  

@@ -78,7 +78,7 @@ module CESMCORE_SOM
             "T_ML"     => occ.T_ML,
             "swflx"    => wksp.swflx,
             "nswflx"   => wksp.nswflx,
-            "tfdiv"    => wksp.tfdiv,
+           # "tfdiv"    => wksp.tfdiv,
             "eflx"     => wksp.eflx,
         )
 

@@ -106,7 +106,9 @@ end
 function sendText(TS::TunnelSet, msg::AbstractString)
 
     open(getTunnelFilename!(TS, :send_txt), "w") do io
-        write(io, msg)
+        println("SendText: ", msg)
+        n = write(io, msg)
+        println(format("{:d} bytes has been sent.", n))
     end
 end
 

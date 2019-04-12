@@ -3,7 +3,7 @@ implicit none
 
 integer, parameter :: c_send_txt = 1, c_recv_txt = 2, c_send_bin = 3, c_recv_bin = 4
 character(len=256), parameter :: keys(4) = (/"X2Y_txt", "Y2X_txt", "X2Y_bin", "Y2X_bin"/)
-integer, parameter :: fd_beg = 50
+integer, parameter :: fd_beg = 90
 
 
 type ptm_Tunnel
@@ -157,6 +157,10 @@ integer function ptm_recvText(TS, msg)
 
     ptm_recvText = 0
     open(unit=fd, file=fn, form="formatted", access="stream", action="read", iostat=ptm_recvText)
+    if (ptm_recvText /= 0) then
+        print *, "WARNING OPENING RECV TXT PIPE, errcode:", ptm_recvText
+    end if
+
     if (ptm_recvText .gt. 0) then
         print *, "ERROR OPENING RECV TXT PIPE, errcode:", ptm_recvText
         close(fd)
@@ -164,15 +168,19 @@ integer function ptm_recvText(TS, msg)
     end if
 
     ptm_recvText = 0
+    print *, "Before: msg = ", trim(msg)
     read (fd, '(A)', iostat=ptm_recvText) msg
+    close(fd)
+    print *, "After: msg = ", trim(msg)
+    if (ptm_recvText /= 0) then
+        print *, msg
+        print *, "WARNING READING RECV TXT PIPE, errcode:", ptm_recvText
+    end if
     if (ptm_recvText .gt. 0) then
         print *, msg
         print *, "ERROR READING RECV TXT PIPE, errcode:", ptm_recvText
-        close(fd)
         return
     end if
-
-    close(fd)
     
     msg = trim(msg)
 
