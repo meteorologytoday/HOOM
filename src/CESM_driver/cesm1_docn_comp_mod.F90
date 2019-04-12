@@ -3,7 +3,7 @@
 #endif
 
 ! XTT MODIFICATION BEGIN
-include "./fortran_lib/ProgramTunnelMod.f90"
+include "./ProgramTunnel/src/fortran/ProgramTunnelMod.f90"
 ! XTT MODIFICATION ENDS
 
 
