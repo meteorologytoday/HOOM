@@ -1,4 +1,39 @@
 module PeriodicDataToolbox
+    using NCDatasets
+
+    mutable struct Bundle
+        interpolate_mtx :: AbstractArray{Float64, 2}
+
+        fine_time       :: AbstractArray{Float64, 1}
+        coarse_time     :: AbstractArray{Float64, 1}
+        
+        var_names       :: AbstractArray
+
+        fine_data       :: Dict
+        coarse_data     :: Dict
+
+
+
+
+
+    end
+
+
+    function readCoarseNCFile(filename, varnames, fine_time, )
+        ds = Dataset(filename, "r")
+
+        coarse_data = Dict()
+        fine_data   = Dict()
+ 
+        for varname in varnames
+            coarse_data[varname] = nomissing(ds[varname][:], NaN)
+            coarse_data[varname] 
+        end
+
+        
+        close(ds)
+    end
+
 
     function interpolate!(
         fine_data       :: AbstractArray{Float64, 1},
