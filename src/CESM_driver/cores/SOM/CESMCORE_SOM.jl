@@ -38,7 +38,7 @@ module CESMCORE_SOM
 
         if init_file == nothing
             println("No initial ocean profile. Using the naive one.")
-            occ = SOM.makeBlankOceanColumnCollection(map.nx, map.ny, map.mask)
+            occ = SOM.makeBlankOceanColumnCollection(map.nx, map.ny; mask=map.mask)
             occ.Kh_T = 0.0
             occ.h_ML .= 30.0
             occ.T_ML .= 288.0
