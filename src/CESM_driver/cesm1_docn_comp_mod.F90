@@ -731,7 +731,9 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
 
         end do
-         
+        
+        ! CESM has a speicial function to manage
+        ! Input/output file units 
         do n = 1, 8
             x_fds(n) = shr_file_getUnit()
             !call shr_file_freeUnit(nu)
@@ -744,6 +746,11 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
         x_msg = trim(x_msg)//"VAR2D:TFDIV,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
+        if (read_restart) then
+            x_msg = trim(x_msg)//"READ_RESTART:TRUE;"
+        else
+            x_msg = trim(x_msg)//"READ_RESTART:FALSE;"
+        endif
         call stop_if_bad(ptm_sendText(x_TS, x_msg), "INIT_SEND")
         
         print *, "Init msg sent: ", trim(x_msg), "."
@@ -762,9 +769,15 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
           o2x%rAttr(kt,n) = somtp(n)
           o2x%rAttr(kq,n) = x_q(n)
         end do
+
       else
 
         x_msg = "MSG:RUN;CESMTIME:"//trim(x_datetime_str)//";"
+        if (read_restart) then
+            x_msg = trim(x_msg)//"WRITE_RESTART:TRUE;"
+        else
+            x_msg = trim(x_msg)//"WRITE_RESTART:FALSE;"
+        endif
 
         do n = 1,lsize
           if (imask(n) /= 0) then

@@ -19,7 +19,7 @@ module CESMCORE_SOM
         x2o         :: Dict
         o2x         :: Dict
 
-        configs       :: Dict
+        configs     :: Dict
 
         output_vars :: Dict
         wksp        :: Workspace
@@ -30,13 +30,36 @@ module CESMCORE_SOM
 
 
     function init(;
-        map       :: NetCDFIO.MapInfo,
-        init_file :: Union{Nothing, AbstractString},
-        t         :: AbstractArray{Integer},
-        configs   :: Dict,
+        map          :: NetCDFIO.MapInfo,
+        init_file    :: Union{Nothing, AbstractString},
+        t            :: AbstractArray{Integer},
+        configs      :: Dict,
+        read_restart :: Bool,
     )
 
-        if init_file == nothing
+
+        # If `read_restart` is true then read restart file: configs["rpointer_file"]
+        # If not then initialize ocean with default profile if `initial_file`
+        # is "nothing", with `init_file` if it is nonempty.
+
+        if read_restart
+
+            println("`read_restart` is on. Going to read restart pointer file: ", configs["rpointer_file"])
+
+            if !isfile(configs["rpointer_file"])
+                throw(ErrorException(configs["rpointer_file"] * " does not exist!"))
+            end
+
+            open(configs["rpointer_file"], "r") do file
+                init_file = readline(file)
+            end
+        end
+
+
+        if typeof(init_file) <: AbstractString
+            println("Initial ocean with profile: ", init_file)
+            occ = SOM.loadSnapshot(init_file)
+        else
             println("No initial ocean profile. Using the naive one.")
             occ = SOM.makeBlankOceanColumnCollection(map.nx, map.ny, map.mask)
             occ.Kh_T = 0.0
@@ -47,9 +70,6 @@ module CESMCORE_SOM
             println("Output snapshot: ", snapshot_file)
             SOM.takeSnapshot(occ, joinpath(configs["short_term_archive_dir"], snapshot_file))
             appendLine(configs["short_term_archive_list"], snapshot_file)
-        else
-            println("Initial ocean with profile: ", init_file)
-            occ = SOM.loadSnapshot(init_file)
         end
 
         wksp = Workspace(occ.Nx, occ.Ny)
@@ -97,10 +117,11 @@ module CESMCORE_SOM
     end
 
     function run(
-        MD    :: SOM_DATA;
-        t     :: AbstractArray{Integer},
-        t_cnt :: Integer,
-        Δt    :: Float64,
+        MD            :: SOM_DATA;
+        t             :: AbstractArray{Integer},
+        t_cnt         :: Integer,
+        Δt            :: Float64,
+        write_restart :: Bool,
     )
 
         if MD.configs["enable_short_term_archive"]
@@ -159,6 +180,20 @@ module CESMCORE_SOM
             eflx   = wksp.eflx,
             Δt     = Δt,
         )
+
+        
+        if write_restart
+            restart_file = format("restart.xtt_ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
+            SOM.takeSnapshot(MD.occ, restart_file)
+             
+            open(configs["rpointer_file"], "w") do file
+                write(file, restart_file)
+            end
+
+            println("(Over)write restart pointer file: ", configs["rpointer_file"])
+            println("Output restart file: ", restart_file)
+        end
+
 
     end
 
