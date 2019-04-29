@@ -76,7 +76,13 @@ while true
     if stage == :INIT && msg["MSG"] == "INIT"
 
         println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
-        OMDATA = OMMODULE.init(map=map, init_file=init_file, t=timeinfo, configs=configs)
+        OMDATA = OMMODULE.init(
+            map          = map,
+            init_file    = init_file,
+            t            = timeinfo,
+            configs      = configs,
+            read_restart = (msg["READ_RESTART"] == "TRUE") ? true : false,
+        )
         
         rm(configs["short_term_archive_list"], force=true)
 
@@ -120,19 +126,20 @@ while true
         println("Calling ", OMMODULE.name, " to do MAGICAL calculations")
 
         cost = @elapsed OMMODULE.run(OMDATA;
-            t     = timeinfo,
-            t_cnt = loop_i,
-            Δt    = parse(Float64, msg["DT"])
+            t             = timeinfo,
+            t_cnt         = loop_i,
+            Δt            = parse(Float64, msg["DT"]),
+            write_restart = ( msg["WRITE_RESTART"] == "TRUE" ) ? true : false,
         )
 
-        println(format("*** It takes {:.1f} secs. ***", cost))
+        println(format("*** It takes {:.2f} secs. ***", cost))
 
         NetCDFIO.write2NCFile(
             map,
             output_filename,
             output_vars;
             time=nc_cnt,
-            missing_value=map.missing_value
+            missing_value=map.missing_value,
         )
         nc_cnt += 1
 
