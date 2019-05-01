@@ -10,6 +10,7 @@ configs = Dict(
     "monthly_record"  => true,
     "yearly_snapshot"  => true,
     "short_term_archive_list" => "SMARTSLAB_short_term_archive_list.txt",
+    "restart_file" => "rpointer.xtt_ocn",
 )
 
 function parse_commandline()

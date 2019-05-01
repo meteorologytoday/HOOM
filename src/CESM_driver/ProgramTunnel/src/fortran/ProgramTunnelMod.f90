@@ -2,7 +2,7 @@ module ProgramTunnelMod
 implicit none
 
 integer, parameter :: c_send_txt = 1, c_recv_txt = 2, c_send_bin = 3, c_recv_bin = 4
-character(len=256), parameter :: keys(4) = (/"X2Y_txt", "Y2X_txt", "X2Y_bin", "Y2X_bin"/)
+character(len=256), parameter :: keys(4) = (/"XX2Y_txt", "Y2X_txt", "X2Y_bin", "Y2X_bin"/)
 
 
 type ptm_Tunnel
@@ -125,6 +125,9 @@ integer function ptm_sendText(TS, msg)
     integer :: fd
 
     call ptm_getTunnelInfo(TS, c_send_txt, fd, fn, .true.)
+
+    print *, "ptm_sendText: [" , trim(msg) , "]"
+    print *, "Filename: ", trim(fn)
 
     ptm_sendText = 0
     open(unit=fd, file=fn, form="formatted", access="stream", action="write", iostat=ptm_sendText)
