@@ -23,31 +23,42 @@ subroutine ptm_setDefault(PTI, fds)
     type(ptm_ProgramTunnelInfo) :: PTI
     Integer :: fds(:)
 
-    PTI%recv_fn  = "ProgramTunnel-X2Y.txt"
-    PTI%send_fn  = "ProgramTunnel-Y2X.txt"
+    PTI%recv_fn  = "ProgramTunnel-Y2X.txt"
+    PTI%send_fn  = "ProgramTunnel-X2Y.txt"
  
     PTI%lock_fn  = "ProgramTunnel-lock"
-    PTI%log_file = "ProgramTunnel-log"
 
     PTI%recv_cnt = 0
     PTI%send_cnt = 0
 
     PTI%chk_freq = 50
 
-    PTI%recv_fd(1) = fds(1)
-    PTI%send_fd(1) = fds(2)
-    PTI%lock_fd(1) = fds(3)
+    PTI%recv_fd = fds(1)
+    PTI%send_fd = fds(2)
+    PTI%lock_fd = fds(3)
 end subroutine 
+
+subroutine ptm_printSummary(PTI)
+    implicit none
+    type(ptm_ProgramTunnelInfo) :: PTI
+
+    print *, "[PTI] recv_fn: ", trim(PTI%recv_fn)
+    print *, "[PTI] send_fn: ", trim(PTI%send_fn)
+    print *, "[PTI] lock_fn: ", trim(PTI%lock_fn)
+    print *, "[PTI] chk_freq:", PTI%chk_freq
+
+end subroutine
+
+
 
 subroutine ptm_appendPath(PTI, path)
     implicit none
     type(ptm_ProgramTunnelInfo) :: PTI
     character(len=256) :: path
 
-    PTI%recv_fn  = path // "/" // PTI%recv_fn 
-    PTI%send_fn  = path // "/" // PTI%send_fn 
-    PTI%lock_fn  = path // "/" // PTI%lock_fn
-    PTI%log_file = path // "/" // PTI%log_file
+    PTI%recv_fn  = trim(path) // "/" // trim(PTI%recv_fn)
+    PTI%send_fn  = trim(path) // "/" // trim(PTI%send_fn)
+    PTI%lock_fn  = trim(path) // "/" // trim(PTI%lock_fn)
 
 end subroutine 
 
@@ -64,6 +75,7 @@ subroutine ptm_obtainLock(PTI, stat)
     get_through = .false.
 
     do
+        print *, "Getting lock...", PTI%lock_fn
         ! try to get lock
         inquire(file=PTI%lock_fn, exist=file_exists)
         
@@ -127,16 +139,17 @@ subroutine ptm_clean(PTI)
 end subroutine
 
 
-subroutine ptm_recvText(PTI, msg, stat)
+integer function ptm_recvText(PTI, msg)
     implicit none
     type(ptm_ProgramTunnelInfo)  :: PTI
     character(len=*)       :: msg
-    integer, intent(inout) :: stat
 
     integer :: io
     logical :: file_exists
 
     logical :: get_through
+
+    ptm_recvText = 0
 
     get_through = .false.
     do
@@ -151,21 +164,21 @@ subroutine ptm_recvText(PTI, msg, stat)
     end do
 
     if (get_through .eqv. .true.) then
-        stat = 0
+        ptm_recvText = 0
     else
-        stat = 1
+        ptm_recvText = 1
         return
     end if
 
-    call ptm_obtainLock(PTI, stat)
-    if (stat /= 0 ) then
+    call ptm_obtainLock(PTI, ptm_recvText)
+    if (ptm_recvText /= 0 ) then
         return
     end if
     
-    io = 0
-    open(unit=PTI%recv_fd, file=PTI%recv_fn, form="formatted", access="stream", action="read", iostat=io)
+    ptm_recvText = 0
+    open(unit=PTI%recv_fd, file=PTI%recv_fn, form="formatted", access="stream", action="read", iostat=ptm_recvText)
     
-    read (PTI%recv_fd, '(A)', iostat=io) msg
+    read (PTI%recv_fd, '(A)', iostat=ptm_recvText) msg
     close(PTI%recv_fd)
     
     msg = trim(msg)
@@ -174,31 +187,31 @@ subroutine ptm_recvText(PTI, msg, stat)
 
     call ptm_releaseLock(PTI)
     
-end subroutine
+end function
 
 
-subroutine ptm_sendText(PTI, msg, stat)
+integer function ptm_sendText(PTI, msg)
     implicit none
     type(ptm_ProgramTunnelInfo)  :: PTI
     character(len=*)       :: msg
-    integer, intent(inout) :: stat
 
-    call ptm_obtainLock(PTI, stat)
-    if (stat /= 0 ) then
+    ptm_sendText = 0
+    call ptm_obtainLock(PTI, ptm_sendText)
+    if (ptm_sendText /= 0 ) then
         return
     end if
 
-    stat = 0
-    open(unit=PTI%send_fd, file=PTI%send_fn, form="formatted", access="stream", action="write", iostat=stat)
-    if (stat /= 0) then
-        print *, "Create send file iostat: ", stat
+    ptm_sendText = 0
+    open(unit=PTI%send_fd, file=PTI%send_fn, form="formatted", access="stream", action="write", iostat=ptm_sendText)
+    if (ptm_sendText /= 0) then
+        print *, "Create send file iostat: ", ptm_sendText
         return
     end if
 
-    stat = 0
-    write (PTI%send_fd, *, iostat=stat) msg
-    if (stat /= 0) then
-        print *, "Output send file iostat: ", stat
+    ptm_sendText = 0
+    write (PTI%send_fd, *, iostat=ptm_sendText) msg
+    if (ptm_sendText /= 0) then
+        print *, "Output send file iostat: ", ptm_sendText
         return
     end if
     
@@ -206,19 +219,16 @@ subroutine ptm_sendText(PTI, msg, stat)
 
     call ptm_releaseLock(PTI)
 
-end subroutine
+end function
 
-subroutine ptm_hello(PTI, max_try)
+subroutine ptm_hello(PTI)
     implicit none
     type(ptm_ProgramTunnelInfo) :: PTI
     character(256) :: msg
-    integer :: max_try
 
     integer :: stat
 
-    print *, "Max try: ", max_try
-
-    call ptm_recv(PTI, msg, max_try, stat)
+    stat = ptm_recvText(PTI, msg)
     if (stat /= 0) then
         print *, "Something went wrong during recv stage... exit"
         return
@@ -231,7 +241,7 @@ subroutine ptm_hello(PTI, max_try)
         print *, "Weird msg: [", msg, "]"
     end if
 
-    call ptm_send(PTI, "<<TEST>>", max_try, stat)
+    stat = ptm_sendText(PTI, "<<TEST>>")
     if (stat /= 0) then
         print *, "Something went wrong during send stage... exit"
         return

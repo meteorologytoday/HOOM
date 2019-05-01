@@ -34,10 +34,9 @@ vars_o2x = [
 =#
 stage = :INIT
 
-tmp_folder = joinpath(configs["caserun"], "x_tmp")
-mkpath(tmp_folder)
+mkpath(configs["tmp_folder"])
 
-PTI = ProgramTunnelInfo(path=tmp_folder)
+PTI = ProgramTunnelInfo(path=configs["tmp_folder"])
 reverseRole!(PTI)
 
 map = NetCDFIO.MapInfo{Float64}(configs["domain_file"])
@@ -97,10 +96,12 @@ while true
         global x2o_wanted_varnames = keys(OMDATA.x2o)
         global x2o_wanted_flag     = [(x2o_available_varnames[i] in x2o_wanted_varnames) for i = 1:length(x2o_available_varnames)]
 
-        sendText(PTI, "OK")
 
-        writeBinary!(joinpath(tmp_folder, "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
-        writeBinary!(joinpath(tmp_folder, "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+
+        writeBinary!(joinpath(configs["tmp_folder"], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        writeBinary!(joinpath(configs["tmp_folder"], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+
+        sendText(PTI, "OK")
 
         NetCDFIO.write2NCFile(
             map,
@@ -120,7 +121,7 @@ while true
             varname = x2o_available_varnames[i]
 
             readBinary!(
-                joinpath(tmp_folder, varname * ".bin"),
+                joinpath(configs["tmp_folder"], varname * ".bin"),
                 (x2o_wanted_flag[i]) ? OMDATA.x2o[varname] : null2d,
                 buffer2d;
                 endianess=:little_endian, delete=false
@@ -148,12 +149,10 @@ while true
         )
         nc_cnt += 1
 
-        println("Gonna send \"OK\"")
-        sendText(PTI, "OK")
- 
-        writeBinary!(joinpath(tmp_folder, "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
-        writeBinary!(joinpath(tmp_folder, "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+        writeBinary!(joinpath(configs["tmp_folder"], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        writeBinary!(joinpath(configs["tmp_folder"], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
 
+        sendText(PTI, "OK")
 
     elseif stage == :RUN && msg["MSG"] == "END"
 

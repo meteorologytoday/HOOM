@@ -691,7 +691,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         ! I put all extra initialization here to avoid complication
 
 
-        x_path = "x_tmp/"
+        x_path = "x_tmp"
 
         ! variable name are refereced from
         ! $CESM1_root/models/drv/shr/seq_flds_mod.F90 (line 1101)
@@ -740,12 +740,16 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         x_w_fd = shr_file_getUnit()
         x_r_fd = shr_file_getUnit()
 
-        print *, "ProgramTunnel get file unit: ", x_ptm_fds
         print *, "x_r_fd: ", x_r_fd
         print *, "x_w_fd: ", x_w_fd
 
+
+
         call ptm_setDefault(x_PTI, x_ptm_fds)
         call ptm_appendPath(x_PTI, x_path)
+
+        call ptm_printSummary(x_PTI)
+        print *, "lsize: ", lsize
 
         write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
@@ -755,6 +759,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         else
             x_msg = trim(x_msg)//"READ_RESTART:FALSE;"
         endif
+        print *, "Going to send: " // trim(x_msg)
         call stop_if_bad(ptm_sendText(x_PTI, x_msg), "INIT_SEND")
         
         print *, "Init msg sent: ", trim(x_msg), "."
@@ -766,8 +771,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             call shr_sys_abort ('SSM init failed.')
         end if
          
-        call read_1Dfield(x_r_fd, "SST.bin", somtp, lsize)
-        call read_1Dfield(x_r_fd, "QFLX.bin", x_q, lsize)
+        call read_1Dfield(x_r_fd, trim(x_path) // "/SST.bin", somtp, lsize)
+        call read_1Dfield(x_r_fd, trim(x_path) // "/QFLX2ATM.bin", x_q, lsize)
 
         do n = 1, lsize
           o2x%rAttr(kt,n) = somtp(n)
@@ -813,14 +818,14 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         
 
 
-        call write_1Dfield(x_w_fd, trim(x_path)//"TFDIV.bin",  x_tfdiv,  lsize)
-        call write_1Dfield(x_w_fd, trim(x_path)//"MLD.bin",    x_mld,    lsize)
-        call write_1Dfield(x_w_fd, trim(x_path)//"NSWFLX.bin", x_nswflx, lsize)
-        call write_1Dfield(x_w_fd, trim(x_path)//"SWFLX.bin",  x_swflx,  lsize)
-        call write_1Dfield(x_w_fd, trim(x_path)//"TAUX.bin",   x_taux,   lsize)
-        call write_1Dfield(x_w_fd, trim(x_path)//"TAUY.bin",   x_tauy,   lsize)
-        call write_1Dfield(x_w_fd, trim(x_path)//"IFRAC.bin" , x_ifrac,  lsize)
-        call write_1Dfield(x_w_fd, trim(x_path)//"FRWFLX.bin", x_frwflx, lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/TFDIV.bin",  x_tfdiv,  lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/MLD.bin",    x_mld,    lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/NSWFLX.bin", x_nswflx, lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/SWFLX.bin",  x_swflx,  lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/TAUX.bin",   x_taux,   lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/TAUY.bin",   x_tauy,   lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/IFRAC.bin" , x_ifrac,  lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/FRWFLX.bin", x_frwflx, lsize)
 
         ! send text after files are written
         call stop_if_bad(ptm_sendText(x_PTI, x_msg), "RUN_SEND")
@@ -832,8 +837,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             call shr_sys_abort ('Ocean model calculation failed.')
         end if
  
-        call read_1Dfield(x_r_fd, trim(x_path)//"SST.bin",  somtp, lsize)
-        call read_1Dfield(x_r_fd, trim(x_path)//"QFLX.bin", x_q,   lsize)
+        call read_1Dfield(x_r_fd, trim(x_path) // "/SST.bin",  somtp, lsize)
+        call read_1Dfield(x_r_fd, trim(x_path) // "/QFLX2ATM.bin", x_q,   lsize)
  
         do n = 1, lsize
           o2x%rAttr(kt,n) = somtp(n)

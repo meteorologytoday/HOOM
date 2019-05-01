@@ -2,7 +2,7 @@
 module ProgramTunnel_fs
 using Formatting
 
-export ProgramTunnelInfo, hello, recvText, sendText
+export ProgramTunnelInfo, hello, recvText, sendText, reverseRole!
 
 mutable struct ProgramTunnelInfo
 
@@ -22,7 +22,7 @@ mutable struct ProgramTunnelInfo
         PTI = new(recv, send, lock, chk_freq)
 
         if path != nothing
-            appendPath(PTI)
+            appendPath(PTI, path)
         end
 
         return PTI
