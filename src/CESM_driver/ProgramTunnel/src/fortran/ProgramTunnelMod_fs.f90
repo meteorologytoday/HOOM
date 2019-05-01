@@ -1,7 +1,7 @@
-module ProgrammTunnelMod_fs
+module ProgramTunnelMod_fs
 implicit none
 
-type ptm_ProgrammTunnelInfo
+type ptm_ProgramTunnelInfo
     Integer :: recv_cnt
     Integer :: send_cnt
     Integer :: recv_fd
@@ -18,9 +18,10 @@ end type
 
 contains
 
-subroutine ptm_setDefault(PTI)
+subroutine ptm_setDefault(PTI, fds)
     implicit none
-    type(ptm_ProgrammTunnelInfo) :: PTI
+    type(ptm_ProgramTunnelInfo) :: PTI
+    Integer :: fds(:)
 
     PTI%recv_fn  = "ProgramTunnel-X2Y.txt"
     PTI%send_fn  = "ProgramTunnel-Y2X.txt"
@@ -32,11 +33,15 @@ subroutine ptm_setDefault(PTI)
     PTI%send_cnt = 0
 
     PTI%chk_freq = 100
+
+    PTI%recv_fd(1) = fds(1)
+    PTI%send_fd(1) = fds(2)
+    PTI%lock_fd(1) = fds(3)
 end subroutine 
 
 subroutine ptm_appendPath(PTI, path)
     implicit none
-    type(ptm_ProgrammTunnelInfo) :: PTI
+    type(ptm_ProgramTunnelInfo) :: PTI
     character(len=256) :: path
 
     PTI%recv_fn  = path // "/" // PTI%recv_fn 
@@ -47,7 +52,7 @@ subroutine ptm_appendPath(PTI, path)
 end subroutine 
 
 subroutine ptm_obtainLock(PTI, stat)
-    type(ptm_ProgrammTunnelInfo) :: PTI
+    type(ptm_ProgramTunnelInfo) :: PTI
     integer                      :: stat
 
     logical :: file_exists
@@ -94,7 +99,7 @@ subroutine ptm_obtainLock(PTI, stat)
 end subroutine
 
 subroutine ptm_releaseLock(PTI)
-    type(ptm_ProgrammTunnelInfo) :: PTI
+    type(ptm_ProgramTunnelInfo) :: PTI
     call ptm_delFile(PTI%lock_fn, PTI%lock_fd)
 end subroutine
 
@@ -115,7 +120,7 @@ end subroutine
 
 subroutine ptm_clean(PTI)
     implicit none
-    type(ptm_ProgrammTunnelInfo) :: PTI
+    type(ptm_ProgramTunnelInfo) :: PTI
 
     call ptm_delFile(PTI%recv_fn, PTI%recv_fd)
     call ptm_delFile(PTI%send_fn, PTI%send_fd)
@@ -124,7 +129,7 @@ end subroutine
 
 subroutine ptm_recvText(PTI, msg, stat)
     implicit none
-    type(ptm_ProgrammTunnelInfo)  :: PTI
+    type(ptm_ProgramTunnelInfo)  :: PTI
     character(len=*)       :: msg
     integer, intent(inout) :: stat
 
@@ -174,7 +179,7 @@ end subroutine
 
 subroutine ptm_sendText(PTI, msg, stat)
     implicit none
-    type(ptm_ProgrammTunnelInfo)  :: PTI
+    type(ptm_ProgramTunnelInfo)  :: PTI
     character(len=*)       :: msg
     integer, intent(inout) :: stat
 
@@ -205,7 +210,7 @@ end subroutine
 
 subroutine ptm_hello(PTI, max_try)
     implicit none
-    type(ptm_ProgrammTunnelInfo) :: PTI
+    type(ptm_ProgramTunnelInfo) :: PTI
     character(256) :: msg
     integer :: max_try
 
@@ -281,4 +286,4 @@ subroutine ptm_busysleep(dt)
 end subroutine
 
 
-end module ProgrammTunnelMod_fs
+end module ProgramTunnelMod_fs

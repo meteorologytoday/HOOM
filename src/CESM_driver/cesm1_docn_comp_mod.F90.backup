@@ -750,6 +750,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
           o2x%rAttr(kt,n) = somtp(n)
           o2x%rAttr(kq,n) = x_q(n)
         end do
+
       else
 
         x_msg = "MSG:RUN;CESMTIME:"//trim(x_datetime_str)//";"
