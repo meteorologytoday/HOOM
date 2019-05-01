@@ -32,7 +32,7 @@ subroutine ptm_setDefault(PTI, fds)
     PTI%recv_cnt = 0
     PTI%send_cnt = 0
 
-    PTI%chk_freq = 100
+    PTI%chk_freq = 50
 
     PTI%recv_fd(1) = fds(1)
     PTI%send_fd(1) = fds(2)

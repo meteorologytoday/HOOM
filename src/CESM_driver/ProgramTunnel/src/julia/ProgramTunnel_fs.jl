@@ -15,7 +15,7 @@ mutable struct ProgramTunnelInfo
         recv :: AbstractString     = "ProgramTunnel-Y2X.txt",
         send :: AbstractString     = "ProgramTunnel-X2Y.txt",
         lock :: AbstractString     = "ProgramTunnel-lock.txt",
-        chk_freq :: AbstractFloat  = 0.1,
+        chk_freq :: AbstractFloat  = 0.05,
         path :: Union{AbstractString, Nothing} = nothing,
     )
 
