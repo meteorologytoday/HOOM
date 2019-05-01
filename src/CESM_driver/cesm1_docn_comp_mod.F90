@@ -39,7 +39,7 @@ module docn_comp_mod
 
 ! ===== XTT MODIFIED BEGIN =====
 
-  use ProgramTunnelMod
+  use ProgramTunnelMod_fs
 
 ! ===== XTT MODIFIED END =====
 

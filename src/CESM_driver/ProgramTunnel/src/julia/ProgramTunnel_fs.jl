@@ -15,9 +15,17 @@ mutable struct ProgramTunnelInfo
         recv :: AbstractString     = "ProgramTunnel-Y2X.txt",
         send :: AbstractString     = "ProgramTunnel-X2Y.txt",
         lock :: AbstractString     = "ProgramTunnel-lock.txt",
-        chk_freq :: AbstractFloat  = 0.1
+        chk_freq :: AbstractFloat  = 0.1,
+        path :: Union{AbstractString, Nothing} = nothing,
     )
-        return new(recv, send, lock, chk_freq)
+
+        PTI = new(recv, send, lock, chk_freq)
+
+        if path != nothing
+            appendPath(PTI)
+        end
+
+        return PTI
     end
 end
 
@@ -25,6 +33,10 @@ function appendPath(PTI::ProgramTunnelInfo, path::AbstractString)
     PTI.recv_fn = joinpath(path, PTI.recv_fn)
     PTI.send_fn = joinpath(path, PTI.send_fn)
     PTI.lock_fn = joinpath(path, PTI.lock_fn)
+end
+
+function reverseRole!(PTI::ProgramTunnelInfo)
+    PTI.recv_fn, PTI.send_fn = PTI.send_fn, PTI.recv_fn
 end
 
 function lock(
@@ -67,7 +79,7 @@ function releaseLock(PTI::ProgramTunnelInfo)
     rm(PTI.lock_fn, force=true)
 end
 
-function recv(PTI::ProgramTunnelInfo)
+function recvText(PTI::ProgramTunnelInfo)
     local result
 
 
@@ -95,7 +107,7 @@ function recv(PTI::ProgramTunnelInfo)
     return result
 end
 
-function send(PTI::ProgramTunnelInfo, msg::AbstractString)
+function sendText(PTI::ProgramTunnelInfo, msg::AbstractString)
 
     lock(PTI) do
         open(PTI.send_fn, "w") do io
