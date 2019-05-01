@@ -23,8 +23,8 @@ subroutine ptm_setDefault(PTI, fds)
     type(ptm_ProgramTunnelInfo) :: PTI
     Integer :: fds(:)
 
-    PTI%recv_fn  = "ProgramTunnel-X2Y.txt"
-    PTI%send_fn  = "ProgramTunnel-Y2X.txt"
+    PTI%recv_fn  = "ProgramTunnel-Y2X.txt"
+    PTI%send_fn  = "ProgramTunnel-X2Y.txt"
  
     PTI%lock_fn  = "ProgramTunnel-lock"
 
@@ -38,14 +38,27 @@ subroutine ptm_setDefault(PTI, fds)
     PTI%lock_fd = fds(3)
 end subroutine 
 
+subroutine ptm_printSummary(PTI)
+    implicit none
+    type(ptm_ProgramTunnelInfo) :: PTI
+
+    print *, "[PTI] recv_fn: ", trim(PTI%recv_fn)
+    print *, "[PTI] send_fn: ", trim(PTI%send_fn)
+    print *, "[PTI] lock_fn: ", trim(PTI%lock_fn)
+    print *, "[PTI] chk_freq:", PTI%chk_freq
+
+end subroutine
+
+
+
 subroutine ptm_appendPath(PTI, path)
     implicit none
     type(ptm_ProgramTunnelInfo) :: PTI
     character(len=256) :: path
 
-    PTI%recv_fn  = path // "/" // PTI%recv_fn 
-    PTI%send_fn  = path // "/" // PTI%send_fn 
-    PTI%lock_fn  = path // "/" // PTI%lock_fn
+    PTI%recv_fn  = trim(path) // "/" // trim(PTI%recv_fn)
+    PTI%send_fn  = trim(path) // "/" // trim(PTI%send_fn)
+    PTI%lock_fn  = trim(path) // "/" // trim(PTI%lock_fn)
 
 end subroutine 
 
@@ -62,6 +75,7 @@ subroutine ptm_obtainLock(PTI, stat)
     get_through = .false.
 
     do
+        print *, "Getting lock...", PTI%lock_fn
         ! try to get lock
         inquire(file=PTI%lock_fn, exist=file_exists)
         

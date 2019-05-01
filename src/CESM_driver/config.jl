@@ -74,6 +74,14 @@ for (k, v) in overwrite_configs
 
     configs[k] = v
 end
+
+if ! ( "tmp_folder" in keys(configs) )
+    
+    configs["tmp_folder"] = joinpath(configs["caserun"], "x_tmp")
+    
+end
+
+
 print(json(configs, 4))
 println("===== Defining variables END =====")
 
