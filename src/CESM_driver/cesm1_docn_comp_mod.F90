@@ -745,6 +745,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         print *, "x_w_fd: ", x_w_fd
 
         call ptm_setDefault(x_PTI, x_ptm_fds)
+        call ptm_appendPath(x_PTI, x_path)
 
         write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
@@ -831,8 +832,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             call shr_sys_abort ('Ocean model calculation failed.')
         end if
  
-        call read_1Dfield(x_r_fd, "SST.bin", somtp, lsize)
-        call read_1Dfield(x_r_fd, "QFLX.bin", x_q, lsize)
+        call read_1Dfield(x_r_fd, trim(x_path)//"SST.bin",  somtp, lsize)
+        call read_1Dfield(x_r_fd, trim(x_path)//"QFLX.bin", x_q,   lsize)
  
         do n = 1, lsize
           o2x%rAttr(kt,n) = somtp(n)
