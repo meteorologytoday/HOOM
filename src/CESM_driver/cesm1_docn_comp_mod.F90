@@ -1020,6 +1020,55 @@ subroutine stop_if_bad(stat, stage)
           call shr_sys_abort('MailBox error during stage ['//trim(stage)//']')
     end if
 end subroutine stop_if_bad
+
+subroutine write_1Dfield(fd, filename, f, nx) 
+    character(len=*) :: filename
+    real(8), intent(in) :: f(nx)
+    integer, intent(in):: fd, nx
+    integer :: i,eflag
+
+
+    open (fd, file=filename, access="DIRECT", status='REPLACE', &
+    &       form='UNFORMATTED', recl=8*nx, iostat=eflag, convert='LITTLE_ENDIAN')
+
+    if(eflag .ne. 0) then
+        print *, "Writing field error. File name: ", trim(filename)
+    end if
+
+
+    write(fd,rec=1) (f(i),i=1,nx,1)
+    close(fd)
+
+    if(eflag .ne. 0) then
+        print *, "Writing field error. File name: ", trim(filename)
+    end if
+
+end subroutine
+
+subroutine read_1Dfield(fd, filename, f, nx) 
+    character(len=*) :: filename
+    real(8), intent(inout) :: f(nx)
+    integer, intent(in)    :: fd, nx
+    integer :: i, eflag
+
+
+    open (fd, file=filename, access="DIRECT", status='OLD', &
+    &       form='UNFORMATTED', recl=8*nx, iostat=eflag, convert='LITTLE_ENDIAN')
+
+    if(eflag .ne. 0) then
+        print *, "Reading field error. File name: ", trim(filename)
+        print *, "Error number: ", eflag
+    end if
+
+    read(fd, rec=1) (f(i),i=1,nx,1)
+    close(fd)
+
+    if(eflag .ne. 0) then
+        print *, "Reading field error. File name: ", trim(filename)
+    end if
+
+end subroutine
+
 ! ===== XTT MODIFIED END   =====
 
 end module docn_comp_mod
