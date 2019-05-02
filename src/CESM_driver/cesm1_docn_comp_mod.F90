@@ -779,10 +779,10 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
           o2x%rAttr(kq,n) = x_q(n)
         end do
 
-      else
+      else  ! if NOT first call
 
         x_msg = "MSG:RUN;CESMTIME:"//trim(x_datetime_str)//";"
-        if (read_restart) then
+        if (write_restart) then
             x_msg = trim(x_msg)//"WRITE_RESTART:TRUE;"
         else
             x_msg = trim(x_msg)//"WRITE_RESTART:FALSE;"
