@@ -13,6 +13,7 @@ module CESMCORE_SOM
     days_of_mon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
     mutable struct SOM_DATA
+        casename    :: AbstractString
         map         :: NetCDFIO.MapInfo
         occ         :: SOM.OceanColumnCollection
 
@@ -26,17 +27,20 @@ module CESMCORE_SOM
 
         sobj        :: StatObj
         sobj_dict   :: Dict
+
+        t_tmp       :: AbstractArray
+        t_flags     :: Dict
     end
 
 
     function init(;
+        casename     :: AbstractString,
         map          :: NetCDFIO.MapInfo,
         init_file    :: Union{Nothing, AbstractString},
         t            :: AbstractArray{Integer},
         configs      :: Dict,
         read_restart :: Bool,
     )
-
 
         # If `read_restart` is true then read restart file: configs["rpointer_file"]
         # If not then initialize ocean with default profile if `initial_file`
@@ -102,7 +106,16 @@ module CESMCORE_SOM
             "eflx"     => wksp.eflx,
         )
 
+        t_tmp = copy(t)
+        t_tmp := -1
+
+        t_flags = Dict(
+            "new_year"  => true,
+            "new_month" => true,
+        )
+
         return SOM_DATA(
+            casename,
             map,
             occ,
             x2o,
@@ -112,6 +125,8 @@ module CESMCORE_SOM
             wksp,
             StatObj(sobj_dict),
             sobj_dict,
+            t_tmp,
+            t_flags,
         )
 
     end
@@ -124,7 +139,22 @@ module CESMCORE_SOM
         write_restart :: Bool,
     )
 
+        # Detect if this is a new year
+        MD.t_flags["new_year"]  = ( MD.t_tmp[1] != t[1] )
+        MD.t_flags["new_month"] = ( MD.t_tmp[2] != t[2] )
+
+
         if MD.configs["enable_short_term_archive"]
+            if MD.configs["daily_record"]
+                daily_file = format("{}.xttocn_SOM.h.{:04d}.nc", MD.t[1])
+                if t_flags["new_year"]
+
+                    
+                end 
+            end
+
+
+
             if MD.configs["monthly_record"]
                 # ===== monthly statistics begin =====
                 if t_cnt == 1 
@@ -194,6 +224,8 @@ module CESMCORE_SOM
             println("Output restart file: ", restart_file)
         end
 
+
+        SOM_DATA.t_tmp := t
 
     end
 
