@@ -11,6 +11,7 @@ module CESMCORE_MLMML
 
     include("Workspace_MLMML.jl")
     include("../../../share/StatObj.jl")
+    include("../../../share/AppendLine.jl")
 
     days_of_mon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
@@ -26,20 +27,54 @@ module CESMCORE_MLMML
         output_vars :: Dict
         wksp        :: Workspace
 
-        sobj        :: StatObj
+        sobjs       :: Dict
         sobj_dict   :: Dict
+        rec_cnts    :: Dict
 
     end
 
 
     function init(;
-        map       :: NetCDFIO.MapInfo,
-        init_file :: Union{Nothing, AbstractString},
-        t         :: AbstractArray{Integer},
-        configs   :: Dict,
+        casename     :: AbstractString,
+        map          :: NetCDFIO.MapInfo,
+        init_file    :: Union{Nothing, AbstractString},
+        t            :: AbstractArray{Integer},
+        configs      :: Dict,
+        read_restart :: Bool,
     )
 
-        if init_file == nothing
+        # If `read_restart` is true then read restart file: configs["rpointer_file"]
+        # If not then initialize ocean with default profile if `initial_file`
+        # is "nothing", with `init_file` if it is nonempty.
+
+        if read_restart
+
+            println("`read_restart` is on")
+
+            if ! ("rpointer_file" in keys(configs))
+                throw(ErrorException("Cannot find `rpointer_file` in configs!"))
+            end
+
+            if !isfile(configs["rpointer_file"])
+                throw(ErrorException(configs["rpointer_file"] * " does not exist!"))
+            end
+            
+            println("Going to read restart pointer file: ", configs["rpointer_file"])
+
+            open(configs["rpointer_file"], "r") do file
+                init_file = readline(file)
+            end
+
+            if !isfile(init_file)
+                throw(ErrorException(init_file * " does not exist!"))
+            end
+ 
+        end
+
+        if typeof(init_file) <: AbstractString
+            println("Initial ocean with profile: ", init_file)
+            occ = MLMML.loadSnapshot(init_file)
+        else
             println("No initial ocean profile. Using the naive one.")
             occ = let
 
@@ -82,9 +117,6 @@ module CESMCORE_MLMML
             println("Output snapshot: ", snapshot_file)
             MLMML.takeSnapshot(occ, joinpath(configs["short_term_archive_dir"], snapshot_file))
             appendLine(configs["short_term_archive_list"], snapshot_file)
-        else
-            println("Initial ocean with profile: ", init_file)
-            occ = MLMML.loadSnapshot(init_file)
         end
 
         wksp = Workspace(occ.Nx, occ.Ny, occ.Nz)
@@ -124,6 +156,16 @@ module CESMCORE_MLMML
             "frwflx" => wksp.frwflx,
         )
 
+        sobjs    = Dict()
+        rec_cnts = Dict()
+
+        for rec_key in ["daily_record", "monthly_record"]
+            if configs[rec_key]
+                sobjs[rec_key] = StatObj(sobj_dict)
+                rec_cnts[rec_key] = 0
+            end
+        end
+
         return MLMML_DATA(
             map,
             occ,
@@ -132,20 +174,56 @@ module CESMCORE_MLMML
             configs,
             output_vars,
             wksp,
-            StatObj(sobj_dict),
+            sobjs,
             sobj_dict,
+            rec_cnts,
         )
 
     end
 
     function run(
-        MD    :: MLMML_DATA;
-        t     :: AbstractArray{Integer},
-        t_cnt :: Integer,
-        Δt    :: Float64,
+        MD            :: MLMML_DATA;
+        t             :: AbstractArray{Integer},
+        t_cnt         :: Integer,
+        t_flags       :: Dict,
+        Δt            :: Float64,
+        write_restart :: Bool,
     )
 
         if MD.configs["enable_short_term_archive"]
+
+            if t_cnt == 1 
+                for (k, sobj) in MD.sobjs
+                    zeroStatObj!(sobj)
+                end
+            end
+
+            if MD.configs["daily_record"]
+
+                daily_file = format("{}.xttocn_SOM.h.{:04d}.nc", MD.casename, t[1])
+                addStatObj!(MD.sobjs["daily_record"], MD.sobj_dict)
+
+                if t_flags["new_year"]
+                    MD.rec_cnts["daily_record"] = 0
+                    MLMML._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
+                    appendLine(MD.configs["short_term_archive_list"], daily_file)
+                end
+
+                if t_flags["new_day"]
+                    normStatObj!(MD.sobjs["daily_record"])
+                    Dataset(daily_file, "a") do ds
+                        for v in keys(MD.sobj_dict)
+                            MLMML._write2NCFile_time(ds, v, ("Nx", "Ny",), MD.rec_cnts["daily_record"] + 1, MD.sobjs["daily_record"].vars[v]; missing_value = MD.map.missing_value)
+                        end
+                    end
+
+                    MD.rec_cnts["daily_record"] += 1
+
+                end
+ 
+            end
+
+#=
             if MD.configs["monthly_record"]
                 # ===== monthly statistics begin =====
                 if t_cnt == 1 
@@ -190,6 +268,7 @@ module CESMCORE_MLMML
                     appendLine(MD.configs["short_term_archive_list"], snapshot_file)
                 end
             end
+=#
         end
  
         wksp = MD.wksp
@@ -218,13 +297,6 @@ module CESMCORE_MLMML
 
     function final(MD::MLMML_DATA)
         
-    end
-
-    function appendLine(filename, content)
-        open(filename, "a") do io
-            write(io, content)
-            write(io, "\n")
-        end
     end
 
 end

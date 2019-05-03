@@ -71,7 +71,8 @@ end
 
 
 """
-    This function is meant to append 2D field into an NC file.
+    This function is meant to append field into an NC file
+    along the time dimension
 """
 function _write2NCFile_time(
     ds            :: Dataset,
@@ -101,7 +102,8 @@ function _write2NCFile_time(
         ds_var = ds[varname]
     end
 
-    ds_var[:, :, time] = var_data
+    
+    ds_var[repeat([:,], length(dim))..., time] = var_data
 
 end
 

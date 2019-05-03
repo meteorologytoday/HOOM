@@ -2,6 +2,7 @@ include("../../../SOM/SOM.jl")
 module CESMCORE_SOM
 
     include("../../../share/StatObj.jl")
+    include("../../../share/AppendLine.jl")
     include("Workspace_SOM.jl")
 
     using Formatting
@@ -28,9 +29,6 @@ module CESMCORE_SOM
         sobjs       :: Dict
         sobj_dict   :: Dict
         rec_cnts    :: Dict
-
-        t_tmp       :: AbstractArray
-        t_flags     :: Dict
 
     end
 
@@ -130,12 +128,6 @@ module CESMCORE_SOM
             end
         end
 
-
-        t_tmp = copy(t)
-        t_tmp .= -1
-
-        t_flags = Dict()
-
         return SOM_DATA(
             casename,
             map,
@@ -148,8 +140,6 @@ module CESMCORE_SOM
             sobjs,
             sobj_dict,
             rec_cnts,
-            t_tmp,
-            t_flags,
         )
 
     end
@@ -158,15 +148,10 @@ module CESMCORE_SOM
         MD            :: SOM_DATA;
         t             :: AbstractArray{Integer},
         t_cnt         :: Integer,
+        t_flags       :: Dict,
         Δt            :: Float64,
         write_restart :: Bool,
     )
-
-        # Detect if this is a new year
-        new_year  = ( MD.t_tmp[1] != t[1] )
-        new_month = ( MD.t_tmp[2] != t[2] )
-        new_day   = ( MD.t_tmp[3] != t[3] )
-
 
 
         if MD.configs["enable_short_term_archive"]
@@ -182,13 +167,13 @@ module CESMCORE_SOM
                 daily_file = format("{}.xttocn_SOM.h.{:04d}.nc", MD.casename, t[1])
                 addStatObj!(MD.sobjs["daily_record"], MD.sobj_dict)
 
-                if new_year
+                if t_flags["new_year"]
                     MD.rec_cnts["daily_record"] = 0
                     SOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
                     appendLine(MD.configs["short_term_archive_list"], daily_file)
                 end
 
-                if new_day
+                if t_flags["new_day"]
                     normStatObj!(MD.sobjs["daily_record"])
                     Dataset(daily_file, "a") do ds
                         for v in keys(MD.sobj_dict)
@@ -269,20 +254,11 @@ module CESMCORE_SOM
             println("Output restart file: ", restart_file)
         end
 
-
-        MD.t_tmp[:] = t
-
     end
 
     function final(MD::SOM_DATA)
         
     end
 
-    function appendLine(filename, content)
-        open(filename, "a") do io
-            write(io, content)
-            write(io, "\n")
-        end
-    end
 
 end

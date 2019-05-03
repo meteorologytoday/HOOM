@@ -46,7 +46,12 @@ nc_cnt = 1
 output_filename = ""
 buffer2d = zeros(UInt8, map.lsize * 8)
 null2d   = zeros(Float64, map.lsize)
+
 timeinfo = zeros(Integer, 4) 
+timeinfo_old = copy(timeinfo)
+timeinfo_old .= -1
+t_flags = Dict()
+
 
 println("===== ", OMMODULE.name, " IS READY =====")
 
@@ -118,6 +123,12 @@ while true
         
     elseif stage == :RUN && msg["MSG"] == "RUN"
 
+        t_flags["new_year"]  = (timeinfo[1] != timeinfo_old[1])
+        t_flags["new_month"] = (timeinfo[2] != timeinfo_old[2])
+        t_flags["new_day"]   = (timeinfo[3] != timeinfo_old[3])
+
+        timeinfo_old[:] = timeinfo
+
         for i = 1:length(x2o_available_varnames)
             varname = x2o_available_varnames[i]
 
@@ -135,6 +146,7 @@ while true
         cost = @elapsed OMMODULE.run(OMDATA;
             t             = timeinfo,
             t_cnt         = loop_i,
+            t_flags       = t_flags,
             Δt            = parse(Float64, msg["DT"]),
             write_restart = ( msg["WRITE_RESTART"] == "TRUE" ) ? true : false,
         )

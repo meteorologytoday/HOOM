@@ -92,3 +92,41 @@ function _write2NCFile(
     ds_var.attrib["_FillValue"] = missing_value
     ds_var[:] = var_data
 end
+
+"""
+    This function is meant to append field into an NC file
+    along the time dimension
+"""
+function _write2NCFile_time(
+    ds            :: Dataset,
+    varname       :: String,
+    dim           :: Tuple,
+    time          :: Integer,
+    var_data      :: AbstractArray{T};
+    missing_value :: Union{T, Nothing} = nothing,
+) where T where G
+
+#    time        :: Union{Nothing, UnitRange, Integer} = nothing,
+#    time_exists :: Bool = true,
+#    missing_value :: Union{T, Nothing} = nothing,
+#) where T <: float
+
+    local ds_var
+
+    # Create variable if it is not in the file yet
+    if ! ( varname in keys(ds) )
+
+        ds_var = defVar(ds, varname, T, (dim..., "time"))
+        
+        if missing_value != nothing
+            ds_var.attrib["_FillValue"] = missing_value 
+        end
+    else
+        ds_var = ds[varname]
+    end
+
+    
+    ds_var[repeat([:,], length(dim))..., time] = var_data
+
+end
+
