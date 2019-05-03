@@ -3,8 +3,7 @@
 #endif
 
 ! XTT MODIFICATION BEGIN
-include "./fortran_lib/field_tools.f90"
-include "./fortran_lib/MailboxPipeMod.f90"
+include "./ProgramTunnel/src/fortran/ProgramTunnelMod.f90"
 ! XTT MODIFICATION ENDS
 
 
@@ -40,8 +39,7 @@ module docn_comp_mod
 
 ! ===== XTT MODIFIED BEGIN =====
 
-  use field_tools
-  use MailboxPipeMod
+  use ProgramTunnelMod
 
 ! ===== XTT MODIFIED END =====
 
@@ -126,13 +124,14 @@ module docn_comp_mod
 ! ===== XTT MODIFIED BEGIN =====
   integer(IN)   :: ktaux, ktauy, kifrac, kprec, kevap  ! field indices
  
-  character(1024)       :: x_msg, x_fn, x_datetime_str, x_cwd
-  type(mbp_MailboxInfo) :: x_MI
-  integer :: x_w_fd, x_r_fd, x_curr_ymd
-  integer :: x_iostat
+  character(1024)       :: x_msg, x_datetime_str, x_cwd
+  type(ptm_TunnelSet) :: x_TS
+  integer :: x_curr_ymd
+
+  integer :: x_iostat, x_fds(8)
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
-                           x_ifrac(:), x_q(:), x_frwflx(:) 
+                           x_ifrac(:), x_q(:), x_frwflx(:), x_tfdiv(:), x_mld(:) 
 
   !--- formats   ---
   character(*), parameter :: x_F00 = "(a, '.ssm.', a, '.', a)" 
@@ -667,7 +666,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
     case('SOM_AQUAP', 'SOM')
  
-      print *, "XTT modified code."
+      print *, "XTT modified code. This proves its modified."
       
       call GETCWD(x_cwd) 
       print *, "Current working directory: ", trim(x_cwd)
@@ -680,6 +679,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
       print *, "# WHAT TIME IS IT? ", trim(x_datetime_str)
       
       lsize = mct_avect_lsize(o2x)
+      ! XTT: This line dumps every stream data from `SDOCN%avs(n)` into `avstrm`
+      ! where dumped variables are specified by `avifld` and its mapping `avofld`.
       do n = 1,SDOCN%nstreams
         call shr_dmodel_translateAV(SDOCN%avs(n),avstrm,avifld,avofld,rearr)
       enddo
@@ -689,9 +690,6 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         ! I put all extra initialization here to avoid complication
 
-        x_w_fd = mbp_get_file_unit()
-        x_r_fd = mbp_get_file_unit()
-
         ! variable name are refereced from
         ! $CESM1_root/models/drv/shr/seq_flds_mod.F90 (line 1101)
         ktaux  = mct_aVect_indexRA(x2o,'Foxx_taux')
@@ -700,6 +698,9 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         kprec  = mct_aVect_indexRA(x2o,'Faxa_prec')
         kevap  = mct_aVect_indexRA(x2o,'Foxx_evap')
 
+
+        allocate(x_tfdiv(lsize))
+        allocate(x_mld(lsize))
         allocate(x_nswflx(lsize))
         allocate(x_swflx(lsize))
         allocate(x_taux(lsize))
@@ -713,38 +714,56 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                 somtp(n) = o2x%rAttr(kt,n) + TkFrz
             end if
 
+            x_tfdiv(n)   = 0.0_R8
+            x_mld(n)     = 0.0_R8
             x_q(n)       = 0.0_R8 
-            x_nswflx(n)    = 0.0_R8
+            x_nswflx(n)  = 0.0_R8
             x_swflx(n)   = 0.0_R8
             x_taux(n)    = 0.0_R8
             x_tauy(n)    = 0.0_R8
             x_ifrac(n)   = 0.0_R8
             x_frwflx(n)  = 0.0_R8
+    
+
 
             o2x%rAttr(kt,n) = somtp(n)
             o2x%rAttr(kq,n) = x_q(n)
 
 
         end do
-         
-        call mbp_setDefault(x_MI)
+        
+        ! CESM has a speicial function to manage
+        ! Input/output file units 
+        do n = 1, 8
+            x_fds(n) = shr_file_getUnit()
+            !call shr_file_freeUnit(nu)
+        enddo
+        print *, "ProgramTunnel get file unit: ", x_fds
 
-        x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"
 
-        x_msg = trim(x_msg)//"SST:SST.bin;QFLX:QFLX.bin;"
-        call stop_if_bad(mbp_send(x_MI, x_msg), "INIT_SEND")
+        call ptm_setDefaultTunnelSet(x_TS, x_fds)
+
+        write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
+        x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
+        x_msg = trim(x_msg)//"VAR2D:TFDIV,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
+        if (read_restart) then
+            x_msg = trim(x_msg)//"READ_RESTART:TRUE;"
+        else
+            x_msg = trim(x_msg)//"READ_RESTART:FALSE;"
+        endif
+        call stop_if_bad(ptm_sendText(x_TS, x_msg), "INIT_SEND")
         
         print *, "Init msg sent: ", trim(x_msg), "."
         print *, "Now receiving..."
-        call stop_if_bad(mbp_recv(x_MI, x_msg), "INIT_RECV")
+        call stop_if_bad(ptm_recvText(x_TS, x_msg), "INIT_RECV")
 
-        if (mbp_messageCompare(x_msg, "OK") .neqv. .true.) then
+        if (ptm_messageCompare(x_msg, "OK") .neqv. .true.) then
             print *, "SSM init failed. Recive message: ", x_msg
             call shr_sys_abort ('SSM init failed.')
         end if
          
-        call read_1Dfield(x_r_fd, "SST.bin", somtp, lsize)
-        call read_1Dfield(x_r_fd, "QFLX.bin", x_q, lsize)
+        call stop_if_bad(ptm_recvBinary(x_TS, somtp, lsize), "RECV_SST")
+        call stop_if_bad(ptm_recvBinary(x_TS, x_q,   lsize), "RECV_QFLX2ATM")
 
         do n = 1, lsize
           o2x%rAttr(kt,n) = somtp(n)
@@ -754,21 +773,24 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
       else
 
         x_msg = "MSG:RUN;CESMTIME:"//trim(x_datetime_str)//";"
-
-        print *, "Not first call."
+        if (read_restart) then
+            x_msg = trim(x_msg)//"WRITE_RESTART:TRUE;"
+        else
+            x_msg = trim(x_msg)//"WRITE_RESTART:FALSE;"
+        endif
 
         do n = 1,lsize
           if (imask(n) /= 0) then
             x_swflx(n)  = x2o%rAttr(kswnet, n) 
 
 
-            x_nswflx(n) = x2o%rAttr(klwup, n)  + &    ! upward longwave
-                          x2o%rAttr(klwdn, n)  + &    ! downward longwave
-                          x2o%rAttr(ksen, n)   + &    ! sensible heat flux
-                          x2o%rAttr(klat, n)   + &    ! latent heat flux
-                          x2o%rAttr(kmelth, n) + &    ! ice melt
-                        ( x2o%rAttr(ksnow,n) + & 
-                          x2o%rAttr(kioff,n) ) * latice ! latent by snow and roff
+            x_nswflx(n) = x2o%rAttr(klwup, n)    &    ! upward longwave
+                        + x2o%rAttr(klwdn, n)    &    ! downward longwave
+                        + x2o%rAttr(ksen, n)     &    ! sensible heat flux
+                        + x2o%rAttr(klat, n)     &    ! latent heat flux
+                        + x2o%rAttr(kmelth, n)   &    ! ice melt
+                        - (   x2o%rAttr(ksnow,n) & 
+                            + x2o%rAttr(kioff,n) ) * latice ! latent by snow and roff
  
             ! fresh water flux in terms of m / s
             x_frwflx(n) = ( x2o%rAttr(kevap, n) - &
@@ -777,58 +799,40 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_taux(n)  = x2o%rAttr(ktaux,n)
             x_tauy(n)  = x2o%rAttr(ktauy,n)
             x_ifrac(n) = x2o%rAttr(kifrac,n)
+
+            x_tfdiv(n) = avstrm%rAttr(kqbot,n)
+            x_mld(n)   = avstrm%rAttr(kh,n)
+
           end if
         end do
-        !print *, "Max of short wave: ", maxval(x_swflx)
-
-        x_fn = "NSWFLX.bin"
-        x_msg = trim(x_msg)//"NSWFLX:"//trim(x_fn)//";"
-        call write_1Dfield(x_w_fd, x_fn, x_nswflx, lsize)
-
-        x_fn = "SWFLX.bin"
-        x_msg = trim(x_msg)//"SWFLX:"//trim(x_fn)//";"
-        call write_1Dfield(x_w_fd, x_fn, x_swflx, lsize)
-
-        x_fn = "TAUX.bin"
-        x_msg = trim(x_msg)//"TAUX:"//trim(x_fn)//";"
-        call write_1Dfield(x_w_fd, x_fn, x_taux, lsize)
-
-        x_fn = "TAUY.bin"
-        x_msg = trim(x_msg)//"TAUY:"//trim(x_fn)//";"
-        call write_1Dfield(x_w_fd, x_fn, x_tauy, lsize)
-
-        x_fn = "IFRAC.bin"
-        x_msg = trim(x_msg)//"IFRAC:"//trim(x_fn)//";"
-        call write_1Dfield(x_w_fd, x_fn, x_ifrac, lsize)
-
-        x_fn = "FRWFLX.bin"
-        x_msg = trim(x_msg)//"FRWFLX:"//trim(x_fn)//";"
-        call write_1Dfield(x_w_fd, x_fn, x_frwflx, lsize)
-
-
-
-        x_msg = trim(x_msg)//"SST:SST.bin;QFLX:QFLX.bin;"
-
-        write (x_msg, "(A, A, F10.2, A)") trim(x_msg), ";DT:", dt, ";"
-        call stop_if_bad(mbp_send(x_MI, x_msg), "RUN_SEND")
- 
-        ! SSM is doing some MAGICAL calculation...
         
-        call stop_if_bad(mbp_recv(x_MI, x_msg), "RUN_RECV")
-        if (mbp_messageCompare(x_msg, "OK") .neqv. .true.) then
-            print *, "Ocean model calculation failed. Recive message: ", x_msg
+        write (x_msg, "(A, A, F10.2, A)") trim(x_msg), "DT:", dt, ";"
+
+
+        call stop_if_bad(ptm_sendText(x_TS, x_msg), "RUN_SEND")
+                
+        call stop_if_bad(ptm_sendBinary(x_TS, x_tfdiv,  lsize), "SEND_TFDIV")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_mld,    lsize), "SEND_MLD")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_nswflx, lsize), "SEND_NSWFLX")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_swflx,  lsize), "SEND_SWFLX")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_taux,   lsize), "SEND_TAUX")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_tauy,   lsize), "SEND_TAUY")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_ifrac,  lsize), "SEND_IFRAC")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_frwflx, lsize), "SEND_FRWFLX")
+        
+        ! SSM is doing some MAGICAL calculation...
+        call stop_if_bad(ptm_recvText(x_TS, x_msg), "RUN_RECV")
+        if (ptm_messageCompare(x_msg, "OK") .neqv. .true.) then
+            print *, "Ocean model calculation failed. Recive message: [", trim(x_msg), "]"
             call shr_sys_abort ('Ocean model calculation failed.')
         end if
  
-        call read_1Dfield(x_r_fd, "SST.bin", somtp, lsize)
-        call read_1Dfield(x_r_fd, "QFLX.bin", x_q, lsize)
+        call stop_if_bad(ptm_recvBinary(x_TS, somtp, lsize), "RECV_SST")
+        call stop_if_bad(ptm_recvBinary(x_TS, x_q,   lsize), "RECV_QFLX2ATM")
  
         do n = 1, lsize
-!            o2x%rAttr(kq,n) = (tfreeze(n) - o2x%rAttr(kt,n))*(cpsw*rhosw*hn)/dt  ! ice formed q>0
-!            o2x%rAttr(kt,n) = max(tfreeze(n),o2x%rAttr(kt,n))                    ! reset temp
-
           o2x%rAttr(kt,n) = somtp(n)
-          o2x%rAttr(kq,n) = 0.0_R8
+          o2x%rAttr(kq,n) = x_q(n)
         end do
      
       endif
@@ -952,6 +956,13 @@ subroutine docn_comp_final()
    character(*), parameter :: F91   = "('(docn_comp_final) ',73('-'))"
    character(*), parameter :: subName = "(docn_comp_final) "
    integer :: rcode
+
+! ===== XTT MODIFIED BEGIN =====
+   integer :: n
+! ===== XTT MODIFIED END =====
+
+
+
 !-------------------------------------------------------------------------------
 !
 !-------------------------------------------------------------------------------
@@ -963,8 +974,13 @@ subroutine docn_comp_final()
       write(logunit,F91)
 
 ! ===== XTT MODIFIED BEGIN =====
+
       x_msg = "MSG:END"
-      call stop_if_bad(mbp_send(x_MI, x_msg), "FINAL")
+      call stop_if_bad(ptm_sendText(x_TS, x_msg), "FINAL")
+
+      do n = 1, 8
+          call shr_file_freeUnit(x_fds(n))
+      enddo
 
 ! ===== XTT MODIFIED END =====
  
@@ -977,6 +993,17 @@ end subroutine docn_comp_final
 !===============================================================================
 
 ! ===== XTT MODIFIED BEGIN =====
+subroutine test_weird_number(num, stage)
+    real(8)      :: num
+    character(*) :: stage
+
+    if ((isnan(num) .eqv. .true.) .or. &
+         (num .gt. huge(num))) then
+                print *, stage, " got werid number: ", num
+        call shr_sys_abort ('Got non-real number')
+    end if
+end subroutine test_weird_number
+
 subroutine stop_if_bad(stat, stage)
     integer      :: stat
     character(*) :: stage

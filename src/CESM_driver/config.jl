@@ -1,15 +1,19 @@
 overwrite_configs = Dict()
 configs = Dict(
-    "wdir"        => pwd(),
+    "casename"    => "casename",
+
     "caseroot"    => pwd(),
     "domain_file" => "/home/tienyiah/cesm_inputdata/cesm1/share/domains/domain.ocn.gx3v7.120323.nc",
     "short_term_archive_dir" => pwd(),
     "long_term_archive_dir"  => pwd(),
     "enable_short_term_archive" => false,
     "enable_long_term_archive"  => false,
+    "daily_record"    => false,
     "monthly_record"  => true,
     "yearly_snapshot"  => true,
     "short_term_archive_list" => "SMARTSLAB_short_term_archive_list.txt",
+    "rpointer_file" => "rpointer.xtt_ocn",
+    "wdir"        => pwd(),
 )
 
 function parse_commandline()
@@ -73,6 +77,14 @@ for (k, v) in overwrite_configs
 
     configs[k] = v
 end
+
+if ! ( "tmp_folder" in keys(configs) )
+    
+    configs["tmp_folder"] = joinpath(configs["caserun"], "x_tmp")
+    
+end
+
+
 print(json(configs, 4))
 println("===== Defining variables END =====")
 

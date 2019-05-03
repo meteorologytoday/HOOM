@@ -33,9 +33,11 @@ vars_o2x = [
 ]
 =#
 stage = :INIT
-TS = defaultTunnelSet(path=configs["caserun"])
-reverseRole!(TS)
-mkTunnel(TS)
+
+mkpath(configs["tmp_folder"])
+
+PTI = ProgramTunnelInfo(path=configs["tmp_folder"])
+reverseRole!(PTI)
 
 map = NetCDFIO.MapInfo{Float64}(configs["domain_file"])
 
@@ -59,7 +61,7 @@ while true
     println(format("# Time Index counter : {:d}", loop_i))
     println(format("# Stage              : {}", String(stage)))
 
-    msg = parseMsg(recvText(TS))
+    msg = parseMsg(recvText(PTI))
     println("==== MESSAGE RECEIVED ====")
     print(json(msg, 4))
     println("==========================")
@@ -76,7 +78,14 @@ while true
     if stage == :INIT && msg["MSG"] == "INIT"
 
         println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
-        OMDATA = OMMODULE.init(map=map, init_file=init_file, t=timeinfo, configs=configs)
+        OMDATA = OMMODULE.init(
+            casename     = configs["casename"],
+            map          = map,
+            init_file    = init_file,
+            t            = timeinfo,
+            configs      = configs,
+            read_restart = (msg["READ_RESTART"] == "TRUE") ? true : false,
+        )
         
         rm(configs["short_term_archive_list"], force=true)
 
@@ -88,10 +97,12 @@ while true
         global x2o_wanted_varnames = keys(OMDATA.x2o)
         global x2o_wanted_flag     = [(x2o_available_varnames[i] in x2o_wanted_varnames) for i = 1:length(x2o_available_varnames)]
 
-        sendText(TS, "OK")
 
-        sendBinary!(TS, OMDATA.o2x["SST"],      buffer2d; endianess=:little_endian)
-        sendBinary!(TS, OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+
+        writeBinary!(joinpath(configs["tmp_folder"], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        writeBinary!(joinpath(configs["tmp_folder"], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+
+        sendText(PTI, "OK")
 
         NetCDFIO.write2NCFile(
             map,
@@ -109,38 +120,40 @@ while true
 
         for i = 1:length(x2o_available_varnames)
             varname = x2o_available_varnames[i]
-            recvBinary!(
-                TS,
+
+            readBinary!(
+                joinpath(configs["tmp_folder"], varname * ".bin"),
                 (x2o_wanted_flag[i]) ? OMDATA.x2o[varname] : null2d,
                 buffer2d;
-                endianess=:little_endian,
+                endianess=:little_endian, delete=false
             )
+
         end
        
         println("Calling ", OMMODULE.name, " to do MAGICAL calculations")
 
         cost = @elapsed OMMODULE.run(OMDATA;
-            t     = timeinfo,
-            t_cnt = loop_i,
-            Δt    = parse(Float64, msg["DT"])
+            t             = timeinfo,
+            t_cnt         = loop_i,
+            Δt            = parse(Float64, msg["DT"]),
+            write_restart = ( msg["WRITE_RESTART"] == "TRUE" ) ? true : false,
         )
 
-        println(format("*** It takes {:.1f} secs. ***", cost))
+        println(format("*** It takes {:.2f} secs. ***", cost))
 
         NetCDFIO.write2NCFile(
             map,
             output_filename,
             output_vars;
             time=nc_cnt,
-            missing_value=map.missing_value
+            missing_value=map.missing_value,
         )
         nc_cnt += 1
 
-        println("Gonna send \"OK\"")
-        sendText(TS, "OK")
-        
-        sendBinary!(TS, OMDATA.o2x["SST"],      buffer2d; endianess=:little_endian)
-        sendBinary!(TS, OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+        writeBinary!(joinpath(configs["tmp_folder"], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        writeBinary!(joinpath(configs["tmp_folder"], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+
+        sendText(PTI, "OK")
 
     elseif stage == :RUN && msg["MSG"] == "END"
 
@@ -173,7 +186,7 @@ while true
         break
     else
         OMMODULE.crash(OMDATA) 
-        sendText(TS, "CRASH")
+        sendText(PTI, "CRASH")
         throw(ErrorException("Unknown status: stage " * stage * ", MSG: " * String(msg["MSG"])))
     end
 

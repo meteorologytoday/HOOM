@@ -3,7 +3,7 @@
 #endif
 
 ! XTT MODIFICATION BEGIN
-include "./ProgramTunnel/src/fortran/ProgramTunnelMod.f90"
+include "./ProgramTunnel/src/fortran/ProgramTunnelMod_fs.f90"
 ! XTT MODIFICATION ENDS
 
 
@@ -39,7 +39,7 @@ module docn_comp_mod
 
 ! ===== XTT MODIFIED BEGIN =====
 
-  use ProgramTunnelMod
+  use ProgramTunnelMod_fs
 
 ! ===== XTT MODIFIED END =====
 
@@ -124,11 +124,11 @@ module docn_comp_mod
 ! ===== XTT MODIFIED BEGIN =====
   integer(IN)   :: ktaux, ktauy, kifrac, kprec, kevap  ! field indices
  
-  character(1024)       :: x_msg, x_datetime_str, x_cwd
-  type(ptm_TunnelSet) :: x_TS
-  integer :: x_curr_ymd
+  character(1024)             :: x_msg, x_datetime_str, x_cwd, x_path
+  type(ptm_ProgramTunnelInfo) :: x_PTI
+  integer                     :: x_curr_ymd
 
-  integer :: x_iostat, x_fds(8)
+  integer :: x_iostat, x_ptm_fds(3), x_w_fd, x_r_fd
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
                            x_ifrac(:), x_q(:), x_frwflx(:), x_tfdiv(:), x_mld(:) 
@@ -690,6 +690,9 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         ! I put all extra initialization here to avoid complication
 
+
+        x_path = "x_tmp"
+
         ! variable name are refereced from
         ! $CESM1_root/models/drv/shr/seq_flds_mod.F90 (line 1101)
         ktaux  = mct_aVect_indexRA(x2o,'Foxx_taux')
@@ -723,53 +726,73 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_tauy(n)    = 0.0_R8
             x_ifrac(n)   = 0.0_R8
             x_frwflx(n)  = 0.0_R8
-    
-
 
             o2x%rAttr(kt,n) = somtp(n)
             o2x%rAttr(kq,n) = x_q(n)
 
-
         end do
-         
-        do n = 1, 8
-            x_fds(n) = shr_file_getUnit()
-            !call shr_file_freeUnit(nu)
+        
+        ! CESM has a speicial function to manage
+        ! Input/output file units 
+        do n = 1, size(x_ptm_fds)
+            x_ptm_fds(n) = shr_file_getUnit()
         enddo
-        print *, "ProgramTunnel get file unit: ", x_fds
+        x_w_fd = shr_file_getUnit()
+        x_r_fd = shr_file_getUnit()
+
+        print *, "x_r_fd: ", x_r_fd
+        print *, "x_w_fd: ", x_w_fd
 
 
-        call ptm_setDefaultTunnelSet(x_TS, x_fds)
+
+        call ptm_setDefault(x_PTI, x_ptm_fds)
+        call ptm_appendPath(x_PTI, x_path)
+
+        call ptm_printSummary(x_PTI)
+        print *, "lsize: ", lsize
 
         write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
         x_msg = trim(x_msg)//"VAR2D:TFDIV,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
-        call stop_if_bad(ptm_sendText(x_TS, x_msg), "INIT_SEND")
+        if (read_restart) then
+            x_msg = trim(x_msg)//"READ_RESTART:TRUE;"
+        else
+            x_msg = trim(x_msg)//"READ_RESTART:FALSE;"
+        endif
+        print *, "Going to send: " // trim(x_msg)
+        call stop_if_bad(ptm_sendText(x_PTI, x_msg), "INIT_SEND")
         
         print *, "Init msg sent: ", trim(x_msg), "."
         print *, "Now receiving..."
-        call stop_if_bad(ptm_recvText(x_TS, x_msg), "INIT_RECV")
+        call stop_if_bad(ptm_recvText(x_PTI, x_msg), "INIT_RECV")
 
         if (ptm_messageCompare(x_msg, "OK") .neqv. .true.) then
             print *, "SSM init failed. Recive message: ", x_msg
             call shr_sys_abort ('SSM init failed.')
         end if
          
-        call stop_if_bad(ptm_recvBinary(x_TS, somtp, lsize), "RECV_SST")
-        call stop_if_bad(ptm_recvBinary(x_TS, x_q,   lsize), "RECV_QFLX2ATM")
+        call read_1Dfield(x_r_fd, trim(x_path) // "/SST.bin", somtp, lsize)
+        call read_1Dfield(x_r_fd, trim(x_path) // "/QFLX2ATM.bin", x_q, lsize)
 
         do n = 1, lsize
           o2x%rAttr(kt,n) = somtp(n)
           o2x%rAttr(kq,n) = x_q(n)
         end do
-      else
+
+      else  ! if NOT first call
 
         x_msg = "MSG:RUN;CESMTIME:"//trim(x_datetime_str)//";"
+        if (write_restart) then
+            x_msg = trim(x_msg)//"WRITE_RESTART:TRUE;"
+        else
+            x_msg = trim(x_msg)//"WRITE_RESTART:FALSE;"
+        endif
+        
+        write (x_msg, "(A, A, F10.2, A)") trim(x_msg), "DT:", dt, ";"
 
         do n = 1,lsize
           if (imask(n) /= 0) then
             x_swflx(n)  = x2o%rAttr(kswnet, n) 
-
 
             x_nswflx(n) = x2o%rAttr(klwup, n)    &    ! upward longwave
                         + x2o%rAttr(klwdn, n)    &    ! downward longwave
@@ -793,29 +816,29 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
           end if
         end do
         
-        write (x_msg, "(A, A, F10.2, A)") trim(x_msg), "DT:", dt, ";"
 
 
-        call stop_if_bad(ptm_sendText(x_TS, x_msg), "RUN_SEND")
-                
-        call stop_if_bad(ptm_sendBinary(x_TS, x_tfdiv,  lsize), "SEND_TFDIV")
-        call stop_if_bad(ptm_sendBinary(x_TS, x_mld,    lsize), "SEND_MLD")
-        call stop_if_bad(ptm_sendBinary(x_TS, x_nswflx, lsize), "SEND_NSWFLX")
-        call stop_if_bad(ptm_sendBinary(x_TS, x_swflx,  lsize), "SEND_SWFLX")
-        call stop_if_bad(ptm_sendBinary(x_TS, x_taux,   lsize), "SEND_TAUX")
-        call stop_if_bad(ptm_sendBinary(x_TS, x_tauy,   lsize), "SEND_TAUY")
-        call stop_if_bad(ptm_sendBinary(x_TS, x_ifrac,  lsize), "SEND_IFRAC")
-        call stop_if_bad(ptm_sendBinary(x_TS, x_frwflx, lsize), "SEND_FRWFLX")
-        
-        ! SSM is doing some MAGICAL calculation...
-        call stop_if_bad(ptm_recvText(x_TS, x_msg), "RUN_RECV")
+        call write_1Dfield(x_w_fd, trim(x_path)//"/TFDIV.bin",  x_tfdiv,  lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/MLD.bin",    x_mld,    lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/NSWFLX.bin", x_nswflx, lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/SWFLX.bin",  x_swflx,  lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/TAUX.bin",   x_taux,   lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/TAUY.bin",   x_tauy,   lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/IFRAC.bin" , x_ifrac,  lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/FRWFLX.bin", x_frwflx, lsize)
+
+        ! send text after files are written
+        call stop_if_bad(ptm_sendText(x_PTI, x_msg), "RUN_SEND")
+ 
+        ! Ocean model is doing some MAGICAL calculation...
+        call stop_if_bad(ptm_recvText(x_PTI, x_msg), "RUN_RECV")
         if (ptm_messageCompare(x_msg, "OK") .neqv. .true.) then
             print *, "Ocean model calculation failed. Recive message: [", trim(x_msg), "]"
             call shr_sys_abort ('Ocean model calculation failed.')
         end if
  
-        call stop_if_bad(ptm_recvBinary(x_TS, somtp, lsize), "RECV_SST")
-        call stop_if_bad(ptm_recvBinary(x_TS, x_q,   lsize), "RECV_QFLX2ATM")
+        call read_1Dfield(x_r_fd, trim(x_path) // "/SST.bin",  somtp, lsize)
+        call read_1Dfield(x_r_fd, trim(x_path) // "/QFLX2ATM.bin", x_q,   lsize)
  
         do n = 1, lsize
           o2x%rAttr(kt,n) = somtp(n)
@@ -823,8 +846,6 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         end do
      
       endif
-
-      print *, "SSM_AQUAP done."
 
 ! ===== XTT MODIFIED END =====
 
@@ -963,11 +984,15 @@ subroutine docn_comp_final()
 ! ===== XTT MODIFIED BEGIN =====
 
       x_msg = "MSG:END"
-      call stop_if_bad(ptm_sendText(x_TS, x_msg), "FINAL")
+      call stop_if_bad(ptm_sendText(x_PTI, x_msg), "FINAL")
 
-      do n = 1, 8
-          call shr_file_freeUnit(x_fds(n))
+      do n = 1, size(x_ptm_fds)
+          call shr_file_freeUnit(x_ptm_fds(n))
       enddo
+      
+      call shr_file_freeUnit(x_w_fd)
+      call shr_file_freeUnit(x_r_fd)
+
 
 ! ===== XTT MODIFIED END =====
  
@@ -1000,6 +1025,55 @@ subroutine stop_if_bad(stat, stage)
           call shr_sys_abort('MailBox error during stage ['//trim(stage)//']')
     end if
 end subroutine stop_if_bad
+
+subroutine write_1Dfield(fd, filename, f, nx) 
+    character(len=*) :: filename
+    real(8), intent(in) :: f(nx)
+    integer, intent(in):: fd, nx
+    integer :: i,eflag
+
+
+    open (fd, file=filename, access="DIRECT", status='REPLACE', &
+    &       form='UNFORMATTED', recl=8*nx, iostat=eflag, convert='LITTLE_ENDIAN')
+
+    if(eflag .ne. 0) then
+        print *, "Writing field error. File name: ", trim(filename)
+    end if
+
+
+    write(fd,rec=1) (f(i),i=1,nx,1)
+    close(fd)
+
+    if(eflag .ne. 0) then
+        print *, "Writing field error. File name: ", trim(filename)
+    end if
+
+end subroutine
+
+subroutine read_1Dfield(fd, filename, f, nx) 
+    character(len=*) :: filename
+    real(8), intent(inout) :: f(nx)
+    integer, intent(in)    :: fd, nx
+    integer :: i, eflag
+
+
+    open (fd, file=filename, access="DIRECT", status='OLD', &
+    &       form='UNFORMATTED', recl=8*nx, iostat=eflag, convert='LITTLE_ENDIAN')
+
+    if(eflag .ne. 0) then
+        print *, "Reading field error. File name: ", trim(filename)
+        print *, "Error number: ", eflag
+    end if
+
+    read(fd, rec=1) (f(i),i=1,nx,1)
+    close(fd)
+
+    if(eflag .ne. 0) then
+        print *, "Reading field error. File name: ", trim(filename)
+    end if
+
+end subroutine
+
 ! ===== XTT MODIFIED END   =====
 
 end module docn_comp_mod

@@ -62,9 +62,46 @@ function _write2NCFile(
     varname       :: AbstractString,
     dim           :: Tuple,
     var_data      :: AbstractArray{T},
-    missing_value :: G) where T where G
+    missing_value :: G ) where T where G
 
     ds_var = defVar(ds, varname, eltype(var_data), dim)
     ds_var.attrib["_FillValue"] = missing_value
     ds_var[:] = var_data
 end
+
+
+"""
+    This function is meant to append 2D field into an NC file.
+"""
+function _write2NCFile_time(
+    ds            :: Dataset,
+    varname       :: String,
+    dim           :: Tuple,
+    time          :: Integer,
+    var_data      :: AbstractArray{T};
+    missing_value :: Union{T, Nothing} = nothing,
+) where T where G
+
+#    time        :: Union{Nothing, UnitRange, Integer} = nothing,
+#    time_exists :: Bool = true,
+#    missing_value :: Union{T, Nothing} = nothing,
+#) where T <: float
+
+    local ds_var
+
+    # Create variable if it is not in the file yet
+    if ! ( varname in keys(ds) )
+
+        ds_var = defVar(ds, varname, T, (dim..., "time"))
+        
+        if missing_value != nothing
+            ds_var.attrib["_FillValue"] = missing_value 
+        end
+    else
+        ds_var = ds[varname]
+    end
+
+    ds_var[:, :, time] = var_data
+
+end
+
