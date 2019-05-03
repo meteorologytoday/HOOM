@@ -27,9 +27,11 @@ module CESMCORE_SOM
 
         sobjs       :: Dict
         sobj_dict   :: Dict
+        rec_cnts    :: Dict
 
         t_tmp       :: AbstractArray
         t_flags     :: Dict
+
     end
 
 
@@ -48,15 +50,26 @@ module CESMCORE_SOM
 
         if read_restart
 
-            println("`read_restart` is on. Going to read restart pointer file: ", configs["rpointer_file"])
+            println("`read_restart` is on")
+
+            if ! ("rpointer_file" in keys(configs))
+                throw(ErrorException("Cannot find `rpointer_file` in configs!"))
+            end
 
             if !isfile(configs["rpointer_file"])
                 throw(ErrorException(configs["rpointer_file"] * " does not exist!"))
             end
+            
+            println("Going to read restart pointer file: ", configs["rpointer_file"])
 
             open(configs["rpointer_file"], "r") do file
                 init_file = readline(file)
             end
+
+            if !isfile(init_file)
+                throw(ErrorException(init_file * " does not exist!"))
+            end
+ 
         end
 
 
@@ -107,17 +120,19 @@ module CESMCORE_SOM
         )
 
 
-        sobjs = Dict()
+        sobjs    = Dict()
+        rec_cnts = Dict()
 
         for rec_key in ["daily_record", "monthly_record"]
-            if MD.configs[rec_key]
+            if configs[rec_key]
                 sobjs[rec_key] = StatObj(sobj_dict)
+                rec_cnts[rec_key] = 0
             end
         end
 
 
         t_tmp = copy(t)
-        t_tmp := -1
+        t_tmp .= -1
 
         t_flags = Dict()
 
@@ -132,6 +147,7 @@ module CESMCORE_SOM
             wksp,
             sobjs,
             sobj_dict,
+            rec_cnts,
             t_tmp,
             t_flags,
         )
@@ -147,9 +163,9 @@ module CESMCORE_SOM
     )
 
         # Detect if this is a new year
-        MD.t_flags["new_year"]  = ( MD.t_tmp[1] != t[1] )
-        MD.t_flags["new_month"] = ( MD.t_tmp[2] != t[2] )
-        MD.t_flags["new_day"]   = ( MD.t_tmp[3] != t[3] )
+        new_year  = ( MD.t_tmp[1] != t[1] )
+        new_month = ( MD.t_tmp[2] != t[2] )
+        new_day   = ( MD.t_tmp[3] != t[3] )
 
 
 
@@ -163,21 +179,24 @@ module CESMCORE_SOM
 
             if MD.configs["daily_record"]
 
-                daily_file = format("{}.xttocn_SOM.h.{:04d}.nc", MD.t[1])
+                daily_file = format("{}.xttocn_SOM.h.{:04d}.nc", MD.casename, t[1])
                 addStatObj!(MD.sobjs["daily_record"], MD.sobj_dict)
 
-                if t_flags["new_year"]
+                if new_year
+                    MD.rec_cnts["daily_record"] = 0
                     SOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
+                    appendLine(MD.configs["short_term_archive_list"], daily_file)
                 end
 
-                if t_flags["new_day"]
-
-                    normStatObj!(MD.sobj)
+                if new_day
+                    normStatObj!(MD.sobjs["daily_record"])
                     Dataset(daily_file, "a") do ds
                         for v in keys(MD.sobj_dict)
-                            SOM._write2NCFile(ds, v, ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
+                            SOM._write2NCFile_time(ds, v, ("Nx", "Ny",), MD.rec_cnts["daily_record"] + 1, MD.sobjs["daily_record"].vars[v]; missing_value = MD.map.missing_value)
                         end
-                    end 
+                    end
+
+                    MD.rec_cnts["daily_record"] += 1
 
                 end
  
@@ -237,22 +256,21 @@ module CESMCORE_SOM
             eflx   = wksp.eflx,
             Δt     = Δt,
         )
-
         
         if write_restart
             restart_file = format("restart.xtt_ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
             SOM.takeSnapshot(MD.occ, restart_file)
              
-            open(configs["rpointer_file"], "w") do file
+            open(MD.configs["rpointer_file"], "w") do file
                 write(file, restart_file)
             end
 
-            println("(Over)write restart pointer file: ", configs["rpointer_file"])
+            println("(Over)write restart pointer file: ", MD.configs["rpointer_file"])
             println("Output restart file: ", restart_file)
         end
 
 
-        SOM_DATA.t_tmp := t
+        MD.t_tmp[:] = t
 
     end
 

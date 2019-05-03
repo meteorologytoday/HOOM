@@ -79,6 +79,7 @@ while true
 
         println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
         OMDATA = OMMODULE.init(
+            casename     = configs["casename"],
             map          = map,
             init_file    = init_file,
             t            = timeinfo,

@@ -1,6 +1,7 @@
 overwrite_configs = Dict()
 configs = Dict(
-    "wdir"        => pwd(),
+    "casename"    => "casename",
+
     "caseroot"    => pwd(),
     "domain_file" => "/home/tienyiah/cesm_inputdata/cesm1/share/domains/domain.ocn.gx3v7.120323.nc",
     "short_term_archive_dir" => pwd(),
@@ -11,7 +12,8 @@ configs = Dict(
     "monthly_record"  => true,
     "yearly_snapshot"  => true,
     "short_term_archive_list" => "SMARTSLAB_short_term_archive_list.txt",
-    "restart_file" => "rpointer.xtt_ocn",
+    "rpointer_file" => "rpointer.xtt_ocn",
+    "wdir"        => pwd(),
 )
 
 function parse_commandline()
