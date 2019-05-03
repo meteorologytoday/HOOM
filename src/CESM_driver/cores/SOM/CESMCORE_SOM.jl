@@ -25,7 +25,7 @@ module CESMCORE_SOM
         output_vars :: Dict
         wksp        :: Workspace
 
-        sobj        :: StatObj
+        sobjs       :: Dict
         sobj_dict   :: Dict
 
         t_tmp       :: AbstractArray
@@ -106,13 +106,20 @@ module CESMCORE_SOM
             "eflx"     => wksp.eflx,
         )
 
+
+        sobjs = Dict()
+
+        for rec_key in ["daily_record", "monthly_record"]
+            if MD.configs[rec_key]
+                sobjs[rec_key] = StatObj(sobj_dict)
+            end
+        end
+
+
         t_tmp = copy(t)
         t_tmp := -1
 
-        t_flags = Dict(
-            "new_year"  => true,
-            "new_month" => true,
-        )
+        t_flags = Dict()
 
         return SOM_DATA(
             casename,
@@ -123,7 +130,7 @@ module CESMCORE_SOM
             configs,
             output_vars,
             wksp,
-            StatObj(sobj_dict),
+            sobjs,
             sobj_dict,
             t_tmp,
             t_flags,
@@ -142,29 +149,44 @@ module CESMCORE_SOM
         # Detect if this is a new year
         MD.t_flags["new_year"]  = ( MD.t_tmp[1] != t[1] )
         MD.t_flags["new_month"] = ( MD.t_tmp[2] != t[2] )
+        MD.t_flags["new_day"]   = ( MD.t_tmp[3] != t[3] )
+
 
 
         if MD.configs["enable_short_term_archive"]
+
+            if t_cnt == 1 
+                for (k, sobj) in MD.sobjs
+                    zeroStatObj!(sobj)
+                end
+            end
+
             if MD.configs["daily_record"]
+
                 daily_file = format("{}.xttocn_SOM.h.{:04d}.nc", MD.t[1])
+                addStatObj!(MD.sobjs["daily_record"], MD.sobj_dict)
+
                 if t_flags["new_year"]
                     SOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
-                    for v in keys(MD.sobj_dict)
-                        SOM._write2NCFile(ds, v, ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
-                    end
+                end
 
-                   
-                    
-                end 
+                if t_flags["new_day"]
+
+                    normStatObj!(MD.sobj)
+                    Dataset(daily_file, "a") do ds
+                        for v in keys(MD.sobj_dict)
+                            SOM._write2NCFile(ds, v, ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
+                        end
+                    end 
+
+                end
+ 
             end
 
 
-
+#=
             if MD.configs["monthly_record"]
                 # ===== monthly statistics begin =====
-                if t_cnt == 1 
-                    zeroStatObj!(MD.sobj)
-                end
 
                 addStatObj!(MD.sobj, MD.sobj_dict)
                 
@@ -189,7 +211,7 @@ module CESMCORE_SOM
                     zeroStatObj!(MD.sobj)
                 end
             end
-
+=#
             if MD.configs["yearly_snapshot"]
                 # Take snapshot every first day of the year.
                 if t[2] == 1 && t[3] == 1 && t[4] == 0

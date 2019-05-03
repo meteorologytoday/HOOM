@@ -7,6 +7,7 @@ configs = Dict(
     "long_term_archive_dir"  => pwd(),
     "enable_short_term_archive" => false,
     "enable_long_term_archive"  => false,
+    "daily_record"    => false,
     "monthly_record"  => true,
     "yearly_snapshot"  => true,
     "short_term_archive_list" => "SMARTSLAB_short_term_archive_list.txt",
