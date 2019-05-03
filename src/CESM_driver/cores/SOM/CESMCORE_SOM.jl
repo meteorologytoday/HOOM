@@ -148,7 +148,12 @@ module CESMCORE_SOM
             if MD.configs["daily_record"]
                 daily_file = format("{}.xttocn_SOM.h.{:04d}.nc", MD.t[1])
                 if t_flags["new_year"]
+                    SOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
+                    for v in keys(MD.sobj_dict)
+                        SOM._write2NCFile(ds, v, ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
+                    end
 
+                   
                     
                 end 
             end
