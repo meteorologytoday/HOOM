@@ -66,6 +66,7 @@ function _createNCFile(
         defDim(ds, "Ny", occ.Ny)
         defDim(ds, "Nz", occ.Nz)
         defDim(ds, "N_zs",   length(occ.zs))
+        defDim(ds, "time",   Inf)
        
         ds.attrib["_FillValue"] = missing_value
         ds.attrib["K_T"] = occ.K_T

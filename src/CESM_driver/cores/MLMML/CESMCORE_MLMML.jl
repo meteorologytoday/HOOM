@@ -16,6 +16,8 @@ module CESMCORE_MLMML
     days_of_mon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
     mutable struct MLMML_DATA
+
+        casename    :: AbstractString
         map         :: NetCDFIO.MapInfo
         occ         :: MLMML.OceanColumnCollection
 
@@ -167,6 +169,7 @@ module CESMCORE_MLMML
         end
 
         return MLMML_DATA(
+            casename,
             map,
             occ,
             x2o,
@@ -212,8 +215,15 @@ module CESMCORE_MLMML
                 if t_flags["new_day"]
                     normStatObj!(MD.sobjs["daily_record"])
                     Dataset(daily_file, "a") do ds
-                        for v in keys(MD.sobj_dict)
-                            MLMML._write2NCFile_time(ds, v, ("Nx", "Ny",), MD.rec_cnts["daily_record"] + 1, MD.sobjs["daily_record"].vars[v]; missing_value = MD.map.missing_value)
+                        for (k, v) in MD.sobj_dict
+
+                            if length(size(v)) == 3
+                                dim = ("Nx", "Ny", "Nz")
+                            elseif length(size(v)) == 2
+                                dim = ("Nx", "Ny")
+                            end
+                            
+                            MLMML._write2NCFile_time(ds, k, dim, MD.rec_cnts["daily_record"] + 1, MD.sobjs["daily_record"].vars[k]; missing_value = MD.map.missing_value)
                         end
                     end
 
