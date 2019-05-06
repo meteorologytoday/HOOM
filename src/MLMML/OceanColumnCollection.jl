@@ -1,9 +1,13 @@
 mutable struct OceanColumnCollection
     Nx       :: Integer           # Number of columns in i direction
     Ny       :: Integer           # Number of columns in j direction
-    Nz       :: Integer           # Number of layers
+    Nz_bone  :: Integer           # Number of layers  in k direction
     
-    zs       :: AbstractArray{Float64, 1} # Position of (N+1) grid points
+    zs_bone  :: AbstractArray{Float64, 1} # Unmasked zs bone
+    topo     :: AbstractArray{Float64, 2} # Depth of the topography. Negative value if it is underwater
+    zs       :: AbstractArray{Float64, 3} # Actuall zs coordinate masked by topo
+    Nz       :: AbstractArray{Float64, 2} # Number of layers that is active
+
     K_T      :: Float64           # Diffusion coe of temperature
     K_S      :: Float64           # Diffusion coe of salinity
 
@@ -27,36 +31,73 @@ mutable struct OceanColumnCollection
 
     # Derived quantities
     N_ocs  :: Integer           # Number of columns
-    hs     :: AbstractArray{Float64, 1} # Thickness of layers
-    Δzs    :: AbstractArray{Float64, 1} # Δz between layers
-    H      :: Integer
+    hs     :: AbstractArray{Float64, 3} # Thickness of layers
+    Δzs    :: AbstractArray{Float64, 3} # Δz between layers
 
     function OceanColumnCollection(;
-        Nx     :: Integer,
-        Ny     :: Integer,
-        zs     :: AbstractArray{Float64, 1},
-        Ss     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
-        Ts     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
-        K_T    :: Float64,
-        K_S    :: Float64,
-        S_ML   :: Float64,
-        T_ML   :: Float64,
-        h_ML   :: Float64,
+        Nx       :: Integer,
+        Ny       :: Integer,
+        zs_bone  :: AbstractArray{Float64, 1},
+        Ss       :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
+        Ts       :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
+        K_T      :: Float64,
+        K_S      :: Float64,
+        S_ML     :: Float64,
+        T_ML     :: Float64,
+        h_ML     :: Float64,
         h_ML_min :: Float64,
         h_ML_max :: Float64,
         we_max   :: Float64,
-        mask   :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
+        mask     :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
+        topo     :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
     )
 
-        if -h_ML_max < zs[end]
+        if - h_ML_max < zs[end]
             throw(ErrorException("h_ML_max should not be equal or greater than ocean max depth."))
         end
 
-        zs = copy(zs)
-        Nz = length(zs) - 1
+        # Dealing with z coordinate
+        zs_bone = copy(zs_bone)
+        Nz_bone = length(zs_bone) - 1
 
-        hs  = zs[1:end-1] - zs[2:end]
-        Δzs = (hs[1:end-1] + hs[2:end]) / 2.0
+        zs  = SharedArray{Float64}(Nx, Ny, Nz_bone + 1)
+        Nz  = SharedArray{Float64}(Nx, Ny)
+        hs  = SharedArray{Float64}(Nx, Ny, Nz_bone)
+        Δzs = SharedArray{Float64}(Nx, Ny, Nz_bone - 1)
+
+        zs  .= NaN
+        Nz  .= NaN
+        hs  .= NaN
+        Δzs .= NaN
+
+        if topo == nothing
+            topo = zeros(Float64, Nx, Ny)
+            topo .= zs_bone[end]
+        else
+            topo = copy(topo)
+        end
+
+
+        for i=1:Nx, j=1:Ny
+
+            # Determine Nz
+            for k=2:length(zs_bone)
+                if zs_bone[k] <= topo[i, j]
+                    Nz[i, j] = k-1
+                    break
+                end
+            end
+
+            # Construct vertical coordinate
+            zs[i, j, 1:Nz] = zs_bone[1:Nz]
+            zs[i, j, Nz+1] = topo[i, j]
+
+            # Construct thickness of each layer
+            hs[i, j, :]  = zs[i, j, 1:end-1] - zs[i, j, 2:end]
+            Δzs[i, j, :] = (hs[i, j, 1:end-1] + hs[i, j, 2:end]) / 2.0
+            
+        end
+
 
         if mask == nothing
             mask = SharedArray{Float64}(Nx, Ny)
@@ -67,15 +108,14 @@ mutable struct OceanColumnCollection
 
         mask_idx = (mask .== 0.0)
 
-
         _b_ML     = SharedArray{Float64}(Nx, Ny)
         _S_ML     = SharedArray{Float64}(Nx, Ny)
         _T_ML     = SharedArray{Float64}(Nx, Ny)
         _h_ML     = SharedArray{Float64}(Nx, Ny)
 
-        _bs       = SharedArray{Float64}(Nx, Ny, Nz)
-        _Ss       = SharedArray{Float64}(Nx, Ny, Nz)
-        _Ts       = SharedArray{Float64}(Nx, Ny, Nz)
+        _bs       = SharedArray{Float64}(Nx, Ny, Nz_bone)
+        _Ss       = SharedArray{Float64}(Nx, Ny, Nz_bone)
+        _Ts       = SharedArray{Float64}(Nx, Ny, Nz_bone)
         _FLDO     = zeros(Int64, Nx, Ny)
         qflx2atm  = SharedArray{Float64}(Nx, Ny)
 
@@ -96,14 +136,15 @@ mutable struct OceanColumnCollection
         end
 
         occ = new(
-            Nx, Ny, Nz,
-            zs, K_T, K_S,
+            Nx, Ny, Nz_bone,
+            zs_bone, topo, zs, Nz,
+            K_T, K_S,
             mask, mask_idx,
             _b_ML, _S_ML, _T_ML, _h_ML,
             _bs,   _Ss,   _Ts,
             _FLDO, qflx2atm,
             h_ML_min, h_ML_max, we_max,
-            Nx * Ny, hs, Δzs, zs[1] - zs[end]
+            Nx * Ny, hs, Δzs,
         )
 
         updateB!(occ)
