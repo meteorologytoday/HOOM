@@ -79,9 +79,15 @@ function OC_updateFLDO!(
     occ.FLDO[i, j] = getFLDO(zs=occ.zs, h_ML=occ.h_ML[i, j])
 end
 
+"""
+
+    Returns the FLDO. If mixed-layer depth is equal to the total depth
+    of ocean column, -1 will be returned.
+
+"""
 function getFLDO(;
     zs   :: AbstractArray{Float64,1},
-    h_ML :: Float64
+    h_ML :: Float64,
 )
     for i = 1:length(zs)-1
         #println("h:", h, "; Δzs= ", zs[1] - zs[i+1])
@@ -90,6 +96,7 @@ function getFLDO(;
         end
     end
 
+    # 
     return -1
     #throw(ErrorException("h_ML cannot be equal or greather than -z[end]"))
 end

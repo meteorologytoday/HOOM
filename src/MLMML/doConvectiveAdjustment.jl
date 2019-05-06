@@ -5,10 +5,10 @@ function OC_doConvectiveAdjustment!(
     )
 
     if_adjust, occ.T_ML[i, j], occ.S_ML[i, j], occ.h_ML[i, j], occ.FLDO[i, j] = doConvectiveAdjustment!(
-        zs   = occ.zs,
-        bs   = view(occ.bs, i, j, :),
-        Ts   = view(occ.Ts, i, j, :),
-        Ss   = view(occ.Ss, i, j, :),
+        zs   = occ.zs_vw[i, j],
+        bs   = occ.bs_vw[i, j],
+        Ts   = occ.Ts_vw[i, j],
+        Ss   = occ.Ss_vw[i, j],
         h_ML = occ.h_ML[i, j],
         b_ML = occ.b_ML[i, j],
         T_ML = occ.T_ML[i, j],

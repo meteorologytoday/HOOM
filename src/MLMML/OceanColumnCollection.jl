@@ -34,6 +34,13 @@ mutable struct OceanColumnCollection
     hs     :: AbstractArray{Float64, 3} # Thickness of layers
     Δzs    :: AbstractArray{Float64, 3} # Δz between layers
 
+    # 1D Views to make clean code
+    zs_vw :: Any 
+    bs_vw :: Any
+    Ts_vw :: Any
+    Ss_vw :: Any
+
+
     function OceanColumnCollection(;
         Nx       :: Integer,
         Ny       :: Integer,
@@ -135,6 +142,19 @@ mutable struct OceanColumnCollection
             end
         end
 
+        zs_vw = Array{SubArray}(undef, Nx, Ny)
+        bs_vw = Array{SubArray}(undef, Nx, Ny)
+        Ts_vw = Array{SubArray}(undef, Nx, Ny)
+        Ss_vw = Array{SubArray}(undef, Nx, Ny)
+
+        for i=1:Nx, j=1:Ny
+            zs_vw[i, j] = view(zs,  i, j, :)
+            bs_vw[i, j] = view(_bs, i, j, :)
+            Ts_vw[i, j] = view(_Ts, i, j, :)
+            Ss_vw[i, j] = view(_Ss, i, j, :)
+        end
+
+
         occ = new(
             Nx, Ny, Nz_bone,
             zs_bone, topo, zs, Nz,
@@ -145,6 +165,7 @@ mutable struct OceanColumnCollection
             _FLDO, qflx2atm,
             h_ML_min, h_ML_max, we_max,
             Nx * Ny, hs, Δzs,
+            zs_vw, bs_vw, Ts_vw, Ss_vw,
         )
 
         updateB!(occ)
