@@ -15,13 +15,13 @@ mutable struct OceanColumnCollection
     mask_idx :: Any
 
     b_ML     :: AbstractArray{Float64, 2}
-    S_ML     :: AbstractArray{Float64, 2}
     T_ML     :: AbstractArray{Float64, 2}
+    S_ML     :: AbstractArray{Float64, 2}
     h_ML     :: AbstractArray{Float64, 2}
 
     bs       :: AbstractArray{Float64, 3}
-    Ss       :: AbstractArray{Float64, 3}
     Ts       :: AbstractArray{Float64, 3}
+    Ss       :: AbstractArray{Float64, 3}
     FLDO     :: AbstractArray{Int64, 2}
     qflx2atm :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
 
@@ -38,12 +38,12 @@ mutable struct OceanColumnCollection
         Nx       :: Integer,
         Ny       :: Integer,
         zs_bone  :: AbstractArray{Float64, 1},
-        Ss       :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         Ts       :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
+        Ss       :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         K_T      :: Float64,
         K_S      :: Float64,
-        S_ML     :: Float64,
         T_ML     :: Float64,
+        S_ML     :: Float64,
         h_ML     :: Float64,
         h_ML_min :: Float64,
         h_ML_max :: Float64,
@@ -109,19 +109,19 @@ mutable struct OceanColumnCollection
         mask_idx = (mask .== 0.0)
 
         _b_ML     = SharedArray{Float64}(Nx, Ny)
-        _S_ML     = SharedArray{Float64}(Nx, Ny)
         _T_ML     = SharedArray{Float64}(Nx, Ny)
+        _S_ML     = SharedArray{Float64}(Nx, Ny)
         _h_ML     = SharedArray{Float64}(Nx, Ny)
 
         _bs       = SharedArray{Float64}(Nx, Ny, Nz_bone)
-        _Ss       = SharedArray{Float64}(Nx, Ny, Nz_bone)
         _Ts       = SharedArray{Float64}(Nx, Ny, Nz_bone)
+        _Ss       = SharedArray{Float64}(Nx, Ny, Nz_bone)
         _FLDO     = zeros(Int64, Nx, Ny)
         qflx2atm  = SharedArray{Float64}(Nx, Ny)
 
         _h_ML .= h_ML
-        _S_ML .= S_ML
         _T_ML .= T_ML
+        _S_ML .= S_ML
        
         if Ts != nothing 
             for i=1:Nx, j=1:Ny
@@ -140,8 +140,8 @@ mutable struct OceanColumnCollection
             zs_bone, topo, zs, Nz,
             K_T, K_S,
             mask, mask_idx,
-            _b_ML, _S_ML, _T_ML, _h_ML,
-            _bs,   _Ss,   _Ts,
+            _b_ML, _T_ML, _S_ML, _h_ML,
+            _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
             h_ML_min, h_ML_max, we_max,
             Nx * Ny, hs, Δzs,
@@ -158,27 +158,40 @@ end
 
 function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
 
-    if (fr_occ.Nx, fr_occ.Ny, fr_occ.Nz) != (to_occ.Nx, to_occ.Ny, to_occ.Nz)
+    if (fr_occ.Nx, fr_occ.Ny, fr_occ.Nz_bone) != (to_occ.Nx, to_occ.Ny, to_occ.Nz_bone)
         throw(ErrorException("These two OceanColumnCollection have different dimensions."))
     end
-    
-    to_occ.K_T = fr_occ.K_T
-    to_occ.K_S = fr_occ.K_S
-    to_occ.h_ML_max = fr_occ.h_ML_max
-    to_occ.h_ML_min = fr_occ.h_ML_min
-    to_occ.we_max = fr_occ.we_max
 
-    to_occ.b_ML[:, :]      = fr_occ.b_ML
-    to_occ.T_ML[:, :]      = fr_occ.T_ML
-    to_occ.S_ML[:, :]      = fr_occ.S_ML
-    to_occ.h_ML[:, :]      = fr_occ.h_ML
-    to_occ.FLDO[:, :]      = fr_occ.FLDO
-    to_occ.qflx2atm[:, :]  = fr_occ.qflx2atm
-    to_occ.bs[:, :, :]     = fr_occ.bs
-    to_occ.Ts[:, :, :]     = fr_occ.Ts
-    to_occ.Ss[:, :, :]     = fr_occ.Ss
+    to_occ.zs_bone[:]       = fr_occ.zs_bone
+    to_occ.topo[:, :]       = fr_occ.topo
+    to_occ.zs[:, :, :]      = fr_occ.zs
+    to_occ.Nz[:, :]         = fr_occ.Nz
+  
+    to_occ.K_T              = fr_occ.K_T
+    to_occ.K_S              = fr_occ.K_S
+
+    to_occ.mask[:, :]       = fr_occ.mask
+    to_occ.mask_idx[:, :]   = fr_occ.mask_idx
+
+    to_occ.b_ML[:, :]       = fr_occ.b_ML
+    to_occ.T_ML[:, :]       = fr_occ.T_ML
+    to_occ.S_ML[:, :]       = fr_occ.S_ML
+    to_occ.h_ML[:, :]       = fr_occ.h_ML
+
+    to_occ.bs[:, :, :]      = fr_occ.bs
+    to_occ.Ss[:, :, :]      = fr_occ.Ss
+    to_occ.Ts[:, :, :]      = fr_occ.Ts
+    to_occ.FLDO[:, :]       = fr_occ.FLDO
+    to_occ.qflx2atm[:, :]   = fr_occ.qflx2atm
+
+    to_occ.h_ML_min         = fr_occ.h_ML_min
+    to_occ.h_ML_max         = fr_occ.h_ML_max
+    to_occ.we_max           = fr_occ.we_max
+
+    to_occ.N_ocs            = fr_occ.N_ocs
+    to_occ.hs[:, :, :]      = fr_occ.hs
+    to_occ.Δzs[:, :, :]     = fr_occ.Δzs
 end
-
 
 function copyOCC(occ::OceanColumnCollection)
     occ2 = makeBlankOceanColumnCollection(occ.Nx, occ.Ny, occ.zs; mask=mask)
@@ -189,25 +202,29 @@ end
 
 
 function makeBlankOceanColumnCollection(
-    Nx   :: Integer,
-    Ny   :: Integer,
-    zs   :: AbstractArray{Float64, 1};
-    mask :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
+    Nx      :: Integer,
+    Ny      :: Integer,
+    zs_bone :: AbstractArray{Float64, 1};
+    mask    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
+    topo    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
 )
 
     return OceanColumnCollection(;
-        Nx   = Nx,
-        Ny   = Ny,
-        zs   = zs,
-        h_ML = -zs[2],
-        K_T  = 0.0,
-        K_S  = 0.0,
-        S_ML = 0.0,
-        T_ML = 0.0,
+        Nx       = Nx,
+        Ny       = Ny,
+        zs_bone  = zs_bone,
+        Ss       = nothing,
+        Ts       = nothing,
+        K_T      = 0.0,
+        K_S      = 0.0,
+        S_ML     = 0.0,
+        T_ML     = 0.0,
+        h_ML     = -zs[2],
         h_ML_min = -zs[2],
         h_ML_max = -zs[end-1],
         we_max   = 0.0,
-        mask = mask,
+        mask     = mask,
+        topo     = topo,
     )
 end
 
@@ -215,7 +232,7 @@ end
 function makeBasicOceanColumnCollection(
     Nx      :: Integer,
     Ny      :: Integer,
-    zs      :: AbstractArray{Float64, 1};
+    zs_bone :: AbstractArray{Float64, 1};
     T_slope :: Float64,
     S_slope :: Float64,
     T_ML    :: Float64,
@@ -228,12 +245,15 @@ function makeBasicOceanColumnCollection(
     h_ML_min:: Float64,
     h_ML_max:: Float64,
     we_max  :: Float64,
-    mask :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
+    mask    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
+    topo    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
 )
-    Ts = zeros(Float64, length(zs)-1)
-    Ss = zeros(Float64, length(zs)-1)
+
+    
+    Ts = zeros(Float64, length(zs_bone)-1)
+    Ss = zeros(Float64, length(zs_bone)-1)
     for i = 1:length(Ts)
-        z = (zs[i] + zs[i+1]) / 2.0
+        z = (zs_bone[i] + zs_bone[i+1]) / 2.0
         if z > -h_ML
             Ts[i] = T_ML
             Ss[i] = S_ML
@@ -244,19 +264,20 @@ function makeBasicOceanColumnCollection(
     end
 
     return OceanColumnCollection(;
-        Nx   = Nx,
-        Ny   = Ny,
-        zs   = zs,
-        Ts   = Ts,
-        Ss   = Ss,
-        K_T  = K_T,
-        K_S  = K_S,
-        T_ML = T_ML,
-        S_ML = S_ML,
-        h_ML = h_ML,
-        h_ML_min = h_ML_min,        
-        h_ML_max = h_ML_max,
-        we_max = we_max,
-        mask = mask,
+        Nx        = Nx,
+        Ny        = Ny,
+        zs_bone   = zs_bone,
+        Ts        = Ts,
+        Ss        = Ss,
+        K_T       = K_T,
+        K_S       = K_S,
+        T_ML      = T_ML,
+        S_ML      = S_ML,
+        h_ML      = h_ML,
+        h_ML_min  = h_ML_min,        
+        h_ML_max  = h_ML_max,
+        we_max    = we_max,
+        mask      = mask,
+        topo      = topo,
     )
 end
