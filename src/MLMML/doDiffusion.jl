@@ -104,8 +104,8 @@ function OC_doDiffusion_EulerBackward!(
 )
     
     occ.T_ML[i, j] = doDiffusion_BackwardEuler!(
-        zs   = occ.zs,
-        qs   = view(occ.Ts, i, j, :),
+        zs   = occ.zs_vw[i, j],
+        qs   = occ.Ts_vw[i, j],
         q_ML = occ.T_ML[i, j],
         h_ML = occ.h_ML[i, j],
         K    = occ.K_T,
@@ -115,8 +115,8 @@ function OC_doDiffusion_EulerBackward!(
     )
 
     occ.S_ML[i, j] = doDiffusion_BackwardEuler!(
-        zs   = occ.zs,
-        qs   = view(occ.Ss, i, j, :),
+        zs   = occ.zs_vw[i, j],
+        qs   = occ.Ss_vw[i, j],
         q_ML = occ.S_ML[i, j],
         h_ML = occ.h_ML[i, j],
         K    = occ.K_S,
