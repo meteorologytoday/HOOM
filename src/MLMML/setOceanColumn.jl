@@ -32,9 +32,9 @@ function OC_setMixedLayer!(
     occ.T_ML[i, j] = T_ML
     occ.S_ML[i, j] = S_ML
     occ.FLDO[i, j] = setMixedLayer!(
-        Ts   = view(occ.Ts, i, j, :),
-        Ss   = view(occ.Ss, i, j, :),
-        zs   = occ.zs,
+        Ts   = occ.Ts_vw[i, j],
+        Ss   = occ.Ss_vw[i, j],
+        zs   = occ.zs_vw[i, j],
         T_ML = T_ML,
         S_ML = S_ML,
         h_ML = h_ML,
@@ -82,21 +82,22 @@ function makeSimpleOceanColumn(;
     K       :: Float64 = 1e-5
 )
 
-oc = makeBlankOceanColumn(zs=zs)
+    oc = makeBlankOceanColumn(zs=zs)
 
-bs = zeros(Float64, length(zs)-1)
-for i = 1:length(bs)
-    z = (zs[i] + zs[i+1]) / 2.0
-    if z > -h_ML
-        bs[i] = b_ML
-    else
-        bs[i] = b_ML - Δb - b_slope * (-z - h_ML)
+    bs = zeros(Float64, length(zs)-1)
+    for i = 1:length(bs)
+        z = (zs[i] + zs[i+1]) / 2.0
+        if z > -h_ML
+            bs[i] = b_ML
+        else
+            bs[i] = b_ML - Δb - b_slope * (-z - h_ML)
+        end
     end
-end
 
-OC_setBuoyancy!(oc, bs=bs, b_ML=b_ML, h_ML=h_ML)
-oc.K = K
-OC_updateFLDO!(oc)
+    OC_setBuoyancy!(oc, bs=bs, b_ML=b_ML, h_ML=h_ML)
+    oc.K = K
+    OC_updateFLDO!(oc)
 
-return oc
+    return oc
+
 end

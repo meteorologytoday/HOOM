@@ -3,10 +3,12 @@ function loadSnapshot(filename::AbstractString)
 
     Dataset(filename, "r") do ds
         occ = makeBlankOceanColumnCollection(
-            ds.dim["Nx"], ds.dim["Ny"], nomissing(ds["zs"][:], NaN);
-            mask  = nomissing(ds["mask"][:], NaN),
+            ds.dim["Nx"],
+            ds.dim["Ny"],
+            nomissing(ds["zs_bone"][:], NaN);
+            mask = nomissing(ds["mask"][:], NaN),
+            topo = nomissing(ds["topo"][:], NaN),
         )
-
 
         occ.K_T = ds.attrib["K_T"]
         occ.K_S = ds.attrib["K_S"]
