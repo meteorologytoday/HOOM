@@ -34,6 +34,8 @@ function stepOceanColumnCollection!(
             continue
         end
 
+        zs = occ.zs_vw[i, j]
+
         # Pseudo code
         # Current using only Euler forward scheme:
         # 1. Determine h at t+Δt
@@ -103,7 +105,7 @@ function stepOceanColumnCollection!(
         # If new_h_ML < old_h_ML, then the FLDO layer should get extra T or S due to mixing
         if new_h_ML < old_h_ML
 
-            new_FLDO = getFLDO(zs=occ.zs, h_ML=new_h_ML)
+            new_FLDO = getFLDO(zs=zs, h_ML=new_h_ML)
 
             if old_FLDO == -1
 
@@ -111,8 +113,8 @@ function stepOceanColumnCollection!(
                 occ.Ss[i, j, new_FLDO:end] .= occ.S_ML[i, j]
 
             else
-                FLDO_Δz =  -occ.zs[old_FLDO+1] - old_h_ML
-                retreat_Δz =  old_h_ML - ( (new_FLDO == old_FLDO) ? new_h_ML : (-occ.zs[old_FLDO]) )
+                FLDO_Δz =  -zs[old_FLDO+1] - old_h_ML
+                retreat_Δz =  old_h_ML - ( (new_FLDO == old_FLDO) ? new_h_ML : (-zs[old_FLDO]) )
 
                 occ.Ts[i, j, new_FLDO] = (
                     occ.Ts[i, j, old_FLDO] * FLDO_Δz + occ.T_ML[i, j] * retreat_Δz
