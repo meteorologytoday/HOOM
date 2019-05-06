@@ -76,7 +76,7 @@ function OC_updateFLDO!(
         i   :: Integer,
         j   :: Integer,
     )
-    occ.FLDO[i, j] = getFLDO(zs=occ.zs, h_ML=occ.h_ML[i, j])
+    occ.FLDO[i, j] = getFLDO(zs=occ.zs_vw[i, j], h_ML=occ.h_ML[i, j])
 end
 
 """
