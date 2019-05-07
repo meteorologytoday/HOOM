@@ -1,12 +1,20 @@
+
+"""
+
+  This function only sets the value in mixed layer without
+  conserving quantity 
+
+"""
  function setMixedLayer!(;
     Ts   :: AbstractArray{Float64, 1},
     Ss   :: AbstractArray{Float64, 1},
     zs   :: AbstractArray{Float64, 1},
+    Nz   :: Integer,
     T_ML :: Float64,
     S_ML :: Float64,
     h_ML :: Float64,
 )
-    FLDO = getFLDO(zs=zs, h_ML=h_ML)
+    FLDO = getFLDO(zs=zs, h_ML=h_ML, Nz=Nz)
 
     if FLDO > 1
         Ts[1:FLDO-1] .= T_ML
@@ -18,6 +26,7 @@
    
     return FLDO 
 end
+
 
 function OC_setMixedLayer!(
     occ  :: OceanColumnCollection,
@@ -35,6 +44,7 @@ function OC_setMixedLayer!(
         Ts   = occ.Ts_vw[i, j],
         Ss   = occ.Ss_vw[i, j],
         zs   = occ.zs_vw[i, j],
+        Nz   = occ.Nz[i, j],
         T_ML = T_ML,
         S_ML = S_ML,
         h_ML = h_ML,

@@ -21,6 +21,7 @@ using Distributed
     @hinclude("doConvectiveAdjustment.jl")
     @hinclude("doDiffusion.jl")
     @hinclude("getIntegratedBuoyancy.jl")
+    @hinclude("doNewtonianRelaxation.jl")
     @hinclude("stepOceanColumnCollection.jl")
 
 

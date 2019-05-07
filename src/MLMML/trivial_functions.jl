@@ -76,7 +76,7 @@ function OC_updateFLDO!(
         i   :: Integer,
         j   :: Integer,
     )
-    occ.FLDO[i, j] = getFLDO(zs=occ.zs_vw[i, j], h_ML=occ.h_ML[i, j])
+    occ.FLDO[i, j] = getFLDO(zs=occ.zs_vw[i, j], h_ML=occ.h_ML[i, j], Nz=occ.Nz[i, j])
 end
 
 """
@@ -88,8 +88,9 @@ end
 function getFLDO(;
     zs   :: AbstractArray{Float64,1},
     h_ML :: Float64,
+    Nz   :: Integer,
 )
-    for i = 1:length(zs)-1
+    for i = 1:Nz
         #println("h:", h, "; Δzs= ", zs[1] - zs[i+1])
         if h_ML < (zs[1] - zs[i+1])  # I don't use equality in order to avoid Δb = 0 during some initialization
             return i

@@ -29,7 +29,7 @@ mutable struct OceanColumnCollection
     h_ML_max :: AbstractArray{Float64, 2}
     we_max   :: Float64
 
-    # climatology
+    # Climatology states
     Ts_clim_relax_time :: Union{Float64, Nothing}
     Ss_clim_relax_time :: Union{Float64, Nothing}
 
@@ -46,7 +46,8 @@ mutable struct OceanColumnCollection
     bs_vw :: Any
     Ts_vw :: Any
     Ss_vw :: Any
-
+    Ts_clim_vw :: Any
+    Ss_clim_vw :: Any
 
     function OceanColumnCollection(;
         Nx       :: Integer,
@@ -81,8 +82,6 @@ mutable struct OceanColumnCollection
         Δzs  = SharedArray{Float64}(Nx, Ny, Nz_bone - 1)
         _topo = SharedArray{Float64}(Nx, Ny)
 
-
-
         #zs  .= NaN
         #Nz  .= NaN
         #hs  .= NaN
@@ -93,7 +92,6 @@ mutable struct OceanColumnCollection
         else
             _topo[:, :] = topo
         end
-
 
         for i=1:Nx, j=1:Ny
 
@@ -181,6 +179,7 @@ mutable struct OceanColumnCollection
         # ===== [END mask =====
 
         # ===== [BEGIN] Column information =====
+
         _b_ML     = SharedArray{Float64}(Nx, Ny)
         _T_ML     = SharedArray{Float64}(Nx, Ny)
         _S_ML     = SharedArray{Float64}(Nx, Ny)
@@ -231,18 +230,6 @@ mutable struct OceanColumnCollection
             end
         elseif typeof(Ss) <: Float64 
             _Ss .= Ss
-        end
-
-        zs_vw = Array{SubArray}(undef, Nx, Ny)
-        bs_vw = Array{SubArray}(undef, Nx, Ny)
-        Ts_vw = Array{SubArray}(undef, Nx, Ny)
-        Ss_vw = Array{SubArray}(undef, Nx, Ny)
-
-        for i=1:Nx, j=1:Ny
-            zs_vw[i, j] = view(zs,  i, j, :)
-            bs_vw[i, j] = view(_bs, i, j, :)
-            Ts_vw[i, j] = view(_Ts, i, j, :)
-            Ss_vw[i, j] = view(_Ss, i, j, :)
         end
 
         # ===== [END] Column information =====
@@ -296,6 +283,40 @@ mutable struct OceanColumnCollection
 
         # ===== [END] Climatology =====
 
+        # ===== [BEGIN] Construct Views =====
+        zs_vw = Array{SubArray}(undef, Nx, Ny)
+        bs_vw = Array{SubArray}(undef, Nx, Ny)
+        Ts_vw = Array{SubArray}(undef, Nx, Ny)
+        Ss_vw = Array{SubArray}(undef, Nx, Ny)
+        
+
+        for i=1:Nx, j=1:Ny
+            zs_vw[i, j]      = view(zs,  i, j, :)
+            bs_vw[i, j]      = view(_bs, i, j, :)
+            Ts_vw[i, j]      = view(_Ts, i, j, :)
+            Ss_vw[i, j]      = view(_Ss, i, j, :)
+        end
+
+        Ts_clim_vw = nothing
+        Ss_clim_vw = nothing
+
+        if Ts_clim != nothing
+            Ts_clim_vw = Array{SubArray}(undef, Nx, Ny)
+            for i=1:Nx, j=1:Ny
+                Ts_clim_vw[i, j] = view(_Ts_clim, i, j, :)
+            end
+        end
+ 
+        if Ss_clim != nothing
+            Ss_clim_vw = Array{SubArray}(undef, Nx, Ny)
+            for i=1:Nx, j=1:Ny
+                Ss_clim_vw[i, j] = view(_Ss_clim, i, j, :)
+            end
+        end
+     
+        # ===== [END] Construct Views =====
+
+
         occ = new(
             Nx, Ny, Nz_bone,
             zs_bone, _topo, zs, Nz,
@@ -308,7 +329,7 @@ mutable struct OceanColumnCollection
             Ts_clim_relax_time, Ss_clim_relax_time,
             _Ts_clim, _Ss_clim,
             Nx * Ny, hs, Δzs,
-            zs_vw, bs_vw, Ts_vw, Ss_vw,
+            zs_vw, bs_vw, Ts_vw, Ss_vw, Ts_clim_vw, Ss_clim_vw,
         )
 
         updateB!(occ)

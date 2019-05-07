@@ -136,13 +136,24 @@ function stepOceanColumnCollection!(
             h_ML=new_h_ML,
         )
 
+        # Climatology relaxation
+        if occ.Ts_clim != nothing
+            OC_doNewtonianRelaxation!(occ, i, j; Δt=Δt)
+        end
 
- 
+        if occ.Ss_clim != nothing
+            OC_doNewtonianRelaxation!(occ, i, j; Δt=Δt)
+        end
+
+
         OC_doDiffusion_EulerBackward!(occ, i, j; Δt=Δt)
 
         OC_updateB!(occ, i, j)
         
         OC_doConvectiveAdjustment!(occ, i, j)
+
+
+
 
         # Freeze potential. Calculation mimics the one written in CESM1 docn_comp_mod.F90
         occ.qflx2atm[i, j] = (T_sw_frz - occ.T_ML[i, j]) * ρ * c_p * occ.h_ML[i, j] / Δt
