@@ -7,7 +7,7 @@ using .MLMML
 
 domain_file = "/home/tienyiah/cesm_inputdata/cesm1/share/domains/domain.ocn.gx3v7.120323.nc"
 map = NetCDFIO.MapInfo{Float64}(domain_file)
-zs = collect(Float64, range(0, -500, step=-5))
+zs_bone = collect(Float64, range(0, -500, step=-5))
 
 T_ML     = T_ref
 S_ML     = S_ref
@@ -20,34 +20,28 @@ K_S      = 1e-5
 h_ML_min = 10.0
 h_ML_max = 500.0
 we_max   = 1.0
+
+mask = nothing
+topo = nothing
     
-    Nx      :: Integer,
-    Ny      :: Integer,
-    zs_bone :: AbstractArray{Float64, 1};
-    T_slope :: Float64,
-    S_slope :: Float64,
-    T_ML    :: Float64,
-    S_ML    :: Float64,
-    h_ML    :: Float64,
-    ΔT      :: Float64,
-    ΔS      :: Float64,
-    K_T     :: Float64,
-    K_S     :: Float64,
-    h_ML_min:: Float64,
-    h_ML_max:: Float64,
-    we_max  :: Float64,
-    mask    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
-    topo    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
-
-
 occ = MLMML.makeBasicOceanColumnCollection(
-    map.nx, map.ny, zs;
-    b_slope = init_b_slope,
-    b_ML  = init_b_ML,
-    h_ML  = init_h_ML,
-    Δb    = init_Δb,
-    K     = K,
-    mask  = map.mask,
+    Nx      = map.nx,
+    Ny      = map.ny,
+    zs_bone = zs_bone,
+    T_slope = T_slope,
+    S_slope = S_slope,
+    T_ML    = T_ML,
+    S_ML    = S_ML,
+    h_ML    = h_ML_min,
+    ΔT      = ΔT,
+    ΔS      = ΔS,
+    K_T     = K_T,
+    K_S     = K_S,
+    h_ML_min= h_ML_min,
+    h_ML_max= h_ML_max,
+    we_max  = we_max,
+    mask    = mask,
+    topo    = topo,
 )
 
 MLMML.takeSnapshot(occ, "snapshot01.nc")

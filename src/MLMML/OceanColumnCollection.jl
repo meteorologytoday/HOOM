@@ -6,7 +6,7 @@ mutable struct OceanColumnCollection
     zs_bone  :: AbstractArray{Float64, 1} # Unmasked zs bone
     topo     :: AbstractArray{Float64, 2} # Depth of the topography. Negative value if it is underwater
     zs       :: AbstractArray{Float64, 3} # Actuall zs coordinate masked by topo
-    Nz       :: AbstractArray{Float64, 2} # Number of layers that is active
+    Nz       :: AbstractArray{Int64, 2} # Number of layers that is active
 
     K_T      :: Float64           # Diffusion coe of temperature
     K_S      :: Float64           # Diffusion coe of salinity
@@ -30,9 +30,6 @@ mutable struct OceanColumnCollection
     we_max   :: Float64
 
     # climatology
-    Ts_clim_flag :: Bool
-    Ss_clim_flag :: Bool
-
     Ts_clim_relax_time :: Union{Float64, Nothing}
     Ss_clim_relax_time :: Union{Float64, Nothing}
 
@@ -65,12 +62,12 @@ mutable struct OceanColumnCollection
         h_ML_min :: Union{AbstractArray{Float64, 2}, Float64},
         h_ML_max :: Union{AbstractArray{Float64, 2}, Float64},
         we_max   :: Float64,
-        mask     :: Union{AbstractArray{Float64, 2}, Nothing},
-        topo     :: Union{AbstractArray{Float64, 2}, Nothing},
         Ts_clim_relax_time :: Union{Float64, Nothing},
         Ss_clim_relax_time :: Union{Float64, Nothing},
         Ts_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
         Ss_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
+        mask     :: Union{AbstractArray{Float64, 2}, Nothing},
+        topo     :: Union{AbstractArray{Float64, 2}, Nothing},
     )
 
         
@@ -79,7 +76,7 @@ mutable struct OceanColumnCollection
         Nz_bone = length(zs_bone) - 1
 
         zs   = SharedArray{Float64}(Nx, Ny, Nz_bone + 1)
-        Nz   = SharedArray{Float64}(Nx, Ny)
+        Nz   = SharedArray{Int64}(Nx, Ny)
         hs   = SharedArray{Float64}(Nx, Ny, Nz_bone)
         Δzs  = SharedArray{Float64}(Nx, Ny, Nz_bone - 1)
         _topo = SharedArray{Float64}(Nx, Ny)
@@ -136,15 +133,15 @@ mutable struct OceanColumnCollection
         _h_ML_min = SharedArray{Float64}(Nx, Ny)
         _h_ML_max = SharedArray{Float64}(Nx, Ny)
 
-        if h_ML_min <: AbstractArray{Float64, 2}
+        if typeof(h_ML_min) <: AbstractArray{Float64, 2}
             _h_ML_min[:, :] = h_ML_min
-        elseif h_ML_min <: Float64
+        elseif typeof(h_ML_min) <: Float64
             _h_ML_min .= h_ML_min
         end
 
-        if h_ML_max <: AbstractArray{Float64, 2}
+        if typeof(h_ML_max) <: AbstractArray{Float64, 2}
             _h_ML_max[:, :] = h_ML_max
-        elseif h_ML_max <: Float64
+        elseif typeof(h_ML_max) <: Float64
             _h_ML_max .= h_ML_max
         end
 
@@ -192,47 +189,47 @@ mutable struct OceanColumnCollection
         _bs       = SharedArray{Float64}(Nx, Ny, Nz_bone)
         _Ts       = SharedArray{Float64}(Nx, Ny, Nz_bone)
         _Ss       = SharedArray{Float64}(Nx, Ny, Nz_bone)
-        _FLDO     = zeros(Int64, Nx, Ny)
+        _FLDO     = SharedArray{Int64}(Nx, Ny)
         qflx2atm  = SharedArray{Float64}(Nx, Ny)
 
 
-        if h_ML <: AbstractArray{Float64, 2}
+        if typeof(h_ML) <: AbstractArray{Float64, 2}
             _h_ML[:, :] = h_ML
-        elseif h_ML <: Float64
+        elseif typeof(h_ML) <: Float64
             _h_ML .= h_ML
         elseif h_ML == nothing
             _h_ML .= h_ML_min
         end
 
-        if T_ML <: AbstractArray{Float64, 2}
+        if typeof(T_ML) <: AbstractArray{Float64, 2}
             _T_ML[:, :] = T_ML
-        elseif T_ML <: Float64
+        elseif typeof(T_ML) <: Float64
             _T_ML .= T_ML
         end
 
-        if S_ML <: AbstractArray{Float64, 2}
+        if typeof(S_ML) <: AbstractArray{Float64, 2}
             _S_ML[:, :] = S_ML
-        elseif S_ML <: Float64
+        elseif typeof(S_ML) <: Float64
             _S_ML .= S_ML
         end
 
-        if Ts <: AbstractArray{Float64, 3}
+        if typeof(Ts) <: AbstractArray{Float64, 3}
             _Ts[:, :, :] = Ts
-        elseif Ts <: AbstractArray{Float64, 1}
+        elseif typeof(Ts) <: AbstractArray{Float64, 1}
             for i=1:Nx, j=1:Ny
                 _Ts[i, j, :] = Ts
             end
-        elseif Ts <: Float64 
+        elseif typeof(Ts) <: Float64 
             _Ts .= Ts
         end
 
-        if Ss <: AbstractArray{Float64, 3}
+        if typeof(Ss) <: AbstractArray{Float64, 3}
             _Ss[:, :, :] = Ss
-        elseif Ss <: AbstractArray{Float64, 1}
+        elseif typeof(Ss) <: AbstractArray{Float64, 1}
             for i=1:Nx, j=1:Ny
                 _Ss[i, j, :] = Ss
             end
-        elseif Ss <: Float64 
+        elseif typeof(Ss) <: Float64 
             _Ss .= Ss
         end
 
@@ -260,11 +257,11 @@ mutable struct OceanColumnCollection
             
             _Ts_clim = SharedArray{Float64}(Nx, Ny, Nz_bone)
             
-            if Ts_clim <: AbstractArray{Float64, 3}
+            if typeof(Ts_clim) <: AbstractArray{Float64, 3}
 
                 _Ts_clim[:, :, :] = Ts_clim
 
-            elseif Ts_clim <: AbstractArray{Float64, 1}
+            elseif typeof(Ts_clim) <: AbstractArray{Float64, 1}
 
                 for i=1:Nx, j=1:Ny
                     _Ts_clim[i, j, :] = Ts_clim
@@ -283,11 +280,11 @@ mutable struct OceanColumnCollection
             
             _Ss_clim = SharedArray{Float64}(Nx, Ny, Nz_bone)
             
-            if Ss_clim <: AbstractArray{Float64, 3}
+            if typeof(Ss_clim) <: AbstractArray{Float64, 3}
 
                 _Ss_clim[:, :, :] = Ss_clim
 
-            elseif Ss_clim <: AbstractArray{Float64, 1}
+            elseif typeof(Ss_clim) <: AbstractArray{Float64, 1}
 
                 for i=1:Nx, j=1:Ny
                     _Ss_clim[i, j, :] = Ss_clim
@@ -301,14 +298,13 @@ mutable struct OceanColumnCollection
 
         occ = new(
             Nx, Ny, Nz_bone,
-            zs_bone, topo, zs, Nz,
+            zs_bone, _topo, zs, Nz,
             K_T, K_S,
             mask, mask_idx,
             _b_ML, _T_ML, _S_ML, _h_ML,
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,
-            (_Ts_clim != nothing), (_Ss_clim != nothing),
             Ts_clim_relax_time, Ss_clim_relax_time,
             _Ts_clim, _Ss_clim,
             Nx * Ny, hs, Δzs,
@@ -356,25 +352,26 @@ function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
     to_occ.h_ML_max[:, :]   = fr_occ.h_ML_max
     to_occ.we_max           = fr_occ.we_max
 
-    to_occ.Ts_clim_flag     = fr_occ.Ts_clim_flag 
-    to_occ.Ss_clim_flag     = fr_occ.Ss_clim_flag 
+    to_occ.Ts_clim_relax_time = fr_occ.Ts_clim_relax_time
+    to_occ.Ss_clim_relax_time = fr_occ.Ss_clim_relax_time
 
     to_occ.Ts_clim[:, :, :] = fr_occ.Ts_clim
     to_occ.Ss_clim[:, :, :] = fr_occ.Ss_clim
+
 
     to_occ.N_ocs            = fr_occ.N_ocs
     to_occ.hs[:, :, :]      = fr_occ.hs
     to_occ.Δzs[:, :, :]     = fr_occ.Δzs
 
 end
-
+#=
 function copyOCC(occ::OceanColumnCollection)
     occ2 = makeBlankOceanColumnCollection(occ.Nx, occ.Ny, occ.zs; mask=mask)
     copyOCC!(occ, occ2)
     
     return occ2
 end
-
+=#
 #=
 function makeBlankOceanColumnCollection(
     Nx      :: Integer,
@@ -406,10 +403,10 @@ end
 
 
 
-function makeBasicOceanColumnCollection(
+function makeBasicOceanColumnCollection(;
     Nx      :: Integer,
     Ny      :: Integer,
-    zs_bone :: AbstractArray{Float64, 1};
+    zs_bone :: AbstractArray{Float64, 1},
     T_slope :: Float64,
     S_slope :: Float64,
     T_ML    :: Float64,
@@ -422,10 +419,13 @@ function makeBasicOceanColumnCollection(
     h_ML_min:: Float64,
     h_ML_max:: Float64,
     we_max  :: Float64,
-    mask    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
-    topo    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
     Ts_clim :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1},  Nothing} = nothing,
     Ss_clim :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1},  Nothing} = nothing,
+    Ts_clim_relax_time :: Union{Float64, Nothing} = nothing,
+    Ss_clim_relax_time :: Union{Float64, Nothing} = nothing,
+
+    mask    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
+    topo    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
 )
 
     
@@ -443,22 +443,24 @@ function makeBasicOceanColumnCollection(
     end
 
     return OceanColumnCollection(;
-        Nx        = Nx,
-        Ny        = Ny,
-        zs_bone   = zs_bone,
-        Ts        = Ts,
-        Ss        = Ss,
-        K_T       = K_T,
-        K_S       = K_S,
-        T_ML      = T_ML,
-        S_ML      = S_ML,
-        h_ML      = h_ML,
-        h_ML_min  = h_ML_min,        
-        h_ML_max  = h_ML_max,
-        we_max    = we_max,
-        Ts_clim   = Ts_clim,
-        Ss_clim   = Ss_clim,
-        mask      = mask,
-        topo      = topo,
+        Nx                 = Nx,
+        Ny                 = Ny,
+        zs_bone            = zs_bone,
+        Ts                 = Ts,
+        Ss                 = Ss,
+        K_T                = K_T,
+        K_S                = K_S,
+        T_ML               = T_ML,
+        S_ML               = S_ML,
+        h_ML               = h_ML,
+        h_ML_min           = h_ML_min,        
+        h_ML_max           = h_ML_max,
+        we_max             = we_max,
+        Ts_clim_relax_time = Ts_clim_relax_time,
+        Ss_clim_relax_time = Ss_clim_relax_time,
+        Ts_clim            = Ts_clim,
+        Ss_clim            = Ss_clim,
+        mask               = mask,
+        topo               = topo,
     )
 end

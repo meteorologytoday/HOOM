@@ -3,7 +3,23 @@ function loadSnapshot(filename::AbstractString)
 
     Dataset(filename, "r") do ds
 
-        occ = makeBlankOceanColumnCollection(
+        Ts_clim_relax_time = nothing
+        Ss_clim_relax_time = nothing
+
+        Ts_clim = nothing
+        Ss_clim = nothing
+
+        if haskey(ds, "Ts_clim")
+            Ts_clim_relax_time = ds.attrib["Ts_clim_relax_time"]
+            Ts_clim = nomissing(ds["Ts_clim_relax_time"][:], NaN)
+        end
+
+        if haskey(ds, "Ss_clim")
+            Ss_clim_relax_time = ds.attrib["Ss_clim_relax_time"]
+            Ss_clim = nomissing(ds["Ss_clim_relax_time"][:], NaN)
+        end
+
+        occ = OceanColumnCollection(
             Nx       = ds.dim["Nx"],
             Ny       = ds.dim["Ny"],
             zs_bone  = nomissing(ds["zs_bone"][:], NaN);
@@ -14,8 +30,13 @@ function loadSnapshot(filename::AbstractString)
             T_ML     = nomissing(ds["T_ML"][:], NaN),
             S_ML     = nomissing(ds["S_ML"][:], NaN),
             h_ML     = nomissing(ds["h_ML"][:], NaN),
-            h_ML_min = ds.attrib["h_ML_min"],
-            h_ML_max = ds.attrib["h_ML_max"],
+            h_ML_min = nomissing(ds["h_ML_min"][:], NaN),
+            h_ML_max = nomissing(ds["h_ML_max"][:], NaN),
+            we_max   = ds.attrib["we_max"],
+            Ts_clim_relax_time = Ts_clim_relax_time,
+            Ss_clim_relax_time = Ss_clim_relax_time,
+            Ts_clim  = Ts_clim,
+            Ss_clim  = Ss_clim,
             mask     = nomissing(ds["mask"][:], NaN),
             topo     = nomissing(ds["topo"][:], NaN),
         )
@@ -42,6 +63,17 @@ function takeSnapshot(
         _write2NCFile(ds, "T_ML", ("Nx", "Ny",), occ.T_ML, missing_value)
         _write2NCFile(ds, "S_ML", ("Nx", "Ny",), occ.S_ML, missing_value)
         _write2NCFile(ds, "h_ML", ("Nx", "Ny",), occ.h_ML, missing_value)
+        
+        _write2NCFile(ds, "h_ML_min", ("Nx", "Ny",), occ.h_ML_min, missing_value)
+        _write2NCFile(ds, "h_ML_max", ("Nx", "Ny",), occ.h_ML_max, missing_value)
+
+        if occ.Ts_clim != nothing
+            _write2NCFile(ds, "Ts_clim", ("Nx", "Ny", "Nz_bone"), occ.Ts_clim, missing_value)
+        end
+
+        if occ.Ss_clim != nothing
+            _write2NCFile(ds, "Ss_clim", ("Nx", "Ny", "Nz_bone"), occ.Ss_clim, missing_value)
+        end
 
         _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
         _write2NCFile(ds, "topo", ("Nx", "Ny",), occ.mask, missing_value)
@@ -69,9 +101,15 @@ function _createNCFile(
 
         ds.attrib["K_T"] = occ.K_T
         ds.attrib["K_S"] = occ.K_S
-        ds.attrib["h_ML_min"] = occ.h_ML_min
-        ds.attrib["h_ML_max"] = occ.h_ML_max
         ds.attrib["we_max"] = occ.we_max
+
+        if occ.Ts_clim_relax_time != nothing
+            ds.attrib["Ts_clim_relax_time"] = occ.Ts_clim_relax_time
+        end
+ 
+        if occ.Ss_clim_relax_time != nothing
+            ds.attrib["Ss_clim_relax_time"] = occ.Ss_clim_relax_time
+        end
         
     end
 
