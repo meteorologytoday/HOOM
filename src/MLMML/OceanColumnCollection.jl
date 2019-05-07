@@ -25,9 +25,19 @@ mutable struct OceanColumnCollection
     FLDO     :: AbstractArray{Int64, 2}
     qflx2atm :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
 
-    h_ML_min :: Float64
-    h_ML_max :: Float64
+    h_ML_min :: AbstractArray{Float64, 2}
+    h_ML_max :: AbstractArray{Float64, 2}
     we_max   :: Float64
+
+    # climatology
+    Ts_clim_flag :: Bool
+    Ss_clim_flag :: Bool
+
+    Ts_clim_relax_time :: Union{Float64, Nothing}
+    Ss_clim_relax_time :: Union{Float64, Nothing}
+
+    Ts_clim  :: Union{AbstractArray{Float64, 3}, Nothing}
+    Ss_clim  :: Union{AbstractArray{Float64, 3}, Nothing}
 
     # Derived quantities
     N_ocs  :: Integer           # Number of columns
@@ -45,32 +55,36 @@ mutable struct OceanColumnCollection
         Nx       :: Integer,
         Ny       :: Integer,
         zs_bone  :: AbstractArray{Float64, 1},
-        Ts       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64} = T_ref,
-        Ss       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64} = S_ref,
+        Ts       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
+        Ss       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
         K_T      :: Float64,
         K_S      :: Float64,
-        T_ML     :: Union{AbstractArray{Float64, 2}, Float64} = T_ref,
-        S_ML     :: Union{AbstractArray{Float64, 2}, Float64} = S_ref,
-        h_ML     :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
-        h_ML_min :: Float64,
-        h_ML_max :: Float64,
+        T_ML     :: Union{AbstractArray{Float64, 2}, Float64},
+        S_ML     :: Union{AbstractArray{Float64, 2}, Float64},
+        h_ML     :: Union{AbstractArray{Float64, 2}, Float64, Nothing},
+        h_ML_min :: Union{AbstractArray{Float64, 2}, Float64},
+        h_ML_max :: Union{AbstractArray{Float64, 2}, Float64},
         we_max   :: Float64,
-        mask     :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
-        topo     :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
+        mask     :: Union{AbstractArray{Float64, 2}, Nothing},
+        topo     :: Union{AbstractArray{Float64, 2}, Nothing},
+        Ts_clim_relax_time :: Union{Float64, Nothing},
+        Ss_clim_relax_time :: Union{Float64, Nothing},
+        Ts_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
+        Ss_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
     )
 
-        if - h_ML_max < zs[end]
-            throw(ErrorException("h_ML_max should not be equal or greater than ocean max depth."))
-        end
-
-        # Dealing with z coordinate
+        
+        # ===== [BEGIN] z coordinate =====
         zs_bone = copy(zs_bone)
         Nz_bone = length(zs_bone) - 1
 
-        zs  = SharedArray{Float64}(Nx, Ny, Nz_bone + 1)
-        Nz  = SharedArray{Float64}(Nx, Ny)
-        hs  = SharedArray{Float64}(Nx, Ny, Nz_bone)
-        Δzs = SharedArray{Float64}(Nx, Ny, Nz_bone - 1)
+        zs   = SharedArray{Float64}(Nx, Ny, Nz_bone + 1)
+        Nz   = SharedArray{Float64}(Nx, Ny)
+        hs   = SharedArray{Float64}(Nx, Ny, Nz_bone)
+        Δzs  = SharedArray{Float64}(Nx, Ny, Nz_bone - 1)
+        _topo = SharedArray{Float64}(Nx, Ny)
+
+
 
         #zs  .= NaN
         #Nz  .= NaN
@@ -78,10 +92,9 @@ mutable struct OceanColumnCollection
         #Δzs .= NaN
 
         if topo == nothing
-            topo = zeros(Float64, Nx, Ny)
-            topo .= zs_bone[end]
+            _topo .= zs_bone[end]
         else
-            topo = copy(topo)
+            _topo[:, :] = topo
         end
 
 
@@ -93,7 +106,7 @@ mutable struct OceanColumnCollection
             # the bottom of zs_bone
             _Nz = Nz_bone
             for k=2:length(zs_bone)
-                if zs_bone[k] <= topo[i, j]
+                if zs_bone[k] <= _topo[i, j]
                     _Nz = k-1
                     break
                 end
@@ -105,7 +118,7 @@ mutable struct OceanColumnCollection
             zs[i, j, 1:_Nz+1] = zs_bone[1:_Nz+1]
 
             if _Nz < Nz_bone
-                zs[i, j, _Nz+1] = topo[i, j]
+                zs[i, j, _Nz+1] = _topo[i, j]
             end
 
             # Construct thickness of each layer
@@ -114,6 +127,50 @@ mutable struct OceanColumnCollection
             
         end
 
+        # ===== [END] z coordinate =====
+
+        # ===== [BEGIN] Min/max of ML =====
+        # Min/max of ML is tricky because it cannot be
+        # deeper than the bottom boundary
+
+        _h_ML_min = SharedArray{Float64}(Nx, Ny)
+        _h_ML_max = SharedArray{Float64}(Nx, Ny)
+
+        if h_ML_min <: AbstractArray{Float64, 2}
+            _h_ML_min[:, :] = h_ML_min
+        elseif h_ML_min <: Float64
+            _h_ML_min .= h_ML_min
+        end
+
+        if h_ML_max <: AbstractArray{Float64, 2}
+            _h_ML_max[:, :] = h_ML_max
+        elseif h_ML_max <: Float64
+            _h_ML_max .= h_ML_max
+        end
+
+
+        # Detect and fix h_ML_{max,min}
+        for i=1:Nx, j=1:Ny
+
+            hmax = _h_ML_max[i, j]
+            hmin = _h_ML_min[i, j]
+            hbot = - zs[i, j, Nz[i, j]+1]
+
+            if hmax < hmin
+                throw(ErrorException(format("h_ML_max must ≥ h_ML_min. Problem happens at idx ({:d}, {:d})", i, j)))
+            end
+
+            if hmin > hbot
+                _h_ML_max[i, j] = _h_ML_min[i, j] = hbot
+            elseif hmax > hbot
+                _h_ML_max[i, j] = hbot
+            end
+            
+        end
+
+        # ===== [END] Min/max of ML =====
+
+        # ===== [BEGIN] mask =====
 
         if mask == nothing
             mask = SharedArray{Float64}(Nx, Ny)
@@ -123,7 +180,10 @@ mutable struct OceanColumnCollection
         end
 
         mask_idx = (mask .== 0.0)
+        
+        # ===== [END mask =====
 
+        # ===== [BEGIN] Column information =====
         _b_ML     = SharedArray{Float64}(Nx, Ny)
         _T_ML     = SharedArray{Float64}(Nx, Ny)
         _S_ML     = SharedArray{Float64}(Nx, Ny)
@@ -188,6 +248,56 @@ mutable struct OceanColumnCollection
             Ss_vw[i, j] = view(_Ss, i, j, :)
         end
 
+        # ===== [END] Column information =====
+
+        # ===== [BEGIN] Climatology =====
+
+        if Ts_clim == nothing
+
+            _Ts_clim = nothing
+
+        else
+            
+            _Ts_clim = SharedArray{Float64}(Nx, Ny, Nz_bone)
+            
+            if Ts_clim <: AbstractArray{Float64, 3}
+
+                _Ts_clim[:, :, :] = Ts_clim
+
+            elseif Ts_clim <: AbstractArray{Float64, 1}
+
+                for i=1:Nx, j=1:Ny
+                    _Ts_clim[i, j, :] = Ts_clim
+                end
+
+            end
+
+        end 
+
+
+        if Ss_clim == nothing
+            
+            _Ss_clim = nothing
+
+        else
+            
+            _Ss_clim = SharedArray{Float64}(Nx, Ny, Nz_bone)
+            
+            if Ss_clim <: AbstractArray{Float64, 3}
+
+                _Ss_clim[:, :, :] = Ss_clim
+
+            elseif Ss_clim <: AbstractArray{Float64, 1}
+
+                for i=1:Nx, j=1:Ny
+                    _Ss_clim[i, j, :] = Ss_clim
+                end
+
+            end
+
+        end 
+
+        # ===== [END] Climatology =====
 
         occ = new(
             Nx, Ny, Nz_bone,
@@ -197,7 +307,10 @@ mutable struct OceanColumnCollection
             _b_ML, _T_ML, _S_ML, _h_ML,
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
-            h_ML_min, h_ML_max, we_max,
+            _h_ML_min, _h_ML_max, we_max,
+            (_Ts_clim != nothing), (_Ss_clim != nothing),
+            Ts_clim_relax_time, Ss_clim_relax_time,
+            _Ts_clim, _Ss_clim,
             Nx * Ny, hs, Δzs,
             zs_vw, bs_vw, Ts_vw, Ss_vw,
         )
@@ -234,18 +347,25 @@ function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
     to_occ.h_ML[:, :]       = fr_occ.h_ML
 
     to_occ.bs[:, :, :]      = fr_occ.bs
-    to_occ.Ss[:, :, :]      = fr_occ.Ss
     to_occ.Ts[:, :, :]      = fr_occ.Ts
+    to_occ.Ss[:, :, :]      = fr_occ.Ss
     to_occ.FLDO[:, :]       = fr_occ.FLDO
     to_occ.qflx2atm[:, :]   = fr_occ.qflx2atm
 
-    to_occ.h_ML_min         = fr_occ.h_ML_min
-    to_occ.h_ML_max         = fr_occ.h_ML_max
+    to_occ.h_ML_min[:, :]   = fr_occ.h_ML_min
+    to_occ.h_ML_max[:, :]   = fr_occ.h_ML_max
     to_occ.we_max           = fr_occ.we_max
+
+    to_occ.Ts_clim_flag     = fr_occ.Ts_clim_flag 
+    to_occ.Ss_clim_flag     = fr_occ.Ss_clim_flag 
+
+    to_occ.Ts_clim[:, :, :] = fr_occ.Ts_clim
+    to_occ.Ss_clim[:, :, :] = fr_occ.Ss_clim
 
     to_occ.N_ocs            = fr_occ.N_ocs
     to_occ.hs[:, :, :]      = fr_occ.hs
     to_occ.Δzs[:, :, :]     = fr_occ.Δzs
+
 end
 
 function copyOCC(occ::OceanColumnCollection)
@@ -255,7 +375,7 @@ function copyOCC(occ::OceanColumnCollection)
     return occ2
 end
 
-
+#=
 function makeBlankOceanColumnCollection(
     Nx      :: Integer,
     Ny      :: Integer,
@@ -274,14 +394,16 @@ function makeBlankOceanColumnCollection(
         K_S      = 0.0,
         T_ML     = 0.0,
         S_ML     = 0.0,
-        h_ML     = -zs[2],
-        h_ML_min = -zs[2],
-        h_ML_max = -zs[end-1],
+        h_ML     = -zs_bone[2],
+        h_ML_min = -zs_bone[2],
+        h_ML_max = -zs_bone[end-1],
         we_max   = 0.0,
         mask     = mask,
         topo     = topo,
     )
 end
+=#
+
 
 
 function makeBasicOceanColumnCollection(
@@ -302,6 +424,8 @@ function makeBasicOceanColumnCollection(
     we_max  :: Float64,
     mask    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
     topo    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
+    Ts_clim :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1},  Nothing} = nothing,
+    Ss_clim :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1},  Nothing} = nothing,
 )
 
     
@@ -332,6 +456,8 @@ function makeBasicOceanColumnCollection(
         h_ML_min  = h_ML_min,        
         h_ML_max  = h_ML_max,
         we_max    = we_max,
+        Ts_clim   = Ts_clim,
+        Ss_clim   = Ss_clim,
         mask      = mask,
         topo      = topo,
     )

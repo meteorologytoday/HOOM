@@ -90,7 +90,7 @@ function stepOceanColumnCollection!(
         end
         #println("old: ", old_h_ML, "; new: ", new_h_ML, "; we: ", we, ";")    
         #println("h_ML_min: ", occ.h_ML_min, "; h_ML_max: ", occ.h_ML_max)    
-        new_h_ML = boundMLD(new_h_ML; h_ML_max=occ.h_ML_max, h_ML_min=occ.h_ML_min)
+        new_h_ML = boundMLD(new_h_ML; h_ML_max=occ.h_ML_max[i, j], h_ML_min=occ.h_ML_min[i, j])
 
         #println("flag: ", String(flag), "; val: ", val, "; new_h_ML: ", new_h_ML)
         # 2

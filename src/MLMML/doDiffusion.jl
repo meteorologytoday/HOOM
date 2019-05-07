@@ -111,7 +111,7 @@ function OC_doDiffusion_EulerBackward!(
         K    = occ.K_T,
         FLDO = occ.FLDO[i, j],
         Δt   = Δt,
-        h_ML_min = occ.h_ML_min,
+        h_ML_min = occ.h_ML_min[i, j],
     )
 
     occ.S_ML[i, j] = doDiffusion_BackwardEuler!(
@@ -122,7 +122,7 @@ function OC_doDiffusion_EulerBackward!(
         K    = occ.K_S,
         FLDO = occ.FLDO[i, j],
         Δt   = Δt,
-        h_ML_min = occ.h_ML_min,
+        h_ML_min = occ.h_ML_min[i, j],
     )
 
 end

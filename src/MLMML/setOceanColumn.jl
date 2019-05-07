@@ -58,7 +58,7 @@ function OC_setBuoyancy!(
 end
 
 
-
+#=
 function makeBlankOceanColumn(;zs::Array{Float64, 1})
     N     = length(zs) - 1
     bs    = zeros(Float64, N)
@@ -72,6 +72,7 @@ function makeBlankOceanColumn(;zs::Array{Float64, 1})
 
     return oc
 end
+
 
 function makeSimpleOceanColumn(;
     zs      :: AbstractArray{Float64, 1},
@@ -101,3 +102,4 @@ function makeSimpleOceanColumn(;
     return oc
 
 end
+=#

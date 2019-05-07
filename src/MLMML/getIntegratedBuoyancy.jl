@@ -11,7 +11,7 @@ function OC_getIntegratedTemperature(
 
     return getIntegratedQuantity(
         zs       = occ.zs_vw[i, j],
-        qs       = occ.Ts_vw[i, j]),
+        qs       = occ.Ts_vw[i, j],
         q_ML     = occ.T_ML[i, j],
         h_ML     = occ.h_ML[i, j],
         target_z = target_z,
