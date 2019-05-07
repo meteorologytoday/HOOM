@@ -2,33 +2,25 @@ function loadSnapshot(filename::AbstractString)
     local occ
 
     Dataset(filename, "r") do ds
+
         occ = makeBlankOceanColumnCollection(
-            ds.dim["Nx"],
-            ds.dim["Ny"],
-            nomissing(ds["zs_bone"][:], NaN);
-            mask = nomissing(ds["mask"][:], NaN),
-            topo = nomissing(ds["topo"][:], NaN),
+            Nx       = ds.dim["Nx"],
+            Ny       = ds.dim["Ny"],
+            zs_bone  = nomissing(ds["zs_bone"][:], NaN);
+            Ts       = nomissing(ds["Ts"][:], NaN),
+            Ss       = nomissing(ds["Ss"][:], NaN),
+            K_T      = ds.attrib["K_T"],
+            K_S      = ds.attrib["K_S"],
+            T_ML     = nomissing(ds["T_ML"][:], NaN),
+            S_ML     = nomissing(ds["S_ML"][:], NaN),
+            h_ML     = nomissing(ds["h_ML"][:], NaN),
+            h_ML_min = ds.attrib["h_ML_min"],
+            h_ML_max = ds.attrib["h_ML_max"],
+            mask     = nomissing(ds["mask"][:], NaN),
+            topo     = nomissing(ds["topo"][:], NaN),
         )
 
-        occ.K_T = ds.attrib["K_T"]
-        occ.K_S = ds.attrib["K_S"]
-        occ.h_ML_min = ds.attrib["h_ML_min"]
-        occ.h_ML_max = ds.attrib["h_ML_max"]
-        occ.we_max = ds.attrib["we_max"]
-
-        occ.h_ML[:, :]  = nomissing( ds["h_ML"][:], NaN )
-
-        occ.Ts[:, :, :] = nomissing( ds["Ts"][:], NaN )
-        occ.Ss[:, :, :] = nomissing( ds["Ss"][:], NaN )
-
-        occ.T_ML[:, :]  = nomissing( ds["T_ML"][:], NaN )
-        occ.S_ML[:, :]  = nomissing( ds["S_ML"][:], NaN )
-
-
     end
-
-    updateFLDO!(occ)
-    updateB!(occ)
 
     return occ 
 end
@@ -43,14 +35,17 @@ function takeSnapshot(
 
     Dataset(filename, "a") do ds
    
-        _write2NCFile(ds, "zs", ("N_zs",), occ.zs, missing_value)
-        _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
+        _write2NCFile(ds, "zs_bone", ("NP_zs_bone",), occ.zs, missing_value)
 
-        _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz"), occ.Ts, missing_value)
-        _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz"), occ.Ss, missing_value)
+        _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz_bone"), occ.Ts, missing_value)
+        _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz_bone"), occ.Ss, missing_value)
         _write2NCFile(ds, "T_ML", ("Nx", "Ny",), occ.T_ML, missing_value)
         _write2NCFile(ds, "S_ML", ("Nx", "Ny",), occ.S_ML, missing_value)
         _write2NCFile(ds, "h_ML", ("Nx", "Ny",), occ.h_ML, missing_value)
+
+        _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
+        _write2NCFile(ds, "topo", ("Nx", "Ny",), occ.mask, missing_value)
+
     end
 
 end
@@ -66,11 +61,12 @@ function _createNCFile(
         defDim(ds, "N_ocs", occ.N_ocs)
         defDim(ds, "Nx", occ.Nx)
         defDim(ds, "Ny", occ.Ny)
-        defDim(ds, "Nz", occ.Nz)
-        defDim(ds, "N_zs",   length(occ.zs))
+        defDim(ds, "Nz_bone", occ.Nz_bone)
+        defDim(ds, "NP_zs_bone",   length(occ.zs_bone))
         defDim(ds, "time",   Inf)
        
         ds.attrib["_FillValue"] = missing_value
+
         ds.attrib["K_T"] = occ.K_T
         ds.attrib["K_S"] = occ.K_S
         ds.attrib["h_ML_min"] = occ.h_ML_min

@@ -45,13 +45,13 @@ mutable struct OceanColumnCollection
         Nx       :: Integer,
         Ny       :: Integer,
         zs_bone  :: AbstractArray{Float64, 1},
-        Ts       :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
-        Ss       :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
+        Ts       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64} = T_ref,
+        Ss       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64} = S_ref,
         K_T      :: Float64,
         K_S      :: Float64,
-        T_ML     :: Float64,
-        S_ML     :: Float64,
-        h_ML     :: Float64,
+        T_ML     :: Union{AbstractArray{Float64, 2}, Float64} = T_ref,
+        S_ML     :: Union{AbstractArray{Float64, 2}, Float64} = S_ref,
+        h_ML     :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
         h_ML_min :: Float64,
         h_ML_max :: Float64,
         we_max   :: Float64,
@@ -72,10 +72,10 @@ mutable struct OceanColumnCollection
         hs  = SharedArray{Float64}(Nx, Ny, Nz_bone)
         Δzs = SharedArray{Float64}(Nx, Ny, Nz_bone - 1)
 
-        zs  .= NaN
-        Nz  .= NaN
-        hs  .= NaN
-        Δzs .= NaN
+        #zs  .= NaN
+        #Nz  .= NaN
+        #hs  .= NaN
+        #Δzs .= NaN
 
         if topo == nothing
             topo = zeros(Float64, Nx, Ny)
@@ -88,20 +88,29 @@ mutable struct OceanColumnCollection
         for i=1:Nx, j=1:Ny
 
             # Determine Nz
+
+            # Default is that topo is deeper than
+            # the bottom of zs_bone
+            _Nz = Nz_bone
             for k=2:length(zs_bone)
                 if zs_bone[k] <= topo[i, j]
-                    Nz[i, j] = k-1
+                    _Nz = k-1
                     break
                 end
             end
 
+            Nz[i, j] = _Nz
+
             # Construct vertical coordinate
-            zs[i, j, 1:Nz] = zs_bone[1:Nz]
-            zs[i, j, Nz+1] = topo[i, j]
+            zs[i, j, 1:_Nz+1] = zs_bone[1:_Nz+1]
+
+            if _Nz < Nz_bone
+                zs[i, j, _Nz+1] = topo[i, j]
+            end
 
             # Construct thickness of each layer
-            hs[i, j, :]  = zs[i, j, 1:end-1] - zs[i, j, 2:end]
-            Δzs[i, j, :] = (hs[i, j, 1:end-1] + hs[i, j, 2:end]) / 2.0
+            hs[ i, j, 1:_Nz]  = zs[i, j, 1:_Nz] - zs[i, j, 2:_Nz+1]
+            Δzs[i, j, 1:_Nz-1] = (hs[i, j, 1:_Nz-1] + hs[i, j, 2:_Nz]) / 2.0
             
         end
 
@@ -126,20 +135,45 @@ mutable struct OceanColumnCollection
         _FLDO     = zeros(Int64, Nx, Ny)
         qflx2atm  = SharedArray{Float64}(Nx, Ny)
 
-        _h_ML .= h_ML
-        _T_ML .= T_ML
-        _S_ML .= S_ML
-       
-        if Ts != nothing 
+
+        if h_ML <: AbstractArray{Float64, 2}
+            _h_ML[:, :] = h_ML
+        elseif h_ML <: Float64
+            _h_ML .= h_ML
+        elseif h_ML == nothing
+            _h_ML .= h_ML_min
+        end
+
+        if T_ML <: AbstractArray{Float64, 2}
+            _T_ML[:, :] = T_ML
+        elseif T_ML <: Float64
+            _T_ML .= T_ML
+        end
+
+        if S_ML <: AbstractArray{Float64, 2}
+            _S_ML[:, :] = S_ML
+        elseif S_ML <: Float64
+            _S_ML .= S_ML
+        end
+
+        if Ts <: AbstractArray{Float64, 3}
+            _Ts[:, :, :] = Ts
+        elseif Ts <: AbstractArray{Float64, 1}
             for i=1:Nx, j=1:Ny
                 _Ts[i, j, :] = Ts
             end
+        elseif Ts <: Float64 
+            _Ts .= Ts
         end
 
-        if Ss != nothing 
+        if Ss <: AbstractArray{Float64, 3}
+            _Ss[:, :, :] = Ss
+        elseif Ss <: AbstractArray{Float64, 1}
             for i=1:Nx, j=1:Ny
                 _Ss[i, j, :] = Ss
             end
+        elseif Ss <: Float64 
+            _Ss .= Ss
         end
 
         zs_vw = Array{SubArray}(undef, Nx, Ny)
@@ -234,12 +268,12 @@ function makeBlankOceanColumnCollection(
         Nx       = Nx,
         Ny       = Ny,
         zs_bone  = zs_bone,
-        Ss       = nothing,
         Ts       = nothing,
+        Ss       = nothing,
         K_T      = 0.0,
         K_S      = 0.0,
-        S_ML     = 0.0,
         T_ML     = 0.0,
+        S_ML     = 0.0,
         h_ML     = -zs[2],
         h_ML_min = -zs[2],
         h_ML_max = -zs[end-1],
