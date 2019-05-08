@@ -110,6 +110,7 @@ function OC_doDiffusion_EulerBackward!(
         h_ML = occ.h_ML[i, j],
         K    = occ.K_T,
         FLDO = occ.FLDO[i, j],
+        Nz   = occ.Nz[i, j],
         Δt   = Δt,
         h_ML_min = occ.h_ML_min[i, j],
     )
@@ -121,6 +122,7 @@ function OC_doDiffusion_EulerBackward!(
         h_ML = occ.h_ML[i, j],
         K    = occ.K_S,
         FLDO = occ.FLDO[i, j],
+        Nz   = occ.Nz[i, j],
         Δt   = Δt,
         h_ML_min = occ.h_ML_min[i, j],
     )
@@ -135,6 +137,7 @@ function doDiffusion_BackwardEuler!(;
     h_ML :: Float64,
     K    :: Float64,
     FLDO :: Integer,
+    Nz   :: Integer,
     Δt   :: Float64,
     h_ML_min :: Float64,
 )
@@ -145,15 +148,15 @@ function doDiffusion_BackwardEuler!(;
     # Diffusion of all layers
     # b_flux[i] means the flux from layer i+1 to i (upward > 0)
     # the extra b_flux[end] is artificial for easier programming
-    n   = length(qs) - (FLDO - 1) + 1
+    # n   = length(qs) - (FLDO - 1) + 1
+    
+    n   = Nz - (FLDO - 1) + 1   # n = FLDO - Nz + 2
     Δzs = zeros(Float64, n-1)
     hs  = zeros(Float64, n)
     qs_RHS = zeros(Float64, n)
 
     qs_RHS[1] = q_ML
-    qs_RHS[2:end] = qs[FLDO:end]
-
-    #println("qs[end]", qs[end])
+    qs_RHS[2:n] = qs[FLDO:Nz]   # n - 2 + 1 = n - 1 = FLDO - Nz + 1
 
     #println("length(hs) = ", length(hs))
     #println("length(zs) = ", length(zs))
@@ -196,7 +199,7 @@ function doDiffusion_BackwardEuler!(;
     if FLDO > 1
         qs[1:FLDO-1] .= new_q_ML
     end
-    qs[FLDO:end] = qs_new[2:end]
+    qs[FLDO:Nz] = qs_new[2:n]
 
     return new_q_ML
 end

@@ -14,6 +14,7 @@ function OC_doConvectiveAdjustment!(
         T_ML     = occ.T_ML[i, j],
         S_ML     = occ.S_ML[i, j],
         FLDO     = occ.FLDO[i, j],
+        Nz       = occ.Nz[i, j],
         h_ML_max = occ.h_ML_max[i, j],
     )
 
@@ -40,6 +41,7 @@ function doConvectiveAdjustment!(;
     T_ML :: Float64,
     S_ML :: Float64,
     FLDO :: Integer,
+    Nz   :: Integer,
     h_ML_max :: Float64,
 )
     
@@ -70,7 +72,7 @@ function doConvectiveAdjustment!(;
 
 
 
-   for i = length(bs):-1:FLDO
+   for i = Nz:-1:FLDO
 
 
         if stage == :reset
@@ -113,7 +115,7 @@ function doConvectiveAdjustment!(;
 
             #println(":search_bot_layer")
 
-            if peak_layer == length(bs)
+            if peak_layer == Nz
 
                 bot_layer = peak_layer
                 stage = :start_adjustment
@@ -129,7 +131,7 @@ function doConvectiveAdjustment!(;
                 bot_layer = peak_layer + 1
                 while true
                     if bs[bot_layer] >= b_min
-                        if bot_layer == length(bs)
+                        if bot_layer == Nz
                             stage = :start_adjustment
                             break
                         else
@@ -160,12 +162,14 @@ function doConvectiveAdjustment!(;
                 qs       =  Ts,
                 q_ML     =  T_ML,
                 h_ML     =  h_ML,
+                Nz       =  Nz,
                 target_z =  bot_z
             ) - getIntegratedQuantity(
                 zs       =  zs,
                 qs       =  Ts,
                 q_ML     =  T_ML,
                 h_ML     =  h_ML,
+                Nz       =  Nz,
                 target_z =  top_z
             ))  / Δz
  
@@ -174,12 +178,14 @@ function doConvectiveAdjustment!(;
                 qs       =  Ss,
                 q_ML     =  S_ML,
                 h_ML     =  h_ML,
+                Nz       =  Nz,
                 target_z =  bot_z
             ) - getIntegratedQuantity(
                 zs       =  zs,
                 qs       =  Ss,
                 q_ML     =  S_ML,
                 h_ML     =  h_ML,
+                Nz       =  Nz,
                 target_z =  top_z
             ))  / Δz
            
@@ -188,10 +194,10 @@ function doConvectiveAdjustment!(;
                 new_S_ML = mixed_S
                 new_h_ML = - bot_z
 
-                new_FLDO = setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML=new_h_ML)
+                new_FLDO = setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML=new_h_ML, Nz=Nz)
                 
                 if new_h_ML > h_ML_max
-                    new_FLDO = getFLDO(zs=zs, h_ML=h_ML_max)
+                    new_FLDO = getFLDO(zs=zs, h_ML=h_ML_max, Nz=Nz)
                 end
 
             else

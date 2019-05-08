@@ -14,6 +14,7 @@ function OC_getIntegratedTemperature(
         qs       = occ.Ts_vw[i, j],
         q_ML     = occ.T_ML[i, j],
         h_ML     = occ.h_ML[i, j],
+        Nz       = occ.Nz[i, j],
         target_z = target_z,
     )
 end
@@ -37,6 +38,7 @@ function OC_getIntegratedSalinity(
         qs       = occ.Ss_vw[i, j],
         q_ML     = occ.S_ML[i, j],
         h_ML     = occ.h_ML[i, j],
+        Nz       = occ.Nz[i, j],
         target_z = target_z,
     )
 end
@@ -51,7 +53,7 @@ function OC_getIntegratedBuoyancy(
 )
 
     if isnan(target_z)
-        target_z = occ.zs_vw[occ.Nz[i, j]+1]
+        target_z = occ.zs_vw[i, j][occ.Nz[i, j]+1]
     end
 
     return getIntegratedQuantity(
@@ -59,7 +61,8 @@ function OC_getIntegratedBuoyancy(
         qs       = occ.bs_vw[i, j],
         q_ML     = occ.b_ML[i, j],
         h_ML     = occ.h_ML[i, j],
-        target_z = target_z
+        Nz       = occ.Nz[i, j],
+        target_z = target_z,
     )
 end
 
@@ -69,6 +72,7 @@ function getIntegratedQuantity(;
     qs       :: AbstractArray{Float64,1},
     q_ML     :: Float64,
     h_ML     :: Float64,
+    Nz       :: Integer,
     target_z :: Float64,
 )
 
@@ -87,7 +91,7 @@ function getIntegratedQuantity(;
 
 
     # Test if entire ocean column is mixed layer
-    FLDO = getFLDO(zs=zs, h_ML=h_ML)
+    FLDO = getFLDO(zs=zs, h_ML=h_ML, Nz=Nz)
     if FLDO == -1
         return sum_q
     end
@@ -101,8 +105,8 @@ function getIntegratedQuantity(;
     sum_q += qs[FLDO] * ( (-h_ML) - zs[FLDO+1]) 
 
     # Integrate rest layers
-    if FLDO < length(qs)
-        for i = FLDO+1 : length(qs)
+    if FLDO < Nz
+        for i = FLDO+1 : Nz
             if target_z < zs[i+1]
                 sum_q += qs[i] * (zs[i] - zs[i+1])
             else

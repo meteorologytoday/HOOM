@@ -1,4 +1,4 @@
-include("../MLMML.jl")
+
 include("LinearRegression.jl")
 
 using Printf
@@ -13,24 +13,11 @@ using PyPlot
 @pyimport matplotlib.gridspec as GS
 @printf("done.\n")
 
+include("test_profile_config.jl")
+
 if(do_calculation)
 
 
-zs = collect(Float64, range(0.0, stop=100.0 , length=51))
-push!(zs, collect(Float64, range(100, step=10, stop=2000))[2:end]...)
-push!(zs, collect(Float64, range(2000, step=50, stop=4000))[2:end]...)
-zs *= -1.0
-
-N = length(zs) - 1
-
-ΔT_0 = 5.0
-ΔS_0 = 0.0
-T_ML_0 = 300.0
-S_ML_0 = 35e-3
-h_ML_0 = MLMML.h_ML_min
-
-T_slope = 2.0 / 4000.0
-S_slope = 0.0
 
 SECS_PER_DAY = 86400.0
 DAYS_PER_MON = 30
@@ -38,8 +25,8 @@ MONS_PER_YEAR= 12
 DAYS_PER_YEAR = DAYS_PER_MON * MONS_PER_YEAR
 SECS_PER_YEAR = DAYS_PER_YEAR * SECS_PER_DAY
 
-SPINUP_YEARS = 50
-YEARS_WANTED = 50
+SPINUP_YEARS = 1
+YEARS_WANTED = 20
 TOTAL_YEARS = SPINUP_YEARS + YEARS_WANTED
 
 TOTAL_DAYS = TOTAL_YEARS * DAYS_PER_YEAR
@@ -67,18 +54,6 @@ frwflx = 0*(40.0 / 1000.0 / 86400.0) * (- cos.(ω*t_sim))
 U10 = zeros(Float64, length(t_sim))
 U10 .= 8.0 .+ 2.0 * cos.(ω*t_sim)
 
-occ = MLMML.makeBasicOceanColumnCollection(
-    1, 1, zs,
-    T_slope = T_slope,
-    S_slope = S_slope,
-    T_ML    = T_ML_0,
-    S_ML    = S_ML_0,
-    h_ML    = h_ML_0,
-    ΔT      = ΔT_0,
-    ΔS      = ΔS_0,
-    K_T     = 1e-5,
-    K_S     = 1e-5
-)
 
 using PyPlot
 mid_zs = (zs[1:end-1] + zs[2:end]) / 2.0
@@ -94,9 +69,9 @@ ax[1][:set_title]("Init S [g/Kg]")
 
 
 rec = Dict(
-    "b"  => zeros(Float64, occ.Nz, DAYS_WANTED),
-    "T"  => zeros(Float64, occ.Nz, DAYS_WANTED),
-    "S"  => zeros(Float64, occ.Nz, DAYS_WANTED),
+    "b"  => zeros(Float64, occ.Nz[1], DAYS_WANTED),
+    "T"  => zeros(Float64, occ.Nz[1], DAYS_WANTED),
+    "S"  => zeros(Float64, occ.Nz[1], DAYS_WANTED),
     "h"  => zeros(Float64, DAYS_WANTED),
     "hb" => zeros(Float64, DAYS_WANTED),
     "swflx" => zeros(Float64, DAYS_WANTED),
@@ -157,9 +132,9 @@ day_len = length(t)
 
 for k in ("b", "T", "S")
     
-    day_means[k]    = zeros(occ.Nz, DAYS_PER_YEAR)
-    day_rmsc[k]     = zeros(occ.Nz, day_len)
-    for i=1:occ.Nz
+    day_means[k]    = zeros(occ.Nz[1], DAYS_PER_YEAR)
+    day_rmsc[k]     = zeros(occ.Nz[1], day_len)
+    for i=1:occ.Nz[1]
         d_timeseries = day[k][i, :]
 
         # Because detrending is not uniform across different layers,
@@ -183,9 +158,9 @@ end
 mon_len = Int(length(t)/DAYS_PER_MON)
 mon = Dict(
     "t" => zeros(mon_len),
-    "b" => zeros(occ.Nz, mon_len),
-    "T" => zeros(occ.Nz, mon_len),
-    "S" => zeros(occ.Nz, mon_len),
+    "b" => zeros(occ.Nz[1], mon_len),
+    "T" => zeros(occ.Nz[1], mon_len),
+    "S" => zeros(occ.Nz[1], mon_len),
     "h" => zeros(mon_len),
 )
 
@@ -207,10 +182,10 @@ mon["t"] .-= mon["t"][1]
 
 
 for k in ("b", "T", "S")
-    total_trends[k] = zeros(occ.Nz)
-    mon_means[k]    = zeros(occ.Nz, MONS_PER_YEAR)
-    mon_rmsc[k]     = zeros(occ.Nz, mon_len)
-    for i=1:occ.Nz
+    total_trends[k] = zeros(occ.Nz[1])
+    mon_means[k]    = zeros(occ.Nz[1], MONS_PER_YEAR)
+    mon_rmsc[k]     = zeros(occ.Nz[1], mon_len)
+    for i=1:occ.Nz[1]
         d_timeseries = mon[k][i, :]
 
         # Because detrending is not uniform across different layers,
@@ -301,7 +276,6 @@ ax2[:set_ylim]([-1500, 0])
 ax2[:set_ylim]([-1100, 0])
 
 tlim = [t_yr[1], t_yr[end]]
-tlim = [20, 30]
 
 
 ax1[:set_ylim]([-0.5, 0.5])

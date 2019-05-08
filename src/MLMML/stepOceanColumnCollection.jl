@@ -25,7 +25,8 @@ function stepOceanColumnCollection!(
 )
 
     # It is assumed here that buoyancy has already been updated.
-    @time @sync @distributed  for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
+    #@time @sync @distributed  for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
+    for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
 
         i = idx[1]
         j = idx[2]
@@ -105,7 +106,7 @@ function stepOceanColumnCollection!(
         # If new_h_ML < old_h_ML, then the FLDO layer should get extra T or S due to mixing
         if new_h_ML < old_h_ML
 
-            new_FLDO = getFLDO(zs=zs, h_ML=new_h_ML)
+            new_FLDO = getFLDO(zs=zs, h_ML=new_h_ML, Nz=occ.Nz[i, j])
 
             if old_FLDO == -1
 
@@ -150,7 +151,7 @@ function stepOceanColumnCollection!(
 
         OC_updateB!(occ, i, j)
         
-        OC_doConvectiveAdjustment!(occ, i, j)
+        OC_doConvectiveAdjustment!(occ, i, j;)
 
 
 
