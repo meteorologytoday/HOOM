@@ -1,9 +1,7 @@
-
 include("LinearRegression.jl")
 
 using Printf
 using Statistics: mean
-using .MLMML
 using Formatting
 using StatsBase
 

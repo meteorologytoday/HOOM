@@ -1,4 +1,5 @@
 include("../MLMML.jl")
+using .MLMML
 
 zs = collect(Float64, range(0.0, stop=100.0 , length=51))
 push!(zs, collect(Float64, range(100, step=10, stop=2000))[2:end]...)
@@ -30,8 +31,8 @@ occ = MLMML.makeBasicOceanColumnCollection(
     h_ML     = h_ML_0,
     ΔT       = ΔT_0,
     ΔS       = ΔS_0,
-    K_T      = 1e-3,
-    K_S      = 1e-3,
+    K_T      = 1e-5,
+    K_S      = 1e-5,
     h_ML_min = h_ML_min,
     h_ML_max = h_ML_max,
     we_max   = we_max,

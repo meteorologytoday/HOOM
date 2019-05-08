@@ -25,8 +25,8 @@ function stepOceanColumnCollection!(
 )
 
     # It is assumed here that buoyancy has already been updated.
-    #@time @sync @distributed  for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
-    for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
+    @time @sync @distributed  for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
+    #for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
 
         i = idx[1]
         j = idx[2]
