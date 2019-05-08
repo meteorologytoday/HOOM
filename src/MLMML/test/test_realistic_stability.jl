@@ -23,7 +23,7 @@ MONS_PER_YEAR= 12
 DAYS_PER_YEAR = DAYS_PER_MON * MONS_PER_YEAR
 SECS_PER_YEAR = DAYS_PER_YEAR * SECS_PER_DAY
 
-SPINUP_YEARS = 1
+SPINUP_YEARS = 5
 YEARS_WANTED = 20
 TOTAL_YEARS = SPINUP_YEARS + YEARS_WANTED
 
@@ -61,15 +61,15 @@ ax[2][:plot](occ.Ts[1,1,:], mid_zs)
 ax[3][:plot](occ.Ss[1,1,:] * 1e3, mid_zs)
 
 ax[1][:set_title]("Init b [m/s^2]")
-ax[1][:set_title]("Init T [K]")
-ax[1][:set_title]("Init S [g/Kg]")
+ax[2][:set_title]("Init T [K]")
+ax[3][:set_title]("Init S [g/Kg]")
 
 
 
 rec = Dict(
-    "b"  => zeros(Float64, occ.Nz[1], DAYS_WANTED),
-    "T"  => zeros(Float64, occ.Nz[1], DAYS_WANTED),
-    "S"  => zeros(Float64, occ.Nz[1], DAYS_WANTED),
+    "b"  => zeros(Float64, Nz, DAYS_WANTED),
+    "T"  => zeros(Float64, Nz, DAYS_WANTED),
+    "S"  => zeros(Float64, Nz, DAYS_WANTED),
     "h"  => zeros(Float64, DAYS_WANTED),
     "hb" => zeros(Float64, DAYS_WANTED),
     "swflx" => zeros(Float64, DAYS_WANTED),
@@ -82,10 +82,17 @@ _swflx  = zeros(Float64, 1, 1)
 _nswflx = zeros(Float64, 1, 1)
 _frwflx = zeros(Float64, 1, 1)
 
+
 for k = 1:length(t_sim)
-    if (k-1)%DAYS_PER_YEAR == 0
+    if true || (k-1)%DAYS_PER_YEAR == 0
         print(format("\rIteration = {:d}/{:d} ({:.1f}%)", k, length(t_sim), k / length(t_sim) * 100.0))
     end
+
+    if all(isfinite.(occ.Ts))
+        println("At simulation")
+        throw(ErrorException(occ.Ts[1, 1, 65:68] |> string))
+    end
+
 
     fric_u[1,1]  = MLMML.getFricU(ua=U10[k])
     _swflx[1,1]  = swflx[k]
@@ -110,11 +117,13 @@ for k = 1:length(t_sim)
         rec["nswflx"][i]  = nswflx[k]
         rec["frwflx"][i]  = frwflx[k]
         rec["h"][i]       = occ.h_ML[1, 1]
-        rec["b"][i]       = occ.b_ML[1, 1]
+        #rec["b"][i]       = occ.b_ML[1, 1]
         rec["hb"][i]      = MLMML.OC_getIntegratedBuoyancy(occ, 1, 1)
-        rec["b"][:, i]   = occ.bs[1, 1, :]
-        rec["T"][:, i]   = occ.Ts[1, 1, :]
-        rec["S"][:, i]   = occ.Ss[1, 1, :]
+        rec["b"][:, i]    = occ.bs[1, 1, :]
+        rec["T"][:, i]    = occ.Ts[1, 1, :]
+        rec["S"][:, i]    = occ.Ss[1, 1, :]
+
+        #println(rec["b"][65:68])
     end
 end
 
@@ -130,10 +139,14 @@ day_len = length(t)
 
 for k in ("b", "T", "S")
     
-    day_means[k]    = zeros(occ.Nz[1], DAYS_PER_YEAR)
-    day_rmsc[k]     = zeros(occ.Nz[1], day_len)
-    for i=1:occ.Nz[1]
+    day_means[k]    = zeros(Nz, DAYS_PER_YEAR)
+    day_rmsc[k]     = zeros(Nz, day_len)
+    for i=1:Nz
         d_timeseries = day[k][i, :]
+
+        if any(isnan.(d_timeseries))
+            break
+        end
 
         # Because detrending is not uniform across different layers,
         # here I just simply average them to get avg profile
@@ -156,9 +169,9 @@ end
 mon_len = Int(length(t)/DAYS_PER_MON)
 mon = Dict(
     "t" => zeros(mon_len),
-    "b" => zeros(occ.Nz[1], mon_len),
-    "T" => zeros(occ.Nz[1], mon_len),
-    "S" => zeros(occ.Nz[1], mon_len),
+    "b" => zeros(Nz, mon_len),
+    "T" => zeros(Nz, mon_len),
+    "S" => zeros(Nz, mon_len),
     "h" => zeros(mon_len),
 )
 
@@ -176,19 +189,23 @@ for i = 1:mon_len
     mon["S"][:, i] = mean(rec["S"][:, mon_rng], dims=2)
 end
 
+
+
 mon["t"] .-= mon["t"][1]
 
 
 for k in ("b", "T", "S")
-    total_trends[k] = zeros(occ.Nz[1])
-    mon_means[k]    = zeros(occ.Nz[1], MONS_PER_YEAR)
-    mon_rmsc[k]     = zeros(occ.Nz[1], mon_len)
-    for i=1:occ.Nz[1]
+    total_trends[k] = zeros(Nz)
+    mon_means[k]    = zeros(Nz, MONS_PER_YEAR)
+    mon_rmsc[k]     = zeros(Nz, mon_len)
+
+    for i=1:Nz
         d_timeseries = mon[k][i, :]
 
         # Because detrending is not uniform across different layers,
         # here I just simply average them to get avg profile
         mon_means[k][i, :] = mean( reshape( d_timeseries, MONS_PER_YEAR, :), dims=2)[:,1]
+
         β = LinearRegression(mon["t"], d_timeseries)
         d_timeseries -= β[1] .+ β[2] * mon["t"]
         total_trends[k][i] = β[2]

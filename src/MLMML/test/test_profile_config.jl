@@ -20,6 +20,9 @@ we_max = 1.0
 T_slope = 2.0 / 4000.0
 S_slope = 0.0
 
+topo = zeros(Float64, 1, 1)
+topo[1, 1] = - 245.0
+
 occ = MLMML.makeBasicOceanColumnCollection(
     Nx       = 1,
     Ny       = 1,
@@ -36,14 +39,12 @@ occ = MLMML.makeBasicOceanColumnCollection(
     h_ML_min = h_ML_min,
     h_ML_max = h_ML_max,
     we_max   = we_max,
+    topo     = topo,
 )
 
+Nz = occ.Nz_bone
 
-
-
-
-
-
-
-
-
+if all(isfinite.(occ.Ts))
+    println("profile_config.jl")
+    throw(ErrorException(occ.Ts[1, 1, 65:68] |> string))
+end

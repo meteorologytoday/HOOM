@@ -20,8 +20,8 @@
         Ts[1:FLDO-1] .= T_ML
         Ss[1:FLDO-1] .= S_ML
     elseif FLDO == -1
-        Ts .= T_ML
-        Ss .= S_ML
+        Ts[1:Nz] .= T_ML
+        Ss[1:Nz] .= S_ML
     end
    
     return FLDO 

@@ -76,16 +76,16 @@ mutable struct OceanColumnCollection
         zs_bone = copy(zs_bone)
         Nz_bone = length(zs_bone) - 1
 
-        zs   = SharedArray{Float64}(Nx, Ny, Nz_bone + 1)
         Nz   = SharedArray{Int64}(Nx, Ny)
+        zs   = SharedArray{Float64}(Nx, Ny, Nz_bone + 1)
         hs   = SharedArray{Float64}(Nx, Ny, Nz_bone)
         Δzs  = SharedArray{Float64}(Nx, Ny, Nz_bone - 1)
         _topo = SharedArray{Float64}(Nx, Ny)
 
-        #zs  .= NaN
-        #Nz  .= NaN
-        #hs  .= NaN
-        #Δzs .= NaN
+        zs  .= NaN
+        Nz  .= 0
+        hs  .= NaN
+        Δzs .= NaN
 
         if topo == nothing
             _topo .= zs_bone[end]
@@ -103,6 +103,7 @@ mutable struct OceanColumnCollection
             for k=2:length(zs_bone)
                 if zs_bone[k] <= _topo[i, j]
                     _Nz = k-1
+                    println(format("This topo gets: zs_bone[{:d}] = {:f}, _topo[{:d},{:d}]={:f}", k, zs_bone[k], i, j, _topo[i,j]))
                     break
                 end
             end
@@ -232,9 +233,19 @@ mutable struct OceanColumnCollection
             _Ss .= Ss
         end
 
+        for v in [_bs, _Ts, _Ss]
+            for i=1:Nx, j=1:Ny
+                v[i, j, Nz[i, j] + 1:end] .= NaN
+            end
+        end
+
         # ===== [END] Column information =====
 
         # ===== [BEGIN] Climatology =====
+
+        # TODO: Need to detect whether all
+        #       climatology data points are
+        #       valid or not.
 
         if Ts_clim == nothing
 
@@ -316,6 +327,9 @@ mutable struct OceanColumnCollection
      
         # ===== [END] Construct Views =====
 
+        # ===== [BEGIN] Mask out values below topo =====
+        # ===== [END] Mask out values below topo =====
+
 
         occ = new(
             Nx, Ny, Nz_bone,
@@ -334,7 +348,6 @@ mutable struct OceanColumnCollection
 
         updateB!(occ)
         updateFLDO!(occ)
-        
 
         return occ
     end

@@ -25,8 +25,8 @@ function stepOceanColumnCollection!(
 )
 
     # It is assumed here that buoyancy has already been updated.
-    @time @sync @distributed  for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
-    #for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
+    #@time @sync @distributed  for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
+    for idx in CartesianIndices((1:occ.Nx, 1:occ.Ny))
 
         i = idx[1]
         j = idx[2]
@@ -36,6 +36,7 @@ function stepOceanColumnCollection!(
         end
 
         zs = occ.zs_vw[i, j]
+        Nz = occ.Nz[i, j]
 
         # Pseudo code
         # Current using only Euler forward scheme:
@@ -89,7 +90,7 @@ function stepOceanColumnCollection!(
             we = val 
             new_h_ML = old_h_ML + Δt * we
         end
-        #println("old: ", old_h_ML, "; new: ", new_h_ML, "; we: ", we, ";")    
+
         #println("h_ML_min: ", occ.h_ML_min, "; h_ML_max: ", occ.h_ML_max)    
         new_h_ML = boundMLD(new_h_ML; h_ML_max=occ.h_ML_max[i, j], h_ML_min=occ.h_ML_min[i, j])
 
@@ -104,14 +105,15 @@ function stepOceanColumnCollection!(
 
 
         # If new_h_ML < old_h_ML, then the FLDO layer should get extra T or S due to mixing
+
         if new_h_ML < old_h_ML
 
-            new_FLDO = getFLDO(zs=zs, h_ML=new_h_ML, Nz=occ.Nz[i, j])
+            new_FLDO = getFLDO(zs=zs, h_ML=new_h_ML, Nz=Nz)
 
             if old_FLDO == -1
 
-                occ.Ts[i, j, new_FLDO:end] .= occ.T_ML[i, j]
-                occ.Ss[i, j, new_FLDO:end] .= occ.S_ML[i, j]
+                occ.Ts[i, j, new_FLDO:Nz] .= occ.T_ML[i, j]
+                occ.Ss[i, j, new_FLDO:Nz] .= occ.S_ML[i, j]
 
             else
                 FLDO_Δz =  -zs[old_FLDO+1] - old_h_ML
@@ -126,9 +128,12 @@ function stepOceanColumnCollection!(
                 ) / (FLDO_Δz + retreat_Δz)
             end
         end
+
+        #println("target_z: ", -new_h_ML)
         
         new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - total_Tflx * Δt) / new_h_ML
         new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - total_Sflx * Δt) / new_h_ML
+
 
         OC_setMixedLayer!(
             occ, i, j;
@@ -136,7 +141,8 @@ function stepOceanColumnCollection!(
             S_ML=new_S_ML,
             h_ML=new_h_ML,
         )
-
+ 
+       
         # Climatology relaxation
         if occ.Ts_clim != nothing
             OC_doNewtonianRelaxation!(occ, i, j; Δt=Δt)
@@ -150,10 +156,7 @@ function stepOceanColumnCollection!(
         OC_doDiffusion_EulerBackward!(occ, i, j; Δt=Δt)
 
         OC_updateB!(occ, i, j)
-        
         OC_doConvectiveAdjustment!(occ, i, j;)
-
-
 
 
         # Freeze potential. Calculation mimics the one written in CESM1 docn_comp_mod.F90

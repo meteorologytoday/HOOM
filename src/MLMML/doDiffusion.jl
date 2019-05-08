@@ -164,7 +164,7 @@ function doDiffusion_BackwardEuler!(;
 
     hs[1] = h_ML
     hs[2] = -zs[FLDO+1] - h_ML
-    hs[3:end] = zs[FLDO+1:end-1] - zs[FLDO+2:end]
+    hs[3:end] = zs[FLDO+1:Nz] - zs[FLDO+2:Nz+1]
 
     #println(hs)
 

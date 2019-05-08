@@ -76,8 +76,10 @@ function getIntegratedQuantity(;
     target_z :: Float64,
 )
 
-    if target_z < zs[end]
-        throw(ErrorException("target_z cannot be deeper than the minimum of zs."))
+    if target_z < zs[Nz+1]
+        throw(ErrorException(
+            format("target_z ({:f}) cannot be deeper than the minimum of zs ({:f}).", target_z, zs[Nz])
+        ))
     end
 
 
