@@ -9,23 +9,7 @@ push!(zs, collect(Float64, range(100, step=10, stop=2000))[2:end]...)
 push!(zs, collect(Float64, range(2000, step=50, stop=4000))[2:end]...)
 zs *= -1.0
 """
-
-N = length(zs) - 1
-
-ΔT_0 = 5.0
-ΔS_0 = 0.0
-T_ML_0 = 300.0
-S_ML_0 = 35e-3
-h_ML_0 = 10.0
-h_ML_min = 10.0
-h_ML_max = 1000.0
-we_max = 1.0
-
-T_slope = 2.0 / 4000.0
-S_slope = 0.0
-
-
-# ===== topo and climatology =====
+# ===== [BEGIN] topo and climatology =====
 
 pick = (i=65, j=60)
 
@@ -50,6 +34,25 @@ Dataset("ocean_topog_gx3v7.nc", "r") do ds
     println(ds["depth"][pick.i, pick.j])
     topo[1, 1] = - ds["depth"][pick.i, pick.j]
 end
+
+# ===== [END] topo and climatology =====
+
+
+
+N = length(zs) - 1
+
+ΔT_0 = 5.0
+ΔS_0 = 0.0
+T_ML_0 = 300.0
+S_ML_0 = 35e-3
+h_ML_0 = 10.0
+h_ML_min = 10.0
+h_ML_max = 1000.0
+we_max = 1.0
+
+T_slope = 2.0 / 4000.0
+S_slope = 0.0
+
 
 
 if test_type == "ALL"

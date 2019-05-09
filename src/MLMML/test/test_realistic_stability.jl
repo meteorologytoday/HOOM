@@ -11,6 +11,8 @@ using PyPlot
 @pyimport matplotlib.gridspec as GS
 @printf("done.\n")
 
+test_type = "ALL"
+
 include("test_profile_config.jl")
 
 if(do_calculation)
@@ -23,8 +25,8 @@ MONS_PER_YEAR= 12
 DAYS_PER_YEAR = DAYS_PER_MON * MONS_PER_YEAR
 SECS_PER_YEAR = DAYS_PER_YEAR * SECS_PER_DAY
 
-SPINUP_YEARS = 5
-YEARS_WANTED = 20
+SPINUP_YEARS = 20
+YEARS_WANTED = 100
 TOTAL_YEARS = SPINUP_YEARS + YEARS_WANTED
 
 TOTAL_DAYS = TOTAL_YEARS * DAYS_PER_YEAR
@@ -221,8 +223,8 @@ end
 
 end
 
-println(format("Average of total trends: {:.2e} K / yr", mean(total_trends["T"]) * SECS_PER_YEAR))
-println(format("Average of total trends: {:.2e} g/Kg / yr", mean(total_trends["S"]) * SECS_PER_YEAR))
+println(format("Average of total trends: {:.2e} K / yr", mean(total_trends["T"][1:Nz]) * SECS_PER_YEAR))
+println(format("Average of total trends: {:.2e} g/Kg / yr", mean(total_trends["S"][1:Nz]) * SECS_PER_YEAR))
 
 
 t_yr = mon["t"] / SECS_PER_YEAR
