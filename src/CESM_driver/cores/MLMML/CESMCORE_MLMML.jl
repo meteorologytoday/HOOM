@@ -71,11 +71,49 @@ module CESMCORE_MLMML
                 throw(ErrorException(init_file * " does not exist!"))
             end
  
+        else
+
+            must_need_keys = [
+                "z_coord",
+            ]
+
+            optional_keys = [
+                "climatology_temperature_file",
+                "climatology_temperature_relaxation_time",
+                "climatology_salinity_file",
+                "climatology_salinity_relaxation_time",
+                "topography_file",
+            ]
+
+
+            for key in must_need_keys
+                if !haskey(configs, key)
+                    throw(ErrorException(format("Variable config must contain key: {}", key)))
+                end
+            end
+
+            println("Optional keys are: ", optional_keys)
+
+            if haskey(configs, "climatology_temperature_file")
+                println("Using climatology temperature file: ", configs["climatology_temperature_file"])
+            end
+
+            if haskey(configs, "climatology_salinity_file")
+                println("Using climatology salinity file: ", configs["climatology_salinity_file"])
+            end
+
+            if haskey(configs, "topography_file")
+                println("Using topography file: ", configs["topography_file"])
+            end
+
         end
 
+
         if typeof(init_file) <: AbstractString
+
             println("Initial ocean with profile: ", init_file)
             occ = MLMML.loadSnapshot(init_file)
+
         else
             println("No initial ocean profile. Using the naive one.")
             occ = let
