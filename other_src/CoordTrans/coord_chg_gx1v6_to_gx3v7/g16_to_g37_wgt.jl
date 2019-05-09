@@ -31,21 +31,14 @@ Dataset(d_map_file, "r") do ds
         d_N = d_Nx * d_Ny
         d_lon = reshape(ds["xc"][:] .|> deg2rad, :)
         d_lat = reshape(ds["yc"][:] .|> deg2rad, :)
-        #=
-        _mask = ds["mask"][:, :]
-        _area = ds["area"][:, :]
-        _frac = ds["frac"][:, :]
-        _xc  = ds["xc"][:, :]
-        _yc  = ds["yc"][:, :]
-        _nx  = ds.dim["ni"]
-        _ny  = ds.dim["nj"]
-        close(ds)
-        =#
 end
 
 
 #trans = spzeros(Float64, d_N, s_N)
 trans = SharedArray{Float64}(NNN, d_N)
+
+# s_coord and d_coord are the coordinates of grid points
+# in 3-dimensional cartesian coordinate
 
 s_coord = zeros(Float64, s_N, 3)
 d_coord = zeros(Float64, d_N, 3)
@@ -65,6 +58,9 @@ println("Start making transform matrix... ")
 #dist2   = zeros(Float64, s_N)
 
 @time @sync @distributed for i = 1:d_N
+
+    # For every point find its nearest-neighbors
+
     print("\r", i, "/", d_N)
 
     if d_mask[i] == 0
@@ -78,7 +74,11 @@ println("Start making transform matrix... ")
              + (s_coord[:, 3] .- d_coord[i, 3]).^2 )
 
 
-    dist2[s_NaN_idx] .= NaN
+    # Decided not to apply this condition because in 
+    # extreme cases there might be a small area of water
+    # that is surrounded by lands.
+
+    #dist2[s_NaN_idx] .= NaN
  
     idx_arr = 1:s_N |> collect
     sort!(idx_arr; by=(k)->dist2[k])
