@@ -39,11 +39,12 @@ module CESMCORE_MLMML
     function init(;
         casename     :: AbstractString,
         map          :: NetCDFIO.MapInfo,
-        init_file    :: Union{Nothing, AbstractString},
         t            :: AbstractArray{Integer},
         configs      :: Dict,
         read_restart :: Bool,
     )
+
+        init_file = (haskey(configs, "init_file")) ? configs["init_file"] : nothing
 
         # If `read_restart` is true then read restart file: configs["rpointer_file"]
         # If not then initialize ocean with default profile if `initial_file`
@@ -74,15 +75,8 @@ module CESMCORE_MLMML
         else
 
             must_need_keys = [
-                "z_coord",
-            ]
-
-            optional_keys = [
-                "climatology_temperature_file",
-                "climatology_temperature_relaxation_time",
-                "climatology_salinity_file",
-                "climatology_salinity_relaxation_time",
-                "topography_file",
+                "z_coord_file",
+                "z_coord_varname",
             ]
 
 
@@ -92,19 +86,6 @@ module CESMCORE_MLMML
                 end
             end
 
-            println("Optional keys are: ", optional_keys)
-
-            if haskey(configs, "climatology_temperature_file")
-                println("Using climatology temperature file: ", configs["climatology_temperature_file"])
-            end
-
-            if haskey(configs, "climatology_salinity_file")
-                println("Using climatology salinity file: ", configs["climatology_salinity_file"])
-            end
-
-            if haskey(configs, "topography_file")
-                println("Using topography file: ", configs["topography_file"])
-            end
 
         end
 
@@ -113,50 +94,11 @@ module CESMCORE_MLMML
 
             println("Initial ocean with profile: ", init_file)
             occ = MLMML.loadSnapshot(init_file)
-
+        
         else
-            println("No initial ocean profile. Using the naive one.")
-            occ = let
 
-                zs = collect(Float64, range(0, -500, step=-5))
-                K_T = 1e-5
-                K_S = 1e-5
-                h_ML_min = 10.0
-                h_ML_max = 499.0
-                we_max   = 1e-2
+            throw(ErrorException("Variable `init_file` is absent in `configs`."))
 
-                init_h_ML     = h_ML_min
-                
-                init_T_ML     = 288.0
-                init_T_slope  = 2.0 / 4000.0
-                init_ΔT       = 5.0
-
-                init_S_ML     = MLMML.S_ref 
-                init_S_slope  = 0.0
-                init_ΔS       = 0.0
-
-                MLMML.makeBasicOceanColumnCollection(
-                    map.nx, map.ny, zs;
-                    T_ML     = init_T_ML,
-                    ΔT       = init_ΔT,
-                    T_slope  = init_T_slope,
-                    S_ML     = init_S_ML,
-                    ΔS       = init_ΔS,
-                    S_slope  = init_S_slope,
-                    h_ML     = h_ML_min,
-                    K_T      = K_T,
-                    K_S      = K_S,
-                    h_ML_min = h_ML_min,
-                    h_ML_max = h_ML_max,
-                    we_max   = we_max,
-                    mask     = map.mask,
-                )
-            end
-
-            snapshot_file = format("Snapshot_{:04d}0101_00000.nc", t[1])
-            println("Output snapshot: ", snapshot_file)
-            MLMML.takeSnapshot(occ, joinpath(configs["short_term_archive_dir"], snapshot_file))
-            appendLine(configs["short_term_archive_list"], snapshot_file)
         end
 
         wksp = Workspace(occ.Nx, occ.Ny, occ.Nz)
