@@ -27,9 +27,7 @@ function parse_commandline()
         "--core"
             help = "Core of the model."
             arg_type = String
-        "--init-file"
-            help = "Initial profile of ocean. If not provided then a default profile will be used."
-            arg_type = String
+
     end
 
     return parse_args(s)

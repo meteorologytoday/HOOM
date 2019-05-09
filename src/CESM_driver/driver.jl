@@ -86,7 +86,6 @@ while true
         OMDATA = OMMODULE.init(
             casename     = configs["casename"],
             map          = map,
-            init_file    = init_file,
             t            = timeinfo,
             configs      = configs,
             read_restart = (msg["READ_RESTART"] == "TRUE") ? true : false,
