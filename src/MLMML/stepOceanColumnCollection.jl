@@ -145,11 +145,11 @@ function stepOceanColumnCollection!(
        
         # Climatology relaxation
         if occ.Ts_clim != nothing
-            OC_doNewtonianRelaxation!(occ, i, j; Δt=Δt)
+            OC_doNewtonianRelaxation_T!(occ, i, j; Δt=Δt)
         end
 
         if occ.Ss_clim != nothing
-            OC_doNewtonianRelaxation!(occ, i, j; Δt=Δt)
+            OC_doNewtonianRelaxation_S!(occ, i, j; Δt=Δt)
         end
 
 

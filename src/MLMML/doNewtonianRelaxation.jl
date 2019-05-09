@@ -1,4 +1,4 @@
-function OC_doNewtonianRelaxation!(
+function OC_doNewtonianRelaxation_T!(
     occ :: OceanColumnCollection,
     i   :: Integer,
     j   :: Integer;
@@ -13,6 +13,15 @@ function OC_doNewtonianRelaxation!(
         τ       = occ.Ts_clim_relax_time,
         Δt      = Δt,
     )
+
+end
+
+function OC_doNewtonianRelaxation_S!(
+    occ :: OceanColumnCollection,
+    i   :: Integer,
+    j   :: Integer;
+    Δt  :: Float64,
+)
 
     doNewtonianRelaxation!(
         qs      = occ.Ss_vw[i, j],
@@ -30,6 +39,8 @@ end
     This function newtonian-relaxes `qs` to `qs_clim` with e-folding time `τ`.
     It has to be noted that mixed-layer is not relaxed.
 
+    Also, Euler backward integration scheme is used.
+
 """
 function doNewtonianRelaxation!(;
     qs         :: AbstractArray{Float64, 1},
@@ -41,10 +52,9 @@ function doNewtonianRelaxation!(;
 )
 
     r = Δt / τ
-
     if FLDO != -1
         for i = FLDO:Nz
-            qs[i] += - r * (qs[i] - qs_clim[i])
+            qs[i] = (qs[i] + r * qs_clim[i]) / (1+r)
         end
     end
 

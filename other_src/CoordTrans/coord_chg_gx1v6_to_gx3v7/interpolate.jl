@@ -5,25 +5,26 @@ function interpolate(x0, y0, x1; left_copy::Bool=false, right_copy::Bool=false)
     
     # assuming x0, x1 are both monotonically increasing
 
-    idx0 = 1
-    idx1 = 1
+    idx0 = 1  # old coordinate
+    idx1 = 1  # new coordinate
+
+    N0 = length(x0)
 
     y1 = copy(x1)
-    N = length(x1)
+    N1 = length(x1)
 
     while true
 
-        if idx1 > N
+        if idx1 > N1
             break
         end
 
         lx = x0[idx0  ]
-        rx = x0[idx0+1]
-
         ly = y0[idx0  ]
+
+        rx = x0[idx0+1]
         ry = y0[idx0+1]
-
-
+        
         ix = x1[idx1]
 
         if (idx0 == 1) && (ix < lx)
@@ -31,7 +32,7 @@ function interpolate(x0, y0, x1; left_copy::Bool=false, right_copy::Bool=false)
             y1[idx1] = (left_copy) ? ly : NaN
             idx1 += 1
 
-        elseif (idx0 == N-1) && (ix > rx)
+        elseif (idx0 == N0-1) && (ix > rx)
 
             y1[idx1] = (right_copy) ? ry : NaN
             idx1 += 1
@@ -42,11 +43,10 @@ function interpolate(x0, y0, x1; left_copy::Bool=false, right_copy::Bool=false)
             idx1 += 1
             
         else
-       
+            
             idx0 += 1
 
         end
-
 
     end
 

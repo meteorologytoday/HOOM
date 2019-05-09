@@ -1,3 +1,8 @@
+println("The test currently includes: TOPO, DIFFUSION, CLIM, ALL ")
+
+if length(ARGS) > 1
+    test_type = ARGS[1]
+end
 
 include("test_profile_config.jl")
 
@@ -14,8 +19,8 @@ _nswflx = zeros(Float64, 1, 1)
 _frwflx = zeros(Float64, 1, 1)
 
 rec = Dict(
-    "T"  => zeros(Float64, occ.Nz[1, 1], length(t)),
-    "S"  => zeros(Float64, occ.Nz[1, 1], length(t)),
+    "T"  => zeros(Float64, occ.Nz_bone, length(t)),
+    "S"  => zeros(Float64, occ.Nz_bone, length(t)),
 )
 
 init_profile = Dict(
@@ -23,13 +28,15 @@ init_profile = Dict(
     "S" => occ.Ss[1, 1, :],
 )
 
+#println("init_T")
+#println(init_profile["T"])
 
 for k = 1:length(t)
     if (k-1)%30 == 0
         print(format("\rIteration = {:d}/{:d} ({:.1f}%)", k, length(t), k / length(t) * 100.0))
     end
 
-    if k != 0
+    if k != 1
         MLMML.stepOceanColumnCollection!(
             occ;
             fric_u = _fric_u,
@@ -93,44 +100,3 @@ cb = plt[:colorbar](cbmapping, ax=ax2)
 cb[:set_label]("Salinity [\$ g/Kg \$]")
 
 
-#=
-#convadj_rec[convadj_rec .== 0.0] .= NaN
-#ax2[:scatter](t_day, -600.0 * convadj_rec, marker="^")
-#ax2[:plot](t_day, - h_rec , "r--", linewidth=2, zorder=10)
-
-ax1[:set_ylabel]("SST anomaly\n[\$\\mathrm{K}\$]")
-ax2[:set_ylabel]("Z [m]")
-ax2[:set_xlabel]("Time [year]")
-
-ticks      = collect(0:5:YEARS_WANTED)
-ticklabels = [format("{:d}", ticks[i]) for i=1:length(ticks)]
-
-ax1[:set_xticks](ticks)
-ax2[:set_xticks](ticks)
-
-ax1[:set_xticklabels](ticklabels)
-ax2[:set_xticklabels](ticklabels)
-
-
-ax2[:set_ylim]([-1500, 0])
-ax2[:set_ylim]([-1100, 0])
-
-tlim = [t_yr[1], t_yr[end]]
-
-
-ax1[:set_ylim]([-0.5, 0.5])
-ax1[:set_xlim](tlim)
-ax2[:set_xlim](tlim)
-
-
-fig, ax = plt[:subplots](1, 2, figsize=(6, 4))
-
-for i = 1:plot_interval:length(t)
-    ax[1][:plot](rec["T"][:,i]      , mid_zs)
-    ax[2][:plot](rec["S"][:,i] * 1e3, mid_zs)
-end
-
-ax[1][:set_title]("Init T [K]")
-ax[2][:set_title]("Init S [g/Kg]")
-
-=#
