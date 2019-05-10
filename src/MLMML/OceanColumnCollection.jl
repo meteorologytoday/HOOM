@@ -71,7 +71,87 @@ mutable struct OceanColumnCollection
         topo     :: Union{AbstractArray{Float64, 2}, Nothing},
     )
 
+        # ===== [BEGIN] topo, mask, h_ML_min, h_ML_max =====
+        # Min/max of ML is tricky because it cannot be
+        # deeper than the bottom boundary
+        # Also, in real data topo can be 0 and not masked out
+       
+        _topo = SharedArray{Float64}(Nx, Ny)
+        _h_ML_min = SharedArray{Float64}(Nx, Ny)
+        _h_ML_max = SharedArray{Float64}(Nx, Ny)
+
+        if topo == nothing
+            _topo .= zs_bone[end]
+        else
+            _topo[:, :] = topo
+        end
         
+        # mask =>   lnd = 0, ocn = 1
+        if mask == nothing
+            mask = SharedArray{Float64}(Nx, Ny)
+            mask .+= 1.0
+        else
+            mask = copy(mask)
+        end
+
+        if typeof(h_ML_min) <: AbstractArray{Float64, 2}
+            _h_ML_min[:, :] = h_ML_min
+        elseif typeof(h_ML_min) <: Float64
+            _h_ML_min .= h_ML_min
+        end
+
+        if typeof(h_ML_max) <: AbstractArray{Float64, 2}
+            _h_ML_max[:, :] = h_ML_max
+        elseif typeof(h_ML_max) <: Float64
+            _h_ML_max .= h_ML_max
+        end
+
+        # Detect and fix h_ML_{max,min}
+        for i=1:Nx, j=1:Ny
+
+            if mask[i, j] == 0
+                _h_ML_max[i, j] = NaN
+                _h_ML_min[i, j] = NaN
+                continue
+            end
+
+            hmax = _h_ML_max[i, j]
+            hmin = _h_ML_min[i, j]
+            hbot = - _topo[i, j]
+
+            if hbot < 0
+                throw(ErrorException(format("Topography is negative at idx ({:d}, {:d})", i, j)))
+            end
+
+            if hmax < hmin
+                throw(ErrorException(format("h_ML_max must ≥ h_ML_min. Problem happens at idx ({:d}, {:d})", i, j)))
+            end
+
+            if hbot == 0
+                println(format("Topography is zero at idx ({:d}, {:d}), h_min = {:.2f}", i, j, hmin))
+            end
+
+
+            if hmin > hbot
+                #println(mask[i,j]) 
+                println(format("Point ({},{}) got depth {:.2f} which is smaller than h_ML_min {}. Tune the depth to h_ML_min.", i, j, hbot, hmin))
+
+                _h_ML_max[i, j] = hmin
+                _topo[i, j] = - hmin
+
+            elseif hmax > hbot
+
+                _h_ML_max[i, j] = hbot
+
+            end
+        end
+      
+        
+        # mask_idx needs to be determined after topography is probably tuned.
+        mask_idx = (mask .== 1.0)
+
+        # ===== [END] topo, mask, h_ML_min, h_ML_max =====
+
         # ===== [BEGIN] z coordinate =====
         zs_bone = copy(zs_bone)
         Nz_bone = length(zs_bone) - 1
@@ -80,18 +160,11 @@ mutable struct OceanColumnCollection
         zs   = SharedArray{Float64}(Nx, Ny, Nz_bone + 1)
         hs   = SharedArray{Float64}(Nx, Ny, Nz_bone)
         Δzs  = SharedArray{Float64}(Nx, Ny, Nz_bone - 1)
-        _topo = SharedArray{Float64}(Nx, Ny)
 
         zs  .= NaN
         Nz  .= 0
         hs  .= NaN
         Δzs .= NaN
-
-        if topo == nothing
-            _topo .= zs_bone[end]
-        else
-            _topo[:, :] = topo
-        end
 
         for i=1:Nx, j=1:Ny
 
@@ -122,62 +195,13 @@ mutable struct OceanColumnCollection
             Δzs[i, j, 1:_Nz-1] = (hs[i, j, 1:_Nz-1] + hs[i, j, 2:_Nz]) / 2.0
             
         end
-
+        
         # ===== [END] z coordinate =====
 
         # ===== [BEGIN] Min/max of ML =====
-        # Min/max of ML is tricky because it cannot be
-        # deeper than the bottom boundary
-
-        _h_ML_min = SharedArray{Float64}(Nx, Ny)
-        _h_ML_max = SharedArray{Float64}(Nx, Ny)
-
-        if typeof(h_ML_min) <: AbstractArray{Float64, 2}
-            _h_ML_min[:, :] = h_ML_min
-        elseif typeof(h_ML_min) <: Float64
-            _h_ML_min .= h_ML_min
-        end
-
-        if typeof(h_ML_max) <: AbstractArray{Float64, 2}
-            _h_ML_max[:, :] = h_ML_max
-        elseif typeof(h_ML_max) <: Float64
-            _h_ML_max .= h_ML_max
-        end
-
-
-        # Detect and fix h_ML_{max,min}
-        for i=1:Nx, j=1:Ny
-
-            hmax = _h_ML_max[i, j]
-            hmin = _h_ML_min[i, j]
-            hbot = - zs[i, j, Nz[i, j]+1]
-
-            if hmax < hmin
-                throw(ErrorException(format("h_ML_max must ≥ h_ML_min. Problem happens at idx ({:d}, {:d})", i, j)))
-            end
-
-            if hmin > hbot
-                _h_ML_max[i, j] = _h_ML_min[i, j] = hbot
-            elseif hmax > hbot
-                _h_ML_max[i, j] = hbot
-            end
-            
-        end
 
         # ===== [END] Min/max of ML =====
 
-        # ===== [BEGIN] mask =====
-
-        if mask == nothing
-            mask = SharedArray{Float64}(Nx, Ny)
-            mask .+= 1.0
-        else
-            mask = copy(mask)
-        end
-
-        mask_idx = (mask .== 0.0)
-        
-        # ===== [END mask =====
 
         # ===== [BEGIN] Column information =====
 
@@ -340,7 +364,9 @@ mutable struct OceanColumnCollection
         # ===== [BEGIN] check integrity =====
         
         # Check if there is any hole in climatology 
+        
         mask3_idx = isfinite.(_Ts)
+
         valid_grids = sum(mask3_idx)
 
         if sum(isfinite.(_Ss[mask3_idx])) != valid_grids
@@ -357,8 +383,8 @@ mutable struct OceanColumnCollection
 
 
         # Check if h_ML_min h_ML_max is negative
-        if any(_h_ML_min[mask_idx] .< 0)
-            throw(ErrorException("h_ML_min should always be non-negative"))
+        if any(_h_ML_min[mask_idx] .<= 0)
+            throw(ErrorException("h_ML_min should always be positive (cannot be zero or negative)"))
         end
 
         if any(_h_ML_max[mask_idx] .< 0)
