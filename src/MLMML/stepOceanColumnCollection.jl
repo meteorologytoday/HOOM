@@ -110,8 +110,8 @@ function stepOceanColumnCollection!(
 
         if new_h_ML < old_h_ML
 
-            println(old_h_ML)
-            println(new_h_ML)
+            #println(old_h_ML)
+            #println(new_h_ML)
 
             new_FLDO = getFLDO(zs=zs, h_ML=new_h_ML, Nz=Nz)
 
@@ -161,6 +161,8 @@ function stepOceanColumnCollection!(
         OC_doDiffusion_EulerBackward!(occ, i, j; Δt=Δt)
 
         OC_updateB!(occ, i, j)
+
+        # TODO: convective adjustment cannot break h_ML_max
         OC_doConvectiveAdjustment!(occ, i, j;)
 
 
