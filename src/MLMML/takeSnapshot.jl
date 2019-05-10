@@ -11,12 +11,12 @@ function loadSnapshot(filename::AbstractString)
 
         if haskey(ds, "Ts_clim")
             Ts_clim_relax_time = ds.attrib["Ts_clim_relax_time"]
-            Ts_clim = nomissing(ds["Ts_clim_relax_time"][:], NaN)
+            Ts_clim = nomissing(ds["Ts_clim"][:], NaN)
         end
 
         if haskey(ds, "Ss_clim")
             Ss_clim_relax_time = ds.attrib["Ss_clim_relax_time"]
-            Ss_clim = nomissing(ds["Ss_clim_relax_time"][:], NaN)
+            Ss_clim = nomissing(ds["Ss_clim"][:], NaN)
         end
 
         occ = OceanColumnCollection(
@@ -76,7 +76,7 @@ function takeSnapshot(
         end
 
         _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
-        _write2NCFile(ds, "topo", ("Nx", "Ny",), occ.mask, missing_value)
+        _write2NCFile(ds, "topo", ("Nx", "Ny",), occ.topo, missing_value)
 
     end
 

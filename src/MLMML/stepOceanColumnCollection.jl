@@ -34,6 +34,7 @@ function stepOceanColumnCollection!(
         if occ.mask[i, j] == 0.0
             continue
         end
+        println(format("({}, {}) = {}", i, j, occ.mask[i,j]))
 
         zs = occ.zs_vw[i, j]
         Nz = occ.Nz[i, j]
@@ -107,6 +108,9 @@ function stepOceanColumnCollection!(
         # If new_h_ML < old_h_ML, then the FLDO layer should get extra T or S due to mixing
 
         if new_h_ML < old_h_ML
+
+            println(old_h_ML)
+            println(new_h_ML)
 
             new_FLDO = getFLDO(zs=zs, h_ML=new_h_ML, Nz=Nz)
 

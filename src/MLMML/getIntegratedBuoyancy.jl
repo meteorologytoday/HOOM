@@ -6,7 +6,7 @@ function OC_getIntegratedTemperature(
 )
 
     if isnan(target_z)
-        target_z = occ.zs_vw[occ.Nz[i, j]+1]
+        target_z = occ.zs_vw[i, j][occ.Nz[i, j]+1]
     end
 
     return getIntegratedQuantity(
@@ -30,7 +30,7 @@ function OC_getIntegratedSalinity(
 )
 
     if isnan(target_z)
-        target_z = occ.zs_vw[occ.Nz[i, j]+1]
+        target_z = occ.zs_vw[i, j][occ.Nz[i, j]+1]
     end
 
     return getIntegratedQuantity(

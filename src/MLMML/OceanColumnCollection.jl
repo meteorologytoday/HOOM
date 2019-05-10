@@ -336,6 +336,38 @@ mutable struct OceanColumnCollection
      
         # ===== [END] Construct Views =====
 
+
+        # ===== [BEGIN] check integrity =====
+        
+        # Check if there is any hole in climatology 
+        mask3_idx = isfinite.(_Ts)
+        valid_grids = sum(mask3_idx)
+
+        if sum(isfinite.(_Ss[mask3_idx])) != valid_grids
+            throw(ErrorException("Either or both temperature and salinity data has holes"))
+        end
+ 
+        if sum(isfinite.(_Ts_clim[mask3_idx])) != valid_grids
+            throw(ErrorException("Temperature climatology has holes"))
+        end
+ 
+        if sum(isfinite.(_Ss_clim[mask3_idx])) != valid_grids
+            throw(ErrorException("Salinity climatology has holes"))
+        end
+
+
+        # Check if h_ML_min h_ML_max is negative
+        if any(_h_ML_min[mask_idx] .< 0)
+            throw(ErrorException("h_ML_min should always be non-negative"))
+        end
+
+        if any(_h_ML_max[mask_idx] .< 0)
+            throw(ErrorException("h_ML_max should always be non-negative"))
+        end 
+        
+        # ===== [END] check integrity =====
+
+
         # ===== [BEGIN] Mask out values below topo =====
         # ===== [END] Mask out values below topo =====
 

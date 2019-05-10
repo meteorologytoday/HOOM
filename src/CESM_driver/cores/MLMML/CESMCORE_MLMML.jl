@@ -86,7 +86,7 @@ module CESMCORE_MLMML
 
         end
 
-        wksp = Workspace(occ.Nx, occ.Ny, occ.Nz)
+        wksp = Workspace(occ.Nx, occ.Ny, occ.Nz_bone)
 
         x2o = Dict(
             "SWFLX"  => wksp.swflx,
@@ -118,9 +118,9 @@ module CESMCORE_MLMML
             "mld"    => occ.h_ML,
             "T"      => occ.Ts,
             "S"      => occ.Ss,
-            "sumflx" => wksp.sumflx,
-            "fric_u" => wksp.fric_u,
-            "frwflx" => wksp.frwflx,
+#            "sumflx" => wksp.sumflx,
+#            "fric_u" => wksp.fric_u,
+#            "frwflx" => wksp.frwflx,
         )
 
         sobjs    = Dict()
@@ -183,7 +183,7 @@ module CESMCORE_MLMML
                         for (k, v) in MD.sobj_dict
 
                             if length(size(v)) == 3
-                                dim = ("Nx", "Ny", "Nz")
+                                dim = ("Nx", "Ny", "Nz_bone")
                             elseif length(size(v)) == 2
                                 dim = ("Nx", "Ny")
                             end
