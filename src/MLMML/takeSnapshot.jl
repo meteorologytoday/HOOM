@@ -56,7 +56,7 @@ function takeSnapshot(
 
     Dataset(filename, "a") do ds
    
-        _write2NCFile(ds, "zs_bone", ("NP_zs_bone",), occ.zs, missing_value)
+        _write2NCFile(ds, "zs_bone", ("NP_zs_bone",), occ.zs_bone, missing_value)
 
         _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz_bone"), occ.Ts, missing_value)
         _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz_bone"), occ.Ss, missing_value)

@@ -31,13 +31,14 @@ function stepOceanColumnCollection!(
         i = idx[1]
         j = idx[2]
 
-        if occ.mask[i, j] == 0.0
+        if occ.mask[i, j] == 0
             continue
         end
-        println(format("({}, {}) = {}", i, j, occ.mask[i,j]))
 
         zs = occ.zs_vw[i, j]
         Nz = occ.Nz[i, j]
+
+        println(format("({}, {}) = {}, topo = {:.2f}, Nz = {}", i, j, occ.mask[i,j], occ.topo[i,j], Nz))
 
         # Pseudo code
         # Current using only Euler forward scheme:

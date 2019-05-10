@@ -79,6 +79,7 @@ mutable struct OceanColumnCollection
         _topo = SharedArray{Float64}(Nx, Ny)
         _h_ML_min = SharedArray{Float64}(Nx, Ny)
         _h_ML_max = SharedArray{Float64}(Nx, Ny)
+        _mask = SharedArray{Float64}(Nx, Ny)
 
         if topo == nothing
             _topo .= zs_bone[end]
@@ -88,10 +89,9 @@ mutable struct OceanColumnCollection
         
         # mask =>   lnd = 0, ocn = 1
         if mask == nothing
-            mask = SharedArray{Float64}(Nx, Ny)
-            mask .+= 1.0
+            _mask .+= 1.0
         else
-            mask = copy(mask)
+            _mask[:, :] = mask
         end
 
         if typeof(h_ML_min) <: AbstractArray{Float64, 2}
@@ -109,7 +109,7 @@ mutable struct OceanColumnCollection
         # Detect and fix h_ML_{max,min}
         for i=1:Nx, j=1:Ny
 
-            if mask[i, j] == 0
+            if _mask[i, j] == 0
                 _h_ML_max[i, j] = NaN
                 _h_ML_min[i, j] = NaN
                 continue
@@ -148,7 +148,7 @@ mutable struct OceanColumnCollection
       
         
         # mask_idx needs to be determined after topography is probably tuned.
-        mask_idx = (mask .== 1.0)
+        mask_idx = (_mask .== 1.0)
 
         # ===== [END] topo, mask, h_ML_min, h_ML_max =====
 
@@ -167,6 +167,10 @@ mutable struct OceanColumnCollection
         Δzs .= NaN
 
         for i=1:Nx, j=1:Ny
+
+            if _mask[i, j] == 0
+                continue
+            end
 
             # Determine Nz
 
@@ -402,7 +406,7 @@ mutable struct OceanColumnCollection
             Nx, Ny, Nz_bone,
             zs_bone, _topo, zs, Nz,
             K_T, K_S,
-            mask, mask_idx,
+            _mask, mask_idx,
             _b_ML, _T_ML, _S_ML, _h_ML,
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
