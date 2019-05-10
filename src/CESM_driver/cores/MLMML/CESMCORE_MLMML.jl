@@ -72,21 +72,6 @@ module CESMCORE_MLMML
                 throw(ErrorException(init_file * " does not exist!"))
             end
  
-        else
-
-            must_need_keys = [
-                "z_coord_file",
-                "z_coord_varname",
-            ]
-
-
-            for key in must_need_keys
-                if !haskey(configs, key)
-                    throw(ErrorException(format("Variable config must contain key: {}", key)))
-                end
-            end
-
-
         end
 
 
