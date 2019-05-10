@@ -78,7 +78,7 @@ println("Start making transform matrix... ")
     # extreme cases there might be a small area of water
     # that is surrounded by lands.
 
-    #dist2[s_NaN_idx] .= NaN
+    dist2[s_NaN_idx] .= NaN
  
     idx_arr = 1:s_N |> collect
     sort!(idx_arr; by=(k)->dist2[k])

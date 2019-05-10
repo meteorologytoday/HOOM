@@ -79,3 +79,8 @@ new_var[:, :, :, 1] = new_data
 close(ds_i)
 close(ds_o)
 
+println("Total data cnt: ", length(new_data))
+println("Valid data cnt: ", isfinite.(new_data) |> sum)
+println("Data holes cnt: ", isnan.(new_data) |> sum)
+
+

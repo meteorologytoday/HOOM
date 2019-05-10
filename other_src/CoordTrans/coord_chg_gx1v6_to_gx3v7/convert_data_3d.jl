@@ -79,10 +79,20 @@ function do_work()
                 continue
             end
 
+            members = 0.0
             for j = 1:NNN
-                d_data[i] += s_data[NN_idx[j, i]]
+                if isfinite(NN_idx[j, i])
+                    d_data[i] += s_data[NN_idx[j, i]]
+                    members += 1.0
+                end
             end
-            d_data[i] /= NNN
+
+            if members == 0.0
+                println("Warning: no valid points to interpolate this ocean grid. Index: (", mod(i, d_Nx), ", ", floor(i/d_Nx), ")")
+            end
+
+            d_data[i] /= members
+
         end
         put!(results, (k, t, d_data))
     end
@@ -121,8 +131,16 @@ d_var.attrib["_FillValue"] = missing_value
     end
 end
 
+
+final_data = nomissing(d_var[:], NaN)
+
+println("Total data count: ", length(final_data))
+println("Total valid data count: ", sum(isfinite.(final_data)))
+println("Total data holes count: ", sum(isnan.(final_data)))
+
 close(ds_w)
 close(ds_s)
 close(ds_d)
+
 
 println("Program ends.")

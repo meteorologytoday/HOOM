@@ -158,7 +158,7 @@ mutable struct OceanColumnCollection
 
         Nz   = SharedArray{Int64}(Nx, Ny)
         zs   = SharedArray{Float64}(Nx, Ny, Nz_bone + 1)
-        hs   = SharedArray{Float64}(Nx, Ny, Nz_bone)
+        hs   = SharedArray{Float64}(Nx, Ny, Nz_bone    )
         Δzs  = SharedArray{Float64}(Nx, Ny, Nz_bone - 1)
 
         zs  .= NaN
@@ -201,11 +201,6 @@ mutable struct OceanColumnCollection
         end
         
         # ===== [END] z coordinate =====
-
-        # ===== [BEGIN] Min/max of ML =====
-
-        # ===== [END] Min/max of ML =====
-
 
         # ===== [BEGIN] Column information =====
 
@@ -261,12 +256,7 @@ mutable struct OceanColumnCollection
             _Ss .= Ss
         end
 
-        # Clean up all variables
-        for v in [_bs, _Ts, _Ss]
-            for i=1:Nx, j=1:Ny
-                v[i, j, Nz[i, j] + 1:end] .= NaN
-            end
-        end
+
 
         # ===== [END] Column information =====
 
@@ -296,10 +286,6 @@ mutable struct OceanColumnCollection
 
             end
 
-            for i=1:Nx, j=1:Ny
-                _Ts_clim[i, j, Nz[i, j] + 1:end] .= NaN
-            end
-
         end 
 
 
@@ -323,10 +309,6 @@ mutable struct OceanColumnCollection
 
             end
 
-            for i=1:Nx, j=1:Ny
-                _Ss_clim[i, j, Nz[i, j] + 1:end] .= NaN
-            end
-
         end 
 
         # ===== [END] Climatology =====
@@ -336,7 +318,6 @@ mutable struct OceanColumnCollection
         bs_vw = Array{SubArray}(undef, Nx, Ny)
         Ts_vw = Array{SubArray}(undef, Nx, Ny)
         Ss_vw = Array{SubArray}(undef, Nx, Ny)
-        
 
         for i=1:Nx, j=1:Ny
             zs_vw[i, j]      = view(zs,  i, j, :)
@@ -364,24 +345,57 @@ mutable struct OceanColumnCollection
      
         # ===== [END] Construct Views =====
 
+        # ===== [BEGIN] Mask out data =====
+
+        mask3 = zeros(Int64, Nx, Ny, Nz_bone)
+        mask3 .= 1
+
+        # Clean up all variables
+        for i=1:Nx, j=1:Ny
+            mask3[i, j, Nz[i, j] + 1:end] .= 0 
+        end
+
+        println("sum of mask3: ", sum(mask3))
+
+        mask3_lnd_idx = (mask3  .== 0)
+        mask2_lnd_idx = (_mask  .== 0)
+        
+        for v in [_bs, _Ts, _Ss, _Ts_clim, _Ss_clim]
+            v[mask3_lnd_idx] .= NaN
+        end 
+
+        for v in [_b_ML, _T_ML, _S_ML, _h_ML, _h_ML_min, _h_ML_max]
+            v[mask2_lnd_idx] .= NaN
+        end 
+
+
+        # ===== [END] Mask out data
 
         # ===== [BEGIN] check integrity =====
         
         # Check if there is any hole in climatology 
         
-        mask3_idx = isfinite.(_Ts)
-
+        mask3_idx = (mask3 .== 1)
         valid_grids = sum(mask3_idx)
+        total_data  = Nx * Ny * Nz_bone
 
-        if sum(isfinite.(_Ss[mask3_idx])) != valid_grids
-            throw(ErrorException("Either or both temperature and salinity data has holes"))
+        println("Total  data count: ", total_data)
+        println("Valid  data count: ", valid_grids)
+        println("Masked data count: ", total_data - valid_grids)
+        
+        if sum(isfinite.(_Ss)) != valid_grids
+            throw(ErrorException("Salinity data has holes"))
         end
  
-        if sum(isfinite.(_Ts_clim[mask3_idx])) != valid_grids
+        if sum(isfinite.(_Ts)) != valid_grids
+            throw(ErrorException("Temperature data has holes"))
+        end
+ 
+        if sum(isfinite.(_Ts_clim)) != valid_grids
             throw(ErrorException("Temperature climatology has holes"))
         end
  
-        if sum(isfinite.(_Ss_clim[mask3_idx])) != valid_grids
+        if sum(isfinite.(_Ss_clim)) != valid_grids
             throw(ErrorException("Salinity climatology has holes"))
         end
 
