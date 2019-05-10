@@ -73,6 +73,10 @@ if test_type == "ALL"
         h_ML_max = h_ML_max,
         we_max   = we_max,
         topo     = topo,
+        Ts_clim_relax_time = 86400.0 * 360 * 10,
+        Ts_clim  = Ts_clim,
+        Ss_clim_relax_time = 86400.0 * 360 * 10,
+        Ss_clim  = Ss_clim,
     )
 
 elseif test_type == "TOPO"

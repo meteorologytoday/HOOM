@@ -85,18 +85,3 @@ end
 
 print(json(configs, 4))
 println("===== Defining variables END =====")
-
-
-
-init_file = parsed_args["init-file"]
-if init_file != nothing
-    init_file = normpath( (isabspath(init_file)) ? init_file : joinpath(pwd(), init_file) )
-    println("Ocean init file : ", init_file)
-
-    if !isfile(init_file)
-        throw(ErrorException("File missing: ", init_file))
-    end
-end
-
-
-

@@ -103,7 +103,7 @@ mutable struct OceanColumnCollection
             for k=2:length(zs_bone)
                 if zs_bone[k] <= _topo[i, j]
                     _Nz = k-1
-                    println(format("This topo gets: zs_bone[{:d}] = {:f}, _topo[{:d},{:d}]={:f}", k, zs_bone[k], i, j, _topo[i,j]))
+                    #println(format("This topo gets: zs_bone[{:d}] = {:f}, _topo[{:d},{:d}]={:f}", k, zs_bone[k], i, j, _topo[i,j]))
                     break
                 end
             end
@@ -233,6 +233,7 @@ mutable struct OceanColumnCollection
             _Ss .= Ss
         end
 
+        # Clean up all variables
         for v in [_bs, _Ts, _Ss]
             for i=1:Nx, j=1:Ny
                 v[i, j, Nz[i, j] + 1:end] .= NaN
@@ -267,6 +268,10 @@ mutable struct OceanColumnCollection
 
             end
 
+            for i=1:Nx, j=1:Ny
+                _Ts_clim[i, j, Nz[i, j] + 1:end] .= NaN
+            end
+
         end 
 
 
@@ -288,6 +293,10 @@ mutable struct OceanColumnCollection
                     _Ss_clim[i, j, :] = Ss_clim
                 end
 
+            end
+
+            for i=1:Nx, j=1:Ny
+                _Ss_clim[i, j, Nz[i, j] + 1:end] .= NaN
             end
 
         end 
@@ -346,6 +355,7 @@ mutable struct OceanColumnCollection
             zs_vw, bs_vw, Ts_vw, Ss_vw, Ts_clim_vw, Ss_clim_vw,
         )
 
+        
         updateB!(occ)
         updateFLDO!(occ)
 
