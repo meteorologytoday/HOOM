@@ -197,7 +197,13 @@ function doConvectiveAdjustment!(;
                 new_FLDO = setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML=new_h_ML, Nz=Nz)
                 
                 if new_h_ML > h_ML_max
-                    new_FLDO = getFLDO(zs=zs, h_ML=h_ML_max, Nz=Nz)
+
+                    # modified on 2019/05/10
+                    new_h_ML = h_ML_max
+                    new_FLDO = setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML=new_h_ML, Nz=Nz)
+
+                    # original code before 2019/05/10
+                    # new_FLDO = getFLDO(zs=zs, h_ML=h_ML_max, Nz=Nz)   # original code
                 end
 
             else
