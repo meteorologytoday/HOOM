@@ -38,7 +38,7 @@ function stepOceanColumnCollection!(
         zs = occ.zs_vw[i, j]
         Nz = occ.Nz[i, j]
 
-        println(format("({}, {}) = {}, topo = {:.2f}, Nz = {}", i, j, occ.mask[i,j], occ.topo[i,j], Nz))
+        #println(format("({}, {}) = {}, topo = {:.2f}, Nz = {}", i, j, occ.mask[i,j], occ.topo[i,j], Nz))
 
         # Pseudo code
         # Current using only Euler forward scheme:
