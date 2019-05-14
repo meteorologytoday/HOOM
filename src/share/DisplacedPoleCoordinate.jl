@@ -31,10 +31,44 @@ d2r = π / 180.0
 r2d = 180 / π
 
 
-mutable struct GridInfo
+function getNeighbors(Nx, Ny, i, j)
+
+    i_w = i-1
+    i_e = i+1
+    j_s = j-1
+    j_n = j+1
+
+    ok = true
+
+    if i_w == 0
+        i_w = Nx
+    end
+
+    if i_e == Nx+1
+        i_e = 1
+    end
+
+    if j_s == 0
+        ok = false
+    end
+
+    if j_n == Ny+1
+        ok = false
+    end
+
+
+    return (ok, i_w, i_e, j_s, j_n)
+
+end
+
+
+
+struct GridInfo
     Nx    :: Integer
     Ny    :: Integer
     α     :: AbstractArray{Float64, 2}
+    cosα  :: AbstractArray{Float64, 2}
+    sinα  :: AbstractArray{Float64, 2}
     dx_w  :: AbstractArray{Float64, 2}
     dx_c  :: AbstractArray{Float64, 2}
     dx_e  :: AbstractArray{Float64, 2}
@@ -55,7 +89,9 @@ mutable struct GridInfo
 
 
     
-        α  = zeros(Float64, Nx, Ny)
+        α    = zeros(Float64, Nx, Ny)
+        cosα = zeros(Float64, Nx, Ny)    
+        sinα = zeros(Float64, Nx, Ny)   
         dx_w = zeros(Float64, Nx, Ny)
         dx_c = zeros(Float64, Nx, Ny)
         dx_e = zeros(Float64, Nx, Ny)
@@ -64,7 +100,7 @@ mutable struct GridInfo
         dy_n = zeros(Float64, Nx, Ny)
         dσ = zeros(Float64, Nx, Ny)
     
-        ps = zeros(Float64, 4, 3)
+        ps = zeros(Float64, 3, 4)
 
         true_north  = zeros(Float64, 3)
         true_east   = zeros(Float64, 3)
@@ -84,16 +120,16 @@ mutable struct GridInfo
                 λ = vs_lon_rad[k, i, j]
                 θ = vs_lat_rad[k, i, j]
 
-                ps[k, 1] = cos(θ) * cos(λ)
-                ps[k, 2] = cos(θ) * sin(λ)
-                ps[k, 3] = sin(θ)
+                ps[1, k] = cos(θ) * cos(λ)
+                ps[2, k] = cos(θ) * sin(λ)
+                ps[3, k] = sin(θ)
 
             end
 
-            u1 = ps[2, :] - ps[1, :]
-            u2 = ps[3, :] - ps[2, :]
-            u3 = ps[3, :] - ps[4, :]
-            u4 = ps[4, :] - ps[1, :]
+            u1 = ps[:, 2] - ps[:, 1]
+            u2 = ps[:, 3] - ps[:, 2]
+            u3 = ps[:, 3] - ps[:, 4]
+            u4 = ps[:, 4] - ps[:, 1]
 
 
             dx_c[i, j] = (norm(u1) + norm(u3)) / 2.0
@@ -125,28 +161,18 @@ mutable struct GridInfo
                 α[i, j] = 2*π - α[i, j]
             end
 
+            
+            cosα[i, j] = cos(α[i, j])
+            sinα[i, j] = sin(α[i, j])
+
+
         end
         
         for i = 1:Nx, j = 1:Ny
 
-            i_w = i-1
-            i_e = i+1
-            j_s = j-1
-            j_n = j+1
+            ok, i_w, i_e, j_s, j_n = getNeighbors(Nx, Ny, i, j)
 
-            if i_w == 0
-                i_w = Nx
-            end
-
-            if i_e == Nx+1
-                i_e = 1
-            end
-
-            if j_s == 0
-                continue
-            end
-
-            if j_n == Ny+1
+            if !ok    
                 continue
             end
 
@@ -162,14 +188,63 @@ mutable struct GridInfo
 
         return new(
             Nx, Ny,
-            α,
+            α, cosα, sinα,
             dx_w, dx_c, dx_e,
             dy_s, dy_c, dy_n,
             dσ,
         )
-    
  
     end
+end
+
+
+function project!(
+    gi    :: GridInfo,
+    ivf_e :: AbstractArray{Float64, 2},     # input vector field east
+    ivf_n :: AbstractArray{Float64, 2},     # input vector field north
+    ovf_e :: AbstractArray{Float64, 2},    # output vector field east
+    ovf_n :: AbstractArray{Float64, 2};    # output vector field north
+    direction = :Forward,
+)
+
+    if direction == :Forward   # from outside world onto dispalced pole grid
+
+        for i=1:gi.Nx, j=1:gi.Ny
+            ovf_e[i, j] =   ivf_e[i, j] * gi.cosα[i, j] - ivf_n[i, j] * gi.sinα[i, j]
+            ovf_n[i, j] =   ivf_e[i, j] * gi.sinα[i, j] + ivf_n[i, j] * gi.cosα[i, j]
+        end
+ 
+    else                       # from displaced pole grid onto outside world
+
+        for i=1:gi.Nx, j=1:gi.Ny
+            ovf_e[i, j] =   ivf_e[i, j] * gi.cosα[i, j] + ivf_n[i, j] * gi.sinα[i, j]
+            ovf_n[i, j] = - ivf_e[i, j] * gi.sinα[i, j] + ivf_n[i, j] * gi.cosα[i, j]
+        end
+
+    end
+
+end
+
+
+
+function divergence2!(
+    gi  :: GridInfo,
+    vf  :: AbstractArray{Float64, 2},
+    div :: AbstractArray{Float64, 2},
+)
+
+    for i=1:gi.Nx, j=1:gi.Ny
+        ok, i_w, i_e, j_s, j_n = getNeighbors(gi.Nx, gi.Ny, i, j)
+
+        if !ok
+            div[i, j] = NaN
+            continue
+        end
+
+        div[i, j] =  (vf[i_e, j] - vf[i_w, j]) / (gi.dx_w[i, j] + gi.dx_e[i, j])
+                   + (vf[i, j_n] - vf[i, j_s]) / (gi.dy_s[i, j] + gi.dy_n[i, j])
+    end
+        
 end
 
 
