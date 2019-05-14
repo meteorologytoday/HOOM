@@ -64,6 +64,9 @@ end
 
 
 struct GridInfo
+
+    R     :: Float64
+
     Nx    :: Integer
     Ny    :: Integer
     α     :: AbstractArray{Float64, 2}
@@ -75,10 +78,17 @@ struct GridInfo
     dy_s  :: AbstractArray{Float64, 2}
     dy_c  :: AbstractArray{Float64, 2}
     dy_n  :: AbstractArray{Float64, 2}
+    
+    ds1   :: AbstractArray{Float64, 2}
+    ds2   :: AbstractArray{Float64, 2}
+    ds3   :: AbstractArray{Float64, 2}
+    ds4   :: AbstractArray{Float64, 2}
+
     dσ    :: AbstractArray{Float64, 2}
    
 
     function GridInfo(
+        R      :: Float64,
         Nx     :: Integer,
         Ny     :: Integer,
         c_lon  :: AbstractArray{Float64, 2},  # center longitude
@@ -99,6 +109,11 @@ struct GridInfo
         dy_c = zeros(Float64, Nx, Ny)
         dy_n = zeros(Float64, Nx, Ny)
         dσ = zeros(Float64, Nx, Ny)
+        
+        ds1 = zeros(Float64, Nx, Ny)
+        ds2 = zeros(Float64, Nx, Ny)
+        ds3 = zeros(Float64, Nx, Ny)
+        ds4 = zeros(Float64, Nx, Ny)
     
         ps = zeros(Float64, 3, 4)
 
@@ -126,11 +141,17 @@ struct GridInfo
 
             end
 
+            ps .*= R
+
             u1 = ps[:, 2] - ps[:, 1]
             u2 = ps[:, 3] - ps[:, 2]
             u3 = ps[:, 3] - ps[:, 4]
             u4 = ps[:, 4] - ps[:, 1]
 
+            ds1[i, j] = norm(u1)
+            ds2[i, j] = norm(u2)
+            ds3[i, j] = norm(u3)
+            ds4[i, j] = norm(u4)
 
             dx_c[i, j] = (norm(u1) + norm(u3)) / 2.0
             dy_c[i, j] = (norm(u2) + norm(u4)) / 2.0
@@ -184,13 +205,14 @@ struct GridInfo
 
         end
 
-        α .*= r2d
+#        α .*= r2d
 
         return new(
-            Nx, Ny,
+            R, Nx, Ny,
             α, cosα, sinα,
             dx_w, dx_c, dx_e,
             dy_s, dy_c, dy_n,
+            ds1, ds2, ds3, ds4,
             dσ,
         )
  
@@ -228,9 +250,10 @@ end
 
 
 function divergence2!(
-    gi  :: GridInfo,
-    vf  :: AbstractArray{Float64, 2},
-    div :: AbstractArray{Float64, 2},
+    gi   :: GridInfo,
+    vf_e :: AbstractArray{Float64, 2},
+    vf_n :: AbstractArray{Float64, 2},
+    div  :: AbstractArray{Float64, 2},
 )
 
     for i=1:gi.Nx, j=1:gi.Ny
@@ -241,8 +264,16 @@ function divergence2!(
             continue
         end
 
-        div[i, j] =  (vf[i_e, j] - vf[i_w, j]) / (gi.dx_w[i, j] + gi.dx_e[i, j])
-                   + (vf[i, j_n] - vf[i, j_s]) / (gi.dy_s[i, j] + gi.dy_n[i, j])
+#        div[i, j] =  (  vf_e[i_e, j] * gi.ds2[i, j]
+#                      - vf_e[i_w, j] * gi.ds4[i, j] ) / (gi.dx_w[i, j] + gi.dx_e[i, j])
+#                   + (  vf_n[i, j_n] * gi.ds3[i, j]
+#                      - vf_n[i, j_s] * gi.ds1[i, j] ) / (gi.dy_s[i, j] + gi.dy_n[i, j])
+
+        div[i, j] =  (  vf_e[i_e, j] * gi.ds2[i, j]
+                      - vf_e[i_w, j] * gi.ds4[i, j] 
+                      + vf_n[i, j_n] * gi.ds3[i, j]
+                      - vf_n[i, j_s] * gi.ds1[i, j] ) / gi.dσ[i, j]
+
     end
         
 end
