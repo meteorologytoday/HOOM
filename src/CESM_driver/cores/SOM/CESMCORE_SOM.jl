@@ -29,7 +29,6 @@ module CESMCORE_SOM
         sobjs       :: Dict
         sobj_dict   :: Dict
         rec_cnts    :: Dict
-
     end
 
 
@@ -126,6 +125,15 @@ module CESMCORE_SOM
                 sobjs[rec_key] = StatObj(sobj_dict)
                 rec_cnts[rec_key] = 0
             end
+        end
+
+        # check if key "Qflux" is set in configs
+        if haskey(configs, "Qflux")
+            if ! (typeof(configs["Qflux"]) <: Bool)
+                throw(ErrorException("The value of `Qflux` in configs must be of type Bool."))
+            end
+        else
+            throw(ErrorException("The key `Qflux` is not found in variable `configs`."))
         end
 
         return SOM_DATA(
@@ -234,7 +242,10 @@ module CESMCORE_SOM
 
         wksp.eflx[:, :] = wksp.nswflx[:, :]
         wksp.eflx .+= wksp.swflx
-        wksp.eflx .+= wksp.tfdiv
+
+        if MD.configs["Qflux"]
+            wksp.eflx .+= wksp.tfdiv
+        end
         
         SOM.stepOceanColumnCollection!(
             MD.occ;
