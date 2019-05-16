@@ -12,3 +12,4 @@ slurm.epilog*
 data
 *.jld
 *.out
+*.png

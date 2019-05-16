@@ -1,12 +1,15 @@
 using NCDatasets
 using Printf
 using Formatting
+using Statistics: mean
 
 ρ    = 1027.0  # kg / m^3
 g    = 9.8     # m / s^2
 
 ifilename_Temp = "RG_ArgoClim_Temp.nc"
 ifilename_Psal = "RG_ArgoClim_Psal.nc"
+
+month = 7
 
 Dataset(ifilename_Temp,"r") do ds
     
@@ -16,13 +19,14 @@ Dataset(ifilename_Temp,"r") do ds
     global time = collect(Float64, 1:length(ds["TIME"]))
 
     global T_mean =   replace(ds["ARGO_TEMPERATURE_MEAN"][:], missing=>NaN)
-                  + replace(ds["ARGO_TEMPERATURE_ANOMALY"][:, :, :, 8], missing=>NaN)
+    T_mean += mean(replace(ds["ARGO_TEMPERATURE_ANOMALY"][:, :, :, month:12:end], missing=>NaN), dims=(4,))[:, :, :, 1]
 
 end
 
 Dataset(ifilename_Psal,"r") do ds
     
     global S_mean = replace(ds["ARGO_SALINITY_MEAN"][:], missing=>NaN)
+    S_mean += mean(replace(ds["ARGO_SALINITY_ANOMALY"][:, :, :, month:12:end], missing=>NaN), dims=(4,))[:,:,:,1]
 
 end
 
@@ -38,13 +42,13 @@ llon = repeat(reshape(lon, :, 1, 1) , outer=(1, length(lat), length(z)))
 llat = repeat(reshape(lat, 1, :, 1), outer=(length(lon), 1, length(z)))
 
 rngs = [ (l-2,l+2)  for l in [-60.0, -30.0, 0.0, 30.0, 60.0] ]
-rng_lon = (189, 191)
+rng_lon = (0, 360)#169, 171)
 
 using PyPlot
 
 fig, axes = plt[:subplots](1,length(rngs),figsize=(12,6), sharey=true)
 
-fig[:suptitle](format("Argo float climatology ({:02d} years) of temperature (solid) and salinity (dashed). Longitude: 170W ", floor(Int64, length(time) / 12)))
+fig[:suptitle](format("Argo float climatology ({:02d} years) of temperature (solid) and salinity (dashed) in month {:d}. Longitude: [{:d}, {:d}] ", floor(Int64, length(time) / 12), month, rng_lon[1], rng_lon[2]))
 
 for i in 1:length(rngs)
 
@@ -86,9 +90,10 @@ for i in 1:length(rngs)
 
     ax[:plot](T_avg, z, "k-", label="Temperature")
     ax2[:plot](S_avg, z, "k--", label="Salinity")
-    ax[:text](25, 1850, format("{:d}{}\$\\pm\$5", abs(mid), suf), ha="center")
+    ax[:text](25, 850, format("{:d}{}\$\\pm\$2", abs(mid), suf), ha="center")
     ax[:set_xlim]([0, 30])
     ax2[:set_xlim]([32, 36])
+    ax[:set_ylim]([1000, -20])
     
     if i == 3
         ax[:set_xlabel]("Temperature [deg C]")
@@ -99,5 +104,5 @@ end
 
 axes[1][:set_ylabel]("Depth [m]")
 plt[:show]()
-fig[:savefig]("Argofloat_climatology.png", dpi=200)
+fig[:savefig](format("Argofloat_climatology_m{:02d}_lon{:d}-{:d}.png", month, rng_lon[1], rng_lon[2]), dpi=200)
 
