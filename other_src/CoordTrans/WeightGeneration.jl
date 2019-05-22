@@ -229,20 +229,60 @@ using Distributed
 
 
 
-    function convertData2D(
-        in_filename  :: AbstractString,
-        out_filename :: AbstractString,
-        wgt_filename :: AbstractString,
-        varnames2D   :: Tuple,
+    function convertFile(
+        in_filename   :: AbstractString,
+        out_filename  :: AbstractString,
+        wgt_filename  :: AbstractString;
+        varnames2D    :: Tuple = (,),
+        varnames3D    :: Tuple = (,),
+        copy_varnames :: Tuple = (:,),
     )
         NN_idx, s_wgt = readWeightFile(wgt_filename)
-        
-        ds_in  = Dataset(in_filename, "r")
-        ds_out = Dataset(out_filename, "o")
 
+        s_data_len = size(NN_idx)[2]
+        d_data_tmp = zeros(eltype(s_wgt), size(NN_idx)[1])
+
+        ds_in  = Dataset(in_filename, "r")
+        ds_out = Dataset(out_filename, "c")
+
+        for varname in varnames2D
+
+            println("Dealing with varname: ", varname)
+
+            if varname in ds_out
+                println(format("[Varnames2D] Varname: {} already exists. Skip.", varname))
+                continue
+            end
+
+
+            cf_var = ds_in[varname]
+
+            s_data = replace(cf_var[:], missing => NaN)
+            dtype = eltype(s_data)
+            dims  = size(cf_var)
+            dims_len = length(dims)
+
+            if dims_len == 2
+                s_data = reshape(s_data, dims[1], dims[2], 1)
+                dims  = size(cf_var)
+                dims_len = length(dims)
+            end
+            
+            if dims_len != 3 || length(s_data) != s_data_length
+                throw(ErrorException(format("[Varnames2D] Varname: {} does not have correct dimension or size.")))
+            end
+
+            convertData!(NN_idx, s_wgt, s_data, d_data_tmp) 
+        end
+
+        # copy variable
         for i = 1:N
         end 
+        
+        # 
 
+        close(ds_in)
+        close(ds_out)
     end
 
 end
