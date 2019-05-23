@@ -25,7 +25,7 @@ Dataset(s_map_file, "r") do ds
         s_lon = replace(reshape(ds["TLONG"][:], :), missing=>NaN)
         s_lat = replace(reshape(ds["TLAT"][:], :), missing=>NaN)
 
-        global gi_s = WeightGeneration.GridInfo{Float64}(
+        global gi_s = WeightGeneration.GridInfo(
             gc_lon = s_lon,
             gc_lat = s_lat,
             area   = copy(s_lon),
@@ -46,7 +46,7 @@ Dataset(d_map_file, "r") do ds
         d_lon = replace(reshape(ds["xc"][:], :), missing=>NaN)
         d_lat = replace(reshape(ds["yc"][:], :), missing=>NaN)
 
-        global gi_d = WeightGeneration.GridInfo{Float64}(
+        global gi_d = WeightGeneration.GridInfo(
             gc_lon = d_lon,
             gc_lat = d_lat,
             area   = copy(d_lon),
