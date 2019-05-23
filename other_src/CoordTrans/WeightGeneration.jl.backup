@@ -9,8 +9,6 @@ using Distributed
 
     mutable struct WeightInfo
 
-        NNN_max    :: Int64
-
         s_N        :: Int64
         d_N        :: Int64
 
@@ -19,10 +17,8 @@ using Distributed
         s_gc_lon   :: AbstractArray{Float64, 1}
         d_gc_lat   :: AbstractArray{Float64, 1}
         d_gc_lon   :: AbstractArray{Float64, 1}
-
         s_dims     :: AbstractArray{Int64, 1}
         d_dims     :: AbstractArray{Int64, 1}
-        
         s_wgt      :: AbstractArray{Float64, 1}
 
     end
@@ -97,10 +93,7 @@ using Distributed
         NNN_max  :: Integer;
     )
 
-        if length(gi_s.dims) != length(gi_d.dims)
-            throw(ErrorException("Source and destination grid does not have same number dimensions"))
-        end
-
+        
         trans = SharedArray{Float64}((NNN_max, gi_d.N))
 
         # s_coord and d_coord are the coordinates of grid points
@@ -165,7 +158,6 @@ using Distributed
         println(typeof(gi_s.dims))
 
         wi = WeightInfo(
-            NNN_max,
             gi_s.N,
             gi_d.N,
             trans,
@@ -192,7 +184,8 @@ using Distributed
             defDim(ds, "s_N", wi.s_N)
             defDim(ds, "d_N", wi.d_N)
             defDim(ds, "NNN_max", size(wi.NN_idx)[1])
-            defDim(ds, "dims", length(wi.s_dims))
+            defDim(ds, "s_dims", length(wi.s_dims))
+            defDim(ds, "d_dims", length(wi.d_dims))
 
             for (varname, vardata, vardims) in (
                 ("NN_idx",    wi.NN_idx, ("NNN_max", "d_N")),
@@ -200,8 +193,8 @@ using Distributed
                 ("s_gc_lon",  wi.s_gc_lon, ("s_N",)),
                 ("d_gc_lat",  wi.d_gc_lat, ("d_N",)),
                 ("d_gc_lon",  wi.d_gc_lon, ("d_N",)),
-                ("s_dims",    wi.s_dims, ("dims",)),
-                ("d_dims",    wi.d_dims, ("dims",)),
+                ("s_dims",    wi.s_dims, ("s_dims",)),
+                ("d_dims",    wi.d_dims, ("d_dims",)),
                 ("s_wgt",     wi.s_wgt, ("s_N",)),
             )
 
@@ -224,54 +217,24 @@ using Distributed
 
     end    
 
-    function readWeightInfo(
-        filename :: AbstractString
-    )
-        local wi
-
-        Dataset(filename, "r") do ds
-
-            wi = WeightInfo(
-                ds.dim["NNN_max"],
-                ds.dim["s_N"],
-                ds.dim["d_N"],
-                replace(ds["NN_idx"], missing=>0),
-                replace(ds["s_gc_lat"][:], missing=>NaN),
-                replace(ds["d_gc_lon"][:], missing=>NaN),
-                replace(ds["s_gc_lat"][:], missing=>NaN),
-                replace(ds["d_gc_lon"][:], missing=>NaN),
-                replace(ds["s_dims"][:], missing=>0),
-                replace(ds["d_dims"][:], missing=>0),
-                replace(ds["s_wgt"][:], missing=>NaN),
-            )
-
-        end
-
-        return wi
-
-    end    
-
-
 
     function convertData!(
-        wi      :: WeightInfo,
+        NN_idx  :: AbstractArray{I, 2},
+        s_wgt   :: AbstractArray{Float64, 1},
         s_data  :: AbstractArray{Float64, 1},
         d_data  :: AbstractArray{Float64, 1},
-    )
-
-        NN_idx = wi.NN_idx
-        s_wgt  = wi.s_wgt
+    ) where Float64 <: AbstractFloat where I <: Integer
 
         NNN = size(NN_idx)[1]
+        println(size(NN_idx))
         for i = 1 : length(d_data)
 
+            d_data[i] = NaN
+            wgt_sum = 0.0
+
             if NN_idx[1, i] == 0
-                d_data[i] = NaN
                 continue
             end
-
-            wgt_sum = 0.0
-            d_data[i] = 0.0
 
             for j = 1:NNN
 
@@ -280,7 +243,7 @@ using Distributed
         
                 if isfinite(data)
                     wgt_sum += s_wgt[idx]
-                    d_data[i] += data * s_wgt[idx]
+                    d_data[i] += data
                 else
                     break
                 end
@@ -288,129 +251,92 @@ using Distributed
 
             d_data[i] = (wgt_sum == 0) ? NaN : d_data[i] / wgt_sum
 
-
         end
 
     end
+
+
+    function readWeightFile(wgt_filename :: AbstractString)
+
+        ds = Dataset(wgt_filename, "r")
+
+        NN_idx = replace(ds["NN_idx"][:], missing=>0)
+        s_wgt = replace(ds["s_wgt"][:], missing=>NaN)
+
+
+        return NN_idx, s_wgt
+
+    end
+
 
 
     function convertFile(
         in_filename   :: AbstractString,
         out_filename  :: AbstractString,
         wgt_filename  :: AbstractString;
-        varnames      :: Tuple = (),
+        varnames2D    :: Tuple = (),
+        varnames3D    :: Tuple = (),
         copy_varnames :: Tuple = (:,),
-        xydim         :: AbstractString = "grid",
-        xdim          :: AbstractString = "lon",
-        ydim          :: AbstractString = "lat",
-        zdim          :: AbstractString = "lev",
-        tdim          :: AbstractString = "time",
-        xydim_val     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
-        xdim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
-        ydim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
-        zdim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
     )
-        wi = readWeightInfo(wgt_filename)
+        NN_idx, s_wgt = readWeightFile(wgt_filename)
 
-        dim_len = length(wi.d_dims)
-        d_data_tmp = zeros(Float64, wi.d_N)
+        s_data_len = length(s_wgt) 
+        d_data_tmp = zeros(eltype(s_wgt), size(NN_idx)[2])
 
         ds_in  = Dataset(in_filename, "r")
         ds_out = Dataset(out_filename, "c")
 
-        if ! (dim_len in (1, 2))
-            throw(ErrorException("Weird"))
-        end
-
-        # Defining dimension
-        if dim_len == 1
-            defDim(ds_out, xydim, wi.d_dims[1])
-        elseif dim_len == 2
-            defDim(ds_out, xdim, wi.d_dims[1])
-            defDim(ds_out, ydim, wi.d_dims[2])
-        end
-
-        defDim(ds_out, tdim, Inf)
-
-        if zdim in ds_in.dim
-            defDim(ds_out, zdim, ds_in.dim[zdim])
-        end
-      
-
-        # Fill in dimension values
-
-        if dim_len == 1
-
-            if xydim_val != nothing
-                defVar(ds_out, xydim, xydim_val, (xydim,))
-            end
-
-        elseif dim_len == 2
-
-            if xdim_val != nothing
-                defVar(ds_out, xdim, xdim_val, (xdim,))
-            end
-
-            if ydim_val != nothing
-                defVar(ds_out, ydim, ydim_val, (ydim,))
-            end
-        end
-
-        if zdim_val != nothing
-            defVar(ds_out, zdim, zdim_val, (zdim,))
-        elseif zdim in ds_in
-            defVar(ds_out, zdim, replace(ds_in[zdim][:], missing=>0), (zdim,))
-        end
-
-        # Converting variables
-        for varname in varnames
+        for varname in varnames2D
 
             println("Dealing with varname: ", varname)
 
             if varname in ds_out
-                println(format("Varname: {} already exists. Skip.", varname))
+                println(format("[Varnames2D] Varname: {} already exists. Skip.", varname))
                 continue
             end
 
+
             cf_var = ds_in[varname]
-            cf_var_dimnames = dimnames(cf_var)
+
+            # Create dimension
+            for dimname in dimnames(cf_var)
+                if ! (dimname in ds_out.dim)
+                    defDim(ds_out, dimname, ds_in.dim[dimname])
+                end
+            end
+
 
             s_data = replace(cf_var[:], missing=>NaN)
-            s_data_dims = size(s_data)
-            s_data_dims_len = length(s_data_dims)
+            dtype = eltype(s_data)
+            dims  = size(cf_var)
+            dims_len = length(dims)
 
-            d1 = reduce(*, s_data_dims[1:dim_len])
-            d2 = (s_data_dims_len > dim_len) ? reduce(*, s_data_dims[dim_len+1:end]) : 1
-           
-            s_data = reshape(s_data, d1, d2)
-
-            v = defVar(ds_out, varname, Float64, cf_var_dimnames) #; attrib=cf_var.attrib)
-            
-            for k = 1:size(s_data)[2]
-                convertData!(wi, view(s_data, :, k), d_data_tmp)
-        
-
-                # Construct writing shape
-                idx = Array{Any}(undef, 0)
-                for i=1:dim_len
-                    push!(idx, :)
-                end
-
-                #println("ssssssss")
-                #println(s_data_dims_len) 
-                #println(s_data_dims) 
-                #println(size(s_data) )
-                if s_data_dims_len == dim_len + 1
-                    push!(idx, k)
-                elseif s_data_dims_len == dim_len + 2
-                    zidx = mod(k-1, ds_in.dim[zdim]) + 1
-                    tidx = floor(Integer, (k - 1) / ds_in.dim[zdim]) + 1
-                    push!(idx, zidx)
-                    push!(idx, tidx)
-                end
-                #println(idx)
-                v[idx...] = reshape(d_data_tmp, wi.d_dims[1], wi.d_dims[2])
+            if dims_len == 2
+                s_data = reshape(s_data, dims[1] * dims[2], 1)
+            elseif dims_len == 3
+                s_data = reshape(s_data, dims[1] * dims[2], dims[3])
+            else
+                throw(ErrorException(format("[Varnames2D] Varname: {} does not have correct dimension or size.", varname)))
             end
+           
+            println(dtype)
+            println(typeof(NN_idx))
+#            println(typeof(cf_var.attrib["_FilllValue"]))
+            
+            v = defVar(ds_out, varname, dtype, dimnames(cf_var))
+#; attrib=cf_var.attrib)
+
+
+            if dims_len == 2
+                convertData!(NN_idx, s_wgt, view(s_data, :, 1), d_data_tmp)
+                v[:] = reshape(d_data_tmp, dims[1], dims[2])
+            elseif dims_len == 3
+                for k = 1:size(s_data)[2]
+                    convertData!(NN_idx, s_wgt, view(s_data, :, k), d_data_tmp)
+                    println(size(d_data_tmp))
+                    v[:, :, k] = reshape(d_data_tmp, dims[1], dims[2], 1)
+                end
+            end 
         end
 
         # copy variable
@@ -418,6 +344,7 @@ using Distributed
 #        end 
         
         # 
+
         close(ds_in)
         close(ds_out)
     end
