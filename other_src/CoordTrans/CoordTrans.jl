@@ -408,7 +408,7 @@ using Distributed
                     push!(idx, zidx)
                     push!(idx, tidx)
                 end
-                #println(idx)
+                println(idx)
                 v[idx...] = reshape(d_data_tmp, wi.d_dims[1], wi.d_dims[2])
             end
         end
