@@ -1,6 +1,6 @@
-include("WeightGeneration.jl")
+include("CoordTrans.jl")
 
-using .WeightGeneration
+using .CoordTrans
 
 using NCDatasets
 using Distributed
@@ -25,7 +25,7 @@ Dataset(s_map_file, "r") do ds
         s_lon = replace(reshape(ds["xc"][:], :), missing=>NaN)
         s_lat = replace(reshape(ds["yc"][:], :), missing=>NaN)
 
-        global gi_s = WeightGeneration.GridInfo(
+        global gi_s = CoordTrans.GridInfo(
             gc_lon = s_lon,
             gc_lat = s_lat,
             area   = copy(s_lon),
@@ -39,14 +39,14 @@ end
 Dataset(d_map_file, "r") do ds
         global d_mask, d_Nx, d_Ny, d_N, d_lat, d_lon
 
-        d_mask = replace(reshape(ds["mask"][:], :), missing=>NaN)
+        d_mask = 1 .- replace(reshape(ds["mask"][:], :), missing=>NaN)
         d_Nx = ds.dim["ni"]
         d_Ny = ds.dim["nj"]
         d_N = d_Nx * d_Ny
         d_lon = replace(reshape(ds["xc"][:], :), missing=>NaN)
         d_lat = replace(reshape(ds["yc"][:], :), missing=>NaN)
 
-        global gi_d = WeightGeneration.GridInfo(
+        global gi_d = CoordTrans.GridInfo(
             gc_lon = d_lon,
             gc_lat = d_lat,
             area   = copy(d_lon),
@@ -56,5 +56,5 @@ Dataset(d_map_file, "r") do ds
         )
 end
 
-WeightGeneration.genWeight_NearestNeighbors(wgt_file, gi_s, gi_d, NNN_max)
+CoordTrans.genWeight_NearestNeighbors(wgt_file, gi_s, gi_d, NNN_max)
 

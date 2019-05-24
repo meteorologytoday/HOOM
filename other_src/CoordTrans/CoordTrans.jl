@@ -1,6 +1,6 @@
 using Distributed
 
-@everywhere module WeightGeneration
+@everywhere module CoordTrans
 
     using NCDatasets
     using SharedArrays
