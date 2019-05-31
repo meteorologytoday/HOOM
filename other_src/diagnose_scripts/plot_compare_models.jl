@@ -8,6 +8,13 @@ c_p  = 1004.0    #  J / kg K
 g   = 9.81      #  m / s^2
 Lw  = 2.26e6    #  J / kg
 
+t_beg = 240-10*12+1
+t_end = 240
+t_rng = t_beg:t_end
+years = (t_end - t_beg + 1) / 12.0
+nc_file_dir = "extract_nc_files"
+domain_nc_file_dir = "domain_nc_files"
+
 casenames = [
     "lowres_STD_SOM",
     "lowres_SSM_SOM",
@@ -17,19 +24,32 @@ casenames = [
     
 linestyle = ["k-", "r-", "g-", "b-"]
 
-Dataset(casenames[1] * ".h1.nc", "r") do ds
+mreplace = (x,) -> replace(x, missing=>NaN)
+
+Dataset("$domain_nc_file_dir/domain.lnd.fv4x5_gx3v7.091218.nc", "r") do ds
+    global mask
+    mask = ds["mask"][:] |> mreplace
+    
+    mask[mask.!=0] .= 1
+end
+
+
+
+Dataset("$nc_file_dir/$(casenames[1]).h1.nc", "r") do ds
     global lat, lon, lev, ilev, rec
 
-    lat = ds["lat"][:] 
-    lon = ds["lon"][:] 
-#    lev = ds["lev"][:]
-    ilev = ds["ilev"][:]
-    rec = ds["time"][:]
+    lat = ds["lat"][:] |> mreplace
+    lon = ds["lon"][:] |> mreplace
 
+    ilev = (ds["ilev"][:] |> mreplace) * 100.0
+
+    rec = ds["time"][:] |> mreplace
+
+    lev = (ilev[2:end] + ilev[1:end-1]) / 2.0
 end
 
 # mass
-Δp = (ilev[2:end] - ilev[1:end-1]) * 100.0
+Δp = (ilev[2:end] - ilev[1:end-1])
 
 
 function calMeanTransport(v)
@@ -65,7 +85,71 @@ end
 
 print("Import Pyplot... ")
 using PyPlot
+plt[:rcParams]["font.size"] = 20
+
+#using PyCall
+#@pyimport mpl_toolkits.basemap as basemap
+
 println("Done. ")
+
+#include("subcode_compare_models/global_surface_temperature.jl")
+#include("subcode_compare_models/map_sea_surface_pressure.jl")
+include("subcode_compare_models/map_SST.jl")
+
+#=
+### Streamfunction
+
+include(joinpath(@__DIR__, "invert_streamfunction.jl"))
+
+fig_compare, ax_compare = plt[:subplots](1, 1, figsize=(12,8))
+ax_compare[:plot]([-90, 90], [0, 0], linewidth=2, color="#cccccc")
+
+for i = 1:length(casenames)
+
+    casename = casenames[i]
+
+    fig, ax = plt[:subplots](1, 1, figsize=(12,8))
+    
+    Dataset("$nc_file_dir/$casename.h0.nc", "r") do ds
+
+        global V = mean(replace(ds["V"][:], missing=>NaN), dims=(1, 4))[1, :, :, 1]
+        ψ  = invertStreamfunction(lat * π / 180.0, ilev, V; g0=g, Re=Re) / 1e10
+
+        println(size(ψ), ";", size(lat), ";", size(ilev))
+        cs = ax[:contour](lat, ilev/100, ψ'[:,:], range(-20, step=2, stop=20), colors="k")
+
+
+        ax[:clabel](cs, fmt="%d")
+        ax[:set_xlabel]("Lat [deg]")
+        ax[:set_ylabel]("Pressure [hPa]")
+
+        ax[:set_title](casename)
+        ax[:set_xlim](-90, 90)
+        ax[:set_ylim](100, 1000)
+        ax[:invert_yaxis]()
+
+        fig[:savefig]("$(casename)_psi.png", dpi=200)
+
+
+        ax_compare[:plot](lat, mean(ψ[:, 19:20], dims=(2,))[:,1], linestyle[i], label="$casename")
+
+    end
+
+
+end
+
+ax_compare[:legend]()
+ax_compare[:set_xlabel]("Lat [deg]")
+ax_compare[:set_ylabel]("Streamfunction [ \$ \\times 10^{10} \$ kg / s]")
+
+ax_compare[:set_title]("Streamfunction along 510 hPa (meridional mass transport below 510 hPa)")
+ax_compare[:set_xlim](-90, 90)
+
+fig_compare[:savefig]("compare_models_psi.png", dpi=200)
+
+=#
+
+
 
 #=
 
@@ -134,7 +218,7 @@ ax[:set_xlim](-90, 90)
 
 fig[:savefig]("compare_models_PRECIP.png", dpi=200)
 
-=#
+
 ### Energy convergence
 
 
@@ -238,3 +322,4 @@ ax[:set_ylim](0, 20)
 fig[:savefig]("compare_models_ECNVG.png", dpi=200)
 
 
+=#
