@@ -1,7 +1,7 @@
 function stepOceanColumnCollection!(
     occ    :: OceanColumnCollection;
-    fric_x :: AbstractArray{Float64, 2},
-    fric_y :: AbstractArray{Float64, 2},
+    τ_x :: AbstractArray{Float64, 2},
+    τ_y :: AbstractArray{Float64, 2},
     swflx  :: AbstractArray{Float64, 2}, # Shortwave     energy flux at the surface (     J  / s m^2)
     nswflx :: AbstractArray{Float64, 2}, # Non-shortwave energy flux at the surface (     J  / s m^2)
     frwflx :: AbstractArray{Float64, 2}, # Freshwater           flux at the surface (     m  / s m^2)
@@ -16,8 +16,24 @@ function stepOceanColumnCollection!(
     # 3. Do horizontal diffusion
     # 4. Do convective adjustment
 
+    wksp = occ.wksp
+    
+    DisplacedPoleCoordinate.project!(occ.gi, τ_x, τ_y, wksp.τ_x, wksp.τ_y, direction=:Forward)
+    calEkmanTransport!(occ, wksp.τ_x, wksp.τ_y, wksp.M_x, wksp.M_y, occ.fs, occ.ϵs)
+    
+    DisplacedPoleCoordinate.divergence2!(occ.gi, wksp.M_x, wksp.M_y, wksp.div_M)
+    
+    for i = 1:occ.Nx, j = 1:occ.Ny
+        wksp.M_x_T[i, j, 1] =   wksp.M_x[i, j] * occ.Ts[i, j, 1]
+        wksp.M_y_T[i, j, 1] =   wksp.M_y[i, j] * occ.Ts[i, j, 1]
+        wksp.M_x_T[i, j, 2] = - wksp.M_x[i, j] * occ.Ts[i, j, 2]
+        wksp.M_y_T[i, j, 2] = - wksp.M_y[i, j] * occ.Ts[i, j, 2]
+    end 
 
-    for
+    DisplacedPoleCoordinate.divergence2!(occ.gi, wksp.M_x_T, wksp.M_y_T, wksp.div_MT)
+
+    
+
 
 
 

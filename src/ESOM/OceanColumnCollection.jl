@@ -1,4 +1,35 @@
+mutable struct Workspace
+    τ_x       :: AbstractArray{Float64, 2}
+    τ_y       :: AbstractArray{Float64, 2}
+    M_x       :: AbstractArray{Float64, 2}
+    M_y       :: AbstractArray{Float64, 2}
+    M_x_T     :: AbstractArray{Float64, 3}
+    M_y_T     :: AbstractArray{Float64, 3}
+    div_MT    :: AbstractArray{Float64, 2}
+    div_M     :: AbstractArray{Float64, 2}
+
+    function Workspace(
+        Nx :: Integer,
+        Ny :: Integer,
+    )
+        τ_x    = SharedArray{Float64}(Nx, Ny)
+        τ_y    = SharedArray{Float64}(Nx, Ny)
+        M_x    = SharedArray{Float64}(Nx, Ny)
+        M_y    = SharedArray{Float64}(Nx, Ny)
+        M_x_T  = SharedArray{Float64}(Nx, Ny, 2)
+        M_y_T  = SharedArray{Float64}(Nx, Ny, 2)
+        div_MT = SharedArray{Float64}(Nx, Ny)
+        div_M  = SharedArray{Float64}(Nx, Ny)
+        
+        return new(τ_x, τ_y, M_x, M_y, M_x_T, M_y_T, div_MT, div_M)
+    end
+end
+
+
 mutable struct OceanColumnCollection
+
+    gi       :: DisplacedPoleCoordinate.GridInfo
+
     Nx       :: Integer           # Number of columns in i direction
     Ny       :: Integer           # Number of columns in j direction
     
@@ -8,6 +39,8 @@ mutable struct OceanColumnCollection
 
     Kh_T     :: Float64           # Horizontal diffusion coe of temperature
     Kh_S     :: Float64           # Horizontal diffusion coe of salinity
+    fs       :: AbstractArray{Float64, 2}
+    ϵs       :: AbstractArray{Float64, 2}
 
     mask     :: AbstractArray{Float64, 2}
     mask_idx :: Any
@@ -22,10 +55,12 @@ mutable struct OceanColumnCollection
 
     # Derived quantities
     zs       :: AbstractArray{Float64, 1}
-    N_ocs  :: Integer           # Number of columns
-
+    N_ocs    :: Integer           # Number of columns
+    
+    wksp     :: Workspace
 
     function OceanColumnCollection(;
+        gridinfo :: Union{DisplacedPoleCoordinate.GridInfo, AbstractString},
         Nx       :: Integer,
         Ny       :: Integer,
         hs       :: AbstractArray{Float64, 1},
@@ -33,6 +68,8 @@ mutable struct OceanColumnCollection
         Ss       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
         Kh_T     :: Float64,
         Kh_S     :: Float64,
+        fs       :: Union{AbstractArray{Float64, 2}, Float64},
+        ϵs       :: Union{AbstractArray{Float64, 2}, Float64},
         mask     :: Union{AbstractArray{Float64, 2}, Nothing},
         topo     :: Union{AbstractArray{Float64, 2}, Nothing},
     )
@@ -118,6 +155,26 @@ mutable struct OceanColumnCollection
         # ===== [END] Column information =====
 
 
+        # ===== [BEGIN] fs and ϵs =====
+
+        _fs       = SharedArray{Float64}(Nx, Ny)
+        _ϵs       = SharedArray{Float64}(Nx, Ny)
+
+        if typeof(fs) <: AbstractArray{Float64, 2}
+            _fs[:, :] = fs
+        elseif typeof(fs) <: Float64 
+            _fs .= fs
+        end
+
+        if typeof(ϵs) <: AbstractArray{Float64, 2}
+            _ϵs[:, :] = ϵs
+        elseif typeof(ϵs) <: Float64 
+            _ϵs .= ϵs
+        end
+
+        # ===== [END] fs and ϵs =====
+
+
         # ===== [BEGIN] Mask out data =====
 
         # Clean up all variables
@@ -131,13 +188,23 @@ mutable struct OceanColumnCollection
 
         # ===== [END] Mask out data =====
 
+        # ===== [BEG] GridInfo =====
+        if typeof(gridinfo) <: AbstractString
+            mi = ModelMap.MapInfo{Float64}(gridinfo)
+            gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv)
+        end
+        # ===== [END] GridInfo =====
+
+
         occ = new(
+            gridinfo,
             Nx, Ny, hs,
             _topo, Kh_T, Kh_S,
+            _fs, _ϵs,
             _mask, mask_idx,
             _bs,   _Ts,   _Ss,
             _qflx2atm, _et_x, _et_y,
-            zs, Nx * Ny,
+            zs, Nx * Ny, Workspace(Nx, Ny)
         )
 
         updateB!(occ)

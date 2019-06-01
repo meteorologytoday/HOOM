@@ -18,3 +18,5 @@ const S_surf_avg = 35e-3    # The average surface salinity used to update salini
 
 
 const missing_value = 1e20
+
+const Re = 6371e3          # Radius of Earth
