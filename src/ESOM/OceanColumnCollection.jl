@@ -1,27 +1,31 @@
 mutable struct Workspace
-    τ_x       :: AbstractArray{Float64, 2}
-    τ_y       :: AbstractArray{Float64, 2}
-    M_x       :: AbstractArray{Float64, 2}
-    M_y       :: AbstractArray{Float64, 2}
-    M_x_T     :: AbstractArray{Float64, 3}
-    M_y_T     :: AbstractArray{Float64, 3}
+    τx        :: AbstractArray{Float64, 2}
+    τy        :: AbstractArray{Float64, 2}
+    Mx        :: AbstractArray{Float64, 2}
+    My        :: AbstractArray{Float64, 2}
+    Mx_T1     :: AbstractArray{Float64, 2}
+    My_T1     :: AbstractArray{Float64, 2}
+    Mx_T2     :: AbstractArray{Float64, 2}
+    My_T2     :: AbstractArray{Float64, 2}
     div_MT    :: AbstractArray{Float64, 2}
-    div_M     :: AbstractArray{Float64, 2}
+    div_M1    :: AbstractArray{Float64, 2}
 
     function Workspace(
         Nx :: Integer,
         Ny :: Integer,
     )
-        τ_x    = SharedArray{Float64}(Nx, Ny)
-        τ_y    = SharedArray{Float64}(Nx, Ny)
-        M_x    = SharedArray{Float64}(Nx, Ny)
-        M_y    = SharedArray{Float64}(Nx, Ny)
-        M_x_T  = SharedArray{Float64}(Nx, Ny, 2)
-        M_y_T  = SharedArray{Float64}(Nx, Ny, 2)
+        τx    = SharedArray{Float64}(Nx, Ny)
+        τy    = SharedArray{Float64}(Nx, Ny)
+        Mx    = SharedArray{Float64}(Nx, Ny)
+        My    = SharedArray{Float64}(Nx, Ny)
+        Mx_T1 = SharedArray{Float64}(Nx, Ny)
+        My_T1 = SharedArray{Float64}(Nx, Ny)
+        Mx_T2 = SharedArray{Float64}(Nx, Ny)
+        My_T2 = SharedArray{Float64}(Nx, Ny)
         div_MT = SharedArray{Float64}(Nx, Ny)
-        div_M  = SharedArray{Float64}(Nx, Ny)
+        div_M1 = SharedArray{Float64}(Nx, Ny)
         
-        return new(τ_x, τ_y, M_x, M_y, M_x_T, M_y_T, div_MT, div_M)
+        return new(τx, τy, Mx, My, Mx_T1, My_T1, Mx_T2, My_T2, div_MT, div_M1)
     end
 end
 
