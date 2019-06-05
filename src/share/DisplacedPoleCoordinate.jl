@@ -271,7 +271,6 @@ function project!(
 end
 
 
-
 function divergence2!(
     gi   :: GridInfo,
     vf_e :: AbstractArray{Float64, 2},
@@ -299,6 +298,41 @@ function divergence2!(
         flux_s = (mask[i  , j_s] == 0) ? 0.0 : vf_n[i, j_s] * gi.ds1[i, j]
 
         div[i, j] =  (  flux_e - flux_w + flux_n - flux_s ) / gi.dσ[i, j]
+
+    end
+        
+end
+
+
+
+function laplacian!(
+    gi   :: GridInfo,
+    f    :: AbstractArray{Float64, 2},
+    ∇²f  :: AbstractArray{Float64, 2},
+    mask :: AbstractArray{Float64, 2},
+)
+
+    for i=1:gi.Nx, j=1:gi.Ny
+
+        if mask[i, j] == 0
+            continue
+        end
+
+        ok, i_w, i_e, j_s, j_n = getNeighbors(gi.Nx, gi.Ny, i, j)
+
+        if !ok
+            div[i, j] = NaN
+            continue
+        end
+
+        f_c = f[i, j]
+
+        flux_e = (mask[i_e, j  ] == 0) ? 0.0 : (f[i_e, j] - f_c) / gi.dx_e[i, j]
+        flux_w = (mask[i_w, j  ] == 0) ? 0.0 : (f_c - f[i_w, j]) / gi.dx_w[i, j] 
+        flux_n = (mask[i  , j_n] == 0) ? 0.0 : (f[i, j_n] - f_c) / gi.dy_n[i, j]
+        flux_s = (mask[i  , j_s] == 0) ? 0.0 : (f_c - f[i, j_s]) / gi.dy_s[i, j]
+
+        ∇²f[i, j] = ( flux_e - flux_w ) / gi.dx_c[i, j] + ( flux_n - flux_s ) / gi.dy_c[i, j]
 
     end
         
