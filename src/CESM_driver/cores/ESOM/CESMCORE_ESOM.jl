@@ -86,8 +86,6 @@ module CESMCORE_ESOM
 
         wksp = Workspace(occ.Nx, occ.Ny)
 
-        wksp.SST[:, :] = occ.Ts[:, :, 1]
-
         x2o = Dict(
             "SWFLX"  => wksp.swflx,
             "NSWFLX" => wksp.nswflx,
@@ -98,10 +96,10 @@ module CESMCORE_ESOM
         )
 
         o2x = Dict(
-            "SST"      => wksp.SST,
+            "SST"      => view(occ.Ts, :, :, 1),
             "QFLX2ATM" => occ.qflx2atm,
         )
-        
+
         output_vars = Dict(
             #=
             "rain"      => wksp.frwflx,
@@ -256,23 +254,18 @@ module CESMCORE_ESOM
             Δt     = Δt,
         )
 
-        wksp.SST[:, :] = MD.occ.Ts[:, :, 1]
-
-        #=
-        for i=1:MD.occ.Nx, j=1:MD.occ.Ny
-
-            if MD.occ.mask[i, j] != 0
-                if isnan(wksp.SST[i, j])
-                    throw(ErrorException("Some data of SST is NaN"))
-                end
-                if isnan(MD.occ.qflx2atm[i, j])
-                    throw(ErrorException("Some data of qflx2atm is NaN"))
-                end
-
+        if write_restart
+            restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
+            ESOM.takeSnapshot(MD.occ, restart_file)
+             
+            open(MD.configs["rpointer_file"], "w") do file
+                write(file, restart_file)
             end
 
+            println("(Over)write restart pointer file: ", MD.configs["rpointer_file"])
+            println("Output restart file: ", restart_file)
+
         end
-        =#
 
     end
 

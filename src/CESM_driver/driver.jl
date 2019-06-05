@@ -105,6 +105,7 @@ while true
 
         writeBinary!(joinpath(configs["tmp_folder"], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
         writeBinary!(joinpath(configs["tmp_folder"], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+        writeBinary!(joinpath(configs["tmp_folder"], "MASK.bin"), map.mask, buffer2d; endianess=:little_endian)
 
         sendText(PTI, "OK")
 

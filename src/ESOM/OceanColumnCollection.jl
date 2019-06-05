@@ -134,6 +134,10 @@ mutable struct OceanColumnCollection
 
         # ===== [BEGIN] Set mask if not deep enough =====
 
+        # 2019/06/05 comment these all out because then you need
+        # a different mask to tell CESM ocean is not active. This
+        # creates a lot of problems.
+        #=
         for i=1:Nx, j=1:Ny
 
             if _mask[i, j] == 0
@@ -144,7 +148,7 @@ mutable struct OceanColumnCollection
                 _mask[i, j] = 0
             end
         end
-        
+        =#
         # ===== [END] Set mask if not deep enough =====
         
 
@@ -220,8 +224,6 @@ mutable struct OceanColumnCollection
         elseif fs == nothing
            _fs[:, :] = 2 * Ωe * sin.(mi.yc * π / 180.0)
         end
-
-        println("Ωe: ", Ωe)
 
         if typeof(ϵs) <: AbstractArray{Float64, 2}
             _ϵs[:, :] = ϵs
