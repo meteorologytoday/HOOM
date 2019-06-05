@@ -86,6 +86,8 @@ module CESMCORE_ESOM
 
         wksp = Workspace(occ.Nx, occ.Ny)
 
+        wksp.SST[:, :] = occ.Ts[:, :, 1]
+
         x2o = Dict(
             "SWFLX"  => wksp.swflx,
             "NSWFLX" => wksp.nswflx,
@@ -96,9 +98,24 @@ module CESMCORE_ESOM
         )
 
         o2x = Dict(
-            "SST"      => view(occ.Ts, :, :, 1),
+            "SST"      => wksp.SST,
             "QFLX2ATM" => occ.qflx2atm,
         )
+
+        for i=1:occ.Nx, j=1:occ.Ny
+
+            if occ.mask[i, j] != 0
+                if isnan(wksp.SST[i, j])
+                    throw(ErrorException("Some data of SST is NaN"))
+                end
+                if isnan(occ.qflx2atm[i, j])
+                    throw(ErrorException("Some data of qflx2atm is NaN"))
+                end
+
+            end
+
+        end
+        println("Passed")
 
         output_vars = Dict(
             #=
@@ -254,6 +271,21 @@ module CESMCORE_ESOM
             Δt     = Δt,
         )
 
+        wksp.SST[:, :] = occ.Ts[:, :, 1]
+
+        for i=1:MD.occ.Nx, j=1:MD.occ.Ny
+
+            if MD.occ.mask[i, j] != 0
+                if isnan(wksp.SST[i, j])
+                    throw(ErrorException("Some data of SST is NaN"))
+                end
+                if isnan(MD.occ.qflx2atm[i, j])
+                    throw(ErrorException("Some data of qflx2atm is NaN"))
+                end
+
+            end
+
+        end
 
 
     end

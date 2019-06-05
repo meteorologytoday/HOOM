@@ -6,6 +6,7 @@ mutable struct Workspace
     swflx  :: Array{Float64}
     frwflx :: Array{Float64}
     ifrac :: Array{Float64}
+    SST :: Array{Float64}
 
     function Workspace(Nx::Integer, Ny::Integer)
 
@@ -13,6 +14,7 @@ mutable struct Workspace
 
         return new(
             ref,
+            copy(ref),
             copy(ref),
             copy(ref),
             copy(ref),

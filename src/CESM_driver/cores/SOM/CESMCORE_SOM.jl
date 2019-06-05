@@ -36,7 +36,7 @@ module CESMCORE_SOM
     function init(;
         casename     :: AbstractString,
         map          :: NetCDFIO.MapInfo,
-        init_file    :: Union{Nothing, AbstractString},
+        init_file    :: Union{Nothing, AbstractString}=nothing,
         t            :: AbstractArray{Integer},
         configs      :: Dict,
         read_restart :: Bool,
