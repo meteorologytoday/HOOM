@@ -157,6 +157,13 @@ mutable struct OceanColumnCollection
         _et_x     = SharedArray{Float64}(Nx, Ny)
         _et_y     = SharedArray{Float64}(Nx, Ny)
 
+        _qflx2atm .= 0.0
+        _et_x     .= 0.0
+        _et_y     .= 0.0
+
+
+
+
         if typeof(Ts) <: AbstractArray{Float64, 3}
             _Ts[:, :, :] = Ts
         elseif typeof(Ts) <: AbstractArray{Float64, 1}

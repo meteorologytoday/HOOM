@@ -101,22 +101,7 @@ module CESMCORE_ESOM
             "SST"      => wksp.SST,
             "QFLX2ATM" => occ.qflx2atm,
         )
-
-        for i=1:occ.Nx, j=1:occ.Ny
-
-            if occ.mask[i, j] != 0
-                if isnan(wksp.SST[i, j])
-                    throw(ErrorException("Some data of SST is NaN"))
-                end
-                if isnan(occ.qflx2atm[i, j])
-                    throw(ErrorException("Some data of qflx2atm is NaN"))
-                end
-
-            end
-
-        end
-        println("Passed")
-
+        
         output_vars = Dict(
             #=
             "rain"      => wksp.frwflx,
@@ -271,8 +256,9 @@ module CESMCORE_ESOM
             Δt     = Δt,
         )
 
-        wksp.SST[:, :] = occ.Ts[:, :, 1]
+        wksp.SST[:, :] = MD.occ.Ts[:, :, 1]
 
+        #=
         for i=1:MD.occ.Nx, j=1:MD.occ.Ny
 
             if MD.occ.mask[i, j] != 0
@@ -286,7 +272,7 @@ module CESMCORE_ESOM
             end
 
         end
-
+        =#
 
     end
 
