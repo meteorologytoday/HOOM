@@ -72,7 +72,7 @@ function stepOceanColumnCollection!(
         #Smid = occ.Ss[i, j, active_layer]
         #occ.Ss[i, j, 1] += ( frwflx[i, j] * S_surf_avg * ρ - (wksp.div_M1S1[i, j] - wksp.div_M1[i, j] * Smid)) / (ρ * occ.hs[1]) * Δt
         #occ.Ss[i, j, 2] +=                                 - (wksp.div_M1S2[i, j] + wksp.div_M1[i, j] * Smid)  / (ρ * occ.hs[2]) * Δt
-        Ss[i, j, :] .= 0.0
+        occ.Ss[i, j, :] .= 0.0
 
         OC_updateB!(occ, i, j)
         OC_doConvectiveAdjustment!(occ, i, j)

@@ -94,6 +94,20 @@ end
 
 Ts_clim .+= 273.15
 
+# Check if weird
+for i=1:dims[1], j=1:dims[2]
+
+    if mask[i, j] != 0
+        if any(isnan.(Ts_clim[i, j, :])) || any(isnan.(Ss_clim[i, j, :]))
+
+            throw(ErrorException("Some data are missing"))
+
+        end
+    end
+    
+end
+
+
 # ===== [END] topo and climatology =====
 
 occ = ESOM.OceanColumnCollection(
