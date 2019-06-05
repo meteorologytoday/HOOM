@@ -305,12 +305,13 @@ end
 
 
 
-function laplacian!(
+function cal∇²!(
     gi   :: GridInfo,
     f    :: AbstractArray{Float64, 2},
     ∇²f  :: AbstractArray{Float64, 2},
     mask :: AbstractArray{Float64, 2},
 )
+
 
     for i=1:gi.Nx, j=1:gi.Ny
 
