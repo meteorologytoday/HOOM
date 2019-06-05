@@ -26,6 +26,8 @@ using Distributed
     @hinclude("trivial_functions.jl")
     @hinclude("stepOceanColumnCollection.jl")
     @hinclude("takeSnapshot.jl")
+    @hinclude("calEkmanTransport.jl")
+    @hinclude("doConvectiveAdjustment.jl")
 
 end
 

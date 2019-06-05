@@ -1,31 +1,53 @@
 mutable struct Workspace
     τx        :: AbstractArray{Float64, 2}
     τy        :: AbstractArray{Float64, 2}
-    Mx        :: AbstractArray{Float64, 2}
-    My        :: AbstractArray{Float64, 2}
-    Mx_T1     :: AbstractArray{Float64, 2}
-    My_T1     :: AbstractArray{Float64, 2}
-    Mx_T2     :: AbstractArray{Float64, 2}
-    My_T2     :: AbstractArray{Float64, 2}
-    div_MT    :: AbstractArray{Float64, 2}
-    div_M1    :: AbstractArray{Float64, 2}
+    M1x        :: AbstractArray{Float64, 2}
+    M1y        :: AbstractArray{Float64, 2}
+    M1x_T1     :: AbstractArray{Float64, 2}
+    M1y_T1     :: AbstractArray{Float64, 2}
+    M1x_T2     :: AbstractArray{Float64, 2}
+    M1y_T2     :: AbstractArray{Float64, 2}
+    M1x_S1     :: AbstractArray{Float64, 2}
+    M1y_S1     :: AbstractArray{Float64, 2}
+    M1x_S2     :: AbstractArray{Float64, 2}
+    M1y_S2     :: AbstractArray{Float64, 2}
+    div_M1T1   :: AbstractArray{Float64, 2}
+    div_M1T2   :: AbstractArray{Float64, 2}
+    div_M1S1   :: AbstractArray{Float64, 2}
+    div_M1S2   :: AbstractArray{Float64, 2}
+    div_M1     :: AbstractArray{Float64, 2}
 
     function Workspace(
         Nx :: Integer,
         Ny :: Integer,
     )
-        τx    = SharedArray{Float64}(Nx, Ny)
-        τy    = SharedArray{Float64}(Nx, Ny)
-        Mx    = SharedArray{Float64}(Nx, Ny)
-        My    = SharedArray{Float64}(Nx, Ny)
-        Mx_T1 = SharedArray{Float64}(Nx, Ny)
-        My_T1 = SharedArray{Float64}(Nx, Ny)
-        Mx_T2 = SharedArray{Float64}(Nx, Ny)
-        My_T2 = SharedArray{Float64}(Nx, Ny)
-        div_MT = SharedArray{Float64}(Nx, Ny)
-        div_M1 = SharedArray{Float64}(Nx, Ny)
+        τx      = SharedArray{Float64}(Nx, Ny)
+        τy      = SharedArray{Float64}(Nx, Ny)
+        M1x      = SharedArray{Float64}(Nx, Ny)
+        M1y      = SharedArray{Float64}(Nx, Ny)
+        M1x_T1   = SharedArray{Float64}(Nx, Ny)
+        M1y_T1   = SharedArray{Float64}(Nx, Ny)
+        M1x_T2   = SharedArray{Float64}(Nx, Ny)
+        M1y_T2   = SharedArray{Float64}(Nx, Ny)
+        M1x_S1   = SharedArray{Float64}(Nx, Ny)
+        M1y_S1   = SharedArray{Float64}(Nx, Ny)
+        M1x_S2   = SharedArray{Float64}(Nx, Ny)
+        M1y_S2   = SharedArray{Float64}(Nx, Ny)
+        div_M1T1 = SharedArray{Float64}(Nx, Ny)
+        div_M1T2 = SharedArray{Float64}(Nx, Ny)
+        div_M1S1 = SharedArray{Float64}(Nx, Ny)
+        div_M1S2 = SharedArray{Float64}(Nx, Ny)
+        div_M1   = SharedArray{Float64}(Nx, Ny)
         
-        return new(τx, τy, Mx, My, Mx_T1, My_T1, Mx_T2, My_T2, div_MT, div_M1)
+        return new(
+            τx, τy,
+            M1x, M1y,
+            M1x_T1, M1y_T1, M1x_T2, M1y_T2,
+            M1x_S1, M1y_S1, M1x_S2, M1y_S2,
+            div_M1T1, div_M1T2,
+            div_M1S1, div_M1S2,
+            div_M1,
+        )
     end
 end
 
@@ -33,11 +55,12 @@ end
 mutable struct OceanColumnCollection
 
     gi       :: DisplacedPoleCoordinate.GridInfo
+    gi_file  :: AbstractString
 
     Nx       :: Integer           # Number of columns in i direction
     Ny       :: Integer           # Number of columns in j direction
     
-    hs     :: AbstractArray{Float64, 3} # Thickness of layers
+    hs     :: AbstractArray{Float64, 1} # Thickness of layers
 
     topo     :: AbstractArray{Float64, 2} # Depth of the topography. Negative value if it is underwater
 
@@ -64,7 +87,7 @@ mutable struct OceanColumnCollection
     wksp     :: Workspace
 
     function OceanColumnCollection(;
-        gridinfo :: Union{DisplacedPoleCoordinate.GridInfo, AbstractString},
+        gridinfo_file :: AbstractString,
         Nx       :: Integer,
         Ny       :: Integer,
         hs       :: AbstractArray{Float64, 1},
@@ -72,7 +95,7 @@ mutable struct OceanColumnCollection
         Ss       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
         Kh_T     :: Float64,
         Kh_S     :: Float64,
-        fs       :: Union{AbstractArray{Float64, 2}, Float64},
+        fs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
         ϵs       :: Union{AbstractArray{Float64, 2}, Float64},
         mask     :: Union{AbstractArray{Float64, 2}, Nothing},
         topo     :: Union{AbstractArray{Float64, 2}, Nothing},
@@ -82,9 +105,9 @@ mutable struct OceanColumnCollection
             throw(ErrorException("ESOM needs 2 thicknesses. Also all values in `hs` should be positive."))
         end
 
-
-        _zs = Array(Float64, 3)
-        zs[:] = [0.0, -hs[1], - (hs[1] + hs[2]) ]
+        _hs = copy(hs)
+        _zs = zeros(Float64, 3)
+        _zs[:] = [0.0, -hs[1], - (hs[1] + hs[2]) ]
 
         # ===== [BEGIN] topo, mask =====
        
@@ -92,7 +115,7 @@ mutable struct OceanColumnCollection
         _mask = SharedArray{Float64}(Nx, Ny)
 
         if topo == nothing
-            _topo .= zs[end]
+            _topo .= _zs[end]
         else
             _topo[:, :] = topo
         end
@@ -111,15 +134,13 @@ mutable struct OceanColumnCollection
 
         # ===== [BEGIN] Set mask if not deep enough =====
 
-        hs   = SharedArray{Float64}(Nx, Ny, 2)
-
         for i=1:Nx, j=1:Ny
 
             if _mask[i, j] == 0
                 continue
             end
 
-            if _topo[i, j] > zs[2]
+            if _topo[i, j] > _zs[2]
                 _mask[i, j] = 0
             end
         end
@@ -159,24 +180,6 @@ mutable struct OceanColumnCollection
         # ===== [END] Column information =====
 
 
-        # ===== [BEGIN] fs and ϵs =====
-
-        _fs       = SharedArray{Float64}(Nx, Ny)
-        _ϵs       = SharedArray{Float64}(Nx, Ny)
-
-        if typeof(fs) <: AbstractArray{Float64, 2}
-            _fs[:, :] = fs
-        elseif typeof(fs) <: Float64 
-            _fs .= fs
-        end
-
-        if typeof(ϵs) <: AbstractArray{Float64, 2}
-            _ϵs[:, :] = ϵs
-        elseif typeof(ϵs) <: Float64 
-            _ϵs .= ϵs
-        end
-
-        # ===== [END] fs and ϵs =====
 
 
         # ===== [BEGIN] Mask out data =====
@@ -193,22 +196,44 @@ mutable struct OceanColumnCollection
         # ===== [END] Mask out data =====
 
         # ===== [BEG] GridInfo =====
-        if typeof(gridinfo) <: AbstractString
-            mi = ModelMap.MapInfo{Float64}(gridinfo)
-            gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv)
-        end
+        mi = ModelMap.MapInfo{Float64}(gridinfo_file)
+        gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv; angle_unit=:deg)
+
         # ===== [END] GridInfo =====
 
+        # ===== [BEGIN] fs and ϵs =====
+
+        _fs       = SharedArray{Float64}(Nx, Ny)
+        _ϵs       = SharedArray{Float64}(Nx, Ny)
+
+        if typeof(fs) <: AbstractArray{Float64, 2}
+            _fs[:, :] = fs
+        elseif typeof(fs) <: Float64 
+            _fs .= fs
+        elseif fs == nothing
+           _fs[:, :] = 2 * Ωe * sin.(mi.yc * π / 180.0)
+        end
+
+        println("Ωe: ", Ωe)
+
+        if typeof(ϵs) <: AbstractArray{Float64, 2}
+            _ϵs[:, :] = ϵs
+        elseif typeof(ϵs) <: Float64 
+            _ϵs .= ϵs
+        end
+
+        # ===== [END] fs and ϵs =====
 
         occ = new(
             gridinfo,
+            gridinfo_file,
             Nx, Ny, hs,
             _topo, Kh_T, Kh_S,
             _fs, _ϵs,
             _mask, mask_idx,
             _bs,   _Ts,   _Ss,
             _qflx2atm, _et_x, _et_y,
-            zs, Nx * Ny, Workspace(Nx, Ny)
+            _zs, Nx * Ny, Workspace(Nx, Ny)
         )
 
         updateB!(occ)

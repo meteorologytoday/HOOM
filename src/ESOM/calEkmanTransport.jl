@@ -21,7 +21,7 @@ function calEkmanTransport!(
 )
 
     for i = 1:occ.Nx, j = 1:occ.Ny    
-        M_x[i, j], M_y[i, j] = _helperEkmanTranport(
+        M_x[i, j], M_y[i, j] = _helperEkmanTransport(
             τ_x[i, j],
             τ_y[i, j],
             ϵ[i, j],

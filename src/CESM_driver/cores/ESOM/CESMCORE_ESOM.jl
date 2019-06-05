@@ -1,4 +1,4 @@
-include(joinpath(@__DIR___, "..", "..", "..", "ESOM", "ESOM.jl")
+include(joinpath(@__DIR__, "..", "..", "..", "ESOM", "ESOM.jl"))
 module CESMCORE_ESOM
 
     using Formatting
@@ -8,9 +8,9 @@ module CESMCORE_ESOM
 
     name = "ESOM"
 
-    include(joinpath(@__DIR___, "Workspace.jl")
-    include(joinpath(@__DIR___, "..", "..", "..", "share", "StatObj.jl")
-    include(joinpath(@__DIR___, "..", "..", "..", "share", "AppendLine.jl")
+    include(joinpath(@__DIR__, "Workspace.jl"))
+    include(joinpath(@__DIR__, "..", "..", "..", "share", "StatObj.jl"))
+    include(joinpath(@__DIR__, "..", "..", "..", "share", "AppendLine.jl"))
 
     days_of_mon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
@@ -33,7 +33,6 @@ module CESMCORE_ESOM
         rec_cnts    :: Dict
 
     end
-
 
     function init(;
         casename     :: AbstractString,
@@ -77,7 +76,7 @@ module CESMCORE_ESOM
         if typeof(init_file) <: AbstractString
 
             println("Initial ocean with profile: ", init_file)
-            occ = ESOM.loadSnapshot(init_file)
+            occ = ESOM.loadSnapshot(init_file; gridinfo_file=configs["domain_file"])
         
         else
 
@@ -85,18 +84,19 @@ module CESMCORE_ESOM
 
         end
 
-        wksp = Workspace(occ.Nx, occ.Ny, occ.Nz_bone)
+        wksp = Workspace(occ.Nx, occ.Ny)
 
         x2o = Dict(
             "SWFLX"  => wksp.swflx,
             "NSWFLX" => wksp.nswflx,
-            "TAUX"  => wksp.taux,
-            "TAUY"  => wksp.tauy,
+            "TAUX"   => wksp.τx,
+            "TAUY"   => wksp.τy,
             "FRWFLX" => wksp.frwflx,
+            "IFRAC"  => wksp.ifrac,
         )
 
         o2x = Dict(
-            "SST"      => occ.T_ML,
+            "SST"      => view(occ.Ts, :, :, 1),
             "QFLX2ATM" => occ.qflx2atm,
         )
 
@@ -113,10 +113,10 @@ module CESMCORE_ESOM
         )
         
         sobj_dict = Dict(
-            "Mx_T1"  => occ.wksp.Mx_T1,
-            "My_T1"  => occ.wksp.My_T1,
-            "Mx_T2"  => occ.wksp.Mx_T2,
-            "My_T2"  => occ.wksp.My_T2,
+            "M1x_T1"  => occ.wksp.M1x_T1,
+            "M1y_T1"  => occ.wksp.M1y_T1,
+            "M1x_T2"  => occ.wksp.M1x_T2,
+            "M1y_T2"  => occ.wksp.M1y_T2,
             "T"      => occ.Ts,
             "S"      => occ.Ss,
         )
@@ -166,12 +166,13 @@ module CESMCORE_ESOM
 
             if MD.configs["daily_record"]
 
-                daily_file = format("{}.ocn.h.{:04d}.nc", MD.casename, t[1])
+                daily_file = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
                 addStatObj!(MD.sobjs["daily_record"], MD.sobj_dict)
 
-                if t_flags["new_year"]
+                # Create new file every month
+                if t_flags["new_month"]
                     MD.rec_cnts["daily_record"] = 0
-                    MLMML._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
+                    ESOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
                     appendLine(MD.configs["short_term_archive_list"], daily_file)
                 end
 
@@ -181,14 +182,15 @@ module CESMCORE_ESOM
                         for (k, v) in MD.sobj_dict
 
                             if length(size(v)) == 3
-                                dim = ("Nx", "Ny", "Nz_bone")
+                                dim = ("Nx", "Ny", "Nz")
                             elseif length(size(v)) == 2
                                 dim = ("Nx", "Ny")
                             end
                             
-                            MLMML._write2NCFile_time(ds, k, dim, MD.rec_cnts["daily_record"] + 1, MD.sobjs["daily_record"].vars[k]; missing_value = MD.map.missing_value)
+                            ESOM._write2NCFile_time(ds, k, dim, MD.rec_cnts["daily_record"] + 1, MD.sobjs["daily_record"].vars[k]; missing_value = MD.map.missing_value)
                         end
                     end
+                    zeroStatObj!(MD.sobjs["daily_record"])
 
                     MD.rec_cnts["daily_record"] += 1
 
@@ -196,52 +198,40 @@ module CESMCORE_ESOM
  
             end
 
-#=
             if MD.configs["monthly_record"]
-                # ===== monthly statistics begin =====
-                if t_cnt == 1 
-                    zeroStatObj!(MD.sobj)
+
+                monthly_file = format("{}.ocn.h.monthly.{:04d}.nc", MD.casename, t[1])
+                addStatObj!(MD.sobjs["monthly_record"], MD.sobj_dict)
+
+                # Create new file every year 
+                if t_flags["new_year"]
+                    MD.rec_cnts["monthly_record"] = 0
+                    ESOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], monthly_file), MD.map.missing_value)
+                    appendLine(MD.configs["short_term_archive_list"], monthly_file)
                 end
 
-                addStatObj!(MD.sobj, MD.sobj_dict)
-                
-                # Do monthly average and output it by the end of month
-                if days_of_mon[t[2]] == t[3] && t[4] == 0
+                if t_flags["new_month"] 
+                    normStatObj!(MD.sobjs["monthly_record"])
+                    Dataset(monthly_file, "a") do ds
+                        for (k, v) in MD.sobj_dict
 
-                    avg_file = format("avg_{:04d}{:02d}.nc", t[1], t[2])
-                    
-                    normStatObj!(MD.sobj)
-
-                    MLMML._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], avg_file), MD.map.missing_value)
-                    Dataset(avg_file, "a") do ds
-
-                        for v in ["mld", "sumflx", "fric_u", "frwflx"]
-                            MLMML._write2NCFile(ds, v, ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
+                            if length(size(v)) == 3
+                                dim = ("Nx", "Ny", "Nz")
+                            elseif length(size(v)) == 2
+                                dim = ("Nx", "Ny")
+                            end
+                            
+                            ESOM._write2NCFile_time(ds, k, dim, MD.rec_cnts["monthly_record"] + 1, MD.sobjs["monthly_record"].vars[k]; missing_value = MD.map.missing_value)
                         end
-
-                        for v in ["T", "S"]
-                            MLMML._write2NCFile(ds, v, ("Nx", "Ny", "Nz"), MD.sobj.vars[v], MD.map.missing_value)
-                        end
-
                     end
-                    println("Output monthly average: ", avg_file)
-                    appendLine(MD.configs["short_term_archive_list"], avg_file)
-                    
-                    zeroStatObj!(MD.sobj)
+                    zeroStatObj!(MD.sobjs["monthly_record"])
+
+                    MD.rec_cnts["monthly_record"] += 1
+
                 end
+ 
             end
 
-            if MD.configs["yearly_snapshot"]
-                # Take snapshot every first day of the year.
-                if t[2] == 1 && t[3] == 1 && t[4] == 0
-                    snapshot_file = format("Snapshot_{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
-
-                    MLMML.takeSnapshot(MD.occ, joinpath(MD.configs["short_term_archive_dir"], snapshot_file))
-                    println("Output snapshot: ", snapshot_file)
-                    appendLine(MD.configs["short_term_archive_list"], snapshot_file)
-                end
-            end
-=#
         end
  
         wksp = MD.wksp
@@ -249,15 +239,15 @@ module CESMCORE_ESOM
         wksp.nswflx .*= -1.0
         wksp.swflx  .*= -1.0
 
-        #wksp.sumflx[:, :]  = wksp.nswflx
-        #wksp.sumflx      .+= wksp.swflx
-        
-        wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / MLMML.ρ)
-        wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
+        for i=1:MD.occ.Nx, j=1:MD.occ.Ny
+            wksp.τx[i, j] *= (1.0 - wksp.ifrac[i, j])
+            wksp.τy[i, j] *= (1.0 - wksp.ifrac[i, j])
+        end
 
-        MLMML.stepOceanColumnCollection!(
+        ESOM.stepOceanColumnCollection!(
             MD.occ;
-            fric_u = wksp.weighted_fric_u,
+            τx     = wksp.τx,
+            τy     = wksp.τy,
             swflx  = wksp.swflx,
             nswflx = wksp.nswflx,
             frwflx = wksp.frwflx,
@@ -268,7 +258,7 @@ module CESMCORE_ESOM
 
     end
 
-    function final(MD::MLMML_DATA)
+    function final(MD::ESOM_DATA)
         
     end
 

@@ -1,42 +1,23 @@
-function loadSnapshot(filename::AbstractString)
+function loadSnapshot(
+    filename :: AbstractString;
+    gridinfo_file :: Union{Nothing, AbstractString} = nothing,
+)
+
     local occ
 
     Dataset(filename, "r") do ds
 
-        Ts_clim_relax_time = nothing
-        Ss_clim_relax_time = nothing
-
-        Ts_clim = nothing
-        Ss_clim = nothing
-
-        if haskey(ds, "Ts_clim")
-            Ts_clim_relax_time = ds.attrib["Ts_clim_relax_time"]
-            Ts_clim = nomissing(ds["Ts_clim"][:], NaN)
-        end
-
-        if haskey(ds, "Ss_clim")
-            Ss_clim_relax_time = ds.attrib["Ss_clim_relax_time"]
-            Ss_clim = nomissing(ds["Ss_clim"][:], NaN)
-        end
-
-        occ = OceanColumnCollection(
+        occ = OceanColumnCollection(;
+            gridinfo_file = (gridinfo_file == nothing) ? ds.attrib["gridinfo_file"] : gridinfo_file,
             Nx       = ds.dim["Nx"],
             Ny       = ds.dim["Ny"],
-            zs_bone  = nomissing(ds["zs_bone"][:], NaN);
+            hs       = nomissing(ds["hs"][:], NaN),
             Ts       = nomissing(ds["Ts"][:], NaN),
             Ss       = nomissing(ds["Ss"][:], NaN),
-            K_T      = ds.attrib["K_T"],
-            K_S      = ds.attrib["K_S"],
-            T_ML     = nomissing(ds["T_ML"][:], NaN),
-            S_ML     = nomissing(ds["S_ML"][:], NaN),
-            h_ML     = nomissing(ds["h_ML"][:], NaN),
-            h_ML_min = nomissing(ds["h_ML_min"][:], NaN),
-            h_ML_max = nomissing(ds["h_ML_max"][:], NaN),
-            we_max   = ds.attrib["we_max"],
-            Ts_clim_relax_time = Ts_clim_relax_time,
-            Ss_clim_relax_time = Ss_clim_relax_time,
-            Ts_clim  = Ts_clim,
-            Ss_clim  = Ss_clim,
+            Kh_T     = ds.attrib["Kh_T"],
+            Kh_S     = ds.attrib["Kh_S"],
+            fs       = nomissing(ds["fs"][:], NaN),
+            ϵs       = nomissing(ds["epsilons"][:], NaN),
             mask     = nomissing(ds["mask"][:], NaN),
             topo     = nomissing(ds["topo"][:], NaN),
         )
@@ -55,26 +36,15 @@ function takeSnapshot(
     _createNCFile(occ, filename, missing_value)
 
     Dataset(filename, "a") do ds
-   
-        _write2NCFile(ds, "zs_bone", ("NP_zs_bone",), occ.zs_bone, missing_value)
-
-        _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz_bone"), occ.Ts, missing_value)
-        _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz_bone"), occ.Ss, missing_value)
-        _write2NCFile(ds, "T_ML", ("Nx", "Ny",), occ.T_ML, missing_value)
-        _write2NCFile(ds, "S_ML", ("Nx", "Ny",), occ.S_ML, missing_value)
-        _write2NCFile(ds, "h_ML", ("Nx", "Ny",), occ.h_ML, missing_value)
-        
-        _write2NCFile(ds, "h_ML_min", ("Nx", "Ny",), occ.h_ML_min, missing_value)
-        _write2NCFile(ds, "h_ML_max", ("Nx", "Ny",), occ.h_ML_max, missing_value)
-
-        if occ.Ts_clim != nothing
-            _write2NCFile(ds, "Ts_clim", ("Nx", "Ny", "Nz_bone"), occ.Ts_clim, missing_value)
-        end
-
-        if occ.Ss_clim != nothing
-            _write2NCFile(ds, "Ss_clim", ("Nx", "Ny", "Nz_bone"), occ.Ss_clim, missing_value)
-        end
-
+        ds.attrib["Kh_T"] = occ.Kh_T
+        ds.attrib["Kh_S"] = occ.Kh_S
+        ds.attrib["gridinfo_file"] = occ.gi_file
+  
+        _write2NCFile(ds, "hs", ("Nz",), occ.hs, missing_value)
+        _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz"), occ.Ts, missing_value)
+        _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz"), occ.Ss, missing_value)
+        _write2NCFile(ds, "fs", ("Nx", "Ny"), occ.fs, missing_value)
+        _write2NCFile(ds, "epsilons", ("Nx", "Ny"), occ.ϵs, missing_value)
         _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
         _write2NCFile(ds, "topo", ("Nx", "Ny",), occ.topo, missing_value)
 
@@ -90,27 +60,13 @@ function _createNCFile(
 
     Dataset(filename, "c") do ds
 
-        defDim(ds, "N_ocs", occ.N_ocs)
         defDim(ds, "Nx", occ.Nx)
         defDim(ds, "Ny", occ.Ny)
-        defDim(ds, "Nz_bone", occ.Nz_bone)
-        defDim(ds, "NP_zs_bone",   length(occ.zs_bone))
+        defDim(ds, "Nz", 2)
         defDim(ds, "time",   Inf)
        
         ds.attrib["_FillValue"] = missing_value
 
-        ds.attrib["K_T"] = occ.K_T
-        ds.attrib["K_S"] = occ.K_S
-        ds.attrib["we_max"] = occ.we_max
-
-        if occ.Ts_clim_relax_time != nothing
-            ds.attrib["Ts_clim_relax_time"] = occ.Ts_clim_relax_time
-        end
- 
-        if occ.Ss_clim_relax_time != nothing
-            ds.attrib["Ss_clim_relax_time"] = occ.Ss_clim_relax_time
-        end
-        
     end
 
 end

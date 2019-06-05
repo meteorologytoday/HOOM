@@ -99,7 +99,8 @@ struct GridInfo
         c_lon  :: AbstractArray{Float64, 2},  # center longitude
         c_lat  :: AbstractArray{Float64, 2},  # center latitude
         vs_lon :: AbstractArray{Float64, 3},  # vertices longitude (4, Nx, Ny)
-        vs_lat :: AbstractArray{Float64, 3},  # vertices latitude  (4, Nx, Ny)
+        vs_lat :: AbstractArray{Float64, 3};  # vertices latitude  (4, Nx, Ny)
+        angle_unit :: Symbol = :deg,
     )
 
 
@@ -127,11 +128,28 @@ struct GridInfo
         true_upward = zeros(Float64, 3)
 
 
-        c_lon_rad = d2r * c_lon
-        c_lat_rad = d2r * c_lat
+        c_lon_rad = copy(c_lon)
+        c_lat_rad = copy(c_lat)
 
-        vs_lon_rad = d2r * vs_lon
-        vs_lat_rad = d2r * vs_lat
+        vs_lon_rad = copy(vs_lon)
+        vs_lat_rad = copy(vs_lat)
+
+        if angle_unit == :deg
+
+            c_lon_rad .*= d2r
+            c_lat_rad .*= d2r
+
+            vs_lon_rad .*= d2r 
+            vs_lat_rad .*= d2r
+ 
+        elseif angle_unit == :rad
+            
+            # do nothing
+
+        else
+            throw(ErrorException("Unknown `angle_unit`: " * angle_unit))
+        end
+
 
         for i = 1:Nx, j = 1:Ny
 
