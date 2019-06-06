@@ -55,6 +55,11 @@ function stepOceanColumnCollection!(
     DisplacedPoleCoordinate.divergence2!(occ.gi, wksp.M1x_T2, wksp.M1y_T2, wksp.div_M1T2; mask=occ.mask)
     DisplacedPoleCoordinate.divergence2!(occ.gi, wksp.M1x_S1, wksp.M1y_S1, wksp.div_M1S1; mask=occ.mask)
     DisplacedPoleCoordinate.divergence2!(occ.gi, wksp.M1x_S2, wksp.M1y_S2, wksp.div_M1S2; mask=occ.mask)
+    
+    # Calculate ∇²T1, ∇²T2
+    DisplacedPoleCoordinate.cal∇²!(occ.gi, view(occ.Ts, :, :, 1), wksp.∇²T1; mask=occ.mask)
+    DisplacedPoleCoordinate.cal∇²!(occ.gi, view(occ.Ts, :, :, 2), wksp.∇²T2; mask=occ.mask)
+
 
     # Step forward temperature
     for i = 1:occ.Nx, j = 1:occ.Ny
@@ -66,8 +71,8 @@ function stepOceanColumnCollection!(
         active_layer = ( wksp.div_M1[i, j] < 0 ) ? 1 : 2
 
         Tmid = occ.Ts[i, j, active_layer]
-        occ.Ts[i, j, 1] += ( - (swflx[i, j] + nswflx[i, j]) / c_p - (wksp.div_M1T1[i, j] - wksp.div_M1[i, j] * Tmid)) / (ρ * occ.hs[1]) * Δt
-        occ.Ts[i, j, 2] +=                                        - (wksp.div_M1T2[i, j] + wksp.div_M1[i, j] * Tmid)  / (ρ * occ.hs[2]) * Δt
+        occ.Ts[i, j, 1] += ( ( - (swflx[i, j] + nswflx[i, j]) / c_p - (wksp.div_M1T1[i, j] - wksp.div_M1[i, j] * Tmid)) / (ρ * occ.hs[1]) + occ.Kh_T * wksp.∇²T1[i, j] ) * Δt
+        occ.Ts[i, j, 2] += ( - (wksp.div_M1T2[i, j] + wksp.div_M1[i, j] * Tmid)  / (ρ * occ.hs[2]) + occ.Kh_T * wksp.∇²T2[i, j] ) * Δt
 
         #Smid = occ.Ss[i, j, active_layer]
         #occ.Ss[i, j, 1] += ( frwflx[i, j] * S_surf_avg * ρ - (wksp.div_M1S1[i, j] - wksp.div_M1[i, j] * Smid)) / (ρ * occ.hs[1]) * Δt

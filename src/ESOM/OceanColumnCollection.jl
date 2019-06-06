@@ -16,6 +16,8 @@ mutable struct Workspace
     div_M1S1   :: AbstractArray{Float64, 2}
     div_M1S2   :: AbstractArray{Float64, 2}
     div_M1     :: AbstractArray{Float64, 2}
+    ∇²T1       :: AbstractArray{Float64, 2}
+    ∇²T2       :: AbstractArray{Float64, 2}
 
     function Workspace(
         Nx :: Integer,
@@ -38,6 +40,8 @@ mutable struct Workspace
         div_M1S1 = SharedArray{Float64}(Nx, Ny)
         div_M1S2 = SharedArray{Float64}(Nx, Ny)
         div_M1   = SharedArray{Float64}(Nx, Ny)
+        ∇²T1     = SharedArray{Float64}(Nx, Ny)
+        ∇²T2     = SharedArray{Float64}(Nx, Ny)
         
         return new(
             τx, τy,
@@ -47,6 +51,7 @@ mutable struct Workspace
             div_M1T1, div_M1T2,
             div_M1S1, div_M1S2,
             div_M1,
+            ∇²T1, ∇²T2,
         )
     end
 end
