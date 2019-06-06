@@ -8,11 +8,13 @@ type ptm_ProgramTunnelInfo
     Integer :: send_fd
     Integer :: lock_fd
 
+
     character(len = 256) :: recv_fn
     character(len = 256) :: send_fn
     character(len = 256) :: lock_fn
 
     integer :: chk_freq
+    integer :: timeout
 end type
 
 
@@ -31,11 +33,14 @@ subroutine ptm_setDefault(PTI, fds)
     PTI%recv_cnt = 0
     PTI%send_cnt = 0
 
-    PTI%chk_freq = 50
+
 
     PTI%recv_fd = fds(1)
     PTI%send_fd = fds(2)
     PTI%lock_fd = fds(3)
+
+    PTI%chk_freq = 50          ! millisecs
+    PTI%timeout  = 60 * 1000   ! millisecs
 end subroutine 
 
 subroutine ptm_printSummary(PTI)
@@ -70,11 +75,12 @@ subroutine ptm_obtainLock(PTI, stat)
     integer :: io
 
     logical :: get_through
-    integer :: try_cnt
+    integer :: cnt
 
     get_through = .false.
 
-    do
+    do cnt = 1, ceiling(PTI%timeout / PTI%chk_freq)
+
         print *, "Getting lock...", PTI%lock_fn
         ! try to get lock
         inquire(file=PTI%lock_fn, exist=file_exists)
@@ -87,10 +93,11 @@ subroutine ptm_obtainLock(PTI, stat)
         ! Try to create a file 
         io = 0
         open(unit=PTI%lock_fd, file=PTI%lock_fn, form="formatted", access="stream", action="write", iostat=io)
-
+        close(PTI%lock_fd)
         if (io == 0) then
             ! If we did open a file then leave
             get_through = .true.        
+
             exit
         else
             ! But if open file fails then try again
@@ -98,14 +105,14 @@ subroutine ptm_obtainLock(PTI, stat)
             cycle
         end if
 
-        close(PTI%lock_fd)
-
     end do 
 
     if (get_through .eqv. .true.) then
         stat = 0
     else
         stat = 1
+        print *, "*** Timeout getting lock! Critical error ***"
+        error stop
     end if
 
 end subroutine
