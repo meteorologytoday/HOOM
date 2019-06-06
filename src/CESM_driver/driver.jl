@@ -147,7 +147,7 @@ while true
         Δt_substeps = Δt / configs["substeps"]
 
 
-        cost = @elapse for substep = 1:configs["substeps"]
+        cost = @elapsed for substep = 1:configs["substeps"]
             println(format("\rSubstep: {:d}/{:d}", configs["substeps"], substep))
 
             OMMODULE.run(OMDATA;
