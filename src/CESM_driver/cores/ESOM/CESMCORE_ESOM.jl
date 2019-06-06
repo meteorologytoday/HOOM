@@ -113,12 +113,14 @@ module CESMCORE_ESOM
         )
         
         sobj_dict = Dict(
-            "M1x_T1"  => occ.wksp.M1x_T1,
-            "M1y_T1"  => occ.wksp.M1y_T1,
-            "M1x_T2"  => occ.wksp.M1x_T2,
-            "M1y_T2"  => occ.wksp.M1y_T2,
+            #"M1x_T1"  => occ.wksp.M1x_T1,
+            #"M1y_T1"  => occ.wksp.M1y_T1,
+            #"M1x_T2"  => occ.wksp.M1x_T2,
+            #"M1y_T2"  => occ.wksp.M1y_T2,
             "M1x"     => occ.wksp.M1x,
             "M1y"     => occ.wksp.M1y,
+            "lap_T1"  => occ.wksp.∇²T1,
+            "lap_T2"  => occ.wksp.∇²T2,
             "T"      => occ.Ts,
             "S"      => occ.Ss,
         )
