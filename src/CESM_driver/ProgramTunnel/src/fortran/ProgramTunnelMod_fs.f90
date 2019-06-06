@@ -79,7 +79,7 @@ subroutine ptm_obtainLock(PTI, stat)
 
     get_through = .false.
 
-    do cnt = 1, ceiling(PTI%timeout / PTI%chk_freq)
+    do cnt = 1, ceiling(real(PTI%timeout) / real(PTI%chk_freq))
 
         print *, "Getting lock...", PTI%lock_fn
         ! try to get lock

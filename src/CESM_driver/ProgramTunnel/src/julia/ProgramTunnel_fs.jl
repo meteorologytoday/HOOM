@@ -61,7 +61,7 @@ function obtainLock(PTI::ProgramTunnelInfo)
     cnt = 0
 
     while true
-     
+        print("Cnt: ", cnt, " and limit: ", timeout_limit_cnt, "\r")     
         if ! isfile(PTI.lock_fn)
 
             try
