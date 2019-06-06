@@ -255,6 +255,7 @@ module CESMCORE_MLMML
             nswflx = wksp.nswflx,
             frwflx = wksp.frwflx,
             Δt     = Δt,
+            do_diffusion = (substep == configs["substeps"]),
         )
 
         if write_restart
