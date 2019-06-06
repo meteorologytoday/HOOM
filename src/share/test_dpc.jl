@@ -32,7 +32,7 @@ end
 DisplacedPoleCoordinate.project!(gi, u_Eu, v_Eu, u_Dp, v_Dp, direction=:Forward)
 DisplacedPoleCoordinate.project!(gi, u_Dp, v_Dp, u2_Eu, v2_Eu, direction=:Backward)
 
-DisplacedPoleCoordinate.divergence2!(gi, u_Dp, v_Dp, div)
+DisplacedPoleCoordinate.divergence2!(gi, u_Dp, v_Dp, div; mask=mi.mask)
 
 Dataset("dpc3v7.nc", "c") do ds
 
