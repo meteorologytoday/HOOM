@@ -157,6 +157,7 @@ module CESMCORE_ESOM
         t_cnt         :: Integer,
         t_flags       :: Dict,
         Δt            :: Float64,
+        substep       :: Integer,
         write_restart :: Bool,
     )
 

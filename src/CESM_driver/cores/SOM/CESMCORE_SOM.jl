@@ -158,6 +158,7 @@ module CESMCORE_SOM
         t_cnt         :: Integer,
         t_flags       :: Dict,
         Δt            :: Float64,
+        substep       :: Integer,
         write_restart :: Bool,
     )
 
@@ -172,7 +173,7 @@ module CESMCORE_SOM
 
             if MD.configs["daily_record"]
 
-                daily_file = format("{}.xttocn_SOM.h.{:04d}.nc", MD.casename, t[1])
+                daily_file = format("{}.ocn.h.{:04d}.nc", MD.casename, t[1])
                 addStatObj!(MD.sobjs["daily_record"], MD.sobj_dict)
 
                 if t_flags["new_year"]
@@ -254,7 +255,7 @@ module CESMCORE_SOM
         )
         
         if write_restart
-            restart_file = format("restart.xtt_ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
+            restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
             SOM.takeSnapshot(MD.occ, restart_file)
              
             open(MD.configs["rpointer_file"], "w") do file
