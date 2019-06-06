@@ -15,6 +15,7 @@ type ptm_ProgramTunnelInfo
 
     integer :: chk_freq
     integer :: timeout
+    integer :: timeout_limit_cnt
 end type
 
 
@@ -40,8 +41,18 @@ subroutine ptm_setDefault(PTI, fds)
     PTI%lock_fd = fds(3)
 
     PTI%chk_freq = 50          ! millisecs
-    PTI%timeout  = 60 * 1000   ! millisecs
+    PTI%timeout  = 30 * 1000   ! millisecs
+
+    call ptm_setTimeout(PTI)
 end subroutine 
+
+
+subroutine ptm_setTimeout(PTI)
+    implicit none
+    type(ptm_ProgramTunnelInfo) :: PTI
+    PTI%timeout_limit_cnt = ceiling(real(PTI%timeout) / real(PTI%chk_freq))
+end
+
 
 subroutine ptm_printSummary(PTI)
     implicit none
@@ -151,7 +162,7 @@ integer function ptm_recvText(PTI, msg)
     type(ptm_ProgramTunnelInfo)  :: PTI
     character(len=*)       :: msg
 
-    integer :: io
+    integer :: io, cnt
     logical :: file_exists
 
     logical :: get_through
@@ -159,7 +170,7 @@ integer function ptm_recvText(PTI, msg)
     ptm_recvText = 0
 
     get_through = .false.
-    do
+    do cnt = 1, PTI%timeout_limit_cnt
         inquire(file=PTI%recv_fn, exist=file_exists)
         if (file_exists .eqv. .true.) then
             get_through = .true.
@@ -174,7 +185,8 @@ integer function ptm_recvText(PTI, msg)
         ptm_recvText = 0
     else
         ptm_recvText = 1
-        return
+        print *, "*** No incoming message within timeout. Critical error ***"
+        error stop
     end if
 
     call ptm_obtainLock(PTI, ptm_recvText)

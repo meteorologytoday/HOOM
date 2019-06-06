@@ -11,6 +11,7 @@ mutable struct ProgramTunnelInfo
     lock_fn  :: AbstractString
     chk_freq :: AbstractFloat
     timeout  :: AbstractFloat
+    timeout_limit_cnt :: Integer
 
     function ProgramTunnelInfo(;
         recv     :: AbstractString     = "ProgramTunnel-Y2X.txt",
@@ -18,10 +19,10 @@ mutable struct ProgramTunnelInfo
         lock     :: AbstractString     = "ProgramTunnel-lock.txt",
         chk_freq :: AbstractFloat                  = 0.05,
         path     :: Union{AbstractString, Nothing} = nothing,
-        timeout  :: AbstractFloat                  = 60.0,
+        timeout  :: AbstractFloat                  = 10.0,
     )
 
-        PTI = new(recv, send, lock, chk_freq, timeout)
+        PTI = new(recv, send, lock, chk_freq, timeout, ceil(timeout / chk_freq))
 
         if path != nothing
             appendPath(PTI, path)
@@ -57,11 +58,7 @@ end
 
 function obtainLock(PTI::ProgramTunnelInfo)
 
-    timeout_limit_cnt = ceil(Integer, PTI.timeout/PTI.chk_freq)
-    cnt = 0
-
-    while true
-        print("Cnt: ", cnt, " and limit: ", timeout_limit_cnt, "\r")     
+    for cnt in 1:PTI.timeout_limit_cnt
         if ! isfile(PTI.lock_fn)
 
             try
@@ -74,14 +71,10 @@ function obtainLock(PTI::ProgramTunnelInfo)
 
         end
 
-        if cnt == timeout_limit_cnt
-            return false
-        else
-            cnt += 1
-        end
-
         sleep(PTI.chk_freq)
     end
+
+    return false
 end
 
 function releaseLock(PTI::ProgramTunnelInfo)
@@ -91,9 +84,9 @@ end
 function recvText(PTI::ProgramTunnelInfo)
     local result
 
+    get_through = false
 
-    while true
-
+    for cnt in 1:PTI.timeout_limit_cnt
         if isfile(PTI.recv_fn)
             get_through = true
             break
@@ -101,6 +94,10 @@ function recvText(PTI::ProgramTunnelInfo)
 
         sleep(PTI.chk_freq)
 
+    end
+
+    if ! get_through
+        ErrorException("No further incoming message within timeout.") |> throw
     end
 
     lock(PTI) do

@@ -15,7 +15,7 @@ configs = Dict(
     "short_term_archive_list"   => "SMARTSLAB_short_term_archive_list.txt",
     "rpointer_file"             => "rpointer.ocn",
     "wdir"                      => pwd(),
-    "timeout"                   => 60.0,
+    "timeout"                   => 60.0 * 5,
 )
 
 function parse_commandline()
