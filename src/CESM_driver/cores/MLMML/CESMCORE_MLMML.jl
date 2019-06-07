@@ -69,7 +69,7 @@ module CESMCORE_MLMML
             end
 
             if !isfile(init_file)
-                throw(ErrorException(init_file * " does not exist!"))
+                throw(ErrorException(format("Initial file \"{:s}\" does not exist!", init_file)))
             end
  
         end
