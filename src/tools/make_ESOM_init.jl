@@ -120,7 +120,7 @@ occ = ESOM.OceanColumnCollection(
     Kh_T     = 25000.0,
     Kh_S     = 25000.0,
     fs       = nothing,
-    ϵs       = 1.0 / (86400.0 * 10), # 10 days
+    ϵs       = 1e-5,    # 1 day
     mask     = mask,
     topo     = topo,
 )

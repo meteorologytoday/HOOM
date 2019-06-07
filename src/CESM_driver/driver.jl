@@ -148,7 +148,7 @@ while true
 
 
         cost = @elapsed for substep = 1:configs["substeps"]
-            print(format("Substep: {:d}/{:d}\r", configs["substeps"], substep))
+            print(format("Substep: {:d}/{:d}\r", substep, configs["substeps"]))
 
             OMMODULE.run(OMDATA;
                 t             = timeinfo,
