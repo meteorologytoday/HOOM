@@ -1,14 +1,15 @@
-include("../../../SOM/SOM.jl")
+include(joinpath(@__DIR__, "..", "..", "..", "SOM", "SOM.jl"))
 module CESMCORE_SOM
 
-    include("../../../share/StatObj.jl")
-    include("../../../share/AppendLine.jl")
     include("Workspace_SOM.jl")
+    include(joinpath(@__DIR__, "..", "..", "..", "share", "RecordTool.jl"))
+    include(joinpath(@__DIR__, "..", "..", "..", "share", "AppendLine.jl"))
 
     using Formatting
     using ..NetCDFIO
     using ..SOM
     using NCDatasets
+    using .RecordTool
 
     name = "SOM"
     days_of_mon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
@@ -26,9 +27,7 @@ module CESMCORE_SOM
         output_vars :: Dict
         wksp        :: Workspace
 
-        sobjs       :: Dict
-        sobj_dict   :: Dict
-        rec_cnts    :: Dict
+        recorders   :: Dict
     end
 
 
@@ -108,23 +107,26 @@ module CESMCORE_SOM
             "tfdiv"     => wksp.tfdiv,
             =#
         )
-        
-        sobj_dict = Dict(
-            "T_ML"     => occ.T_ML,
-            "h_ML"     => occ.h_ML,
-            "swflx"    => wksp.swflx,
-            "nswflx"   => wksp.nswflx,
-            "eflx"     => wksp.eflx,
-        )
-
-
-        sobjs    = Dict()
-        rec_cnts = Dict()
+ 
+        recorders = Dict()
 
         for rec_key in ["daily_record", "monthly_record"]
             if configs[rec_key]
-                sobjs[rec_key] = StatObj(sobj_dict)
-                rec_cnts[rec_key] = 0
+                 recorder = RecordTool.Recorder(
+                    Dict(
+                        "Nx" => occ.Nx,
+                        "Ny" => occ.Ny,
+                    ), [
+                        ("T",      occ.T_ML,   ("Nx", "Ny")),
+                        ("MLD",    occ.h_ML,   ("Nx", "Ny")),
+                        ("swflx",  wksp.swflx, ("Nx", "Ny")),
+                        ("nswflx", wksp.swflx, ("Nx", "Ny")),
+                        ("eflx",   wksp.eflx,  ("Nx", "Ny")),
+                    ]
+                )
+
+                recorders[rec_key] = recorder
+               
             end
         end
 
@@ -146,9 +148,7 @@ module CESMCORE_SOM
             configs,
             output_vars,
             wksp,
-            sobjs,
-            sobj_dict,
-            rec_cnts,
+            recorders,
         )
 
     end
@@ -163,80 +163,49 @@ module CESMCORE_SOM
         write_restart :: Bool,
     )
 
-
         if MD.configs["enable_short_term_archive"]
 
-            if t_cnt == 1 
-                for (k, sobj) in MD.sobjs
-                    zeroStatObj!(sobj)
-                end
-            end
-
             if MD.configs["daily_record"]
+                
+                if t_flags["new_month"] && substep == 1
+                        filename = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
+                        RecordTool.setNewNCFile!(
+                            MD.recorders["daily_record"],
+                            joinpath(MD.configs["short_term_archive_dir"], filename)
+                        )
 
-                daily_file = format("{}.ocn.h.daily.{:04d}.nc", MD.casename, t[1])
-                addStatObj!(MD.sobjs["daily_record"], MD.sobj_dict)
-
-                if t_flags["new_year"]
-                    MD.rec_cnts["daily_record"] = 0
-                    SOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
-                    appendLine(MD.configs["short_term_archive_list"], daily_file)
+                        appendLine(MD.configs["short_term_archive_list"], filename)
                 end
 
-                if t_flags["new_day"]
-                    normStatObj!(MD.sobjs["daily_record"])
-                    Dataset(daily_file, "a") do ds
-                        for v in keys(MD.sobj_dict)
-                            SOM._write2NCFile_time(ds, v, ("Nx", "Ny",), MD.rec_cnts["daily_record"] + 1, MD.sobjs["daily_record"].vars[v]; missing_value = MD.map.missing_value)
-                        end
-                    end
+                RecordTool.record!(
+                    MD.recorders["daily_record"];
+                    avg_and_output = ( t_flags["new_day"] && substep==1 )
+                )
 
-                    MD.rec_cnts["daily_record"] += 1
-
-                end
- 
             end
-
+            
             if MD.configs["monthly_record"]
 
-                monthly_file = format("{}.ocn.h.monthly.{:04d}.nc", MD.casename, t[1])
-                addStatObj!(MD.sobjs["monthly_record"], MD.sobj_dict)
+                if t_flags["new_year"] && substep == 1
+                        filename = format("{}.ocn.h.monthly.{:04d}.nc", MD.casename, t[1])
+                        RecordTool.setNewNCFile!(
+                            MD.recorders["monthly_record"],
+                            joinpath(MD.configs["short_term_archive_dir"], filename)
+                        )
 
-                # Create new file every year 
-                if t_flags["new_year"]
-                    MD.rec_cnts["monthly_record"] = 0
-                    SOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], monthly_file), MD.map.missing_value)
-                    appendLine(MD.configs["short_term_archive_list"], monthly_file)
+                        appendLine(MD.configs["short_term_archive_list"], filename)
                 end
 
-                if t_flags["new_month"] 
-                    normStatObj!(MD.sobjs["monthly_record"])
-                    Dataset(monthly_file, "a") do ds
-                        for (k, v) in MD.sobj_dict
-                            dim = ("Nx", "Ny")
-                            SOM._write2NCFile_time(ds, k, dim, MD.rec_cnts["monthly_record"] + 1, MD.sobjs["monthly_record"].vars[k]; missing_value = MD.map.missing_value)
-                        end
-                    end
-                    zeroStatObj!(MD.sobjs["monthly_record"])
+                RecordTool.record!(
+                    MD.recorders["monthly_record"];
+                    avg_and_output = ( t_flags["new_month"] && substep==1 )
+                )
 
-                    MD.rec_cnts["monthly_record"] += 1
 
-                end
- 
             end
 
-            if MD.configs["yearly_snapshot"]
-                # Take snapshot every first day of the year.
-                if t[2] == 1 && t[3] == 1 && t[4] == 0
-                    snapshot_file = format("Snapshot_{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
-
-                    SOM.takeSnapshot(MD.occ, joinpath(MD.configs["short_term_archive_dir"], snapshot_file))
-                    println("Output snapshot: ", snapshot_file)
-                    appendLine(MD.configs["short_term_archive_list"], snapshot_file)
-                end
-            end
         end
-
+ 
         wksp = MD.wksp
         wksp.nswflx .*= -1.0
         wksp.swflx .*= -1.0
