@@ -1,18 +1,17 @@
 include(joinpath(@__DIR__, "..", "..", "..", "ESOM", "ESOM.jl"))
 module CESMCORE_ESOM
 
+    include(joinpath(@__DIR__, "Workspace.jl"))
+    include(joinpath(@__DIR__, "..", "..", "..", "share", "RecordTool.jl"))
+    include(joinpath(@__DIR__, "..", "..", "..", "share", "AppendLine.jl"))
+
     using Formatting
     using ..NetCDFIO
     using ..ESOM
     using NCDatasets
+    using .RecordTool
 
     name = "ESOM"
-    MODEL = ESOM
-
-    include(joinpath(@__DIR__, "Workspace.jl"))
-    include(joinpath(@__DIR__, "..", "..", "..", "share", "StatObj.jl"))
-    include(joinpath(@__DIR__, "..", "..", "..", "share", "AppendLine.jl"))
-
     days_of_mon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
     mutable struct ESOM_DATA
@@ -29,10 +28,7 @@ module CESMCORE_ESOM
         output_vars :: Dict
         wksp        :: Workspace
 
-        sobjs       :: Dict
-        sobj_dict   :: Dict
-        rec_cnts    :: Dict
-
+        recorders   :: Dict
     end
 
     function init(;
@@ -112,27 +108,27 @@ module CESMCORE_ESOM
             "ifrac"     => wksp.ifrac,
             =#
         )
+       
         
-        sobj_dict = Dict(
-            #"M1x_T1"  => occ.wksp.M1x_T1,
-            #"M1y_T1"  => occ.wksp.M1y_T1,
-            #"M1x_T2"  => occ.wksp.M1x_T2,
-            #"M1y_T2"  => occ.wksp.M1y_T2,
-            "M1x"     => occ.wksp.M1x,
-            "M1y"     => occ.wksp.M1y,
-            "lap_T1"  => occ.wksp.∇²T1,
-            "lap_T2"  => occ.wksp.∇²T2,
-            "T"      => occ.Ts,
-            "S"      => occ.Ss,
-        )
-
-        sobjs    = Dict()
-        rec_cnts = Dict()
-
+        recorders = Dict()
+ 
         for rec_key in ["daily_record", "monthly_record"]
             if configs[rec_key]
-                sobjs[rec_key] = StatObj(sobj_dict)
-                rec_cnts[rec_key] = 0
+
+                recorder = RecordTool.Recorder(
+                    Dict(
+                        "Nx" => occ.Nx,
+                        "Ny" => occ.Ny,
+                        "Nz" => 2,
+                    ), [
+                        ("T",   occ.Ts, ("Nx", "Ny", "Nz")),
+                        ("S",   occ.Ss, ("Nx", "Ny", "Nz")),
+                        ("M1x", occ.wksp.M1x, ("Nx", "Ny")),
+                        ("M1y", occ.wksp.M1y, ("Nx", "Ny")),
+                    ]
+                )
+
+                recorders[rec_key] = recorder
             end
         end
 
@@ -145,9 +141,7 @@ module CESMCORE_ESOM
             configs,
             output_vars,
             wksp,
-            sobjs,
-            sobj_dict,
-            rec_cnts,
+            recorders,
         )
 
     end
@@ -164,83 +158,43 @@ module CESMCORE_ESOM
 
         if MD.configs["enable_short_term_archive"]
 
-            if t_cnt == 1 
-                for (k, sobj) in MD.sobjs
-                    zeroStatObj!(sobj)
-                end
-            end
-
             if MD.configs["daily_record"]
+                
+                if t_flags["new_month"] && substep == 1
+                        filename = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
+                        RecordTool.setNewNCFile!(
+                            MD.recorders["daily_record"],
+                            joinpath(MD.configs["short_term_archive_dir"], filename)
+                        )
 
-                daily_file = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
-                addStatObj!(MD.sobjs["daily_record"], MD.sobj_dict)
+                        appendLine(MD.configs["short_term_archive_list"], filename)
+                end
 
-                # Output data in the CESM clock
-                if substep == 1
-                    # Create new file every month
-                    if t_flags["new_month"]
-                        MD.rec_cnts["daily_record"] = 0
-                        ESOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
-                        appendLine(MD.configs["short_term_archive_list"], daily_file)
-                    end
+                RecordTool.record!(
+                    MD.recorders["daily_record"];
+                    avg_and_output = ( t_flags["new_day"] && substep==1 )
+                )
 
-                    if t_flags["new_day"]
-                        normStatObj!(MD.sobjs["daily_record"])
-                        Dataset(daily_file, "a") do ds
-                            for (k, v) in MD.sobj_dict
-
-                                if length(size(v)) == 3
-                                    dim = ("Nx", "Ny", "Nz")
-                                elseif length(size(v)) == 2
-                                    dim = ("Nx", "Ny")
-                                end
-                                
-                                ESOM._write2NCFile_time(ds, k, dim, MD.rec_cnts["daily_record"] + 1, MD.sobjs["daily_record"].vars[k]; missing_value = MD.map.missing_value)
-                            end
-                        end
-                        zeroStatObj!(MD.sobjs["daily_record"])
-
-                        MD.rec_cnts["daily_record"] += 1
-
-                    end
-                end 
             end
-
+            
             if MD.configs["monthly_record"]
 
-                monthly_file = format("{}.ocn.h.monthly.{:04d}.nc", MD.casename, t[1])
-                addStatObj!(MD.sobjs["monthly_record"], MD.sobj_dict)
+                if t_flags["new_year"] && substep == 1
+                        filename = format("{}.ocn.h.monthly.{:04d}.nc", MD.casename, t[1])
+                        RecordTool.setNewNCFile!(
+                            MD.recorders["monthly_record"],
+                            joinpath(MD.configs["short_term_archive_dir"], filename)
+                        )
 
-                # Output data in the CESM clock
-                if substep == 1
+                        appendLine(MD.configs["short_term_archive_list"], filename)
+                end
 
-                    # Create new file every year 
-                    if t_flags["new_year"]
-                        MD.rec_cnts["monthly_record"] = 0
-                        ESOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], monthly_file), MD.map.missing_value)
-                        appendLine(MD.configs["short_term_archive_list"], monthly_file)
-                    end
+                RecordTool.record!(
+                    MD.recorders["monthly_record"];
+                    avg_and_output = ( t_flags["new_month"] && substep==1 )
+                )
 
-                    if t_flags["new_month"] 
-                        normStatObj!(MD.sobjs["monthly_record"])
-                        Dataset(monthly_file, "a") do ds
-                            for (k, v) in MD.sobj_dict
 
-                                if length(size(v)) == 3
-                                    dim = ("Nx", "Ny", "Nz")
-                                elseif length(size(v)) == 2
-                                    dim = ("Nx", "Ny")
-                                end
-                                
-                                ESOM._write2NCFile_time(ds, k, dim, MD.rec_cnts["monthly_record"] + 1, MD.sobjs["monthly_record"].vars[k]; missing_value = MD.map.missing_value)
-                            end
-                        end
-                        zeroStatObj!(MD.sobjs["monthly_record"])
-
-                        MD.rec_cnts["monthly_record"] += 1
-
-                    end
-                end 
             end
 
         end
