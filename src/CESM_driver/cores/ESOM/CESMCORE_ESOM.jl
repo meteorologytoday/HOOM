@@ -175,33 +175,35 @@ module CESMCORE_ESOM
                 daily_file = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
                 addStatObj!(MD.sobjs["daily_record"], MD.sobj_dict)
 
-                # Create new file every month
-                if t_flags["new_month"]
-                    MD.rec_cnts["daily_record"] = 0
-                    ESOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
-                    appendLine(MD.configs["short_term_archive_list"], daily_file)
-                end
-
-                if t_flags["new_day"]
-                    normStatObj!(MD.sobjs["daily_record"])
-                    Dataset(daily_file, "a") do ds
-                        for (k, v) in MD.sobj_dict
-
-                            if length(size(v)) == 3
-                                dim = ("Nx", "Ny", "Nz")
-                            elseif length(size(v)) == 2
-                                dim = ("Nx", "Ny")
-                            end
-                            
-                            ESOM._write2NCFile_time(ds, k, dim, MD.rec_cnts["daily_record"] + 1, MD.sobjs["daily_record"].vars[k]; missing_value = MD.map.missing_value)
-                        end
+                # Output data in the CESM clock
+                if substep == 1
+                    # Create new file every month
+                    if t_flags["new_month"]
+                        MD.rec_cnts["daily_record"] = 0
+                        ESOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
+                        appendLine(MD.configs["short_term_archive_list"], daily_file)
                     end
-                    zeroStatObj!(MD.sobjs["daily_record"])
 
-                    MD.rec_cnts["daily_record"] += 1
+                    if t_flags["new_day"]
+                        normStatObj!(MD.sobjs["daily_record"])
+                        Dataset(daily_file, "a") do ds
+                            for (k, v) in MD.sobj_dict
 
-                end
- 
+                                if length(size(v)) == 3
+                                    dim = ("Nx", "Ny", "Nz")
+                                elseif length(size(v)) == 2
+                                    dim = ("Nx", "Ny")
+                                end
+                                
+                                ESOM._write2NCFile_time(ds, k, dim, MD.rec_cnts["daily_record"] + 1, MD.sobjs["daily_record"].vars[k]; missing_value = MD.map.missing_value)
+                            end
+                        end
+                        zeroStatObj!(MD.sobjs["daily_record"])
+
+                        MD.rec_cnts["daily_record"] += 1
+
+                    end
+                end 
             end
 
             if MD.configs["monthly_record"]
@@ -209,33 +211,36 @@ module CESMCORE_ESOM
                 monthly_file = format("{}.ocn.h.monthly.{:04d}.nc", MD.casename, t[1])
                 addStatObj!(MD.sobjs["monthly_record"], MD.sobj_dict)
 
-                # Create new file every year 
-                if t_flags["new_year"]
-                    MD.rec_cnts["monthly_record"] = 0
-                    ESOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], monthly_file), MD.map.missing_value)
-                    appendLine(MD.configs["short_term_archive_list"], monthly_file)
-                end
+                # Output data in the CESM clock
+                if substep == 1
 
-                if t_flags["new_month"] 
-                    normStatObj!(MD.sobjs["monthly_record"])
-                    Dataset(monthly_file, "a") do ds
-                        for (k, v) in MD.sobj_dict
-
-                            if length(size(v)) == 3
-                                dim = ("Nx", "Ny", "Nz")
-                            elseif length(size(v)) == 2
-                                dim = ("Nx", "Ny")
-                            end
-                            
-                            ESOM._write2NCFile_time(ds, k, dim, MD.rec_cnts["monthly_record"] + 1, MD.sobjs["monthly_record"].vars[k]; missing_value = MD.map.missing_value)
-                        end
+                    # Create new file every year 
+                    if t_flags["new_year"]
+                        MD.rec_cnts["monthly_record"] = 0
+                        ESOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], monthly_file), MD.map.missing_value)
+                        appendLine(MD.configs["short_term_archive_list"], monthly_file)
                     end
-                    zeroStatObj!(MD.sobjs["monthly_record"])
 
-                    MD.rec_cnts["monthly_record"] += 1
+                    if t_flags["new_month"] 
+                        normStatObj!(MD.sobjs["monthly_record"])
+                        Dataset(monthly_file, "a") do ds
+                            for (k, v) in MD.sobj_dict
 
-                end
- 
+                                if length(size(v)) == 3
+                                    dim = ("Nx", "Ny", "Nz")
+                                elseif length(size(v)) == 2
+                                    dim = ("Nx", "Ny")
+                                end
+                                
+                                ESOM._write2NCFile_time(ds, k, dim, MD.rec_cnts["monthly_record"] + 1, MD.sobjs["monthly_record"].vars[k]; missing_value = MD.map.missing_value)
+                            end
+                        end
+                        zeroStatObj!(MD.sobjs["monthly_record"])
+
+                        MD.rec_cnts["monthly_record"] += 1
+
+                    end
+                end 
             end
 
         end

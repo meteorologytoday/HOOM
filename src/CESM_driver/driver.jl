@@ -123,6 +123,9 @@ while true
         
     elseif stage == :RUN && msg["MSG"] == "RUN"
 
+        t_flags["new_year"]  = (timeinfo[1] != timeinfo_old[1])
+        t_flags["new_month"] = (timeinfo[2] != timeinfo_old[2])
+        t_flags["new_day"]   = (timeinfo[3] != timeinfo_old[3])
 
         timeinfo_old[:] = timeinfo
 
@@ -147,10 +150,6 @@ while true
         cost = @elapsed for substep = 1:configs["substeps"]
 
             print(format("Substep: {:d}/{:d}\r", substep, configs["substeps"]))
-
-            t_flags["new_year"]  = (substep == 1) && (timeinfo[1] != timeinfo_old[1])
-            t_flags["new_month"] = (substep == 1) && (timeinfo[2] != timeinfo_old[2])
-            t_flags["new_day"]   = (substep == 1) && (timeinfo[3] != timeinfo_old[3])
 
             OMMODULE.run(OMDATA;
                 t             = timeinfo,
