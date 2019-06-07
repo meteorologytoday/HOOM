@@ -161,7 +161,7 @@ module CESMCORE_ESOM
         write_restart :: Bool,
     )
 
-        if MD.configs["enable_short_term_archive"]
+        if MD.configs["enable_short_term_archive"] && substep == 1
 
             if t_cnt == 1 
                 for (k, sobj) in MD.sobjs
