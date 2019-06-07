@@ -13,7 +13,7 @@ configs = Dict(
     "monthly_record"            => true,
     "yearly_snapshot"           => true,
     "short_term_archive_list"   => "SMARTSLAB_short_term_archive_list.txt",
-    "rpointer_file"             => "rpointer.ocn",
+    "rpointer_file"             => "rpointer.ssm_ocn",
     "wdir"                      => pwd(),
     "timeout"                   => 60.0 * 5,
 )
