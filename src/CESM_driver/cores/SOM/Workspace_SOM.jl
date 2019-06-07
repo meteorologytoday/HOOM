@@ -5,7 +5,6 @@ mutable struct Workspace
     tfdiv  :: Array{Float64}
     eflx   :: Array{Float64}
 
-
     function Workspace(Nx::Integer, Ny::Integer)
 
         ref = zeros(Float64, Nx, Ny)

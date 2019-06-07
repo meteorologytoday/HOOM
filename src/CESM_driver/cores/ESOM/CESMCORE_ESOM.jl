@@ -7,6 +7,7 @@ module CESMCORE_ESOM
     using NCDatasets
 
     name = "ESOM"
+    MODEL = ESOM
 
     include(joinpath(@__DIR__, "Workspace.jl"))
     include(joinpath(@__DIR__, "..", "..", "..", "share", "StatObj.jl"))
@@ -161,7 +162,7 @@ module CESMCORE_ESOM
         write_restart :: Bool,
     )
 
-        if MD.configs["enable_short_term_archive"] && substep == 1
+        if MD.configs["enable_short_term_archive"]
 
             if t_cnt == 1 
                 for (k, sobj) in MD.sobjs
@@ -239,6 +240,7 @@ module CESMCORE_ESOM
 
         end
  
+
         wksp = MD.wksp
 
         wksp.nswflx .*= -1.0

@@ -96,8 +96,9 @@ module CESMCORE_SOM
         )
 
         o2x = Dict(
-            "SST"      => occ.T_ML,
-            "QFLX2ATM" => occ.qflx2atm,
+            "T_ML"      => occ.T_ML,
+            "h_ML"      => occ.h_ML,
+            "QFLX2ATM"  => occ.qflx2atm,
         )
 
         output_vars = Dict(#=
@@ -110,9 +111,9 @@ module CESMCORE_SOM
         
         sobj_dict = Dict(
             "T_ML"     => occ.T_ML,
+            "h_ML"     => occ.h_ML,
             "swflx"    => wksp.swflx,
             "nswflx"   => wksp.nswflx,
-           # "tfdiv"    => wksp.tfdiv,
             "eflx"     => wksp.eflx,
         )
 
@@ -163,7 +164,7 @@ module CESMCORE_SOM
     )
 
 
-        if MD.configs["enable_short_term_archive"] && substep == 1
+        if MD.configs["enable_short_term_archive"]
 
             if t_cnt == 1 
                 for (k, sobj) in MD.sobjs
@@ -173,7 +174,7 @@ module CESMCORE_SOM
 
             if MD.configs["daily_record"]
 
-                daily_file = format("{}.ocn.h.{:04d}.nc", MD.casename, t[1])
+                daily_file = format("{}.ocn.h.daily.{:04d}.nc", MD.casename, t[1])
                 addStatObj!(MD.sobjs["daily_record"], MD.sobj_dict)
 
                 if t_flags["new_year"]
@@ -196,35 +197,34 @@ module CESMCORE_SOM
  
             end
 
-
-#=
             if MD.configs["monthly_record"]
-                # ===== monthly statistics begin =====
 
-                addStatObj!(MD.sobj, MD.sobj_dict)
-                
-                # Do monthly average and output it by the end of month
-                if days_of_mon[t[2]] == t[3] && t[4] == 0
+                monthly_file = format("{}.ocn.h.monthly.{:04d}.nc", MD.casename, t[1])
+                addStatObj!(MD.sobjs["monthly_record"], MD.sobj_dict)
 
-                    avg_file = format("avg_{:04d}{:02d}.nc", t[1], t[2])
-                    
-                    normStatObj!(MD.sobj)
-
-                    SOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], avg_file), MD.map.missing_value)
-                    Dataset(avg_file, "a") do ds
-
-                        for v in keys(MD.sobj_dict)
-                            SOM._write2NCFile(ds, v, ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
-                        end
-
-                    end
-                    println("Output monthly average: ", avg_file)
-                    appendLine(MD.configs["short_term_archive_list"], avg_file)
-                    
-                    zeroStatObj!(MD.sobj)
+                # Create new file every year 
+                if t_flags["new_year"]
+                    MD.rec_cnts["monthly_record"] = 0
+                    SOM._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], monthly_file), MD.map.missing_value)
+                    appendLine(MD.configs["short_term_archive_list"], monthly_file)
                 end
+
+                if t_flags["new_month"] 
+                    normStatObj!(MD.sobjs["monthly_record"])
+                    Dataset(monthly_file, "a") do ds
+                        for (k, v) in MD.sobj_dict
+                            dim = ("Nx", "Ny")
+                            SOM._write2NCFile_time(ds, k, dim, MD.rec_cnts["monthly_record"] + 1, MD.sobjs["monthly_record"].vars[k]; missing_value = MD.map.missing_value)
+                        end
+                    end
+                    zeroStatObj!(MD.sobjs["monthly_record"])
+
+                    MD.rec_cnts["monthly_record"] += 1
+
+                end
+ 
             end
-=#
+
             if MD.configs["yearly_snapshot"]
                 # Take snapshot every first day of the year.
                 if t[2] == 1 && t[3] == 1 && t[4] == 0
