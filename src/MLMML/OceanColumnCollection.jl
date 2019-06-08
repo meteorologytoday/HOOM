@@ -140,6 +140,8 @@ mutable struct OceanColumnCollection
                 _topo[i, j] = - hmin
 
             elseif hmax > hbot
+                
+                println(format("Point ({},{}) got depth {:.2f} which is smaller than h_ML_max {}. Tune the h_ML_max to depth.", i, j, hbot, hmax))
 
                 _h_ML_max[i, j] = hbot
 
@@ -361,6 +363,10 @@ mutable struct OceanColumnCollection
         mask2_lnd_idx = (_mask  .== 0)
         
         for v in [_bs, _Ts, _Ss, _Ts_clim, _Ss_clim]
+            if v == nothing
+                continue
+            end
+
             v[mask3_lnd_idx] .= NaN
         end 
 
@@ -391,11 +397,11 @@ mutable struct OceanColumnCollection
             throw(ErrorException("Temperature data has holes"))
         end
  
-        if sum(isfinite.(_Ts_clim)) != valid_grids
+        if _Ts_clim != nothing && sum(isfinite.(_Ts_clim)) != valid_grids
             throw(ErrorException("Temperature climatology has holes"))
         end
  
-        if sum(isfinite.(_Ss_clim)) != valid_grids
+        if _Ss_clim != nothing && sum(isfinite.(_Ss_clim)) != valid_grids
             throw(ErrorException("Salinity climatology has holes"))
         end
 
