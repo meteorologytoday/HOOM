@@ -205,16 +205,23 @@ module CESMCORE_SOM
         end
 
         wksp = MD.wksp
-        wksp.nswflx .*= -1.0
-        wksp.swflx .*= -1.0
 
-        wksp.eflx[:, :] = wksp.nswflx[:, :]
-        wksp.eflx .+= wksp.swflx
+        # Only process incoming data for the first time!! 
+        if substep == 1
 
-        if MD.configs["Qflux"]
-            wksp.eflx .+= wksp.tfdiv
+            wksp.nswflx .*= -1.0
+            wksp.swflx .*= -1.0
+
+            wksp.eflx[:, :] = wksp.nswflx[:, :]
+            wksp.eflx .+= wksp.swflx
+
+            if MD.configs["Qflux"]
+                wksp.eflx .+= wksp.tfdiv
+            end
+
         end
-        
+
+
         SOM.stepOceanColumnCollection!(
             MD.occ;
             eflx   = wksp.eflx,

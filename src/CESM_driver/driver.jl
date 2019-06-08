@@ -78,6 +78,11 @@ while true
         global x2o_wanted_varnames = keys(OMDATA.x2o)
         global x2o_wanted_flag     = [(x2o_available_varnames[i] in x2o_wanted_varnames) for i = 1:length(x2o_available_varnames)]
 
+        println("List of available x2o variables:")
+        for (i, varname) in enumerate(x2o_available_varnames)
+            println(format(" ({:d}) {:s} => {:s}", i, varname, ( x2o_wanted_flag[i] ) ? "Wanted" : "Abandoned" ))
+        end
+
         writeBinary!(joinpath(configs["tmp_folder"], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
         writeBinary!(joinpath(configs["tmp_folder"], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
         writeBinary!(joinpath(configs["tmp_folder"], "MASK.bin"), map.mask, buffer2d; endianess=:little_endian)
@@ -97,13 +102,14 @@ while true
         for i = 1:length(x2o_available_varnames)
             varname = x2o_available_varnames[i]
 
-            readBinary!(
-                joinpath(configs["tmp_folder"], varname * ".bin"),
-                (x2o_wanted_flag[i]) ? OMDATA.x2o[varname] : null2d,
-                buffer2d;
-                endianess=:little_endian, delete=false
-            )
-
+            if x2o_wanted_flag[i]
+                readBinary!(
+                    joinpath(configs["tmp_folder"], varname * ".bin"),
+                    OMDATA.x2o[varname],
+                    buffer2d;
+                    endianess=:little_endian, delete=false
+                )
+            end
         end
        
         println("Calling ", OMMODULE.name, " to do MAGICAL calculations")

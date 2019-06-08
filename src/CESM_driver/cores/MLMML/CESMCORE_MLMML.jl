@@ -198,14 +198,19 @@ module CESMCORE_MLMML
 
         wksp = MD.wksp
 
-        wksp.nswflx .*= -1.0
-        wksp.swflx  .*= -1.0
+        # Only process incoming data for the first time!! 
+        if substep == 1
 
-        #wksp.sumflx[:, :]  = wksp.nswflx
-        #wksp.sumflx      .+= wksp.swflx
-        
-        wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / MLMML.ρ)
-        wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
+            wksp.nswflx .*= -1.0
+            wksp.swflx  .*= -1.0
+
+            #wksp.sumflx[:, :]  = wksp.nswflx
+            #wksp.sumflx      .+= wksp.swflx
+            
+            wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / MLMML.ρ)
+            wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
+
+        end
 
         MLMML.stepOceanColumnCollection!(
             MD.occ;

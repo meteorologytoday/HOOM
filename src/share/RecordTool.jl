@@ -19,7 +19,7 @@ module RecordTool
 
             var = zeros(Float64, size(varref)...)
 
-            return new(varname, varref, var, dimnames)
+            return new(varname, varref, var, dimnames, 0.0)
         end
     
     end

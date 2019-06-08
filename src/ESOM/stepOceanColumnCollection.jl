@@ -1,3 +1,4 @@
+using Statistics: mean
 function stepOceanColumnCollection!(
     occ    :: OceanColumnCollection;
     τx :: AbstractArray{Float64, 2},
