@@ -125,6 +125,7 @@ module CESMCORE_ESOM
                         ("S",   occ.Ss, ("Nx", "Ny", "Nz")),
                         ("M1x", occ.wksp.M1x, ("Nx", "Ny")),
                         ("M1y", occ.wksp.M1y, ("Nx", "Ny")),
+                        ("sumflx", wksp.sumflx, ("Nx", "Ny")),
                     ],
 
                 )
@@ -204,7 +205,10 @@ module CESMCORE_ESOM
         wksp.nswflx .*= -1.0
         wksp.swflx  .*= -1.0
 
+
+
         for i=1:MD.occ.Nx, j=1:MD.occ.Ny
+            wksp.sumflx[i, j] = wksp.nswflx[i, j] + wksp.swflx[i, j]
             wksp.τx[i, j] *= (1.0 - wksp.ifrac[i, j])
             wksp.τy[i, j] *= (1.0 - wksp.ifrac[i, j])
         end

@@ -22,6 +22,7 @@ function stepOceanColumnCollection!(
     nswflx :: AbstractArray{Float64, 2}, # Non-shortwave energy flux at the surface (     J  / s m^2)
     frwflx :: AbstractArray{Float64, 2}, # Freshwater           flux at the surface (     m  / s m^2)
     Δt     :: Float64,
+    diffusion_Δt :: Float64,
     do_diffusion :: Bool = true, 
 )
 
@@ -159,7 +160,7 @@ function stepOceanColumnCollection!(
         end
 
         if do_diffusion
-            OC_doDiffusion_EulerBackward!(occ, i, j; Δt=Δt)
+            OC_doDiffusion_EulerBackward!(occ, i, j; Δt=diffusion_Δt)
         end
 
         OC_updateB!(occ, i, j)
