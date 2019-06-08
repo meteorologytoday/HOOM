@@ -33,7 +33,7 @@ module RecordTool
         dims     :: Dict    # A dictionary of dimension name mapping to its length
         sobjs    :: Dict
 
-        function Recorder(dims, vars, listfile)
+        function Recorder(dims, vars)
 
             sobjs = Dict()
 
