@@ -18,20 +18,6 @@ end
 
 output_vars = Dict()
 
-#=
-vars_x2o = [
-    "SWFLX",
-    "HFLX",
-    "TAUX",
-    "TAUY",
-    "IFRAC",
-]
-
-vars_o2x = [
-    "SST",
-    "QFLX",
-]
-=#
 stage = :INIT
 
 mkpath(configs["tmp_folder"])
@@ -41,8 +27,7 @@ reverseRole!(PTI)
 
 map = NetCDFIO.MapInfo{Float64}(configs["domain_file"])
 
-loop_i = 1
-nc_cnt = 1 
+t_cnt = 1
 output_filename = ""
 buffer2d = zeros(UInt8, map.lsize * 8)
 null2d   = zeros(Float64, map.lsize)
@@ -58,13 +43,13 @@ println("===== ", OMMODULE.name, " IS READY =====")
 beg_time = Base.time()
 while true
 
-    global OMDATA, stage, loop_i, output_filename, nc_cnt
+    global OMDATA, stage, t_cnt, output_filename
 
     end_time = Base.time()
 
-    println(format("Execution time       : {:d} s", floor(end_time - beg_time)))
-    println(format("# Time Index counter : {:d}", loop_i))
-    println(format("# Stage              : {}", String(stage)))
+    println(format("Execution time          : {:d} s", floor(end_time - beg_time)))
+    println(format("# Time Counter for RUN  : {:d}", t_cnt))
+    println(format("# Stage                 : {}", String(stage)))
 
     msg = parseMsg(recvText(PTI))
     println("==== MESSAGE RECEIVED ====")
@@ -73,16 +58,12 @@ while true
 
     if msg["MSG"] in ["INIT", "RUN"]
         parseCESMTIME!(msg["CESMTIME"], timeinfo)
-        if loop_i == 1 || (timeinfo[2] == 1 && timeinfo[3] == 1 && timeinfo[4] == 0)
-            output_filename = format("SSM_output_{:04d}.nc", Int(timeinfo[1]))
-            NetCDFIO.createNCFile(map, output_filename)
-            nc_cnt = 1
-        end
     end
 
     if stage == :INIT && msg["MSG"] == "INIT"
 
         println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
+
         OMDATA = OMMODULE.init(
             casename     = configs["casename"],
             map          = map,
@@ -93,31 +74,15 @@ while true
         
         rm(configs["short_term_archive_list"], force=true)
 
-        for (varname, var) in OMDATA.output_vars
-            output_vars[varname] = reshape(var, map.nx, map.ny)
-        end
-
         global x2o_available_varnames  = split(msg["VAR2D"], ",")
         global x2o_wanted_varnames = keys(OMDATA.x2o)
         global x2o_wanted_flag     = [(x2o_available_varnames[i] in x2o_wanted_varnames) for i = 1:length(x2o_available_varnames)]
-
-
 
         writeBinary!(joinpath(configs["tmp_folder"], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
         writeBinary!(joinpath(configs["tmp_folder"], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
         writeBinary!(joinpath(configs["tmp_folder"], "MASK.bin"), map.mask, buffer2d; endianess=:little_endian)
 
         sendText(PTI, "OK")
-
-        NetCDFIO.write2NCFile(
-            map,
-            output_filename,
-            output_vars;
-            time=nc_cnt,
-            missing_value=map.missing_value
-        )
-        nc_cnt += 1
-
 
         stage = :RUN
         
@@ -153,7 +118,7 @@ while true
 
             OMMODULE.run(OMDATA;
                 t             = timeinfo,
-                t_cnt         = loop_i,
+                t_cnt         = t_cnt,
                 t_flags       = t_flags,
                 Δt            = Δt_substeps,
                 substep       = substep,
@@ -164,19 +129,12 @@ while true
 
         println(format("*** It takes {:.2f} secs. ***", cost))
 
-        NetCDFIO.write2NCFile(
-            map,
-            output_filename,
-            output_vars;
-            time=nc_cnt,
-            missing_value=map.missing_value,
-        )
-        nc_cnt += 1
-
         writeBinary!(joinpath(configs["tmp_folder"], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
         writeBinary!(joinpath(configs["tmp_folder"], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
 
         sendText(PTI, "OK")
+
+        t_cnt += 1
 
     elseif stage == :RUN && msg["MSG"] == "END"
 
@@ -213,7 +171,6 @@ while true
         throw(ErrorException("Unknown status: stage " * stage * ", MSG: " * String(msg["MSG"])))
     end
 
-    loop_i += 1
     flush(stdout)
 end
 
