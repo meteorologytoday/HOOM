@@ -8,8 +8,6 @@ if MD.configs["enable_short_term_archive"]
                     MD.recorders["daily_record"],
                     joinpath(MD.configs["short_term_archive_dir"], filename)
                 )
-
-                appendLine(MD.configs["short_term_archive_list"], filename)
         end
 
         RecordTool.record!(
@@ -17,6 +15,7 @@ if MD.configs["enable_short_term_archive"]
             avg_and_output = ( t_flags["new_day"] && substep==1 && t_cnt != 1)
         )
 
+        appendLine(MD.configs["short_term_archive_list"], filename)
     end
     
     if MD.configs["monthly_record"]
@@ -27,8 +26,6 @@ if MD.configs["enable_short_term_archive"]
                     MD.recorders["monthly_record"],
                     joinpath(MD.configs["short_term_archive_dir"], filename)
                 )
-
-                appendLine(MD.configs["short_term_archive_list"], filename)
         end
 
         RecordTool.record!(

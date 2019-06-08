@@ -26,13 +26,14 @@ module RecordTool
 
     
     mutable struct Recorder
+
         filename :: Union{Nothing, AbstractString}
         time_ptr :: Integer  # The position of next record
         
-        dims  :: Dict    # A dictionary of dimension name mapping to its length
-        sobjs :: Dict
+        dims     :: Dict    # A dictionary of dimension name mapping to its length
+        sobjs    :: Dict
 
-        function Recorder(dims, vars)
+        function Recorder(dims, vars, listfile)
 
             sobjs = Dict()
 
@@ -140,7 +141,7 @@ module RecordTool
                 ds_var.attrib["_FillValue"] = missing_value
             end 
         end
+        
     end
 
-    
 end

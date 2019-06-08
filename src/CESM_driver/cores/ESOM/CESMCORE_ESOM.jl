@@ -125,7 +125,8 @@ module CESMCORE_ESOM
                         ("S",   occ.Ss, ("Nx", "Ny", "Nz")),
                         ("M1x", occ.wksp.M1x, ("Nx", "Ny")),
                         ("M1y", occ.wksp.M1y, ("Nx", "Ny")),
-                    ]
+                    ],
+
                 )
 
                 recorders[rec_key] = recorder
@@ -156,8 +157,49 @@ module CESMCORE_ESOM
         write_restart :: Bool,
     )
  
-        include(joinpath(@__DIR__, "..", "..", "common_record_code.jl"))
-        
+        if MD.configs["enable_short_term_archive"]
+
+            if MD.configs["daily_record"]
+                
+                if t_flags["new_month"] && substep == 1
+                        filename = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
+                        RecordTool.setNewNCFile!(
+                            MD.recorders["daily_record"],
+                            joinpath(MD.configs["short_term_archive_dir"], filename)
+                        )
+
+                        appendLine(MD.configs["short_term_archive_list"], filename)
+                end
+
+                RecordTool.record!(
+                    MD.recorders["daily_record"];
+                    avg_and_output = ( t_flags["new_day"] && substep==1 && t_cnt != 1)
+                )
+
+            end
+            
+            if MD.configs["monthly_record"]
+
+                if t_flags["new_year"] && substep == 1
+                        filename = format("{}.ocn.h.monthly.{:04d}.nc", MD.casename, t[1])
+                        RecordTool.setNewNCFile!(
+                            MD.recorders["monthly_record"],
+                            joinpath(MD.configs["short_term_archive_dir"], filename)
+                        )
+                        
+                        appendLine(MD.configs["short_term_archive_list"], filename)
+                end
+
+                RecordTool.record!(
+                    MD.recorders["monthly_record"];
+                    avg_and_output = ( t_flags["new_month"] && substep==1 && t_cnt != 1)
+                )
+
+
+            end
+
+        end
+
         wksp = MD.wksp
 
         wksp.nswflx .*= -1.0
