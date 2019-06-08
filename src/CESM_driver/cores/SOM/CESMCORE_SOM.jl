@@ -77,7 +77,7 @@ module CESMCORE_SOM
             occ = SOM.makeBlankOceanColumnCollection(map.nx, map.ny; mask=map.mask)
             occ.Kh_T = 0.0
             occ.h_ML .= 30.0
-            occ.T_ML .= 288.0
+            occ.T_ML .= 288.15
 
             snapshot_file = format("Snapshot_{:04d}0101_00000.nc", t[1])
             println("Output snapshot: ", snapshot_file)
