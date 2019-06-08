@@ -128,7 +128,7 @@ while true
                 t_flags       = t_flags,
                 Δt            = Δt_substeps,
                 substep       = substep,
-                write_restart = ( msg["WRITE_RESTART"] == "TRUE" ) ? true : false,
+                write_restart = ( msg["WRITE_RESTART"] == "TRUE" && substep == 1 ),
             )
 
         end

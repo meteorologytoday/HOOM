@@ -219,6 +219,7 @@ module CESMCORE_MLMML
             nswflx = wksp.nswflx,
             frwflx = wksp.frwflx,
             Δt     = Δt,
+            diffusion_Δt = Δt * MD.configs["substeps"],
             do_diffusion = (substep == MD.configs["substeps"]),
         )
 
