@@ -95,8 +95,7 @@ module CESMCORE_SOM
         )
 
         o2x = Dict(
-            "T_ML"      => occ.T_ML,
-            "h_ML"      => occ.h_ML,
+            "SST"      => occ.T_ML,
             "QFLX2ATM"  => occ.qflx2atm,
         )
 
