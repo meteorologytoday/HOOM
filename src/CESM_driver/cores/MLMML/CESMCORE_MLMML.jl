@@ -1,22 +1,21 @@
-include("../../../MLMML/MLMML.jl")
+include(joinpath(@__DIR__, "..", "..", "..", "MLMML", "MLMML.jl"))
 module CESMCORE_MLMML
+
+    include("Workspace_MLMML.jl")
+    include(joinpath(@__DIR__, "..", "..", "..", "share", "RecordTool.jl"))
+    include(joinpath(@__DIR__, "..", "..", "..", "share", "AppendLine.jl"))
 
     using Formatting
     using ..NetCDFIO
     using ..MLMML
     using NCDatasets
+    using .RecordTool
 
-    zs = collect(Float64, range(0, -500, step=-5))
     name = "MLMML"
-
-    include("Workspace_MLMML.jl")
-    include("../../../share/StatObj.jl")
-    include("../../../share/AppendLine.jl")
 
     days_of_mon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
     mutable struct MLMML_DATA
-
         casename    :: AbstractString
         map         :: NetCDFIO.MapInfo
         occ         :: MLMML.OceanColumnCollection
@@ -29,10 +28,7 @@ module CESMCORE_MLMML
         output_vars :: Dict
         wksp        :: Workspace
 
-        sobjs       :: Dict
-        sobj_dict   :: Dict
-        rec_cnts    :: Dict
-
+        recorders   :: Dict
     end
 
 
@@ -69,7 +65,7 @@ module CESMCORE_MLMML
             end
 
             if !isfile(init_file)
-                throw(ErrorException(init_file * " does not exist!"))
+                throw(ErrorException(format("Initial file \"{:s}\" does not exist!", init_file)))
             end
  
         end
@@ -114,22 +110,24 @@ module CESMCORE_MLMML
             =#
         )
         
-        sobj_dict = Dict(
-            "mld"    => occ.h_ML,
-            "T"      => occ.Ts,
-            "S"      => occ.Ss,
-#            "sumflx" => wksp.sumflx,
-#            "fric_u" => wksp.fric_u,
-#            "frwflx" => wksp.frwflx,
-        )
-
-        sobjs    = Dict()
-        rec_cnts = Dict()
+        recorders = Dict()
 
         for rec_key in ["daily_record", "monthly_record"]
             if configs[rec_key]
-                sobjs[rec_key] = StatObj(sobj_dict)
-                rec_cnts[rec_key] = 0
+                 recorder = RecordTool.Recorder(
+                    Dict(
+                        "Nx" => occ.Nx,
+                        "Ny" => occ.Ny,
+                        "Nz_bone" => occ.Nz_bone,
+                    ), [
+                        ("T",     occ.Ts, ("Nx", "Ny", "Nz_bone")),
+                        ("S",     occ.Ss, ("Nx", "Ny", "Nz_bone")),
+                        ("MLD",   occ.h_ML, ("Nx", "Ny")),
+                    ],
+                )
+
+                recorders[rec_key] = recorder
+               
             end
         end
 
@@ -142,9 +140,7 @@ module CESMCORE_MLMML
             configs,
             output_vars,
             wksp,
-            sobjs,
-            sobj_dict,
-            rec_cnts,
+            recorders,
         )
 
     end
@@ -155,107 +151,66 @@ module CESMCORE_MLMML
         t_cnt         :: Integer,
         t_flags       :: Dict,
         Δt            :: Float64,
+        substep       :: Integer,
         write_restart :: Bool,
     )
 
         if MD.configs["enable_short_term_archive"]
 
-            if t_cnt == 1 
-                for (k, sobj) in MD.sobjs
-                    zeroStatObj!(sobj)
-                end
-            end
-
             if MD.configs["daily_record"]
-
-                daily_file = format("{}.xttocn_SOM.h.{:04d}.nc", MD.casename, t[1])
-                addStatObj!(MD.sobjs["daily_record"], MD.sobj_dict)
-
-                if t_flags["new_year"]
-                    MD.rec_cnts["daily_record"] = 0
-                    MLMML._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], daily_file), MD.map.missing_value)
-                    appendLine(MD.configs["short_term_archive_list"], daily_file)
-                end
-
-                if t_flags["new_day"]
-                    normStatObj!(MD.sobjs["daily_record"])
-                    Dataset(daily_file, "a") do ds
-                        for (k, v) in MD.sobj_dict
-
-                            if length(size(v)) == 3
-                                dim = ("Nx", "Ny", "Nz_bone")
-                            elseif length(size(v)) == 2
-                                dim = ("Nx", "Ny")
-                            end
-                            
-                            MLMML._write2NCFile_time(ds, k, dim, MD.rec_cnts["daily_record"] + 1, MD.sobjs["daily_record"].vars[k]; missing_value = MD.map.missing_value)
-                        end
-                    end
-
-                    MD.rec_cnts["daily_record"] += 1
-
-                end
- 
-            end
-
-#=
-            if MD.configs["monthly_record"]
-                # ===== monthly statistics begin =====
-                if t_cnt == 1 
-                    zeroStatObj!(MD.sobj)
-                end
-
-                addStatObj!(MD.sobj, MD.sobj_dict)
                 
-                # Do monthly average and output it by the end of month
-                if days_of_mon[t[2]] == t[3] && t[4] == 0
-
-                    avg_file = format("avg_{:04d}{:02d}.nc", t[1], t[2])
-                    
-                    normStatObj!(MD.sobj)
-
-                    MLMML._createNCFile(MD.occ, joinpath(MD.configs["short_term_archive_dir"], avg_file), MD.map.missing_value)
-                    Dataset(avg_file, "a") do ds
-
-                        for v in ["mld", "sumflx", "fric_u", "frwflx"]
-                            MLMML._write2NCFile(ds, v, ("Nx", "Ny",), MD.sobj.vars[v], MD.map.missing_value)
-                        end
-
-                        for v in ["T", "S"]
-                            MLMML._write2NCFile(ds, v, ("Nx", "Ny", "Nz"), MD.sobj.vars[v], MD.map.missing_value)
-                        end
-
-                    end
-                    println("Output monthly average: ", avg_file)
-                    appendLine(MD.configs["short_term_archive_list"], avg_file)
-                    
-                    zeroStatObj!(MD.sobj)
+                if t_flags["new_month"] && substep == 1
+                        filename = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
+                        RecordTool.setNewNCFile!(
+                            MD.recorders["daily_record"],
+                            joinpath(MD.configs["short_term_archive_dir"], filename)
+                        )
+                        appendLine(MD.configs["short_term_archive_list"], filename)
                 end
+
+                RecordTool.record!(
+                    MD.recorders["daily_record"];
+                    avg_and_output = ( t_flags["new_day"] && substep==1 && t_cnt != 1)
+                )
+
+            end
+            
+            if MD.configs["monthly_record"]
+
+                if t_flags["new_year"] && substep == 1
+                        filename = format("{}.ocn.h.monthly.{:04d}.nc", MD.casename, t[1])
+                        RecordTool.setNewNCFile!(
+                            MD.recorders["monthly_record"],
+                            joinpath(MD.configs["short_term_archive_dir"], filename)
+                        )
+                        appendLine(MD.configs["short_term_archive_list"], filename)
+                end
+
+                RecordTool.record!(
+                    MD.recorders["monthly_record"];
+                    avg_and_output = ( t_flags["new_month"] && substep==1 && t_cnt != 1)
+                )
+
+
             end
 
-            if MD.configs["yearly_snapshot"]
-                # Take snapshot every first day of the year.
-                if t[2] == 1 && t[3] == 1 && t[4] == 0
-                    snapshot_file = format("Snapshot_{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
-
-                    MLMML.takeSnapshot(MD.occ, joinpath(MD.configs["short_term_archive_dir"], snapshot_file))
-                    println("Output snapshot: ", snapshot_file)
-                    appendLine(MD.configs["short_term_archive_list"], snapshot_file)
-                end
-            end
-=#
         end
- 
+
         wksp = MD.wksp
 
-        wksp.nswflx .*= -1.0
-        wksp.swflx  .*= -1.0
+        # Only process incoming data for the first time!! 
+        if substep == 1
 
-        #wksp.sumflx[:, :]  = wksp.nswflx
-        #wksp.sumflx      .+= wksp.swflx
-        
-        wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / MLMML.ρ)
-        wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
+            wksp.nswflx .*= -1.0
+            wksp.swflx  .*= -1.0
+
+            #wksp.sumflx[:, :]  = wksp.nswflx
+            #wksp.sumflx      .+= wksp.swflx
+            
+            wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / MLMML.ρ)
+            wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
+
+        end
 
         MLMML.stepOceanColumnCollection!(
             MD.occ;
@@ -264,9 +219,21 @@ module CESMCORE_MLMML
             nswflx = wksp.nswflx,
             frwflx = wksp.frwflx,
             Δt     = Δt,
+            diffusion_Δt = Δt * MD.configs["substeps"],
+            do_diffusion = (substep == MD.configs["substeps"]),
         )
 
+        if write_restart
+            restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
+            MLMML.takeSnapshot(MD.occ, restart_file)
+             
+            open(MD.configs["rpointer_file"], "w") do file
+                write(file, restart_file)
+            end
 
+            println("(Over)write restart pointer file: ", MD.configs["rpointer_file"])
+            println("Output restart file: ", restart_file)
+        end
 
     end
 

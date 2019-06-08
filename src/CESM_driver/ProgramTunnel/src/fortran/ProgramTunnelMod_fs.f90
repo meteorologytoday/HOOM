@@ -8,11 +8,14 @@ type ptm_ProgramTunnelInfo
     Integer :: send_fd
     Integer :: lock_fd
 
+
     character(len = 256) :: recv_fn
     character(len = 256) :: send_fn
     character(len = 256) :: lock_fn
 
     integer :: chk_freq
+    integer :: timeout
+    integer :: timeout_limit_cnt
 end type
 
 
@@ -31,12 +34,25 @@ subroutine ptm_setDefault(PTI, fds)
     PTI%recv_cnt = 0
     PTI%send_cnt = 0
 
-    PTI%chk_freq = 50
+
 
     PTI%recv_fd = fds(1)
     PTI%send_fd = fds(2)
     PTI%lock_fd = fds(3)
+
+    PTI%chk_freq = 50          ! millisecs
+    PTI%timeout  = 30 * 1000   ! millisecs
+
+    call ptm_setTimeout(PTI)
 end subroutine 
+
+
+subroutine ptm_setTimeout(PTI)
+    implicit none
+    type(ptm_ProgramTunnelInfo) :: PTI
+    PTI%timeout_limit_cnt = ceiling(real(PTI%timeout) / real(PTI%chk_freq))
+end
+
 
 subroutine ptm_printSummary(PTI)
     implicit none
@@ -70,11 +86,12 @@ subroutine ptm_obtainLock(PTI, stat)
     integer :: io
 
     logical :: get_through
-    integer :: try_cnt
+    integer :: cnt
 
     get_through = .false.
 
-    do
+    do cnt = 1, ceiling(real(PTI%timeout) / real(PTI%chk_freq))
+
         print *, "Getting lock...", PTI%lock_fn
         ! try to get lock
         inquire(file=PTI%lock_fn, exist=file_exists)
@@ -87,10 +104,11 @@ subroutine ptm_obtainLock(PTI, stat)
         ! Try to create a file 
         io = 0
         open(unit=PTI%lock_fd, file=PTI%lock_fn, form="formatted", access="stream", action="write", iostat=io)
-
+        close(PTI%lock_fd)
         if (io == 0) then
             ! If we did open a file then leave
             get_through = .true.        
+
             exit
         else
             ! But if open file fails then try again
@@ -98,14 +116,14 @@ subroutine ptm_obtainLock(PTI, stat)
             cycle
         end if
 
-        close(PTI%lock_fd)
-
     end do 
 
     if (get_through .eqv. .true.) then
         stat = 0
     else
         stat = 1
+        print *, "*** Timeout getting lock! Critical error ***"
+        error stop
     end if
 
 end subroutine
@@ -144,7 +162,7 @@ integer function ptm_recvText(PTI, msg)
     type(ptm_ProgramTunnelInfo)  :: PTI
     character(len=*)       :: msg
 
-    integer :: io
+    integer :: io, cnt
     logical :: file_exists
 
     logical :: get_through
@@ -152,7 +170,7 @@ integer function ptm_recvText(PTI, msg)
     ptm_recvText = 0
 
     get_through = .false.
-    do
+    do cnt = 1, PTI%timeout_limit_cnt
         inquire(file=PTI%recv_fn, exist=file_exists)
         if (file_exists .eqv. .true.) then
             get_through = .true.
@@ -167,7 +185,8 @@ integer function ptm_recvText(PTI, msg)
         ptm_recvText = 0
     else
         ptm_recvText = 1
-        return
+        print *, "*** No incoming message within timeout. Critical error ***"
+        error stop
     end if
 
     call ptm_obtainLock(PTI, ptm_recvText)

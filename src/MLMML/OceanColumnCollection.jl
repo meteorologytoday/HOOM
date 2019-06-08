@@ -86,13 +86,16 @@ mutable struct OceanColumnCollection
         else
             _topo[:, :] = topo
         end
-        
+       
         # mask =>   lnd = 0, ocn = 1
         if mask == nothing
             _mask .+= 1.0
         else
             _mask[:, :] = mask
         end
+
+        mask_idx = (_mask .== 1.0)
+
 
         if typeof(h_ML_min) <: AbstractArray{Float64, 2}
             _h_ML_min[:, :] = h_ML_min
@@ -107,6 +110,7 @@ mutable struct OceanColumnCollection
         end
 
         # Detect and fix h_ML_{max,min}
+        coord_max = -zs_bone[end]
         for i=1:Nx, j=1:Ny
 
             if _mask[i, j] == 0
@@ -121,35 +125,45 @@ mutable struct OceanColumnCollection
 
             if hbot < 0
                 throw(ErrorException(format("Topography is negative at idx ({:d}, {:d})", i, j)))
+            elseif hbot == 0
+                #throw(ErrorException(format("Topography is zero at idx ({:d}, {:d})", i, j)))
+                println(format("Topography is zero at idx ({:d}, {:d})", i, j))
             end
 
             if hmax < hmin
                 throw(ErrorException(format("h_ML_max must ≥ h_ML_min. Problem happens at idx ({:d}, {:d})", i, j)))
             end
 
-            if hbot == 0
-                println(format("Topography is zero at idx ({:d}, {:d}), h_min = {:.2f}", i, j, hmin))
+            if coord_max < hmin
+                println(format("Point ({},{}) got h_min {:.2f} which is larger than coord_max {}. Tune h_ML_min to match it.", i, j, hmin, coord_max))
+                hmin = coord_max
             end
+
+            if coord_max < hmax
+                println(format("Point ({},{}) got h_max {:.2f} which is larger than coord_max {}. Tune h_ML_max to match it.", i, j, hmax, coord_max))
+                hmax = coord_max
+            end
+ 
 
 
             if hmin > hbot
                 #println(mask[i,j]) 
-                println(format("Point ({},{}) got depth {:.2f} which is smaller than h_ML_min {}. Tune the depth to h_ML_min.", i, j, hbot, hmin))
-
-                _h_ML_max[i, j] = hmin
-                _topo[i, j] = - hmin
-
-            elseif hmax > hbot
-
-                _h_ML_max[i, j] = hbot
-
+                println(format("Point ({},{}) got depth {:.2f} which is smaller than h_ML_min {}. Tune h_ML_min/max to depth.", i, j, hbot, hmin))
+                hbot = hmin
             end
+
+            if hmax > hbot
+                println(format("Point ({},{}) got depth {:.2f} which is smaller than h_ML_max {}. Tune the h_ML_max to depth.", i, j, hbot, hmax))
+                hmax = hbot
+            end
+
+            _h_ML_min[i, j] = hmin
+            _h_ML_max[i, j] = hmax
+            _topo[i, j]     = -hbot
+
         end
       
         
-        # mask_idx needs to be determined after topography is probably tuned.
-        mask_idx = (_mask .== 1.0)
-
         # ===== [END] topo, mask, h_ML_min, h_ML_max =====
 
         # ===== [BEGIN] z coordinate =====
@@ -188,11 +202,9 @@ mutable struct OceanColumnCollection
             Nz[i, j] = _Nz
 
             # Construct vertical coordinate
-            zs[i, j, 1:_Nz+1] = zs_bone[1:_Nz+1]
+            zs[i, j, 1:_Nz] = zs_bone[1:_Nz]
 
-            if _Nz < Nz_bone
-                zs[i, j, _Nz+1] = _topo[i, j]
-            end
+            zs[i, j, _Nz+1] = max(_topo[i, j], zs_bone[_Nz+1])
 
             # Construct thickness of each layer
             hs[ i, j, 1:_Nz]  = zs[i, j, 1:_Nz] - zs[i, j, 2:_Nz+1]
@@ -361,6 +373,10 @@ mutable struct OceanColumnCollection
         mask2_lnd_idx = (_mask  .== 0)
         
         for v in [_bs, _Ts, _Ss, _Ts_clim, _Ss_clim]
+            if v == nothing
+                continue
+            end
+
             v[mask3_lnd_idx] .= NaN
         end 
 
@@ -372,6 +388,23 @@ mutable struct OceanColumnCollection
         # ===== [END] Mask out data
 
         # ===== [BEGIN] check integrity =====
+
+        # Check topography, h_ML_min/max and zs
+        for i=1:Nx, j=1:Ny
+            if _mask[i, j] == 0
+                continue
+            end
+
+            if ! (-_h_ML_min[i, j] >= - _h_ML_max[i, j] >= zs[i, j, Nz[i, j] + 1] >= _topo[i, j])
+                println("idx: (", i, ", ", j, ")")
+                println("h_ML_min: ", _h_ML_min[i, j])
+                println("h_ML_max: ", _h_ML_max[i, j])
+                println("z_deepest: ", zs[i, j, Nz[i, j] + 1])
+                println("topo: ", _topo[i, j])
+                ErrorException("Relative relation is wrong") |> throw
+            end
+        end
+
         
         # Check if there is any hole in climatology 
         
@@ -391,11 +424,11 @@ mutable struct OceanColumnCollection
             throw(ErrorException("Temperature data has holes"))
         end
  
-        if sum(isfinite.(_Ts_clim)) != valid_grids
+        if _Ts_clim != nothing && sum(isfinite.(_Ts_clim)) != valid_grids
             throw(ErrorException("Temperature climatology has holes"))
         end
  
-        if sum(isfinite.(_Ss_clim)) != valid_grids
+        if _Ss_clim != nothing && sum(isfinite.(_Ss_clim)) != valid_grids
             throw(ErrorException("Salinity climatology has holes"))
         end
 

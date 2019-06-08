@@ -131,7 +131,8 @@ module docn_comp_mod
   integer :: x_iostat, x_ptm_fds(3), x_w_fd, x_r_fd
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
-                           x_ifrac(:), x_q(:), x_frwflx(:), x_tfdiv(:), x_mld(:) 
+                           x_ifrac(:), x_q(:), x_frwflx(:), x_tfdiv(:), x_mld(:), &
+                           x_mask(:) 
 
   !--- formats   ---
   character(*), parameter :: x_F00 = "(a, '.ssm.', a, '.', a)" 
@@ -710,6 +711,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         allocate(x_tauy(lsize))
         allocate(x_ifrac(lsize))
         allocate(x_q(lsize))
+        allocate(x_mask(lsize))
         allocate(x_frwflx(lsize))
 
         do n = 1,lsize
@@ -726,6 +728,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_tauy(n)    = 0.0_R8
             x_ifrac(n)   = 0.0_R8
             x_frwflx(n)  = 0.0_R8
+            x_mask(n)    = 0.0_R8
 
             o2x%rAttr(kt,n) = somtp(n)
             o2x%rAttr(kq,n) = x_q(n)
@@ -746,6 +749,10 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
 
         call ptm_setDefault(x_PTI, x_ptm_fds)
+
+        x_PTI%chk_freq = 50              ! check every 50 ms
+        x_PTI%timeout  = 60 * 5 * 1000   ! five minites
+        call ptm_setTimeout(x_PTI)
         call ptm_appendPath(x_PTI, x_path)
 
         call ptm_printSummary(x_PTI)
@@ -773,10 +780,19 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
          
         call read_1Dfield(x_r_fd, trim(x_path) // "/SST.bin", somtp, lsize)
         call read_1Dfield(x_r_fd, trim(x_path) // "/QFLX2ATM.bin", x_q, lsize)
+        call read_1Dfield(x_r_fd, trim(x_path) // "/MASK.bin", x_mask, lsize)
 
         do n = 1, lsize
-          o2x%rAttr(kt,n) = somtp(n)
-          o2x%rAttr(kq,n) = x_q(n)
+            if (imask(n) /= x_mask(n)) then
+                call shr_sys_abort ('SSM init failed: mask does not match')
+            end if
+        end do
+
+        do n = 1, lsize
+          if (imask(n) /= 0) then
+            o2x%rAttr(kt,n) = somtp(n)
+            o2x%rAttr(kq,n) = x_q(n)
+          end if
         end do
 
       else  ! if NOT first call
@@ -836,13 +852,15 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             print *, "Ocean model calculation failed. Recive message: [", trim(x_msg), "]"
             call shr_sys_abort ('Ocean model calculation failed.')
         end if
- 
+
         call read_1Dfield(x_r_fd, trim(x_path) // "/SST.bin",  somtp, lsize)
         call read_1Dfield(x_r_fd, trim(x_path) // "/QFLX2ATM.bin", x_q,   lsize)
  
         do n = 1, lsize
-          o2x%rAttr(kt,n) = somtp(n)
-          o2x%rAttr(kq,n) = x_q(n)
+          if (imask(n) /= 0) then
+            o2x%rAttr(kt,n) = somtp(n)
+            o2x%rAttr(kq,n) = x_q(n)
+          end if
         end do
      
       endif

@@ -24,6 +24,7 @@ mutable struct MapInfo{T <: float}
     ) where T <: float
     
         ds = Dataset(filename, "r")
+
         _mask = ds["mask"][:, :]
         _area = ds["area"][:, :]
         _frac = ds["frac"][:, :]
@@ -31,7 +32,10 @@ mutable struct MapInfo{T <: float}
         _yc  = ds["yc"][:, :]
         _nx  = ds.dim["ni"]
         _ny  = ds.dim["nj"]
+
         close(ds)
+
+        _mask[_mask .!= 0] .= 1.0
 
         return new{T}(
             _nx, _ny, _nx * _ny,

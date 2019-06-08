@@ -31,6 +31,11 @@ d2r = π / 180.0
 r2d = 180 / π
 
 
+"""
+
+    Return `false` when the neighbors are singular points (e.g. north/south pole).
+
+"""
 function getNeighbors(Nx, Ny, i, j)
 
     i_w = i-1
@@ -94,7 +99,8 @@ struct GridInfo
         c_lon  :: AbstractArray{Float64, 2},  # center longitude
         c_lat  :: AbstractArray{Float64, 2},  # center latitude
         vs_lon :: AbstractArray{Float64, 3},  # vertices longitude (4, Nx, Ny)
-        vs_lat :: AbstractArray{Float64, 3},  # vertices latitude  (4, Nx, Ny)
+        vs_lat :: AbstractArray{Float64, 3};  # vertices latitude  (4, Nx, Ny)
+        angle_unit :: Symbol = :deg,
     )
 
 
@@ -122,11 +128,28 @@ struct GridInfo
         true_upward = zeros(Float64, 3)
 
 
-        c_lon_rad = d2r * c_lon
-        c_lat_rad = d2r * c_lat
+        c_lon_rad = copy(c_lon)
+        c_lat_rad = copy(c_lat)
 
-        vs_lon_rad = d2r * vs_lon
-        vs_lat_rad = d2r * vs_lat
+        vs_lon_rad = copy(vs_lon)
+        vs_lat_rad = copy(vs_lat)
+
+        if angle_unit == :deg
+
+            c_lon_rad .*= d2r
+            c_lat_rad .*= d2r
+
+            vs_lon_rad .*= d2r 
+            vs_lat_rad .*= d2r
+ 
+        elseif angle_unit == :rad
+            
+            # do nothing
+
+        else
+            throw(ErrorException("Unknown `angle_unit`: " * angle_unit))
+        end
+
 
         for i = 1:Nx, j = 1:Ny
 
@@ -248,15 +271,20 @@ function project!(
 end
 
 
-
 function divergence2!(
     gi   :: GridInfo,
     vf_e :: AbstractArray{Float64, 2},
     vf_n :: AbstractArray{Float64, 2},
-    div  :: AbstractArray{Float64, 2},
+    div  :: AbstractArray{Float64, 2};
+    mask :: AbstractArray{Float64, 2}
 )
 
     for i=1:gi.Nx, j=1:gi.Ny
+
+        if mask[i, j] == 0
+            continue
+        end
+
         ok, i_w, i_e, j_s, j_n = getNeighbors(gi.Nx, gi.Ny, i, j)
 
         if !ok
@@ -264,15 +292,48 @@ function divergence2!(
             continue
         end
 
-#        div[i, j] =  (  vf_e[i_e, j] * gi.ds2[i, j]
-#                      - vf_e[i_w, j] * gi.ds4[i, j] ) / (gi.dx_w[i, j] + gi.dx_e[i, j])
-#                   + (  vf_n[i, j_n] * gi.ds3[i, j]
-#                      - vf_n[i, j_s] * gi.ds1[i, j] ) / (gi.dy_s[i, j] + gi.dy_n[i, j])
+        flux_e = (mask[i_e, j  ] == 0) ? 0.0 : vf_e[i_e, j] * gi.ds2[i, j]
+        flux_w = (mask[i_w, j  ] == 0) ? 0.0 : vf_e[i_w, j] * gi.ds4[i, j] 
+        flux_n = (mask[i  , j_n] == 0) ? 0.0 : vf_n[i, j_n] * gi.ds3[i, j]
+        flux_s = (mask[i  , j_s] == 0) ? 0.0 : vf_n[i, j_s] * gi.ds1[i, j]
 
-        div[i, j] =  (  vf_e[i_e, j] * gi.ds2[i, j]
-                      - vf_e[i_w, j] * gi.ds4[i, j] 
-                      + vf_n[i, j_n] * gi.ds3[i, j]
-                      - vf_n[i, j_s] * gi.ds1[i, j] ) / gi.dσ[i, j]
+        div[i, j] =  (  flux_e - flux_w + flux_n - flux_s ) / gi.dσ[i, j]
+
+    end
+        
+end
+
+
+
+function cal∇²!(
+    gi   :: GridInfo,
+    f    :: AbstractArray{Float64, 2},
+    ∇²f  :: AbstractArray{Float64, 2};
+    mask :: AbstractArray{Float64, 2},
+)
+
+
+    for i=1:gi.Nx, j=1:gi.Ny
+
+        if mask[i, j] == 0
+            continue
+        end
+
+        ok, i_w, i_e, j_s, j_n = getNeighbors(gi.Nx, gi.Ny, i, j)
+
+        if !ok
+            div[i, j] = NaN
+            continue
+        end
+
+        f_c = f[i, j]
+
+        flux_e = (mask[i_e, j  ] == 0) ? 0.0 : (f[i_e, j] - f_c) / gi.dx_e[i, j]
+        flux_w = (mask[i_w, j  ] == 0) ? 0.0 : (f_c - f[i_w, j]) / gi.dx_w[i, j] 
+        flux_n = (mask[i  , j_n] == 0) ? 0.0 : (f[i, j_n] - f_c) / gi.dy_n[i, j]
+        flux_s = (mask[i  , j_s] == 0) ? 0.0 : (f_c - f[i, j_s]) / gi.dy_s[i, j]
+
+        ∇²f[i, j] = ( flux_e - flux_w ) / gi.dx_c[i, j] + ( flux_n - flux_s ) / gi.dy_c[i, j]
 
     end
         

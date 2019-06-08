@@ -10,16 +10,19 @@ mutable struct ProgramTunnelInfo
     send_fn  :: AbstractString
     lock_fn  :: AbstractString
     chk_freq :: AbstractFloat
+    timeout  :: AbstractFloat
+    timeout_limit_cnt :: Integer
 
     function ProgramTunnelInfo(;
-        recv :: AbstractString     = "ProgramTunnel-Y2X.txt",
-        send :: AbstractString     = "ProgramTunnel-X2Y.txt",
-        lock :: AbstractString     = "ProgramTunnel-lock.txt",
-        chk_freq :: AbstractFloat  = 0.05,
-        path :: Union{AbstractString, Nothing} = nothing,
+        recv     :: AbstractString     = "ProgramTunnel-Y2X.txt",
+        send     :: AbstractString     = "ProgramTunnel-X2Y.txt",
+        lock     :: AbstractString     = "ProgramTunnel-lock.txt",
+        chk_freq :: AbstractFloat                  = 0.05,
+        path     :: Union{AbstractString, Nothing} = nothing,
+        timeout  :: AbstractFloat                  = 10.0,
     )
 
-        PTI = new(recv, send, lock, chk_freq)
+        PTI = new(recv, send, lock, chk_freq, timeout, ceil(timeout / chk_freq))
 
         if path != nothing
             appendPath(PTI, path)
@@ -44,35 +47,34 @@ function lock(
     PTI::ProgramTunnelInfo,
 )
 
-    obtainLock(PTI)
-    fn()
-    releaseLock(PTI)
+    if obtainLock(PTI)
+        fn()
+        releaseLock(PTI)
+    else
+        ErrorException("Lock cannot be obtained before timeout.") |> throw
+    end
 end
 
 
 function obtainLock(PTI::ProgramTunnelInfo)
 
-    while true
-        
-        if isfile(PTI.lock_fn)
-
-            sleep(PTI.chk_freq)
-
-        else
+    for cnt in 1:PTI.timeout_limit_cnt
+        if ! isfile(PTI.lock_fn)
 
             try
                 open(PTI.lock_fn, "w") do io
                 end
-                break
+                return true
             catch
-                sleep(PTI.chk_freq)
-                continue
+                # do nothing
             end
 
         end
 
-
+        sleep(PTI.chk_freq)
     end
+
+    return false
 end
 
 function releaseLock(PTI::ProgramTunnelInfo)
@@ -82,9 +84,9 @@ end
 function recvText(PTI::ProgramTunnelInfo)
     local result
 
+    get_through = false
 
-    while true
-
+    for cnt in 1:PTI.timeout_limit_cnt
         if isfile(PTI.recv_fn)
             get_through = true
             break
@@ -92,6 +94,10 @@ function recvText(PTI::ProgramTunnelInfo)
 
         sleep(PTI.chk_freq)
 
+    end
+
+    if ! get_through
+        ErrorException("No further incoming message within timeout.") |> throw
     end
 
     lock(PTI) do
