@@ -156,9 +156,6 @@ module CESMCORE_ESOM
         substep       :: Integer,
         write_restart :: Bool,
     )
-                     println(t)
-                    println(t_cnt)
-                    println(t_flags)
 
         if MD.configs["enable_short_term_archive"]
 
@@ -198,13 +195,6 @@ module CESMCORE_ESOM
                     avg_and_output = ( t_flags["new_month"] && substep==1 && t_cnt != 1)
                 )
                 
-                if t_flags["new_month"] && substep==1 && t_cnt != 1
-                    println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
-                    println(t)
-                    println(t_cnt)
-                    println(t_flags)
-                end
-
             end
 
         end
