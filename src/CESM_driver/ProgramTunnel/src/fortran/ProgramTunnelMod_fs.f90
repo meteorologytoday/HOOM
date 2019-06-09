@@ -294,7 +294,11 @@ subroutine ptm_busysleep(dt)
     integer, dimension(8) :: t             ! arguments for date_and_time
     integer               :: s1,s2,ms1,ms2 ! start and end times [ms]
     integer               :: dt, dt_now    ! desired sleep interval [ms]
-    
+   
+    if (dt > 86400000) then
+        print *, "[ptm_busysleep] dt must be smaller than 86400000"
+        error stop
+    end if 
     
     call date_and_time(values=t)
     ms1=(t(5)*3600+t(6)*60+t(7))*1000+t(8)
@@ -308,7 +312,7 @@ subroutine ptm_busysleep(dt)
             dt_now = dt_now + 86400000
         end if
 
-        if (ms2-ms1>=dt) then
+        if (dt_now>=dt) then
             exit
         end if
 
