@@ -90,9 +90,9 @@ subroutine ptm_obtainLock(PTI, stat)
 
     get_through = .false.
 
+    print *, "Getting lock...", trim(PTI%lock_fn)
     do cnt = 1, ceiling(real(PTI%timeout) / real(PTI%chk_freq))
 
-        print *, "Getting lock...", PTI%lock_fn
         ! try to get lock
         inquire(file=PTI%lock_fn, exist=file_exists)
         
@@ -101,6 +101,7 @@ subroutine ptm_obtainLock(PTI, stat)
             cycle
         end if
        
+
         ! Try to create a file 
         io = 0
         open(unit=PTI%lock_fd, file=PTI%lock_fn, form="formatted", access="stream", action="write", iostat=io)
@@ -108,6 +109,7 @@ subroutine ptm_obtainLock(PTI, stat)
         if (io == 0) then
             ! If we did open a file then leave
             get_through = .true.        
+            print *, "Lock got"
 
             exit
         else
@@ -169,6 +171,7 @@ integer function ptm_recvText(PTI, msg)
 
     ptm_recvText = 0
 
+    print *, "Detecting if new message exists."
     get_through = .false.
     do cnt = 1, PTI%timeout_limit_cnt
         inquire(file=PTI%recv_fn, exist=file_exists)
@@ -180,12 +183,12 @@ integer function ptm_recvText(PTI, msg)
             cycle
         end if
     end do
-
+    print *, "Got new message"
     if (get_through .eqv. .true.) then
         ptm_recvText = 0
     else
         ptm_recvText = 1
-        print *, "*** No incoming message within timeout. Critical error ***"
+        print *, "*** [ptm_recvText] No incoming message within timeout. Critical error ***"
         error stop
     end if
 
@@ -203,7 +206,6 @@ integer function ptm_recvText(PTI, msg)
     msg = trim(msg)
 
     call ptm_delFile(PTI%recv_fn, PTI%recv_fd)
-
     call ptm_releaseLock(PTI)
     
 end function
