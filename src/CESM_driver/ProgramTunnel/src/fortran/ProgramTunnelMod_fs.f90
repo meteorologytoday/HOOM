@@ -204,6 +204,7 @@ integer function ptm_recvText(PTI, msg)
     close(PTI%recv_fd)
     
     msg = trim(msg)
+    print *, "Received: [", trim(msg) , "]"
 
     call ptm_delFile(PTI%recv_fn, PTI%recv_fd)
     call ptm_releaseLock(PTI)
