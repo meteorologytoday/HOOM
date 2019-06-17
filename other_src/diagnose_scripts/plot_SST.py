@@ -1,21 +1,30 @@
 import Ngl, Nio
-import sys
+import sys, argparse
 import numpy as np
 
-nc_file = sys.argv[1]
-grid_file = sys.argv[2]
+parser = argparse.ArgumentParser()
+parser.add_argument('--data-file', dest='data_file')
+#parser.add_argument('--data-file-SSTAVAR', dest='SSTAVAR_file')
+parser.add_argument('--domain-file', dest='domain_file')
+parser.add_argument('--output-dir', dest='output_dir')
 
-f = Nio.open_file(nc_file, "r")
-g = Nio.open_file(grid_file, "r")
+args = parser.parse_args()
 
-lon = g.variables["lon"][:]                   #-- read clon
-lat = g.variables["lat"][:]                   #-- read clat
+f = Nio.open_file(args.data_file, "r")
+g = Nio.open_file(args.domain_file, "r")
+
+lon = f.variables["lon"][:]                   #-- read clon
+lat = f.variables["lat"][:]                   #-- read clat
+
+lon = g.variables["xc"][1, :]                   #-- read clon
+lat = g.variables["yc"][:, 1]                   #-- read clat
+
 
 data = np.mean(f.variables["TREFHT"][:], axis=0) - 273.15
 
 
 wks_type = "png"
-wks = Ngl.open_wks(wks_type,"newcolor1")
+wks = Ngl.open_wks(wks_type, "%s/atm_SST" % (args.output_dir,))
 
 cnres                 = Ngl.Resources()
 

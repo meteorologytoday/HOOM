@@ -2,7 +2,7 @@
 
 
 
-outputfile=$nc_output_dir/$casename.h0.nc
+outputfile=$nc_output_dir/$casename.atm.h0.nc
 
 if [ -f $outputfile ]; then
 
