@@ -1038,7 +1038,10 @@ subroutine stop_if_bad(stat, stage)
     integer      :: stat
     character(*) :: stage
 
-    if (stat /= 0) then
+    if (stat .lt. 0) then
+          print *, 'MailBox got negative io state during stage ['//trim(stage)//']. Error state: ', stat
+          print *, 'This error does not cause shutdown'
+    else if (stat .gt. 0) then
           print *, 'MailBox error during stage ['//trim(stage)//']. Error state: ', stat
           call shr_sys_abort('MailBox error during stage ['//trim(stage)//']')
     end if
