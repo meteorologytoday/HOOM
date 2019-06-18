@@ -11,8 +11,18 @@ export atm_hist_path=$archive_path/atm/hist
 export ocn_hist_path=$archive_path/ocn
 
 export ocn_outputfile=$nc_output_dir/$casename.ocn.h.monthly.nc
+export year_stamp=$(printf "%s-%s" $beg_year $end_year)
 
-year_stamp=$(printf "%s-%s" $beg_year $end_year)
+export atm_domain=domain.lnd.fv4x5_gx3v7.091218.nc
+export ocn_domain=domain.ocn.gx3v7.120323.nc
+
+export wpath=`pwd`
+export diagnose_scripts_path=$(dirname $0)
+export analysis_path=$diagnose_scripts_path/analysis
+export coordtrans_scripts_path=$diagnose_scripts_path/../CoordTrans
+export wgt_file=wgt_gx3v7_to_fv4x5.nc
+export PDO_file=PDO_EOFs_fv45.nc
+export AO_file=AO_EOFs_fv45.nc
 
 
 for dir_path in $nc_output_dir $diagnose_output_dir ; do
@@ -24,60 +34,21 @@ for dir_path in $nc_output_dir $diagnose_output_dir ; do
 
 done
 
-wpath=`pwd`
-diagnose_scripts_path=$(dirname $0)
-coordtrans_scripts_path=$diagnose_scripts_path/../CoordTrans
-wgt_file=wgt_gx3v7_to_fv4x5.nc
 
-atm_domain=domain.lnd.fv4x5_gx3v7.091218.nc
-ocn_domain=domain.ocn.gx3v7.120323.nc
-
-# Transform gx3v7 to fv45
-if [ ! -f "$wgt_file" ]; then
-    echo "Weight file \"$wgt_file\" does not exist, I am going to generate one..."
-    julia -p 4  $coordtrans_scripts_path/generate_weight.jl --s-file=domain.ocn.gx3v7.120323.nc --d-file=domain.lnd.fv4x5_gx3v7.091218.nc --w-file=$wgt_file --s-mask-value=1.0 --d-mask-value=0.0
-fi
-
-
-
-# First, make a continuous file of atm/ocn output
-
-
+# filenames
 export atm_outputfile=$nc_output_dir/$casename.atm.h0.${year_stamp}.nc
+export atm_outputfile_anomalies=$nc_output_dir/atm_anomalies.nc
+
 export ocn_outputfile=$nc_output_dir/$casename.ocn.h.monthly.${year_stamp}.nc
-
 export ocn_trans_outputfile=$nc_output_dir/$casename.ocn.h.monthly.transformed.${year_stamp}.nc
-
-echo "# Concat files..."
-$diagnose_scripts_path/concat_files_atm.sh
-$diagnose_scripts_path/concat_files_ocn.sh
-
-
-# Second, transform grid
-if [ ! -f "$ocn_trans_outputfile" ]; then
-    julia $coordtrans_scripts_path/transform_data.jl --s-file=$ocn_outputfile --d-file=$ocn_trans_outputfile --w-file=$wgt_file --vars=T,MLD --x-dim=Nx --y-dim=Ny --t-dim=time 
-fi
-
-# Diagnose atm
-echo "Diagnose atm..."
-python3 $diagnose_scripts_path/plot_SST.py --data-file=$atm_outputfile --domain-file=$atm_domain --output-dir=$diagnose_output_dir
-
-# Diagnose ocn
-echo "Diagnose ocn..."
-#julia $diagnose_scripts_path/SST_correlation.jl --data-file=$ocn_outputfile --domain-file=$ocn_domain --SST=T
-
-
-
-# Transform processed data
 
 export ocn_trans_outputfile_SSTA=$nc_output_dir/$casename.ocn.h.monthly.SSTA.transformed.${year_stamp}.nc
 export ocn_trans_outputfile_mstat=$nc_output_dir/$casename.ocn.h.monthly.mstat.transformed.${year_stamp}.nc
 
-#julia $coordtrans_scripts_path/transform_data.jl --s-file=$ocn_outputfile --d-file=$ocn_trans_outputfile_SSTA --w-file=$wgt_file --vars=SSTA --x-dim=Nx --y-dim=Ny --t-dim=time 
+if [ ! -f flag_nocal ]; then
+    $diagnose_scripts_path/diagnose_calculation.sh
+fi
 
-#julia $coordtrans_scripts_path/transform_data.jl --s-file=$ocn_outputfile --d-file=$ocn_trans_outputfile_mstat --w-file=$wgt_file --vars=SSTAYYC,SSTAVAR --x-dim=Nx --y-dim=Ny --t-dim=months
-
- # Plotting 
-python3 $diagnose_scripts_path/plot_ocean_diagnose.py --data-file-SSTAYYC=$ocn_trans_outputfile_mstat --data-file-SSTAVAR=$ocn_trans_outputfile_mstat --domain-file=$atm_domain --output-dir=$diagnose_output_dir
-
-
+if [ ! -f flag_noplot ]; then
+    $diagnose_scripts_path/diagnose_plot.sh
+fi

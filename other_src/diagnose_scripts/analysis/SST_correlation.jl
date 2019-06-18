@@ -133,7 +133,6 @@ Dataset(parsed["data-file"], "a") do ds
             push!(rng, Colon())
         end
         push!(rng, 1:size(vardata)[end])
-        println(rng)
         var[rng...] = vardata
 
     end

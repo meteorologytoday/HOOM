@@ -22,7 +22,6 @@ lat = g.variables["yc"][:, 1]                   #-- read clat
 
 data = np.mean(f.variables["TREFHT"][:], axis=0) - 273.15
 
-
 wks_type = "png"
 wks = Ngl.open_wks(wks_type, "%s/atm_SST" % (args.output_dir,))
 
