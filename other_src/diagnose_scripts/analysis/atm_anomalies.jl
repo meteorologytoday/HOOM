@@ -4,6 +4,8 @@ using NCDatasets
 using ArgParse
 using JSON
 
+include("LinearRegression.jl")
+
 correlation = (x1, x2) -> x1' * x2 / (sum(x1.^2)*sum(x2.^2)).^0.5
 
 function parse_commandline()
@@ -20,7 +22,12 @@ function parse_commandline()
             help = "Domain file."
             arg_type = String
             required = true
-      
+ 
+        "--output-file"
+            help = "Output file."
+            arg_type = String
+            required = true
+     
     end
 
     return parse_args(ARGS, s)
@@ -29,7 +36,7 @@ end
 parsed = parse_commandline()
 print(json(parsed, 4))
 
-output_file = joinpath(dirname(parsed["data-file"]), "atm_anomalies.nc")
+output_file = parsed["output-file"]
 
 Dataset(parsed["data-file"], "r") do ds
 
@@ -71,10 +78,10 @@ PSLA    = zeros(Float64, size(PSL)...)
 PSLAYYC = zeros(Float64, size(PSL)[1:2]..., 12)
 PSLAVAR = zeros(Float64, size(PSL)[1:2]..., 12)
 
-
+x = collect(Float64, 1:Nt)
 for i=1:Nx, j=1:Ny
 
-    d = view(PSL, i, j, :)
+    d = detrend(x, view(PSL, i, j, :))
 
     PSLMM[i, j, :] = mean( reshape(d, 12, :), dims=2 )[:, 1]
     PSLA[i, j, :]  = d - repeat( PSLMM[i, j, :], outer=nyears)

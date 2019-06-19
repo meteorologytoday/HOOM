@@ -7,6 +7,7 @@ parser.add_argument('--data-file', dest='data_file')
 #parser.add_argument('--data-file-SSTAVAR', dest='SSTAVAR_file')
 parser.add_argument('--domain-file', dest='domain_file')
 parser.add_argument('--output-dir', dest='output_dir')
+parser.add_argument('--casename', dest='casename')
 
 args = parser.parse_args()
 
@@ -23,7 +24,7 @@ lat = g.variables["yc"][:, 1]                   #-- read clat
 data = np.mean(f.variables["TREFHT"][:], axis=0) - 273.15
 
 wks_type = "png"
-wks = Ngl.open_wks(wks_type, "%s/atm_SST" % (args.output_dir,))
+wks = Ngl.open_wks(wks_type, "%s/%s_atm_SST" % (args.output_dir, args.casename))
 
 cnres                 = Ngl.Resources()
 
@@ -46,6 +47,10 @@ cnres.mpFillDrawOrder        = "PostDraw"
 cnres.mpLandFillColor        = "Gray"
 cnres.mpOceanFillColor       = "Transparent"
 cnres.mpInlandWaterFillColor = "Transparent"
+cnres.mpCenterLonF = 200.0
+
+cnres.tiMainFontHeightF = 0.01
+cnres.tiMainString         = "[%s] SST" % (args.casename,)
 
 contour = Ngl.contour_map(wks, data, cnres)
 

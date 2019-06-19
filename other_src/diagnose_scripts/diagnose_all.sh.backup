@@ -1,16 +1,16 @@
 #!/bin/bash
 
-export casename=$1
-export archive_path=$2
-export nc_output_dir=$3
-export diagnose_output_dir=$4
-export beg_year=$(printf "%04d" $5)
-export end_year=$(printf "%04d" $6)
+export res=$1
+export casename=$1_$2
+export archive_path=$3/$casename
+export nc_output_dir=$4/$casename
+export diagnose_output_dir=$5/$casename
+export beg_year=$(printf "%04d" $6)
+export end_year=$(printf "%04d" $7)
 
 export atm_hist_path=$archive_path/atm/hist
 export ocn_hist_path=$archive_path/ocn
 
-export ocn_outputfile=$nc_output_dir/$casename.ocn.h.monthly.nc
 export year_stamp=$(printf "%s-%s" $beg_year $end_year)
 
 export atm_domain=domain.lnd.fv4x5_gx3v7.091218.nc
@@ -24,6 +24,12 @@ export wgt_file=wgt_gx3v7_to_fv4x5.nc
 export PDO_file=PDO_EOFs_fv45.nc
 export AO_file=AO_EOFs_fv45.nc
 
+if [[ $casename =~ _SSM_NK_ ]]; then
+    export Nz=Nz_bone
+else
+    export Nz=Nz
+fi
+
 
 for dir_path in $nc_output_dir $diagnose_output_dir ; do
 
@@ -36,14 +42,15 @@ done
 
 
 # filenames
-export atm_outputfile=$nc_output_dir/$casename.atm.h0.${year_stamp}.nc
+export atm_outputfile=$nc_output_dir/atm.nc
 export atm_outputfile_anomalies=$nc_output_dir/atm_anomalies.nc
+export atm_outputfile_temperature=$nc_output_dir/atm_temperature.nc
 
-export ocn_outputfile=$nc_output_dir/$casename.ocn.h.monthly.${year_stamp}.nc
-export ocn_trans_outputfile=$nc_output_dir/$casename.ocn.h.monthly.transformed.${year_stamp}.nc
+export ocn_outputfile=$nc_output_dir/ocn.nc
+export ocn_trans_outputfile=$nc_output_dir/ocn_trans.nc
 
-export ocn_trans_outputfile_SSTA=$nc_output_dir/$casename.ocn.h.monthly.SSTA.transformed.${year_stamp}.nc
-export ocn_trans_outputfile_mstat=$nc_output_dir/$casename.ocn.h.monthly.mstat.transformed.${year_stamp}.nc
+export ocn_trans_outputfile_anomalies=$nc_output_dir/ocn_trans_anomalies.nc
+export ocn_trans_outputfile_mstat=$nc_output_dir/ocn_trans_mstat.nc
 
 if [ ! -f flag_nocal ]; then
     $diagnose_scripts_path/diagnose_calculation.sh

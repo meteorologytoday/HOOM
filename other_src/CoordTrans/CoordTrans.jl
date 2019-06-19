@@ -372,6 +372,12 @@ using Distributed
                 continue
             end
 
+            if ! (varname in ds_in)
+                println(format("Cannot find var: {}. Skip.", varname))
+                continue
+            end
+
+
             cf_var = ds_in[varname]
             cf_var_dimnames = dimnames(cf_var)
 
@@ -384,7 +390,18 @@ using Distributed
            
             s_data = reshape(s_data, d1, d2)
 
-            v = defVar(ds_out, varname, Float64, cf_var_dimnames, attrib=cf_var.attrib)
+            attrib = Dict()
+            for (k,v) in cf_var.attrib
+                if typeof(v) <: AbstractFloat
+                    attrib[k] = convert(Float64, v)
+                else
+                    attrib[k] = v
+                end
+            end
+
+            println(attrib)
+            println(cf_var_dimnames)
+            v = defVar(ds_out, varname, Float64, cf_var_dimnames, attrib=attrib)
             
             for k = 1:size(s_data)[2]
                 convertData!(wi, view(s_data, :, k), d_data_tmp)

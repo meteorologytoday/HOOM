@@ -52,7 +52,7 @@ res.sfXArray             = lon
 res.sfYArray             = lat
 
 res.cnFillMode           = "RasterFill"      # turn raster on      
-res.tiMainString         = "SSTA Year to year correlation"
+res.tiMainString         = "[%s] SSTA Year to year correlation" % (args.casename,)
 res.tiMainFontHeightF   = 0.018
 
 plot = Ngl.contour_map(wks, data, res)  

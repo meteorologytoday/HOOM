@@ -4,11 +4,9 @@ using NCDatasets
 using ArgParse
 using JSON
 
+include("LinearRegression.jl")
+
 correlation = (x1, x2) -> x1' * x2 / (sum(x1.^2)*sum(x2.^2)).^0.5
-
-
-println("CORRELATION: ", correlation(collect(1:10), collect(1:10)))
-
 
 function parse_commandline()
 
@@ -79,16 +77,20 @@ SSTAYYC = zeros(Float64, size(SST)[1:2]..., 12)
 SSTAVAR = zeros(Float64, size(SST)[1:2]..., 12)
 
 
+N = size(SST)[3]
+x = collect(Float64, 1:N)
 for i=1:Nx, j=1:Ny
 
-    d = view(SST, i, j, :)
+    d = detrend(x, view(SST, i, j, :))
 
-    if mask[i, j] != 1
+    if mask[i, j] != 0
         SSTMM[i, j, :]  .= NaN
         SSTA[i, j, :]   .= NaN
         SSTAYYC[i, j, :] .= NaN
         continue
     end
+
+        
     
     SSTMM[i, j, :] = mean( reshape(d, 12, :), dims=2 )[:, 1]
     SSTA[i, j, :]  = d - repeat( SSTMM[i, j, :], outer=nyears)

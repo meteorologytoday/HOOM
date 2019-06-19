@@ -22,7 +22,7 @@ end
 
 function nanmean(
     x;
-    dims :: Tuple,
+    dims :: Union{Nothing, Tuple} = nothing,
 )
 
     y = copy(x)
@@ -31,6 +31,9 @@ function nanmean(
     finite_idx = isfinite.(y)
 
     y[nan_idx] .= 0.0
-
-    return sum(y, dims=dims) ./ sum(finite_idx, dims=dims)
+    if dims == nothing
+        return sum(y) ./ sum(finite_idx)
+    else
+        return sum(y, dims=dims) ./ sum(finite_idx, dims=dims)
+    end
 end

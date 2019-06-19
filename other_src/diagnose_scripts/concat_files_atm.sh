@@ -1,25 +1,19 @@
 #!/bin/bash
 
+if [ -f $atm_concat ]; then
 
-
-if [ -f $atm_outputfile ]; then
-
-    echo "No need to concat atm files."
-    echo "$atm_outputfile already exists."
+    echo "$atm_concat already exists. Skip."
 
 else
 
-    printf "Concat atmospheric files... "
+    echo "Concat atm files of $res_casename"
 
     # atm variables
-    cd $atm_hist_path 
-    eval $(cat <<EOF
-    ncrcat -O -v ilev,PSL,V,TREFHT,VQ,VZ,VT,PRECC,PRECL,FSNT,FSNS,FLNT,FLNS,SHFLX,LHFLX,PSL $casename.cam.h0.{$beg_year..$end_year}-{01..12}.nc $atm_outputfile
+    cd $atm_hist_dir 
+    eval "$(cat <<EOF
+    ncrcat -O -v ilev,PSL,V,TREFHT,VQ,VZ,VT,PRECC,PRECL,FSNT,FSNS,FLNT,FLNS,SHFLX,LHFLX,PSL $res_casename.cam.h0.{$beg_year..$end_year}-{01..12}.nc $atm_concat
 
 EOF
-    )
-    cd $wpath
-
-    printf "done.\n"
+    )"
 
 fi
