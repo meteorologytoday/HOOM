@@ -621,11 +621,19 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
       enddo
 
    case('SOM')
+         
+      print *, "This is the modified CESM DOCN. Initial SST should be 288.15K"
+
       lsize = mct_avect_lsize(o2x)
       do n = 1,SDOCN%nstreams
          call shr_dmodel_translateAV(SDOCN%avs(n),avstrm,avifld,avofld,rearr)
       enddo
       if (firstcall) then
+         
+         if (.not. read_restart) then
+            print *, "This line shows read_restart == false. somtp should be initialized as 288.15K."
+         endif
+
          do n = 1,lsize
             if (.not. read_restart) then
                !somtp(n) = o2x%rAttr(kt,n) + TkFrz
