@@ -1,3 +1,6 @@
+import matplotlib as mplt
+mplt.use('Agg')
+
 import matplotlib.pyplot as plt
 import Nio, sys, argparse
 import numpy as np

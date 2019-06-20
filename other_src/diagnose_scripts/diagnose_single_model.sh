@@ -120,7 +120,7 @@ if [ ! -f flag_noplot ]; then
     python3 $script_plot_dir/plot_SST.py --data-file=$atm_concat --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename
 
     # ocn
-    for i in $( seq 1 2 ); do
+    for i in $( seq 1 12 ); do
         python3 $script_plot_dir/plot_ocean_diagnose.py --data-file-SSTAYYC=$ocn_concat_rg --data-file-SSTAVAR=$ocn_concat_rg --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename --selected-month=$i
     done
 
