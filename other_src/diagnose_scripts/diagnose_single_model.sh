@@ -1,6 +1,6 @@
 #!/bin/bash
 
-lopts=(res casename sim-data-dir diag-data-dir graph-dir atm-domain ocn-domain beg-year end-year  PDO-file AO-file)
+lopts=(res casename sim-data-dir diag-data-dir graph-dir atm-domain ocn-domain ice-domain beg-year end-year  PDO-file AO-file)
 
 options=$(getopt -o '' --long $(printf "%s:," "${lopts[@]}") -- "$@")
 [ $? -eq 0 ] || { 
@@ -67,10 +67,12 @@ export diag_dir=$diag_data_dir/$res_casename
 export sim_dir=$sim_data_dir/$res_casename
 export atm_hist_dir=$sim_dir/atm/hist
 export ocn_hist_dir=$sim_dir/ocn
+export ice_hist_dir=$sim_dir/ice/hist
 
 # filenames
 export atm_concat=$diag_dir/atm_concat.nc
 export ocn_concat=$diag_dir/ocn_concat.nc
+export ice_concat=$diag_dir/ice_concat.nc
 
 export atm_analysis1=$diag_dir/atm_analysis1.nc
 export atm_analysis2=$diag_dir/atm_analysis2.nc
@@ -80,6 +82,8 @@ export ocn_concat_rg=$diag_dir/ocn_concat_rg.nc
 export ocn_analysis1_rg=$diag_dir/ocn_anomalies1_rg.nc
 export ocn_mstat_rg=$diag_dir/ocn_mstat_rg.nc
 
+export ice_concat_rg=$diag_dir/ice_concat_rg.nc
+export ice_analysis1=$diag_dir/ice_trends.nc
 
 
 
@@ -100,6 +104,7 @@ if [ ! -f flag_noconcat ]; then
     mkdir -p $diag_dir
     $script_root_dir/concat_files_atm.sh &
     $script_root_dir/concat_files_ocn.sh &
+    $script_root_dir/concat_files_ice.sh &
 
 fi
 printf "Phase 1 takes %d seconds\n" $(( $SECONDS - $begin_t ))
@@ -114,18 +119,33 @@ if [ ! -f flag_nodiag ]; then
     $script_root_dir/diagnose_calculation.sh
 fi
 
-if [ ! -f flag_noplot ]; then
+if [ ! -f flag_noplot_sm ]; then
+
 
     # atm
     python3 $script_plot_dir/plot_SST.py --data-file=$atm_concat --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename
 
     # ocn
     for i in $( seq 1 12 ); do
+        echo ""
         python3 $script_plot_dir/plot_ocean_diagnose.py --data-file-SSTAYYC=$ocn_concat_rg --data-file-SSTAVAR=$ocn_concat_rg --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename --selected-month=$i
     done
 
-    # PDO
+    # ocn : PDO
     python3 $script_plot_dir/plot_mc_climate_indices.py --input-dir=$diag_data_dir --output-dir=$graph_dir --res=$res --casenames=$casename --data-file=$(basename $ocn_concat_rg) --varname=PDO --normalize=no
+
+
+    # ice
+    python3 $script_plot_dir/plot_mc_timeseries.py --input-dir=$diag_data_dir --output-dir=$graph_dir --res=$res --casenames=$casename --data-file=$(basename $ice_analysis1) --varname=total_ice_volume --ylabel="Ice volume [ \$ \\mathrm{km^3} \$ ]" --yscale="1e9"
+    python3 $script_plot_dir/plot_mc_timeseries.py --input-dir=$diag_data_dir --output-dir=$graph_dir --res=$res --casenames=$casename --data-file=$(basename $ice_analysis1) --varname=total_ice_area --ylabel="Ice area fraction [ % ]" --yscale="1e-2"
+
+    for i in $( seq 1 12 ); do
+        echo ""
+        python3 $script_plot_dir/plot_ice.py --data-file=$ice_analysis1 --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename --selected-month=$i
+    done
+
+
+
 
 fi
 printf "Phase 2 takes %d seconds\n" $(( $SECONDS - $begin_t ))

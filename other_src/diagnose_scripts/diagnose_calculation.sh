@@ -24,3 +24,10 @@ if [ ! -f flag_nodiag_ocn ] ; then
     julia $script_analysis_dir/EN34.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain 
 
 fi
+
+if [ ! -f flag_nodiag_ice ] ; then
+
+    echo "Diagnose ice..."
+    julia $script_analysis_dir/ice.jl --data-file=$ice_concat_rg --domain-file=$atm_domain --output-file=$ice_analysis1
+
+fi

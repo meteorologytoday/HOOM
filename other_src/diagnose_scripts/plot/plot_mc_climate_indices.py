@@ -75,7 +75,7 @@ period = 1.0 / freq
 
 marked_periods   = np.array([0.5, 1, 2, 3, 4, 5, 6,7,8,9, 10, 15, 20, 30, 40])
 
-fig, ax = plt.subplots(2, 1, figsize=(12, 10))
+fig, ax = plt.subplots(3, 1, figsize=(15, 10))
 
 ax[0].set_title("%s (%d years)" % (args.varname, nyears, ))
 ax[0].set_xlabel("Time [years]")
@@ -100,6 +100,23 @@ ax[1].set_xticks(marked_periods)
 ax[1].set_xticklabels([("%.1f" if v<1 else "%d") % (v,) for v in marked_periods])
 
 ax[1].set_ylim([10**args.logy_min, 10**args.logy_max])
+
+
+ax[2].set_title("Spectrum Analysis")
+ax[2].set_xlabel("Period [years]")
+ax[2].set_ylabel("Intensity  $| \\hat{c}(\\omega) |^2$")
+ax[2].grid()
+
+for i in range(len(casenames)): 
+    ax[2].plot(np.log(period[1:]), sps[i][1:], linewidth=2, label=casenames[i])
+
+ax[2].legend()
+
+ax[2].set_xticks(np.log(marked_periods))
+ax[2].set_xticklabels([("%.1f" if v<1 else "%d") % (v,) for v in marked_periods])
+
+#ax[2].set_ylim([10**args.logy_min, 10**args.logy_max])
+
 
 fig.savefig("%s/%s_mc_climate_indices_%s.png" % (args.output_dir, args.res, args.varname), dpi=200)
 
