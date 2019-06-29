@@ -37,14 +37,12 @@ parser.add_argument('--mavg', type=int, default=1)
 parser.add_argument('--yscale', type=float, default=1.0)
 parser.add_argument('--ylabel', default="")
 parser.add_argument('--extra-title', default="")
-parser.add_argument('--colors')
 
 args = parser.parse_args()
 
 pprint(args)
 
 casenames = args.casenames.split(",")
-colors = args.colors.split(",")
 
 print("Going to compare these models:")
 pprint(casenames)
@@ -66,7 +64,7 @@ for i in range(len(casenames)):
         continue
     
     
-    new_casenames.append([casenames[i], colors[i]])
+    new_casenames.append(casenames[i])
     ts = mavg(f.variables[args.varname][:] / args.yscale, args.mavg)
 
     tss.append(ts)
@@ -86,8 +84,8 @@ ax.set_title("%s (%d years) %s" % (args.varname, nyears, args.extra_title))
 ax.set_xlabel("Time [years]")
 ax.set_ylabel(args.ylabel)
 ax.grid()
-for i, (casename, color) in enumerate(casenames): 
-    ax.plot(time, tss[i], linewidth=2, label=casename, color=color)
+for i in range(len(casenames)): 
+    ax.plot(time, tss[i], linewidth=2, label=casenames[i])
 
 ax.legend()
 ax.grid()

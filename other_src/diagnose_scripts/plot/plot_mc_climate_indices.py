@@ -22,12 +22,14 @@ parser.add_argument('--normalize', default="yes")
 parser.add_argument('--logy_max', type=float, default=3)
 parser.add_argument('--logy_min', type=float, default=-3)
 parser.add_argument('--ylabel', default="")
+parser.add_argument('--colors')
 
 args = parser.parse_args()
 
 pprint(args)
 
 casenames = args.casenames.split(",")
+colors    = args.colors.split(",")
 
 print("Going to compare these models:")
 pprint(casenames)
@@ -50,7 +52,7 @@ for i in range(len(casenames)):
         continue
     
     
-    new_casenames.append(casenames[i])
+    new_casenames.append([casenames[i], colors[i]])
 
     ts = f.variables[args.varname][:]
 
@@ -82,7 +84,7 @@ ax[0].set_xlabel("Time [years]")
 ax[0].set_ylabel(args.ylabel)
 ax[0].grid()
 for i in range(len(casenames)): 
-    ax[0].plot(time, tss[i], linewidth=2, label=casenames[i])
+    ax[0].plot(time, tss[i], linewidth=2, label=casenames[i][0], color=casenames[i][1])
 
 ax[0].legend()
 
@@ -92,7 +94,7 @@ ax[1].set_ylabel("Intensity  $| \\hat{c}(\\omega) |^2$")
 ax[1].grid()
 
 for i in range(len(casenames)): 
-    ax[1].loglog(period[1:], sps[i][1:], linewidth=2, label=casenames[i])
+    ax[1].loglog(period[1:], sps[i][1:], linewidth=2, label=casenames[i][0], color=casenames[i][1])
 
 ax[1].legend()
 
@@ -108,7 +110,7 @@ ax[2].set_ylabel("Intensity  $| \\hat{c}(\\omega) |^2$")
 ax[2].grid()
 
 for i in range(len(casenames)): 
-    ax[2].plot(np.log(period[1:]), sps[i][1:], linewidth=2, label=casenames[i])
+    ax[2].plot(np.log(period[1:]), sps[i][1:], linewidth=2, label=casenames[i][0], color=casenames[i][1])
 
 ax[2].legend()
 
