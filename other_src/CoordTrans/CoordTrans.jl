@@ -298,12 +298,12 @@ using Distributed
         in_filename   :: AbstractString,
         out_filename  :: AbstractString,
         wgt_filename  :: AbstractString;
-        varnames      :: Tuple = (),
-        copy_varnames :: Tuple = (:,),
+        varnames      :: Union{Tuple, Array} = (),
+        copy_varnames :: Union{Tuple, Array} = (:,),
         xydim         :: AbstractString = "grid",
         xdim          :: AbstractString = "lon",
         ydim          :: AbstractString = "lat",
-        zdim          :: AbstractString = "lev",
+        zdim          :: Union{AbstractString, Nothing} = "lev",
         tdim          :: AbstractString = "time",
         xydim_val     :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         xdim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
@@ -332,7 +332,7 @@ using Distributed
 
         defDim(ds_out, tdim, Inf)
 
-        if zdim in ds_in.dim
+        if zdim != nothing && zdim in ds_in.dim
             defDim(ds_out, zdim, ds_in.dim[zdim])
         end
       
@@ -372,6 +372,12 @@ using Distributed
                 continue
             end
 
+            if ! (varname in ds_in)
+                println(format("Cannot find var: {}. Skip.", varname))
+                continue
+            end
+
+
             cf_var = ds_in[varname]
             cf_var_dimnames = dimnames(cf_var)
 
@@ -384,7 +390,18 @@ using Distributed
            
             s_data = reshape(s_data, d1, d2)
 
-            v = defVar(ds_out, varname, Float64, cf_var_dimnames) #; attrib=cf_var.attrib)
+            attrib = Dict()
+            for (k,v) in cf_var.attrib
+                if typeof(v) <: AbstractFloat
+                    attrib[k] = convert(Float64, v)
+                else
+                    attrib[k] = v
+                end
+            end
+
+            println(attrib)
+            println(cf_var_dimnames)
+            v = defVar(ds_out, varname, Float64, cf_var_dimnames, attrib=attrib)
             
             for k = 1:size(s_data)[2]
                 convertData!(wi, view(s_data, :, k), d_data_tmp)
@@ -396,10 +413,6 @@ using Distributed
                     push!(idx, :)
                 end
 
-                #println("ssssssss")
-                #println(s_data_dims_len) 
-                #println(s_data_dims) 
-                #println(size(s_data) )
                 if s_data_dims_len == dim_len + 1
                     push!(idx, k)
                 elseif s_data_dims_len == dim_len + 2
@@ -408,7 +421,7 @@ using Distributed
                     push!(idx, zidx)
                     push!(idx, tidx)
                 end
-                println(idx)
+                #println(idx)
                 v[idx...] = reshape(d_data_tmp, wi.d_dims[1], wi.d_dims[2])
             end
         end

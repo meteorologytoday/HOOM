@@ -1,20 +1,30 @@
 #!/bin/bash
 
 
-out_dir=extract_nc_files
 
-if [ ! -d "$out_dir" ]; then
-    mkdir -p "$out_dir"
+outputfile=$nc_output_dir/$casename.atm.h0.nc
+
+if [ -f $outputfile ]; then
+
+    echo "No need to concat atm files."
+    echo "$outputfile already exists."
+
+else
+
+    printf "Concat atmospheric files... "
+        # atm variables
+    cd $atm_hist_path 
+    eval $(cat <<EOF
+    ncrcat -O -v ilev,PSL,V,TREFHT,VQ,VZ,VT,PRECC,PRECL,FSNT,FSNS,FLNT,FLNS,SHFLX,LHFLX $casename.cam.h0.{$beg_year..$end_year}-{01..12}.nc $nc_output_dir/$casename.h0.nc
+
+    #ncrcat -O -v ilev,TREFHT $in_dir/$casename.cam.h1.00{01..20}-01-01-00000.nc $nc_output_dir/$casename.h1.nc
+
+
+
+EOF
+    )
+    cd $wpath
+
+    printf "done.\n"
+
 fi
-
-
-for casename in lowres_STD_SOM lowres_SSM_SOM lowres_SSM_NK lowres_SSM_SOM_noQflux; do
-    in_dir="../$casename/atm/hist"
-
-    printf "Processing %s...\n" $casename
-
-    ncrcat -O -v ilev,PSL,V,TREFHT,VQ,VZ,VT,PRECC,PRECL,FSNT,FSNS,FLNT,FLNS,SHFLX,LHFLX $in_dir/$casename.cam.h0.00{01..20}-{01..12}.nc $out_dir/$casename.h0.nc
-    #ncrcat -v ilev,T $casename/atm/hist/$casename.cam.h0.00{01..20}-{01..12}.nc $casename.h0.nc
-    ncrcat -O -v ilev,TREFHT $in_dir/$casename.cam.h1.00{01..20}-01-01-00000.nc $out_dir/$casename.h1.nc
-
-done
