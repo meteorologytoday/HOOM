@@ -78,10 +78,12 @@ export atm_analysis1=$diag_dir/atm_analysis1.nc
 export atm_analysis2=$diag_dir/atm_analysis2.nc
 export atm_analysis3=$diag_dir/atm_analysis3_energy.nc
 export atm_analysis4=$diag_dir/atm_analysis4_precip.nc
+export atm_analysis5=$diag_dir/atm_analysis5_AO.nc
 
 export ocn_concat_rg=$diag_dir/ocn_concat_rg.nc
 
 export ocn_analysis1_rg=$diag_dir/ocn_anomalies1_rg.nc
+export ocn_analysis2_rg=$diag_dir/ocn_analysis2_rg_PDO.nc
 export ocn_mstat_rg=$diag_dir/ocn_mstat_rg.nc
 
 export ice_concat_rg=$diag_dir/ice_concat_rg.nc
@@ -121,16 +123,17 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
     echo "Diagnose atm..."
     #julia $script_analysis_dir/atm_anomalies.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis1
     #julia $script_analysis_dir/atm_temperature.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2
-    #julia $script_analysis_dir/AO.jl --data-file-PSLA=$atm_analysis1 --domain-file=$atm_domain --EOF-file-AO=$AO_file
     #julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3
-    julia $script_analysis_dir/atm_precip.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis4
+    #julia $script_analysis_dir/atm_precip.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis4
+    julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5
 fi
 
 if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
 
     echo "Diagnose ocn..."
     julia $script_analysis_dir/SST_correlation.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --SST=T
-    julia $script_analysis_dir/PDO.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain --EOF-file-PDO=$PDO_file
+    #julia $script_analysis_dir/PDO.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain --EOF-file-PDO=$PDO_file
+    julia $script_analysis_dir/PDO.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg
     julia $script_analysis_dir/EN34.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain 
 
 fi
@@ -149,6 +152,15 @@ if [ -f flag_plot_sm_all ] || [ -f flag_plot_sm_atm ]; then
     python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_dir --res=$res --casenames=$casename --data-file=$(basename $atm_analysis3) --varname=IAET_mean --ylabel="Energy flux [ \$ \\times 10^{15} \\, \\mathrm{W} \$ ]" --yscale="1e15" --domain-file=$atm_domain --colors="#000000"
     python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_dir --res=$res --casenames=$casename --data-file=$(basename $atm_analysis4) --varname=total_precip_ZM --ylabel="Precipitation [ \$ \\mathrm{mm} \, \\mathrm{yr}^{-1} \$ ]" --yscale="3.171e-11" --domain-file=$atm_domain --colors="#000000"
     python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_dir --res=$res --casenames=$casename --data-file=$(basename $atm_analysis4) --varname=total_precip_ZVAR --ylabel="Precipitation [ \$ \\mathrm{mm} \, \\mathrm{yr}^{-1} \$ ]" --yscale="3.171e-11" --domain-file=$atm_domain --colors="#000000"
+
+    
+    python3 $script_plot_dir/plot_contourf.py --data-file=$atm_analysis5 --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename --varname=PCAs --title="[$casename] PSLA 1st PCA (definition of AO)" --colormap=cmocean_balance --cmin=-1 --cmax=1 --clevs=20 --scale="1" --idx-t=0 --auto-clevs --extra-filename="_AO"
+    # Referenced height temperature
+    for i in $( seq 1 12 ); do
+        echo ""
+        python3 $script_plot_dir/plot_contourf.py --data-file=$atm_analysis2 --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename --varname=TREFHTMM --title="[$casename] Referenced height temperature (month $i)" --colormap=NCV_jet --cmin="-40" --cmax="40" --clevs=20 --idx-t=$(( $i - 1 )) --clabel="[ degC ]" --offset=273.15 --extra-filename="$( printf "_%02d" $i )" --land-transparent
+        
+    done
 fi
 
 if [ -f flag_plot_sm_all ] || [ -f flag_plot_sm_ocn ]; then
@@ -160,7 +172,8 @@ if [ -f flag_plot_sm_all ] || [ -f flag_plot_sm_ocn ]; then
     done
 
     # ocn : PDO
-    python3 $script_plot_dir/plot_mc_climate_indices.py --input-dir=$diag_data_dir --output-dir=$graph_dir --res=$res --casenames=$casename --data-file=$(basename $ocn_concat_rg) --varname=PDO --normalize=no --colors="#000000"
+#    python3 $script_plot_dir/plot_mc_climate_indices.py --input-dir=$diag_data_dir --output-dir=$graph_dir --res=$res --casenames=$casename --data-file=$(basename $ocn_concat_rg) --varname=PDO --normalize=no --colors="#000000"
+    python3 $script_plot_dir/plot_contourf.py --data-file=$ocn_analysis2_rg --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename --varname=PCAs --title="[$casename] SST 1st PCA (definition of PDO)" --colormap=cmocean_balance --cmin=-1 --cmax=1 --clevs=20 --scale="1" --idx-t=0 --auto-clevs  --extra-filename="_PDO"
 
 fi
 
@@ -172,6 +185,7 @@ if [ -f flag_plot_sm_all ] || [ -f flag_plot_sm_ice ]; then
     for i in $( seq 1 12 ); do
         echo ""
         python3 $script_plot_dir/plot_ice.py --data-file=$ice_analysis1 --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename --selected-month=$i
+        python3 $script_plot_dir/plot_contourf.py --data-file=$ice_analysis1 --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename --varname=aice_MA --title="Sea-ice concentration month $i" --colormap=cmocean_tempo --cmin=10 --cmax=100 --clevs=10 --scale="1e-2" --idx-t=$(( $i - 1 )) --clabel="[ % ]" --extra-filename="$( printf "_%02d" $i )"
     done
 fi
 printf "Phase 2 takes %d seconds\n" $(( $SECONDS - $begin_t ))

@@ -76,7 +76,7 @@ TREFHTMM   = zeros(Float64, Nx, Ny, 12)
 x = collect(Float64, 1:Nt)
 for i=1:Nx, j=1:Ny
 
-    d = detrend(x, view(TREFHT, i, j, :))
+    d = view(TREFHT, i, j, :)
  
     TREFHTMM[i, j, :] = mean( reshape(d, 12, :), dims=2 )[:, 1]
     TREFHTA[i, j, :]  = d - repeat( TREFHTMM[i, j, :], outer=nyears)
