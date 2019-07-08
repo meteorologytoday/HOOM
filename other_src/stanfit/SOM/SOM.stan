@@ -1,26 +1,13 @@
 functions {
-    real[] repeat_fill(real[] input, int period, int len) {
-        real output[len];
-        for (i in 1:len) {
-            output[i] = input[(i-1) % period + 1];
-        }
-
-        return output;
-    }
-
     real interpolate(real x, real x0, real y0, real x1, real y1) {
         return y0 + (y1 - y0) * (x - x0) / (x1 - x0);
     }
-
-
-    
 }
 
 data {
     int<lower=0> raw_N;     // raw data lengths (monthly)
     int  dom[12];           // days of month
     int  steps[12];         // how many sub intervals from mid-ith-month to mid-(i+1)th-month
-    real h_max;             // maximum depth it could get
 
     real raw_T[raw_N];      // Average temperature of each month
     real raw_F[raw_N];      // Average heat fluxes of each month
@@ -86,21 +73,18 @@ transformed data {
     print("sub_dt       = ", sub_dt);
     print("mean(F)      = ", mean(F));
     print("sd(F)        = ", sd(F));
-    print("T[13:24]     = ", T[13:24]);
+    print("            T[13:24]  = ", T[13:24]);
+    print("true_future_T[13:24]  = ", true_future_T[13:24]);
 }
 
 parameters {
-    real<lower=1> h[12];
+    real<lower=1> h;
     real Q[12];
-    real<lower=-1.8> Td; // degC  
 }
 
 model{
 
-    real dhdt[12];
-    real we[12];
-
-    real heat_cap[sum_steps];
+    real heat_cap;
     real Q_interp[sum_steps];
 
     int t;
@@ -108,32 +92,13 @@ model{
     int step_in_year;
 
     
-    for(m in 1:12) {
-        if(h[m] > h_max) {
-            reject("Exceeds h_max at month ", m, ": ", h[m]);
-            //reject();
-        }
-    }
-
-
-    for(m in 1:11) {
-        dhdt[m] = (h[m+1] - h[m]) / dt[m];
-    }
-    dhdt[12] = (h[1] - h[12]) / dt[12];
-
-    for(m in 1:12) { 
-        we[m] = 0.0; //(dhdt[m] > 0) ? dhdt[m] : 0.0;
-    }
-
-
+    heat_cap = h * heat_cap_density;
     step_in_year = 1;
     for(m in 1:12) {
         for(k in 1:steps[m]) {
             if (m < 12) {
-                heat_cap[step_in_year] = 30 * heat_cap_density;//interpolate(k-0.5, 0.0, h[m], steps[m], h[m+1]) * heat_cap_density;
                 Q_interp[step_in_year] = interpolate(k-0.5, 0.0, Q[m], steps[m], Q[m+1]);
             } else {
-                heat_cap[step_in_year] = 30 * heat_cap_density;//interpolate(k-0.5, 0.0, h[12], steps[12], h[1]) * heat_cap_density;
                 Q_interp[step_in_year] = interpolate(k-0.5, 0.0, Q[12], steps[12], Q[1]);
             }
     
@@ -149,14 +114,8 @@ model{
             real predict_T = T[t_month];
             for(k in 1:steps[m]) {
 
-                predict_T += ( ( F[t] + Q_interp[step_in_year] ) / heat_cap[step_in_year] - (predict_T - Td) * we[m] ) * sub_dt[m];
+                predict_T += ( ( F[t] + Q_interp[step_in_year] ) / heat_cap ) * sub_dt[m];
                
-                // convective adjustment 
-                if (predict_T < Td) {
-                    predict_T = Td;
-                } 
-                
-
                 step_in_year += 1;
                 t += 1;
             }
@@ -167,15 +126,5 @@ model{
             t_month += 1;
         }
     }
-
-    
-    // Assume flat prior of theta_d : do nothing
-
-    /*
-    // Prior of F + Q
-    for(i in 1:period) {
-        Q[i] ~ normal(0, Q_std);
-    }
-    */
 
 }

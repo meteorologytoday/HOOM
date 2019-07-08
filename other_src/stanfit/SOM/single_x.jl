@@ -68,7 +68,7 @@ println("ENV[\"CMDSTAN_HOME\"] = ", ENV["CMDSTAN_HOME"])
 using Stan
 @printf("done\n")
 
-script_path = normpath(joinpath(dirname(@__FILE__), "NKMLM.stan"))
+script_path = normpath(joinpath(dirname(@__FILE__), "SOM.stan"))
 model_script = read(script_path, String)
 
 stanmodel = Stanmodel(
@@ -84,7 +84,6 @@ println("Model built.")
 
 #display(stanmodel)
 
-h_key = [ format("h.{}", i) for i = 1:12 ]
 Q_key = [ format("Q.{}", i) for i = 1:12 ]
 
 data = Dict()
@@ -92,8 +91,8 @@ time_stat = Dict()
 
 total_time = 0.0
 
-β_mean = zeros(Float64, config["sub-output-size"], 25)
-β_std = zeros(Float64, config["sub-output-size"], 25)
+β_mean = zeros(Float64, config["sub-output-size"], 13)
+β_std = zeros(Float64, config["sub-output-size"], 13)
 
 
 Dataset(config["SHF-file"], "r") do ds
@@ -104,13 +103,10 @@ Dataset(config["SST-file"], "r") do ds
     global SST = convert(Array{Float64}, nomissing(ds["SST"][target_i, :, 1, :], NaN))
 end
 
-Dataset(config["MLD-file"], "r") do ds
-    global MLD = convert(Array{Float64}, nomissing(ds["HMXL"][target_i, :, :], NaN)) / 100.0  # raw data is in cm
-end
 
 N  = size(F)[end]
 dom = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-steps = [1 for _ in 1:12]
+steps = [30 for _ in 1:12]
 for i = 1:total_sub_output
 
     if file_exists[i]
@@ -135,22 +131,14 @@ for i = 1:total_sub_output
         println(format("Doing (lat, lon) = ({:d} / {:d}, {:d} / {:d})", j, nlat, target_i, nlon))
 
 
+
         if isfinite(SST[j, 1])
             
-            init_MLD = mean( reshape(MLD[j, :], 12, :), dims=(2,) )[:, 1] * 0.0 .+ 30.0
-
-            F_avg = mean( reshape(F[j, :], 12, :), dims=(2,) )[:, 1]
-
-       
-            println("init_MLD: ", init_MLD)
-            println("F_avg: ", F_avg)
-     
             beg_time = Base.time()
             data = Dict(
                 "raw_N"  => N, 
                 "dom"    => dom,
                 "steps"  => steps,
-                "h_max"  => 1000.0,#maximum(init_MLD) * 1.5,
                 "raw_T"  => SST[j, :], 
                 "raw_F"  => F[j, :],
                 "T_std"  => config["T-sigma"],
@@ -159,7 +147,7 @@ for i = 1:total_sub_output
             )
 
             init = Dict(
-                "h" => init_MLD
+                "h" => 30.0
             )
             
             rc, sim1 = stan(
@@ -181,34 +169,28 @@ for i = 1:total_sub_output
             Q_mean = zeros(12)
             Q_std  = zeros(12)
 
-            data_h = sim1[:, h_key,  :].value
+            data_h = sim1[:, ["h"],  :].value
             data_Q = sim1[:, Q_key,  :].value
-            data_Td = sim1[:, ["Td"], :].value
 
             for i = 1:12
-                h_mean[i] = mean(data_h[:, i, :])
-                h_std[i]  = std(data_h[:, i, :])
 
                 Q_mean[i] = mean(data_Q[:, i, :])
                 Q_std[i]  = std(data_Q[:, i, :])
             end
 
-            Td_mean = mean(data_Td)
-            Td_std  = std(data_Td)
+            h_mean = mean(data_h)
+            h_std  = std(data_h)
 
             jj = j - rng_offset
 
-            β_mean[jj,  1:12] = h_mean
-            β_mean[jj, 13:24] = Q_mean
-            β_mean[jj,    25] = Td_mean
+            β_mean[jj,    1] = h_mean
+            β_mean[jj, 2:13] = Q_mean
 
-            β_std[jj,  1:12] = h_std
-            β_std[jj, 13:24] = Q_std
-            β_std[jj,    25] = Td_std
+            β_std[jj,     1] = h_std
+            β_std[jj,  2:13] = Q_std
 
             println("h_mean", h_mean)
             println("Q_mean", Q_mean)
-            println("Td_mean", Td_mean)
 
 
             time_stat = Base.time() - beg_time

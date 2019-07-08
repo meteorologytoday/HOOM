@@ -2,7 +2,7 @@
 #
 #SBATCH --job-name=SMARTSLAB-fit-LENS
 #SBATCH --output=slurm.log
-#SBATCH --partition=nes2.8
+#SBATCH --partition=sib2.9
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
 #SBATCH --time=48:00:00

@@ -21,7 +21,7 @@ function nan2missing!(x)
 end
 
 
-β_mean = zeros(Float64, nlon, nlat, 25)
+β_mean = zeros(Float64, nlon, nlat, 13)
 β_std  = copy(β_mean)
 
 β_mean .= NaN
@@ -73,34 +73,24 @@ defVar(ds, "time", Float64, ("time",))[:] = collect(1:12)
 
 for o in (
     [
-        "h_mean", β_mean[:, :, 1:12], ("lon", "lat", "time"), Dict(
+        "h_mean", β_mean[:, :, 1], ("lon", "lat"), Dict(
         "long_name"=>"Mean of Mixed-layer Depth",
         "units"=>"m",
         )
     ], [
-        "Q_mean", β_mean[:, :,13:24], ("lon", "lat", "time"), Dict(
+        "Q_mean", β_mean[:, :,2:13], ("lon", "lat", "time"), Dict(
         "long_name"=>"Mean of Q-flux",
         "units"=>"W / m^2",
         )
     ], [
-        "h_std", β_std[:, :, 1:12], ("lon", "lat", "time"), Dict(
+        "h_std", β_std[:, :,  1], ("lon", "lat"), Dict(
         "long_name"=>"Standard Deviation of Mixed-layer Depth",
         "units"=>"m",
         )
     ], [
-        "Q_std", β_std[:, :,13:24], ("lon", "lat", "time"), Dict(
+        "Q_std", β_std[:, :, 2:13], ("lon", "lat", "time"), Dict(
         "long_name"=>"Standard Deviation of Q-flux",
         "units"=>"W / m^2",
-        )
-    ], [
-        "Td_mean", β_mean[:, :,25], ("lon", "lat"), Dict(
-        "long_name"=>"Mean of deep ocean temperature",
-        "units"=>"deg C",
-        )
-    ], [
-        "Td_std", β_std[:, :,25], ("lon", "lat"), Dict(
-        "long_name"=>"Standard deviation of deep ocean temperature",
-        "units"=>"deg C",
         )
     ],
 )
