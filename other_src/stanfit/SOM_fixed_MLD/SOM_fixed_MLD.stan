@@ -25,10 +25,9 @@ transformed data {
     int sum_steps = sum(steps);
     int total_steps = years * sum_steps;
 
-    real T[N];
-    real true_future_T[N];
-
     real F[total_steps];
+    real T[total_steps];
+    real true_future_T[total_steps];
 
     real dt[12];
     real sub_dt[12];
@@ -47,8 +46,6 @@ transformed data {
     // The following variables starts from index [period + 2] (e.g. February of 2nd year)
     // because we are making predictioins of next month. So the compared answer is shifted
     // by 1.
-    true_future_T = raw_T[12+2:12+2+N-1];
-    T             = raw_T[12+1:12+1+N-1];
 
     // interpolate fluxes
     for(y in 1:years) {
@@ -57,14 +54,17 @@ transformed data {
         for(m in 1:12) {
             for(k in 1:steps[m]) {
                 F[t] = interpolate(k-0.5, 0.0, raw_F[t_month], steps[m], raw_F[t_month+1]);
-                //print("F[", t, "] = ", F[t]);
+                T[t] = interpolate(k-0.5, 0.0, raw_T[t_month], steps[m], raw_T[t_month+1]);
                 t += 1;
 
             }
             t_month += 1;
         }
     }
-                
+    
+    true_future_T[1:total_steps-1] = T[2:total_steps];
+    true_future_T[total_steps] = interpolate(steps[12]-0.5, 0.0, raw_T[raw_N - 12], steps[12], raw_T[raw_N - 11]);
+            
     print("Heat capacity density = ", c_sw * rho_sw);
     print("dom          = ", dom);
     print("steps        = ", steps);
@@ -87,10 +87,7 @@ model{
     real Q_interp[sum_steps];
 
     int t;
-    int t_month;
     int step_in_year;
-
-    
 
     step_in_year = 1;
     for(m in 1:12) {
@@ -107,23 +104,22 @@ model{
 
     print("Proof of alive");
     t = 1;
-    t_month = 1;
     for(y in 1:years) {
         step_in_year = 1;
         for(m in 1:12) {
-            real predict_T = T[t_month];
             for(k in 1:steps[m]) {
+            
+                real predict_T = T[t];
 
                 predict_T += ( ( F[t] + Q_interp[step_in_year] ) / heat_cap ) * sub_dt[m];
-               
+ 
+                // Likelihood
+                (predict_T - true_future_T[t]) ~ normal(0, T_std);
+
+              
                 step_in_year += 1;
                 t += 1;
             }
-
-            // Likelihood
-            (predict_T - true_future_T[t_month]) ~ normal(0, T_std);
-
-            t_month += 1;
         }
     }
 

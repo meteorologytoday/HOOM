@@ -24,6 +24,7 @@ let
         "T-sigma"         => 0.1,
         "output-root-dir" => data_dir,
         "exp-name"        => "LENS.g37",
+        "steps"           => [2 for _ in 1:12],
     )
 
     config["exp-name"] = format("SOM_fixed_MLD_{:s}_c{:d}_s{:d}_w{:d}", config["exp-name"], config["stan-chains"], config["stan-samples"], config["stan-warmup"])

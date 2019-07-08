@@ -110,7 +110,7 @@ end
 
 N  = size(F)[end]
 dom = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-steps = [30 for _ in 1:12]
+
 for i = 1:total_sub_output
 
     if file_exists[i]
@@ -142,7 +142,7 @@ for i = 1:total_sub_output
             data = Dict(
                 "raw_N"  => N, 
                 "dom"    => dom,
-                "steps"  => steps,
+                "steps"  => config["steps"],
                 "raw_T"  => SST[j, :], 
                 "raw_F"  => F[j, :],
                 "T_std"  => config["T-sigma"],
