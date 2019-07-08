@@ -11,4 +11,4 @@ slurm.epilog*
 *.jld
 *.out
 *.png
-!data/*.nc
+data/*
