@@ -5,9 +5,9 @@ const T_ref = T_fw_frz + 20.0        # Reference temperature of thermal expansio
 const S_ref = 35e-3                  # Reference salinity    of thermal expansion coefficient / salinity coefficient
 const α   = 3e-4     # K^-1    http://www.kayelaby.npl.co.uk/general_physics/2_7/2_7_9.html
 const β   = 1e-3     # Simple estimation
-const c_p = 3985.0   # J / kg / K
-const ρ   = 1027.0   # kg / m^3
-const g   = 9.8      # m / s^2
+const c_p = 3996.0   # J / kg / K   copied from models/csm_share/shr/shr_const_mod.F90
+const ρ   = 1026.0   # kg / m^3     copied from models/csm_share/shr/shr_const_mod.F90
+const g   = 9.80616  # m / s^2      copied from models/csm_share/shr/shr_const_mod.F90
 
 const αgρc = α * g / (ρ * c_p)
 
