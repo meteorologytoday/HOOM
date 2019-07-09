@@ -73,22 +73,12 @@ defVar(ds, "time", Float64, ("time",))[:] = collect(1:12)
 
 for o in (
     [
-        "h_mean", β_mean[:, :, 1], ("lon", "lat"), Dict(
-        "long_name"=>"Mean of Mixed-layer Depth",
-        "units"=>"m",
-        )
-    ], [
-        "Q_mean", β_mean[:, :,2:13], ("lon", "lat", "time"), Dict(
+        "Q_mean", β_mean[:, :,1:12], ("lon", "lat", "time"), Dict(
         "long_name"=>"Mean of Q-flux",
         "units"=>"W / m^2",
         )
     ], [
-        "h_std", β_std[:, :,  1], ("lon", "lat"), Dict(
-        "long_name"=>"Standard Deviation of Mixed-layer Depth",
-        "units"=>"m",
-        )
-    ], [
-        "Q_std", β_std[:, :, 2:13], ("lon", "lat", "time"), Dict(
+        "Q_std", β_std[:, :, 1:12], ("lon", "lat", "time"), Dict(
         "long_name"=>"Standard Deviation of Q-flux",
         "units"=>"W / m^2",
         )
