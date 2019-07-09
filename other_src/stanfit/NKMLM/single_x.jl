@@ -137,7 +137,8 @@ for i = 1:total_sub_output
 
         if isfinite(SST[j, 1])
             
-            init_MLD = mean( reshape(MLD[j, :], 12, :), dims=(2,) )[:, 1] * 0.0 .+ 30.0
+            init_MLD = mean( reshape(MLD[j, :], 12, :), dims=(2,) )[:, 1]
+            init_MLD = [mean(init_MLD) for _ in 1:12]
 
             F_avg = mean( reshape(F[j, :], 12, :), dims=(2,) )[:, 1]
 
@@ -150,10 +151,11 @@ for i = 1:total_sub_output
                 "raw_N"  => N, 
                 "dom"    => dom,
                 "steps"  => steps,
-                "h_max"  => 1000.0,#maximum(init_MLD) * 1.5,
+                "h_mean" => mean(MLD[j, :]),
                 "raw_T"  => SST[j, :], 
                 "raw_F"  => F[j, :],
                 "T_std"  => config["T-sigma"],
+                "h_mean_std"  => config["h_mean-sigma"],
                 "c_sw"   => c_p,
                 "rho_sw" => ρ,
             )

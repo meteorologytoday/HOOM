@@ -102,7 +102,6 @@ model{
         }
     }
 
-    print("Proof of alive");
     t = 1;
     for(y in 1:years) {
         step_in_year = 1;

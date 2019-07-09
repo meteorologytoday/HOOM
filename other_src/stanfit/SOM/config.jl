@@ -12,7 +12,6 @@ let
     data_dir = normpath(joinpath(dirname(@__FILE__)), "..", "..", "..", "data")
 
     global config = Dict(
-        "sub-output-size" => 1,
         "output-root-dir" => data_dir,
         "SST-file"        => joinpath(data_dir, "transformed_b.e11.B1850C5CN.f45_g37.005.pop.h.SST.100001-109912.nc"),
         "SHF-file"        => joinpath(data_dir, "transformed_b.e11.B1850C5CN.f45_g37.005.pop.h.SHF.100001-109912.nc") ,
@@ -23,6 +22,7 @@ let
         "T-sigma"         => 0.1,
         "output-root-dir" => data_dir,
         "exp-name"        => "LENS.g37",
+        "steps"           => [2 for _ in 1:12],
     )
 
     config["exp-name"] = format("SOM_{:s}_c{:d}_s{:d}_w{:d}", config["exp-name"], config["stan-chains"], config["stan-samples"], config["stan-warmup"])

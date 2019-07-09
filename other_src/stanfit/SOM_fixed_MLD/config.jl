@@ -12,7 +12,6 @@ let
     data_dir = normpath(joinpath(dirname(@__FILE__)), "..", "..", "..", "data")
 
     global config = Dict(
-        "sub-output-size" => 1,
         "output-root-dir" => data_dir,
         "SST-file"        => joinpath(data_dir, "transformed_b.e11.B1850C5CN.f45_g37.005.pop.h.SST.100001-109912.nc"),
         "SHF-file"        => joinpath(data_dir, "transformed_b.e11.B1850C5CN.f45_g37.005.pop.h.SHF.100001-109912.nc") ,
