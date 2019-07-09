@@ -137,13 +137,15 @@ for i = 1:total_sub_output
 
         if isfinite(SST[j, 1])
             
-            init_MLD = mean( reshape(MLD[j, :], 12, :), dims=(2,) )[:, 1]
-            init_MLD = [mean(init_MLD) for _ in 1:12]
+            mean_seasonal_h = mean( reshape(MLD[j, :], 12, :), dims=(2,) )[:, 1]
+            mean_h = mean(mean_seasonal_h)
+            init_partial_h = [mean_h for _ in 1:11]
 
             F_avg = mean( reshape(F[j, :], 12, :), dims=(2,) )[:, 1]
 
        
-            println("init_MLD: ", init_MLD)
+            println("mean_seasonal_h: ", mean_seasonal_h)
+            println("mean_h: ", mean_h)
             println("F_avg: ", F_avg)
      
             beg_time = Base.time()
@@ -151,17 +153,16 @@ for i = 1:total_sub_output
                 "raw_N"  => N, 
                 "dom"    => dom,
                 "steps"  => steps,
-                "h_mean" => mean(MLD[j, :]),
+                "h_mean" => mean_h,
                 "raw_T"  => SST[j, :], 
                 "raw_F"  => F[j, :],
                 "T_std"  => config["T-sigma"],
-                "h_mean_std"  => config["h_mean-sigma"],
                 "c_sw"   => c_p,
                 "rho_sw" => ρ,
             )
 
             init = Dict(
-                "h" => init_MLD
+                "partial_h" => init_partial_h,
             )
             
             rc, sim1 = stan(
@@ -190,10 +191,11 @@ for i = 1:total_sub_output
             for i = 1:12
                 h_mean[i] = mean(data_h[:, i, :])
                 h_std[i]  = std(data_h[:, i, :])
-
                 Q_mean[i] = mean(data_Q[:, i, :])
                 Q_std[i]  = std(data_Q[:, i, :])
             end
+
+            println("Annual mean of MLD:", mean(h_mean))
 
             Td_mean = mean(data_Td)
             Td_std  = std(data_Td)

@@ -20,14 +20,12 @@ data {
     int<lower=0> raw_N;     // raw data lengths (monthly)
     int  dom[12];           // days of month
     int  steps[12];         // how many sub intervals from mid-ith-month to mid-(i+1)th-month
-#    real h_max;             // maximum MLD
     real h_mean;            // annual mean MLD
 
     real raw_T[raw_N];      // Average temperature of each month
     real raw_F[raw_N];      // Average heat fluxes of each month
 
     real T_std;
-    real h_mean_std;
 
     real c_sw;
     real rho_sw;
@@ -94,9 +92,18 @@ transformed data {
 }
 
 parameters {
-    real<lower=1> h[12];
+    real<lower=10> partial_h[11];
     real Q[12];
     real<lower=-1.8> Td; // degC  
+}
+
+transformed parameters {
+
+    real<lower=10> h[12];
+
+    h[1:11] = partial_h;
+    h[12] = 12*h_mean - sum(partial_h[1:11]);
+
 }
 
 model{
@@ -110,15 +117,6 @@ model{
     int t;
     int step_in_year;
 
-    /*
-    for(m in 1:12) {
-        if(h[m] > h_max) {
-            reject("Exceeds h_max at month ", m, ": ", h[m]);
-            //reject();
-        }
-    }
-    */
-
     for(m in 1:11) {
         dhdt[m] = (h[m+1] - h[m]) / dt[m];
     }
@@ -127,7 +125,6 @@ model{
     for(m in 1:12) { 
         we[m] = (dhdt[m] > 0) ? dhdt[m] : 0.0;
     }
-
 
     step_in_year = 1;
     for(m in 1:12) {
@@ -169,5 +166,4 @@ model{
         }
     }
 
-    (h_mean - mean(h)) ~ normal(h_mean, h_mean_std);       
 }
