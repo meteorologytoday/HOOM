@@ -68,7 +68,7 @@ println("ENV[\"CMDSTAN_HOME\"] = ", ENV["CMDSTAN_HOME"])
 using Stan
 @printf("done\n")
 
-script_path = normpath(joinpath(dirname(@__FILE__), "NKMLM.stan"))
+script_path = normpath(joinpath(dirname(@__FILE__), "NKMLM_gamma.stan"))
 model_script = read(script_path, String)
 
 stanmodel = Stanmodel(
@@ -114,14 +114,14 @@ steps = [1 for _ in 1:12]
 for i = 1:total_sub_output
 
     if file_exists[i]
+
+        println("File ", output_filenames[i], " already exists. Going to skip this.")
+        
         continue
     end
 
     β_mean .= NaN
     β_std  .= NaN
-
-    #β_mean .= i
-    #β_std  .= i
 
     lat_rng = 1 + config["sub-output-size"] * (i-1) : min(config["sub-output-size"] * i, nlat)
     rng_offset = config["sub-output-size"] * (i-1)
@@ -130,20 +130,16 @@ for i = 1:total_sub_output
 
     for j = lat_rng
 
-        #continue 
-        
         println(format("Doing (lat, lon) = ({:d} / {:d}, {:d} / {:d})", j, nlat, target_i, nlon))
 
+        if !isfinite(SST[j, 1])
 
-        if isfinite(SST[j, 1])
+            println("This grid point has NaN. Skip.")
+
+        else
             
-
             mean_seasonal_h = mean( reshape(MLD[j, :], 12, :), dims=(2,) )[:, 1]
             mean_h = mean(mean_seasonal_h)
-
-            if mean_h < 10.0
-                mean_h = 10.0
-            end
 
             init_partial_h = [mean_h for _ in 1:11]
 
@@ -192,7 +188,7 @@ for i = 1:total_sub_output
 
             data_h = sim1[:, h_key,  :].value
             data_Q = sim1[:, Q_key,  :].value
-            data_Td = sim1[:, ["Td"], :].value
+            data_γ = sim1[:, ["gamma"], :].value
 
             for i = 1:12
                 h_mean[i] = mean(data_h[:, i, :])
@@ -203,22 +199,22 @@ for i = 1:total_sub_output
 
             println("Annual mean of MLD (old vs new):", mean_h, " vs ", mean(h_mean))
 
-            Td_mean = mean(data_Td)
-            Td_std  = std(data_Td)
+            γ_mean = mean(data_γ)
+            γ_std  = std(data_γ)
 
             jj = j - rng_offset
 
             β_mean[jj,  1:12] = h_mean
             β_mean[jj, 13:24] = Q_mean
-            β_mean[jj,    25] = Td_mean
+            β_mean[jj,    25] = γ_mean
 
             β_std[jj,  1:12] = h_std
             β_std[jj, 13:24] = Q_std
-            β_std[jj,    25] = Td_std
+            β_std[jj,    25] = γ_std
 
             println("h_mean", h_mean)
             println("Q_mean", Q_mean)
-            println("Td_mean", Td_mean)
+            println("γ_mean", γ_mean)
 
 
             time_stat = Base.time() - beg_time
