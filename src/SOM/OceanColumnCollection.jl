@@ -20,8 +20,8 @@ mutable struct OceanColumnCollection
         Nx     :: Integer,
         Ny     :: Integer,
         Kh_T   :: Float64,
-        T_ML   :: Float64,
-        h_ML   :: Float64,
+        T_ML   :: Union{AbstractArray{Float64, 2}, Float64},
+        h_ML   :: Union{AbstractArray{Float64, 2}, Float64},
         mask   :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
     )
 
@@ -39,9 +39,18 @@ mutable struct OceanColumnCollection
         _h_ML     = SharedArray{Float64}(Nx, Ny)
         qflx2atm  = SharedArray{Float64}(Nx, Ny)
 
-        _T_ML .= T_ML
-        _h_ML .= h_ML
-       
+        if typeof(T_ML) <: AbstractArray{Float64, 2}
+            _T_ML[:, :] = T_ML
+        elseif typeof(T_ML) <: Float64
+            _T_ML .= T_ML
+        end
+
+        if typeof(h_ML) <: AbstractArray{Float64, 2}
+            _h_ML[:, :] = h_ML
+        elseif typeof(h_ML) <: Float64
+            _h_ML .= h_ML
+        end 
+
         occ = new(
             Nx, Ny, 
             Kh_T,

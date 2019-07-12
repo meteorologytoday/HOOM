@@ -16,6 +16,7 @@ zs_NCAR_LENS = - [
 ] / 100.0;
 
 
+#############################################################################
 # 2019/05/09
 # I want to double the resultion below 2000 meters
 
@@ -23,34 +24,44 @@ zs_NCAR_LENS = - [
 # zs_NCAR_LENS[46] = 2074.9
 cut = 45
 
-zs_MLMML = []
+zs_SSM = []
 for i = 1:cut
-    append!(zs_MLMML, zs_NCAR_LENS[i])
-    append!(zs_MLMML, (zs_NCAR_LENS[i] + zs_NCAR_LENS[i+1]) / 2.0)
+    append!(zs_SSM, zs_NCAR_LENS[i])
+    append!(zs_SSM, (zs_NCAR_LENS[i] + zs_NCAR_LENS[i+1]) / 2.0)
 end
 
 for i = cut+1:length(zs_NCAR_LENS)
-    append!(zs_MLMML, zs_NCAR_LENS[i])
+    append!(zs_SSM, zs_NCAR_LENS[i])
 end
 
+#############################################################################
 
 # 2019/05/10
 # Make 40 layers (41 points). 5 meters increament in top 100m (20 layers),
 # and a linearly increasing increament in the next 20 layers until 1000m.
-zs_MLMML = zeros(Float64, 41)
-zs_MLMML[1] = 0.0
+zs_SSM = zeros(Float64, 41)
+zs_SSM[1] = 0.0
 
 dh = zeros(Float64, 40)
 dh[ 1:20] .= 5.0
 dh[21:40] = 5.0 .+ collect(1:20) * 80.0/21.0
 for i = 1:length(dh)
-    zs_MLMML[i+1] = zs_MLMML[i] - dh[i]
+    zs_SSM[i+1] = zs_SSM[i] - dh[i]
 end
 
 
+#############################################################################
+
+# 2019/07/11
+# Make 40 layers (41 points). Simply use the same zs as LENS (top 41 pts).
+
+zs_SSM[:] = zs_NCAR_LENS[1:41] 
+
+#############################################################################
+
 
 zs_mid_NCAR_LENS = (zs_NCAR_LENS[2:end] + zs_NCAR_LENS[1:end-1] ) / 2.0
-zs_mid_MLMML = (zs_MLMML[2:end] + zs_MLMML[1:end-1] ) / 2.0
+zs_mid_SSM = (zs_SSM[2:end] + zs_SSM[1:end-1] ) / 2.0
 
 
 
