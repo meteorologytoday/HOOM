@@ -79,7 +79,9 @@ if [ ! -f $output_topo_file ]; then
 fi
 
 # Make z-coordinate file
-julia $script_coordtrans_dir/SSM_mk_zdomain.jl $output_zdomain_file
+if [ ! -f $output_zdomain_file ]; then
+    julia $script_coordtrans_dir/SSM_mk_zdomain.jl $output_zdomain_file
+fi
 
 
 

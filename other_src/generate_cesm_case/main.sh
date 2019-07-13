@@ -24,7 +24,7 @@ lopts=(
     machine
     project-code
     model
-    model-config
+    init-config
 )
 
 source $wk_dir/getopt_helper.sh
@@ -67,27 +67,33 @@ $wk_dir/make_init.sh                            \
 
 
 echo "Making initial files for a specific model"
+model=ESOM
+init_config=default
+init_file=$init_files_dir/init_${label}_${model}_${init_config}.nc
+
 $wk_dir/make_init_each_model.sh                 \
-    --output-dir=$init_files_dir                \
+    --output-file=$init_file                    \
     --label=$label                              \
     --data-clim-T-file=$new_data_clim_T_file    \
     --data-clim-S-file=$new_data_clim_S_file    \
     --domain-file=$new_domain_file              \
     --zdomain-file=$zdomain_file                \
-    --topo-file=$new_topo_file                      \
+    --topo-file=$new_topo_file                  \
     --T-unit=$T_unit                            \
-    --model=ESOM                                \
-    --model-config=default
+    --model=$model                              \
+    --init-config=$init_config
 
 
 echo "Generate cesm sugar scripts..."
 $wk_dir/make_cesm_sugar_script.sh           \
     --code-output-dir=$code_output_dir      \
+    --init-file=$init_file                  \
     --resolution=$resolution                \
     --label=$label                          \
     --walltime="$walltime"                  \
-    --project-code="$project_code"          
+    --project-code="$project_code"          \
+    --model=$model                          \
+    --init-config=$init_config              \
+    --user-namelist-dir=$user_namelist_dir
     
-
-
 echo "Done."

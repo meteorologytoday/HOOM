@@ -7,7 +7,7 @@ tmp_dir=tmp
 echo "wk_dir: $wk_dir"
 
 lopts=(
-    output-dir
+    output-file
     label
     data-clim-T-file
     data-clim-S-file
@@ -16,22 +16,23 @@ lopts=(
     topo-file
     T-unit
     model
-    model-config
+    init-config
 )
 
 source $wk_dir/getopt_helper.sh
 
-gen_code="make_init_${model}_${model_config}.jl"
-printf "[%s] => [%s] : [%s]\n" $model $model_config $gen_code
-output_file=$output_dir/init_${label}_${model}_${model_config}.nc
+gen_code="make_init_${model}_${init_config}.jl"
+printf "[%s] => [%s] : [%s]\n" $model $init_config $gen_code
 
-julia $wk_dir/init_code/$gen_code               \
-    --output-file=$output_file                  \
-    --data-clim-T-file=$data_clim_T_file        \
-    --data-clim-S-file=$data_clim_S_file        \
-    --topo-file=$topo_file                      \
-    --domain-file=$domain_file                  \
-    --zdomain-file=$zdomain_file                \
-    --T-unit=$T_unit
+if [ ! -f $output_file ]; then
 
+    julia $wk_dir/init_code/$gen_code               \
+        --output-file=$output_file                  \
+        --data-clim-T-file=$data_clim_T_file        \
+        --data-clim-S-file=$data_clim_S_file        \
+        --topo-file=$topo_file                      \
+        --domain-file=$domain_file                  \
+        --zdomain-file=$zdomain_file                \
+        --T-unit=$T_unit
 
+fi

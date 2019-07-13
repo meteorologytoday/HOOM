@@ -16,15 +16,18 @@ lopts=(
     cesm-create-newcase
     user-namelist-dir
     model
+    init-config
 )
 
 source $wk_dir/getopt_helper.sh
 
 
-export casename="${resolution}_${label}"
+export casename="${resolution}_${label}_${model}_${init_config}"
 
-script_file=$code_output_dir/make_case_$casename.sh
+script_file=$code_output_dir/makecase_$casename.sh
 
+# Clean the file
+echo -ne "" > $script_file 
 
 cat $wk_dir/lib_XML.sh >> $script_file
 
@@ -35,7 +38,7 @@ resolution=$resolution
 machine=$machine
 compset=$compset
 user_namelist_dir=$user_namelist_dir
-init_data_dir=$init_data_dir
+init_file=$init_file
 
 walltime="${walltime}"
 
@@ -57,11 +60,17 @@ cat $wk_dir/env_settings.sh >> $script_file
 
 cat << EOF >> $script_file
 
-$cesm_create_newcase \
--case      \$casename                \
--compset   \$compset                     \
--res       \$resolution                       \
--mach      \$machine
+$cesm_create_newcase         \\
+    -case      \$casename    \\
+    -compset   \$compset     \\
+    -res       \$resolution  \\
+    -mach      \$machine
+
+if [ ! -d \$casename ] ; then
+    echo "Error: \$casename is not properly created. Abort."
+    exit 1;
+fi
+
 
 cd \$casename
 
@@ -76,7 +85,9 @@ getXML "\${env_vars[@]}"
 nodes=\$(( \$totalpes / \$max_tasks_per_node ))
 
 # copy user namelist
-cp \$user_namelist_dir/user_nl_* .
+if [ "\$user_namelist_dir" != "" ]; then
+    cp \$user_namelist_dir/user_nl_* .
+fi
 
 
 
@@ -104,11 +115,12 @@ end
 XEOFX
 
 cat << XEOFX >> config.jl
+#  $wk_dir/config_specific/config_${model}.jl
 $( cat $wk_dir/config_specific/config_${model}.jl )
 XEOFX
 
 
-cat << XEOFX > run_ocn.sh
+cat << XEOFX > \$casename.ocn.run
 
 #!/bin/bash
 #PBS -N \$casename-ocn
@@ -123,24 +135,24 @@ cat << XEOFX > run_ocn.sh
 
 ### Run the ocean model ###
 
-LID="\$(date +%y%m%d-%H%M)"
+LID="\\\$(date +%y%m%d-%H%M)"
 ocn_code="\$caseroot/SMARTSLAB-main/src/CESM_driver/run.jl"
 config_file="\$caseroot/config.jl"
 
-julia \$ocn_code --config="\$config_file" --core=${model} | tee -a SMARTSLAB.log.\$LID
+julia \\\$ocn_code --config="\\\$config_file" --core=${model} | tee -a SMARTSLAB.log.\\\$LID
 
 XEOFX
 
 
 
-mv \$casename.run \$casename.cesm.run
+mv \${casename}.run \${casename}.cesm.run
 
-cat << XEOFX > \$casename.run
+cat << XEOFX > \${casename}.run
 
 #!/bin/bash
 
-qsub -A \$PROJECT -l walltime="\$walltime" \$caseroot/\$casename.ocn.run
-qsub -A \$PROJECT -l walltime="\$walltime" \$caseroot/\$casename.cesm.run 
+qsub -A \$PROJECT -l walltime="\$walltime" \${caseroot}/\${casename}.ocn.run
+qsub -A \$PROJECT -l walltime="\$walltime" \${caseroot}/\${casename}.cesm.run 
 
 XEOFX
 
@@ -153,8 +165,8 @@ cd ./SourceMods/src.docn
 ln -s ../../SMARTSLAB-main/src/CESM_driver/cesm1_docn_comp_mod.F90 ./docn_comp_mod.F90
 ln -s ../../SMARTSLAB-main/src/CESM_driver/ProgramTunnel .
 
-
-
-
 EOF
+
+chmod +x $script_file 
+
 
