@@ -1,4 +1,4 @@
-include(joinpath(@__DIR__, "..", "..", "..", "NKOM", "MLMML.jl"))
+include(joinpath(@__DIR__, "..", "..", "..", "NKOM", "NKOM.jl"))
 module CESMCORE_NKOM
 
     include("Workspace_NKOM.jl")

@@ -3,6 +3,7 @@ include(joinpath(src, "NKOM", "NKOM.jl"))
 using .NKOM
 
 occ = NKOM.OceanColumnCollection(
+    gridinfo_file = parsed["domain-file"],
     Nx       = Nx,
     Ny       = Ny,
     zs_bone  = zs,
