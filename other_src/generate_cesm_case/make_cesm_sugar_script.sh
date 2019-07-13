@@ -116,7 +116,7 @@ XEOFX
 
 cat << XEOFX >> config.jl
 #  $wk_dir/config_specific/config_${model}.jl
-$( cat $wk_dir/config_specific/config_${model}.jl )
+$( cat $wk_dir/init_code/${model}_${init_config}/config.jl )
 XEOFX
 
 

@@ -26,7 +26,7 @@ printf "[%s] => [%s] : [%s]\n" $model $init_config $gen_code
 
 if [ ! -f $output_file ]; then
 
-    julia $wk_dir/init_code/$gen_code               \
+    julia $gen_code               \
         --output-file=$output_file                  \
         --data-clim-T-file=$data_clim_T_file        \
         --data-clim-S-file=$data_clim_S_file        \
