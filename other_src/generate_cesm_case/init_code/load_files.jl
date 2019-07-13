@@ -29,7 +29,7 @@ function parse_commandline()
             arg_type = String
             required = true
  
-        "--domain-z-file"
+        "--zdomain-file"
             help = "Z coordinate file, varname of zlon. Separated by comma."
             arg_type = String
             required = true
@@ -60,40 +60,28 @@ end
 
 println("Processing data...")
 
-ps = split(parsed["domain-file"], ",")
-println(ps)
-domain_file = String(ps[1])
-Dataset(ps |> popfirst!, "r") do ds
-    global Nx = ds.dim[ps |> popfirst!]
-    global Ny = ds.dim[ps |> popfirst!]
-    global mask = convert(Array{Float64}, replace(ds[ps |> popfirst!][:], missing=>NaN))
+Dataset(parsed["domain-file"], "r") do ds
+    global Nx = ds.dim["ni"]
+    global Ny = ds.dim["nj"]
+    global mask = convert(Array{Float64}, replace(ds["mask"][:], missing=>NaN))
 end
 
-ps = split(parsed["domain-z-file"], ",")
-println(ps)
-Dataset(ps |> popfirst!, "r") do ds
-    global zs  = replace(ds[ps |> popfirst!][:], missing=>NaN)
+Dataset(parsed["zdomain-file"], "r") do ds
+    global zs  = replace(ds["zs"][:], missing=>NaN)
     global Δzs = zs[1:end-1] - zs[2:end]
 end
 
-ps = split(parsed["data-clim-T-file"], ",")
-println(ps)
-Dataset(ps |> popfirst!, "r") do ds
-    global Ts_clim = replace(ds[ps |> popfirst!][:, :, :, 1], missing=>NaN)
+Dataset(parsed["data-clim-T-file"], "r") do ds
+    global Ts_clim = replace(ds["TEMP"][:, :, :, 1], missing=>NaN)
 end
 
-ps = split(parsed["data-clim-S-file"], ",")
-println(ps)
-Dataset(ps |> popfirst!, "r") do ds
-    global Ss_clim = replace(ds[ps |> popfirst!][:, :, :, 1], missing=>NaN)
+Dataset(parsed["data-clim-S-file"], "r") do ds
+    global Ss_clim = replace(ds["SALT"][:, :, :, 1], missing=>NaN)
 end
 
-ps = split(parsed["topo-file"], ",")
-println(ps)
-topo_file = String(ps[1])
-Dataset(ps |> popfirst!, "r") do ds
+Dataset(parsed["topo-file"], "r") do ds
     global topo = zeros(Float64, 1, 1)
-    topo = - replace(ds[ps |> popfirst!][:], missing => NaN)
+    topo = - replace(ds["depth"][:], missing => NaN)
 end
 
 if parsed["T-unit"] == "C"

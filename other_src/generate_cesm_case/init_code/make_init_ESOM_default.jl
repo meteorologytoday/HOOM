@@ -82,7 +82,7 @@ for i=1:Nx, j=1:Ny
     end
 end
 occ = ESOM.OceanColumnCollection(
-    gridinfo_file = domain_file,
+    gridinfo_file = parsed["domain-file"],
     Nx       = Nx,
     Ny       = Ny,
     hs       = [Δz_1, Δz_2],
