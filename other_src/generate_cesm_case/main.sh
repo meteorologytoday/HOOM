@@ -67,8 +67,6 @@ $wk_dir/make_init.sh                            \
 
 
 echo "Making initial files for a specific model"
-model=ESOM
-init_config=default
 init_file=$init_files_dir/init_${label}_${model}_${init_config}.nc
 
 $wk_dir/make_init_each_model.sh                 \

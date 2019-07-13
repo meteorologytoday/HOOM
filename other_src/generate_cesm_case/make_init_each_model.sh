@@ -21,7 +21,7 @@ lopts=(
 
 source $wk_dir/getopt_helper.sh
 
-gen_code="make_init_${model}_${init_config}.jl"
+gen_code="$wk_dir/init_code/${model}_${init_config}/make_init.jl"
 printf "[%s] => [%s] : [%s]\n" $model $init_config $gen_code
 
 if [ ! -f $output_file ]; then
