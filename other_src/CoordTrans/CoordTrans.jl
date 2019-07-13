@@ -80,9 +80,6 @@ using Distributed
             if reduce(*, dims) != N
                 throw(ErrorException("Dims does not match the number of elements."))
             end
-            
-
-
 
             return new(N, gc_lon, gc_lat, area, mask, unit_of_angle, dims)
         end
@@ -426,11 +423,6 @@ using Distributed
             end
         end
 
-        # copy variable
-#        for i = 1:N
-#        end 
-        
-        # 
         close(ds_in)
         close(ds_out)
     end
