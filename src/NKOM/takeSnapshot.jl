@@ -19,7 +19,7 @@ function loadSnapshot(filename::AbstractString)
             Ss_clim = nomissing(ds["Ss_clim"][:], NaN)
         end
 
-        occ = OceanColumnCollection(;
+        occ = OceanColumnCollection(
             gridinfo_file = (gridinfo_file == nothing) ? ds.attrib["gridinfo_file"] : gridinfo_file,
             Nx       = ds.dim["Nx"],
             Ny       = ds.dim["Ny"],
