@@ -3,7 +3,7 @@
 env_run=(
     STOP_OPTION       nyears
     STOP_N            10
-    OCN_NCPL          8 
+    OCN_NCPL          1 
     CONTINUE_RUN      FALSE
     RESUBMIT          9
     DOCN_SOM_FILENAME pop_frc.gx3v7.110128.nc

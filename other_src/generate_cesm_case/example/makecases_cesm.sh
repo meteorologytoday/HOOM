@@ -14,9 +14,10 @@ topo_file=$pwd_dir/CESM_domains/ocean_topog_gx1v6.nc
 old_domain=$pwd_dir/CESM_domains/domain.ocn.gx1v6.090206.nc
 new_domain=$pwd_dir/CESM_domains/domain.ocn.gx3v7.120323.nc
 
+code_output_dir=$pwd_dir/cesm_scripts
+init_files_dir=$pwd_dir/init_cond
+cesm_env=$pwd_dir/env_settings.sh
 
-code_output_dir=$pwd_dir/cesm_test_2
-init_files_dir=$pwd_dir/cesm_test/init_cond
 
 model_settings=(
     SOM   default
@@ -52,6 +53,7 @@ for i in $(seq 1 $((${#model_settings[@]}/2))); do
         --machine=$machine                              \
         --model=$model                                  \
         --init-config=$init_config                      \
+        --cesm-env=$cesm_env                            \
         --project-code=$project_code
 
 

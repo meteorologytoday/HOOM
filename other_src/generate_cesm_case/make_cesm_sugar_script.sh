@@ -14,6 +14,7 @@ lopts=(
     compset
     machine
     cesm-create-newcase
+    cesm-env
     user-namelist-dir
     model
     init-config
@@ -56,7 +57,7 @@ env_vars=(
 )
 EOF
 
-cat $wk_dir/env_settings.sh >> $script_file
+cat $cesm_env >> $script_file
 
 cat << EOF >> $script_file
 

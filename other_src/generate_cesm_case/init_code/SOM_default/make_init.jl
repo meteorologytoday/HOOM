@@ -1,4 +1,4 @@
-include("load_files.jl")
+include(joinpath("..", "load_files.jl"))
 include(joinpath(src, "SOM", "SOM.jl"))
 using .SOM
 

@@ -19,6 +19,7 @@ lopts=(
     new-domain-file
     T-unit
     cesm-create-newcase
+    cesm-env
     user-namelist-dir
     compset
     machine
@@ -90,8 +91,13 @@ $wk_dir/make_cesm_sugar_script.sh           \
     --label=$label                          \
     --walltime="$walltime"                  \
     --project-code="$project_code"          \
+    --compset=$compset                      \
+    --machine=$machine                      \
+    --cesm-create-newcase=$cesm_create_newcase \
+    --cesm-env=$cesm_env                    \
+    --user-namelist-dir=$user_namelist_dir  \
     --model=$model                          \
-    --init-config=$init_config              \
-    --user-namelist-dir=$user_namelist_dir
+    --init-config=$init_config              
+
     
 echo "Done."
