@@ -42,11 +42,12 @@ function calWeOrMLD(;
 
     if Δb < 0
         println("Δb = " , Δb)
-        throw(ErrorException("Δb cannot be negative."))
+#        throw(ErrorException("Δb cannot be negative."))
+        Δb=0.0
     end
 
 
-    Term1 = 2.0 * m * fric_u^3.0 * exp( -h_ML / (u_fric / f))
+    Term1 = 2.0 * m * fric_u^3.0 * exp( -h_ML / (fric_u / f))
     Term2 = 0.5 * (B * (1.0 + n) + abs(B) * (1.0 - n))
     RHS = Term1 - h_ML * Term2
 

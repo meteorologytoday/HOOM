@@ -19,8 +19,8 @@ mutable struct OceanColumnCollection
     ϵs       :: AbstractArray{Float64, 2}
 
     mask     :: AbstractArray{Float64, 2}
-    mask_idx :: Any
-    valid_idx :: Any
+    mask_idx  :: Any
+    valid_idx :: AbstractArray{Int64, 2}
 
     b_ML     :: AbstractArray{Float64, 2}
     T_ML     :: AbstractArray{Float64, 2}
@@ -109,7 +109,7 @@ mutable struct OceanColumnCollection
 
         # Arrage like (2, cnt) instead of (cnt, 2) to
         # enhance speed through memory cache
-        valid_idx = SharedArray{Float64}(2, sum(mask_idx))
+        valid_idx = SharedArray{Int64}(2, sum(mask_idx))
         
         let k = 1
             for idx in CartesianIndices((Nx, Ny))
