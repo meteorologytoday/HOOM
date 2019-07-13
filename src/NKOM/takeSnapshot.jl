@@ -1,4 +1,7 @@
-function loadSnapshot(filename::AbstractString)
+function loadSnapshot(
+    filename::AbstractString;
+    gridinfo_file::Union{AbstractString, Nothing} = nothing,
+)
     local occ
 
     Dataset(filename, "r") do ds
