@@ -22,8 +22,13 @@ stage = :INIT
 
 mkpath(configs["tmp_folder"])
 
-PTI = ProgramTunnelInfo(path=configs["tmp_folder"], timeout=configs["timeout"])
-reverseRole!(PTI)
+PTI = ProgramTunnelInfo(
+    path             = configs["tmp_folder"],
+    timeout          = configs["timeout"],
+    buffer           = 0.1,
+    recv_first_sleep = 2.0,
+    reverseRole      = true,
+)
 
 map = NetCDFIO.MapInfo{Float64}(configs["domain_file"])
 

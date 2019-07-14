@@ -25,6 +25,7 @@ mutable struct ProgramTunnelInfo
         timeout       :: AbstractFloat                  = 10.0,
         buffer        :: AbstractFloat                  = 0.1,
         recv_first_sleep :: AbstractFloat = 0.0,
+        reverseRole   :: Bool = false,
     )
 
         if chk_freq <= 0.0
@@ -45,6 +46,10 @@ mutable struct ProgramTunnelInfo
 
         if path != nothing
             appendPath(PTI, path)
+        end
+
+        if reverseRole
+            reverseRole!(PTI)
         end
 
         return PTI

@@ -750,9 +750,11 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         call ptm_setDefault(x_PTI, x_ptm_fds)
 
-        x_PTI%chk_freq = 50              ! check every 50 ms
-        x_PTI%timeout  = 60 * 5 * 1000   ! five minites
-        call ptm_setTimeout(x_PTI)
+        x_PTI%chk_freq         = 50              ! check every 50 ms
+        x_PTI%timeout          = 60 * 5 * 1000   ! five minites
+        x_PTI%buffer           = 100             ! 0.1 secs
+        x_PTI%recv_first_sleep = 2 * 1000        ! 2.0 secs
+        call ptm_autoCalculateCnt(x_PTI)
         call ptm_appendPath(x_PTI, x_path)
 
         call ptm_printSummary(x_PTI)
