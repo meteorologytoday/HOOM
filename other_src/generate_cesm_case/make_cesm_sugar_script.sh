@@ -18,6 +18,7 @@ lopts=(
     user-namelist-dir
     model
     init-config
+    ocn-ncpu
 )
 
 source $wk_dir/getopt_helper.sh
@@ -139,8 +140,9 @@ cat << XEOFX > \$casename.ocn.run
 LID="\\\$(date +%y%m%d-%H%M)"
 ocn_code="\$caseroot/SMARTSLAB-main/src/CESM_driver/run.jl"
 config_file="\$caseroot/config.jl"
+ocn_ncpu=$ocn_ncpu
 
-julia \\\$ocn_code --config="\\\$config_file" --core=${model} | tee -a SMARTSLAB.log.\\\$LID
+julia -p $ocn_ncpu \\\$ocn_code --config="\\\$config_file" --core=${model} | tee -a SMARTSLAB.log.\\\$LID
 
 XEOFX
 

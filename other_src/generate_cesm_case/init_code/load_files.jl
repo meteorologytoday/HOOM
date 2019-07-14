@@ -45,6 +45,11 @@ function parse_commandline()
             arg_type = String
             required = true
  
+        "--S-unit"
+            help = "Unit of salinity. Valid string: PSU, SI"
+            arg_type = String
+            required = true
+ 
     end
 
     return parse_args(ARGS, s)
@@ -56,6 +61,11 @@ print(json(parsed, 4))
 if ! (parsed["T-unit"] in ["C", "K"])
     throw(ErrorException("Invalid --T-unit: ", parsed["T-unit"]))
 end
+
+if ! (parsed["S-unit"] in ["PSU", "SI"])
+    throw(ErrorException("Invalid --S-unit: ", parsed["S-unit"]))
+end
+
 
 
 println("Processing data...")
@@ -86,5 +96,9 @@ end
 
 if parsed["T-unit"] == "C"
     Ts_clim .+= 273.15
+end
+
+if parsed["S-unit"] == "SI"
+    Ss_clim .*= 1000.0
 end
 

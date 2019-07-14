@@ -3,8 +3,9 @@
 pwd_dir=$(pwd)
 
 echo "Current directory: $pwd_dir"
+compset=E_1850_CN_SPINUPOCN
 machine=xtt-centos-intel
-project_code=UCIR0029
+project_code=
 
 T_file=$pwd_dir/raw_init_cond/b.e11.B1850C5CN.f09_g16.005.pop.h.TEMP.100001-109912.nc
 S_file=$pwd_dir/raw_init_cond/b.e11.B1850C5CN.f09_g16.005.pop.h.SALT.100001-109912.nc
@@ -18,16 +19,21 @@ code_output_dir=$pwd_dir/cesm_scripts
 init_files_dir=$pwd_dir/init_cond
 cesm_env=$pwd_dir/env_settings.sh
 
+ocn_ncpu=2
 
 model_settings=(
     SOM   default
+    SOM   xQflux
     ESOM  default 
-    MLMML restricted_climate  
-    MLMML unrestricted       
+    NKOM  default
+    NKOM  xClim
 )
+
 #model_settings=(
 #    ESOM  default
 #)
+
+
 
 
 for i in $(seq 1 $((${#model_settings[@]}/2))); do
@@ -48,12 +54,14 @@ for i in $(seq 1 $((${#model_settings[@]}/2))); do
         --old-domain-file=$old_domain                   \
         --new-domain-file=$new_domain                   \
         --T-unit=C                                      \
+        --S-unit=PSU                                    \
         --cesm-create-newcase=~/ucar_models/cesm1_2_2_1/scripts/create_newcase \
-        --compset=E_1850_CN                             \
+        --compset=$compset                              \
         --machine=$machine                              \
         --model=$model                                  \
         --init-config=$init_config                      \
         --cesm-env=$cesm_env                            \
+        --ocn-ncpu=$ocn_ncpu                            \
         --project-code=$project_code
 
 

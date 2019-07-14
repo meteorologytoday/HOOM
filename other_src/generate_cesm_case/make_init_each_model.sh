@@ -15,6 +15,7 @@ lopts=(
     zdomain-file
     topo-file
     T-unit
+    S-unit
     model
     init-config
 )
@@ -33,6 +34,7 @@ if [ ! -f $output_file ]; then
         --topo-file=$topo_file                      \
         --domain-file=$domain_file                  \
         --zdomain-file=$zdomain_file                \
-        --T-unit=$T_unit
+        --T-unit=$T_unit                            \
+        --S-unit=$S_unit
 
 fi

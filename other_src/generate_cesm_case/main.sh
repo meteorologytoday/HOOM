@@ -18,6 +18,7 @@ lopts=(
     old-domain-file
     new-domain-file
     T-unit
+    S-unit
     cesm-create-newcase
     cesm-env
     user-namelist-dir
@@ -26,6 +27,7 @@ lopts=(
     project-code
     model
     init-config
+    ocn-ncpu
 )
 
 source $wk_dir/getopt_helper.sh
@@ -79,6 +81,7 @@ $wk_dir/make_init_each_model.sh                 \
     --zdomain-file=$zdomain_file                \
     --topo-file=$new_topo_file                  \
     --T-unit=$T_unit                            \
+    --S-unit=$S_unit                            \
     --model=$model                              \
     --init-config=$init_config
 
@@ -97,7 +100,8 @@ $wk_dir/make_cesm_sugar_script.sh           \
     --cesm-env=$cesm_env                    \
     --user-namelist-dir=$user_namelist_dir  \
     --model=$model                          \
-    --init-config=$init_config              
+    --init-config=$init_config              \
+    --ocn-ncpu=$ocn_ncpu 
 
     
 echo "Done."
