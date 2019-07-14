@@ -7,8 +7,8 @@ using StatsBase
 
 @printf("Importing PyPlot... ")
 using PyCall
-using PyPlot
-@pyimport matplotlib.gridspec as GS
+plt = pyimport("matplotlib.pyplot")
+GS  = pyimport("matplotlib.gridspec")
 @printf("done.\n")
 
 test_type = "ALL"
@@ -96,13 +96,13 @@ for k = 1:length(t_sim)
     end
 
 
-    fric_u[1,1]  = MLMML.getFricU(ua=U10[k])
+    fric_u[1,1]  = NKOM.getFricU(ua=U10[k])
     _swflx[1,1]  = swflx[k]
     _nswflx[1,1] = nswflx[k]
     _frwflx[1,1] = frwflx[k]
 
     if k != 0
-        MLMML.stepOceanColumnCollection!(
+        NKOM.stepOceanColumnCollection!(
             occ;
             fric_u = fric_u,
             swflx  = _swflx,
@@ -120,7 +120,7 @@ for k = 1:length(t_sim)
         rec["frwflx"][i]  = frwflx[k]
         rec["h"][i]       = occ.h_ML[1, 1]
         #rec["b"][i]       = occ.b_ML[1, 1]
-        rec["hb"][i]      = MLMML.OC_getIntegratedBuoyancy(occ, 1, 1)
+        rec["hb"][i]      = NKOM.OC_getIntegratedBuoyancy(occ, 1, 1)
         rec["b"][:, i]    = occ.bs[1, 1, :]
         rec["T"][:, i]    = occ.Ts[1, 1, :]
         rec["S"][:, i]    = occ.Ss[1, 1, :]
@@ -352,11 +352,11 @@ for i = 1:size(mon_means["S"])[2]
     ax[1][:plot](mon_means["b"][:, i], mid_zs, label="$i")
     ax[1][:text](mon_means["b"][1, i], zs[1]+offset, "$i", va="bottom", ha="center")
 
-    ax[2][:plot](mon_means["T"][:, i] .- MLMML.T_ref, mid_zs, label="$i")
-    ax[2][:text](mon_means["T"][1, i] .- MLMML.T_ref, zs[1]+offset, "$i", va="bottom", ha="center")
+    ax[2][:plot](mon_means["T"][:, i] .- NKOM.T_ref, mid_zs, label="$i")
+    ax[2][:text](mon_means["T"][1, i] .- NKOM.T_ref, zs[1]+offset, "$i", va="bottom", ha="center")
 
-    ax[3][:plot]((mon_means["S"][:, i].- MLMML.S_ref) * 1e3, mid_zs, label="$i")
-    ax[3][:text]((mon_means["S"][1, i].- MLMML.S_ref) * 1e3, zs[1]+offset, "$i", va="bottom", ha="center")
+    ax[3][:plot]((mon_means["S"][:, i].- NKOM.S_ref) * 1e3, mid_zs, label="$i")
+    ax[3][:text]((mon_means["S"][1, i].- NKOM.S_ref) * 1e3, zs[1]+offset, "$i", va="bottom", ha="center")
 end
 
 ax[1][:set_title]("Mean b")

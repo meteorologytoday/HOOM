@@ -34,11 +34,11 @@ module CESMCORE_SOM
     function init(;
         casename     :: AbstractString,
         map          :: NetCDFIO.MapInfo,
-        init_file    :: Union{Nothing, AbstractString}=nothing,
         t            :: AbstractArray{Integer},
         configs      :: Dict,
         read_restart :: Bool,
     )
+        init_file = (haskey(configs, "init_file")) ? configs["init_file"] : nothing
 
         # If `read_restart` is true then read restart file: configs["rpointer_file"]
         # If not then initialize ocean with default profile if `initial_file`

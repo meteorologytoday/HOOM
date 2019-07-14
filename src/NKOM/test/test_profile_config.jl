@@ -1,5 +1,5 @@
-include("../MLMML.jl")
-using .MLMML
+include("../NKOM.jl")
+using .NKOM
 using NCDatasets
 using Formatting
 
@@ -14,15 +14,15 @@ zs *= -1.0
 pick = (i=65, j=60)
 
 
-Dataset("clim_LENS_B1850C5CN_005_gx3v7_zMLMML_TEMP.nc", "r") do ds
+Dataset("init_LENS_NKOM_xClim.nc", "r") do ds
     global Ts_clim = replace(ds["TEMP"][pick.i, pick.j, :, 1], missing=>NaN)
     println(ds["lat"][pick.i, pick.j])
     println(ds["lon"][pick.i, pick.j])
 
-    global zs = replace(ds["zs"][:], missing=>NaN)
+    global zs = replace(ds["zs_bone"][:], missing=>NaN)
 end
 
-Dataset("clim_LENS_B1850C5CN_005_gx3v7_zMLMML_SALT.nc", "r") do ds
+Dataset("clim_LENS_B1850C5CN_005_gx3v7_zNKOM_SALT.nc", "r") do ds
     global Ss_clim = replace(ds["SALT"][pick.i, pick.j, :, 1], missing=>NaN)
 end
 
@@ -56,7 +56,7 @@ S_slope = 0.0
 
 
 if test_type == "ALL"
-    occ = MLMML.makeBasicOceanColumnCollection(
+    occ = NKOM.makeBasicOceanColumnCollection(
         Nx       = 1,
         Ny       = 1,
         zs_bone  = zs,
@@ -81,7 +81,7 @@ if test_type == "ALL"
 
 elseif test_type == "TOPO"
 
-    occ = MLMML.makeBasicOceanColumnCollection(
+    occ = NKOM.makeBasicOceanColumnCollection(
         Nx       = 1,
         Ny       = 1,
         zs_bone  = zs,
@@ -101,7 +101,7 @@ elseif test_type == "TOPO"
     )
 
 elseif test_type == "DIFFUSION"
-    occ = MLMML.makeBasicOceanColumnCollection(
+    occ = NKOM.makeBasicOceanColumnCollection(
         Nx       = 1,
         Ny       = 1,
         zs_bone  = zs,
@@ -120,7 +120,7 @@ elseif test_type == "DIFFUSION"
     )
 
 elseif test_type == "CLIM"
-    occ = MLMML.makeBasicOceanColumnCollection(
+    occ = NKOM.makeBasicOceanColumnCollection(
         Nx       = 1,
         Ny       = 1,
         zs_bone  = zs,

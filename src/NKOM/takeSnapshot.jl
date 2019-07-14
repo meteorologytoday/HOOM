@@ -80,6 +80,7 @@ function takeSnapshot(
 
         _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz_bone"), occ.Ts, missing_value)
         _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz_bone"), occ.Ss, missing_value)
+        _write2NCFile(ds, "bs", ("Nx", "Ny", "Nz_bone"), occ.bs, missing_value)
         _write2NCFile(ds, "T_ML", ("Nx", "Ny",), occ.T_ML, missing_value)
         _write2NCFile(ds, "S_ML", ("Nx", "Ny",), occ.S_ML, missing_value)
         _write2NCFile(ds, "h_ML", ("Nx", "Ny",), occ.h_ML, missing_value)

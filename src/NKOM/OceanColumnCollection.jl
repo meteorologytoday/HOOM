@@ -526,6 +526,10 @@ mutable struct OceanColumnCollection
         updateB!(occ)
         updateFLDO!(occ)
 
+        for i=1:Nx, j=1:Ny
+            OC_doConvectiveAdjustment!(occ, i, j)
+        end
+
         return occ
     end
 

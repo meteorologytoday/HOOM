@@ -216,6 +216,10 @@ function doConvectiveAdjustment!(;
 
     end
 
+#    if if_adjust
+#        println("ADJUST! ", h_ML, " => ", new_h_ML)
+#    end
+
     return if_adjust, new_T_ML, new_S_ML, new_h_ML, new_FLDO
 end
 

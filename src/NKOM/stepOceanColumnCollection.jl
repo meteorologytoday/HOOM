@@ -27,8 +27,7 @@ function stepOceanColumnCollection!(
 )
 
     # It is assumed here that buoyancy has already been updated.
-    @time @sync @distributed  for grid_idx in 1:size(occ.valid_idx)[2]
-    #for grid_idx in 1:size(occ.valid_idx)[2]
+    @sync @distributed  for grid_idx in 1:size(occ.valid_idx)[2]
 
         i = occ.valid_idx[1, grid_idx]
         j = occ.valid_idx[2, grid_idx]
