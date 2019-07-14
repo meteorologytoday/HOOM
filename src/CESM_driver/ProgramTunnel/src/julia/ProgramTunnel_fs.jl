@@ -12,8 +12,9 @@ mutable struct ProgramTunnelInfo
     chk_freq   :: AbstractFloat
     timeout    :: AbstractFloat
     timeout_limit_cnt :: Integer
-    ests       :: Dict
     buffer_cnt :: Integer
+    recv_first_sleep :: AbstractFloat
+    recv_first_cnt   :: Integer
 
     function ProgramTunnelInfo(;
         recv          :: AbstractString     = "ProgramTunnel-Y2X.txt",
@@ -23,17 +24,13 @@ mutable struct ProgramTunnelInfo
         path          :: Union{AbstractString, Nothing} = nothing,
         timeout       :: AbstractFloat                  = 10.0,
         buffer        :: AbstractFloat                  = 0.1,
-        tag_and_init  :: Any = [ (:default, 0.0) ],
+        recv_first_sleep :: AbstractFloat = 0.0,
     )
 
         if chk_freq <= 0.0
             ErrorException("chk_freq must be positive.") |> throw
         end
-        ests = Dict()
-        for (tag, init) in tag_and_init
-            ests[tag] = Estimator(init, ceil(init/chk_freq))
-        end
-
+        
         PTI = new(
             recv,
             send,
@@ -41,8 +38,9 @@ mutable struct ProgramTunnelInfo
             chk_freq,
             timeout,
             ceil(timeout / chk_freq),
-            ests,
             ceil(buffer / chk_freq),
+            recv_first_sleep,
+            ceil(recv_first_sleep / chk_freq),
         )
 
         if path != nothing
@@ -51,11 +49,6 @@ mutable struct ProgramTunnelInfo
 
         return PTI
     end
-end
-
-mutable struct Estimator
-    first_sleep :: AbstractFloat
-    first_cnt   :: Integer
 end
 
 function appendPath(PTI::ProgramTunnelInfo, path::AbstractString)
@@ -107,32 +100,30 @@ function releaseLock(PTI::ProgramTunnelInfo)
     rm(PTI.lock_fn, force=true)
 end
 
-function recvText(PTI::ProgramTunnelInfo, tag::Symbol=:default)
+function recvText(PTI::ProgramTunnelInfo)
     local result
 
     get_through = false
-    est = PTI.ests[tag]
-
-    sleep(est.first_sleep)
+    sleep(PTI.recv_first_sleep)
 
     if isfile(PTI.recv_fn)
-        est.first_sleep -= PTI.chk_freq
-        est.first_sleep = max(0.0, est.first_sleep)
+        PTI.recv_first_sleep -= PTI.chk_freq
+        PTI.recv_first_sleep = max(0.0, PTI.recv_first_sleep)
         get_through = true
 
-        println("[", string(tag) ,"] Message is already there. Adjust first_sleep to : ", est.first_sleep)
+        println("[recvText] Message is already there. Adjust recv_first_sleep to : ", PTI.recv_first_sleep)
     else
-        for cnt in 1:(PTI.timeout_limit_cnt - est.first_cnt)
+        for cnt in 1:(PTI.timeout_limit_cnt - PTI.recv_first_cnt)
 
             sleep(PTI.chk_freq)
 
             if isfile(PTI.recv_fn)
                 get_through = true
-                # Out of buffer, need to adjust: increase est.first_sleep
-                println(cnt, "; ", PTI.buffer_cnt)
+
                 if cnt > PTI.buffer_cnt
-                    est.first_sleep += PTI.chk_freq 
-                    println("[", string(tag), "] Out of buffer. Adjust first_sleep to : ", est.first_sleep)
+                    # Out of buffer, need to adjust: increase PTI.recv_first_sleep
+                    PTI.recv_first_sleep += PTI.chk_freq 
+                    println("[recvText] Out of buffer. Adjust recv_first_sleep to : ", PTI.recv_first_sleep)
                 end
                 break
             end
@@ -141,7 +132,7 @@ function recvText(PTI::ProgramTunnelInfo, tag::Symbol=:default)
     end
 
     if ! get_through
-        ErrorException("No further incoming message within timeout.") |> throw
+        ErrorException("[recvText] No further incoming message within timeout.") |> throw
     end
 
     lock(PTI) do

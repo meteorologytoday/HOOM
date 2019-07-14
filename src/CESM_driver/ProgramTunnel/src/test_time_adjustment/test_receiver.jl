@@ -1,9 +1,9 @@
-include("ProgramTunnel_fs.jl")
+include("../julia/ProgramTunnel_fs.jl")
 
 using .ProgramTunnel_fs
 using Formatting
 
-PTI = ProgramTunnelInfo(tag_and_init=[ (:default, 1.8) ])
+PTI = ProgramTunnelInfo(recv_first_sleep=2.0)
 
 println(PTI)
 
