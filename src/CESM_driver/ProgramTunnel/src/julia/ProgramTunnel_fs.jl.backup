@@ -6,42 +6,23 @@ export ProgramTunnelInfo, hello, recvText, sendText, reverseRole!
 
 mutable struct ProgramTunnelInfo
 
-    recv_fn    :: AbstractString
-    send_fn    :: AbstractString
-    lock_fn    :: AbstractString
-    chk_freq   :: AbstractFloat
-    timeout    :: AbstractFloat
+    recv_fn  :: AbstractString
+    send_fn  :: AbstractString
+    lock_fn  :: AbstractString
+    chk_freq :: AbstractFloat
+    timeout  :: AbstractFloat
     timeout_limit_cnt :: Integer
-    ests       :: Dict
-    buffer_cnt :: Integer
 
     function ProgramTunnelInfo(;
-        recv          :: AbstractString     = "ProgramTunnel-Y2X.txt",
-        send          :: AbstractString     = "ProgramTunnel-X2Y.txt",
-        lock          :: AbstractString     = "ProgramTunnel-lock.txt",
-        chk_freq      :: AbstractFloat                  = 0.05,
-        path          :: Union{AbstractString, Nothing} = nothing,
-        timeout       :: AbstractFloat                  = 10.0,
-        buffer        :: AbstractFloat                  = 0.1,
-        tags          :: AbstractArray{Symbol}   = [ :default ],
+        recv     :: AbstractString     = "ProgramTunnel-Y2X.txt",
+        send     :: AbstractString     = "ProgramTunnel-X2Y.txt",
+        lock     :: AbstractString     = "ProgramTunnel-lock.txt",
+        chk_freq :: AbstractFloat                  = 0.05,
+        path     :: Union{AbstractString, Nothing} = nothing,
+        timeout  :: AbstractFloat                  = 10.0,
     )
 
-
-        ests = Dict()
-        for tag in tags
-            ests[tag] = Estimator(chk_freq, 1)
-        end
-
-        PTI = new(
-            recv,
-            send,
-            lock,
-            chk_freq,
-            timeout,
-            ceil(timeout / chk_freq),
-            ests,
-            ceil(buffer / chk_freq),
-        )
+        PTI = new(recv, send, lock, chk_freq, timeout, ceil(timeout / chk_freq))
 
         if path != nothing
             appendPath(PTI, path)
@@ -49,11 +30,6 @@ mutable struct ProgramTunnelInfo
 
         return PTI
     end
-end
-
-mutable struct Estimator
-    first_sleep :: AbstractFloat
-    first_cnt   :: Integer
 end
 
 function appendPath(PTI::ProgramTunnelInfo, path::AbstractString)
@@ -105,36 +81,19 @@ function releaseLock(PTI::ProgramTunnelInfo)
     rm(PTI.lock_fn, force=true)
 end
 
-function recvText(PTI::ProgramTunnelInfo, tag::Symbol)
+function recvText(PTI::ProgramTunnelInfo)
     local result
 
     get_through = false
-    est = PTI.ests[tag]
 
-    sleep(est.first_sleep)
-
-    if isfile(PTI.recv_fn)
-        est.first_sleep -= PTI.chk_freq
-        est.first_sleep = max(0.0, est_first_sleep)
-        get_through = true
-
-        println("[", string(tag) ,"] Message is already there. Adjust first_sleep to : ", est.first_sleep)
-    else
-        for cnt in 1:(PTI.timeout_limit_cnt - est.first_cnt)
-
-            sleep(PTI.chk_freq)
-
-            if isfile(PTI.recv_fn)
-                get_through = true
-                # Out of buffer, need to adjust: increase est.first_sleep
-                if cnt - est.first_cnt > PTI.buffer_cnt
-                    est.first_sleep += PTI.chk_freq 
-                    println("[", string(tag), "] Out of buffer. Adjust first_sleep to : ", est.first_sleep)
-                end
-                break
-            end
-
+    for cnt in 1:PTI.timeout_limit_cnt
+        if isfile(PTI.recv_fn)
+            get_through = true
+            break
         end
+
+        sleep(PTI.chk_freq)
+
     end
 
     if ! get_through
