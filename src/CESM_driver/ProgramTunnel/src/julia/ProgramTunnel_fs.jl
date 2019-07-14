@@ -23,13 +23,15 @@ mutable struct ProgramTunnelInfo
         path          :: Union{AbstractString, Nothing} = nothing,
         timeout       :: AbstractFloat                  = 10.0,
         buffer        :: AbstractFloat                  = 0.1,
-        tags          :: AbstractArray{Symbol}   = [ :default ],
+        tag_and_init  :: Any = [ (:default, 0.0) ],
     )
 
-
+        if chk_freq <= 0.0
+            ErrorException("chk_freq must be positive.") |> throw
+        end
         ests = Dict()
-        for tag in tags
-            ests[tag] = Estimator(chk_freq, 1)
+        for (tag, init) in tag_and_init
+            ests[tag] = Estimator(init, ceil(init/chk_freq))
         end
 
         PTI = new(
@@ -105,7 +107,7 @@ function releaseLock(PTI::ProgramTunnelInfo)
     rm(PTI.lock_fn, force=true)
 end
 
-function recvText(PTI::ProgramTunnelInfo, tag::Symbol)
+function recvText(PTI::ProgramTunnelInfo, tag::Symbol=:default)
     local result
 
     get_through = false
@@ -115,7 +117,7 @@ function recvText(PTI::ProgramTunnelInfo, tag::Symbol)
 
     if isfile(PTI.recv_fn)
         est.first_sleep -= PTI.chk_freq
-        est.first_sleep = max(0.0, est_first_sleep)
+        est.first_sleep = max(0.0, est.first_sleep)
         get_through = true
 
         println("[", string(tag) ,"] Message is already there. Adjust first_sleep to : ", est.first_sleep)
@@ -127,7 +129,8 @@ function recvText(PTI::ProgramTunnelInfo, tag::Symbol)
             if isfile(PTI.recv_fn)
                 get_through = true
                 # Out of buffer, need to adjust: increase est.first_sleep
-                if cnt - est.first_cnt > PTI.buffer_cnt
+                println(cnt, "; ", PTI.buffer_cnt)
+                if cnt > PTI.buffer_cnt
                     est.first_sleep += PTI.chk_freq 
                     println("[", string(tag), "] Out of buffer. Adjust first_sleep to : ", est.first_sleep)
                 end
