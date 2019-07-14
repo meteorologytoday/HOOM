@@ -197,7 +197,7 @@ integer function ptm_recvText(PTI, msg)
         end if
     else
         do cnt = 1, (PTI%timeout_limit_cnt - PTI%recv_first_cnt)
-            print *, "[ptm_recvText] test"
+!            print *, "[ptm_recvText] test"
             inquire(file=PTI%recv_fn, exist=file_exists)
             if (file_exists .eqv. .true.) then
                 get_through = .true.
