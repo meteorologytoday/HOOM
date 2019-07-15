@@ -137,7 +137,7 @@ cat << XEOFX > \$casename.ocn.run
 #PBS -q share
 ### Merge output and error files
 #PBS -j oe
-#PBS -l select=1:ncpus=36:mpiprocs=36
+#PBS -l select=1:ncpus=$ocn_ncpu:mpiprocs=$ocn_ncpu
 ### Send email on abort, begin and end
 #PBS -m abe
 #PBS -M meteorologytoday@gmail.com
