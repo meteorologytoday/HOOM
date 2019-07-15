@@ -62,6 +62,13 @@ cat $cesm_env >> $script_file
 
 cat << EOF >> $script_file
 
+if [ -d \$casename ]; then
+    echo "Error: \$casename already exists. Abort."
+    exit 1;
+fi
+
+
+
 $cesm_create_newcase         \\
     -case      \$casename    \\
     -compset   \$compset     \\
