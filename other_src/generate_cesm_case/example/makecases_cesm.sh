@@ -22,11 +22,11 @@ cesm_env=$pwd_dir/env_settings.sh
 ocn_ncpu=2
 
 model_settings=(
-    SOM   default
-    SOM   xQflux
-    ESOM  default 
-    NKOM  default
-    NKOM  xClim
+    SOM   default  "text.nc"
+    SOM   xQflux   ""
+    ESOM  default  ""
+    NKOM  default  ""
+    NKOM  xClim    ""
 )
 
 #model_settings=(
@@ -36,9 +36,10 @@ model_settings=(
 
 
 
-for i in $(seq 1 $((${#model_settings[@]}/2))); do
-    model=${model_settings[$((2*(i-1)))]}
-    init_config=${model_settings[$((2*(i-1)+1))]}
+for i in $(seq 1 $((${#model_settings[@]}/3))); do
+    model=${model_settings[$((3*(i-1)))]}
+    init_config=${model_settings[$((3*(i-1)+1))]}
+    qflux_file=${model_settings[$((3*(i-1)+2))]}
 
     printf "Gonna making %s-%s\n" $model $model_config
 
@@ -62,7 +63,8 @@ for i in $(seq 1 $((${#model_settings[@]}/2))); do
         --init-config=$init_config                      \
         --cesm-env=$cesm_env                            \
         --ocn-ncpu=$ocn_ncpu                            \
-        --project-code=$project_code
+        --project-code=$project_code                    \
+        --qflux-file=$qflux_file
 
 
 done
