@@ -6,14 +6,26 @@ const S_ref = 35.0                   # Reference salinity    of thermal expansio
 const c_p = 3996.0   # J / kg / K   copied from models/csm_share/shr/shr_const_mod.F90
 const ρ   = 1026.0   # kg / m^3     copied from models/csm_share/shr/shr_const_mod.F90
 const g   = 9.80616  # m / s^2      copied from models/csm_share/shr/shr_const_mod.F90
-const α   = 3e-4     # K^-1    http://www.kayelaby.npl.co.uk/general_physics/2_7/2_7_9.html
-const β   = 1e-3     # Simple estimation
+
+
+#
+# The numbers are referenced from Bryan and Cox (1972) at depth Z = 250m. 
+#
+# Formulas for α and β are:
+#
+#    α := - (1/ρ)(∂ρ/∂T) 
+#    β :=   (1/ρ)(∂ρ/∂S) 
+#
+# Reference:
+#
+#     Bryan, Kirk, and Michael D. Cox. "An approximate equation of state for numerical models of ocean circulation." Journal of Physical Oceanography 2.4 (1972): 510-514.
+#
+const α   = 1.5781e-4 / 1.028475     # 1/K
+const β   = 7.8318e-4 / 1.028475     # 1/PSU
 
 const αgρc = α * g / (ρ * c_p)
 
 const b_sw_frz = α * (T_sw_frz - T_ref)
-
-
 const S_surf_avg = 35.0    # The average surface salinity used to update salinity when raining/evaporating.
 
 

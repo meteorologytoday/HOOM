@@ -820,7 +820,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                         - (   x2o%rAttr(ksnow,n) & 
                             + x2o%rAttr(kioff,n) ) * latice ! latent by snow and roff
  
-            ! fresh water flux in terms of m / s
+            ! fresh water flux in terms of m / s / m^2
             x_frwflx(n) = ( x2o%rAttr(kevap, n) - &
                             x2o%rAttr(kprec, n) ) / SHR_CONST_RHOFW 
                        

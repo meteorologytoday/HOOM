@@ -45,9 +45,9 @@ function calWeOrMLD(;
     end
 
     Term1 = 2.0 * m * fric_u^3.0 * exp( -h_ML / (fric_u / abs(f)))
-    #Term2 =   0.5 * (B * (1.0 + n) + abs(B) * (1.0 - n))
-    Term2 = - 0.5 * (B * (1.0 + n) - abs(B) * (1.0 - n))
-    RHS = Term1 - h_ML * Term2
+    Term2 = 0.5 * (B * (1.0 + n) - abs(B) * (1.0 - n))
+
+    RHS = Term1 + h_ML * Term2
 
     if RHS > 0
         k = getTKE(fric_u=fric_u)
@@ -64,7 +64,7 @@ function calWeOrMLD(;
         if Term2 == 0
             h_ML_diag = h_ML
         else
-            h_ML_diag = Term1 / Term2
+            h_ML_diag = - Term1 / Term2
         end
     
         return :MLD, h_ML_diag

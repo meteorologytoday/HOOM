@@ -50,10 +50,9 @@ function stepOceanColumnCollection!(
         # p.s.: Need to examine carefully about the
         #       conservation of buoyancy in water column
 
-        #println("### h: ", oc.h)
-        #println("FLDO:", oc.FLDO)
-
         total_Tflx = ( swflx[i, j] + nswflx[i, j] ) / (ρ*c_p) 
+        
+        # frwflx: positive means net freshwater loss, negative means net freshwater gain.
         total_Sflx = - frwflx[i, j] * S_surf_avg
         total_bflx = g * ( α * total_Tflx - β * total_Sflx )
         
@@ -65,13 +64,10 @@ function stepOceanColumnCollection!(
         # be some numerical error making Δb slightly negative
         # (the one I got is like -1e-15). So I set a tolarence
         # ( 0.001 K ≈ 3e-6 m/s^2 ).
-        if Δb < 0.0 && -Δb <= 3e-6
-            Δb = 0.0
-        end
-
-
-
-        #fric_u = getFricU(ua=ua)
+        #if Δb < 0.0 && -Δb <= 3e-6
+        #    Δb = 0.0
+        #end
+        
         flag, val = calWeOrMLD(;
             h_ML   = old_h_ML,
             B      = total_bflx,
