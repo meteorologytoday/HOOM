@@ -25,7 +25,6 @@ module CESMCORE_SUPER_NKOM
 
         configs       :: Dict
 
-        output_vars :: Dict
         wksp        :: Workspace
 
         recorders   :: Dict
@@ -84,32 +83,58 @@ module CESMCORE_SUPER_NKOM
 
         wksp = Workspace(occ.Nx, occ.Ny, occ.Nz_bone)
 
-        x2o = Dict(
-            "SWFLX"  => wksp.swflx,
-            "NSWFLX" => wksp.nswflx,
-            "TAUX"  => wksp.taux,
-            "TAUY"  => wksp.tauy,
-            "IFRAC" => wksp.ifrac,
-            "FRWFLX" => wksp.frwflx,
-            "TFDIV"  => wksp.qflux,
-        )
+        #
+        # If it is "datastream", entrainment speed w_e would be 
+        # calculated from h given. In fact there is no need
+        # to calculate w_e.
+        #
+        # If it is "prognostic", entrainment speed w_e would be
+        # calculated accroding to Niiler and Kraus dynamics.
+        #
+
+        if ! haskey(configs, "MLD_scheme")
+            ErrorException("Missing key in configs: `MLD_scheme`. (\"prognostic\" or \"datastream\")") |> throw
+        elseif configs["MLD_scheme"] == "datastream"
+
+            wksp.h_ML = nothing
+            x2o = Dict(
+                "SWFLX"  => wksp.swflx,
+                "NSWFLX" => wksp.nswflx,
+                "FRWFLX" => wksp.frwflx,
+                "TFDIV"  => wksp.qflx,
+                "MLD"    => wksp.h_ML,
+            )
+
+        elseif configs["MLD_scheme"] == "prognostic"
+
+            x2o = Dict(
+                "SWFLX"  => wksp.swflx,
+                "NSWFLX" => wksp.nswflx,
+                "TAUX"  => wksp.taux,
+                "TAUY"  => wksp.tauy,
+                "IFRAC" => wksp.ifrac,
+                "FRWFLX" => wksp.frwflx,
+                "TFDIV"  => wksp.qflux,
+            )
+
+        else
+
+            ErrorException("Unknown MLD_scheme: ", configs["MLD_scheme"]) |> throw
+
+        end
+
+
+        if ! haskey(configs, "Qflux_scheme")
+            ErrorException("Missing key in configs: `Qflux_scheme`. (\"on\" or \"off\")") |> throw
+        elseif configs["Qflux_scheme"] == "off"
+            wksp.qflx = nothing
+        else
+            ErrorException("Unknown Qflux_scheme: ", configs["Qflux_scheme"]) |> throw
+        end
 
         o2x = Dict(
             "SST"      => occ.T_ML,
             "QFLX2ATM" => occ.qflx2atm,
-        )
-
-        output_vars = Dict(
-            #=
-            "rain"      => wksp.frwflx,
-            "mld"       => occ.h_ML,
-            "sst"       => occ.T_ML,
-            "qflx2atm"  => occ.qflx2atm,
-            "sumflx"    => wksp.sumflx,
-            "fric_u"    => wksp.fric_u,
-            "ifrac"     => wksp.ifrac,
-            =#
-
         )
         
         recorders = Dict()
@@ -140,7 +165,6 @@ module CESMCORE_SUPER_NKOM
             x2o,
             o2x,
             configs,
-            output_vars,
             wksp,
             recorders,
         )
@@ -207,32 +231,27 @@ module CESMCORE_SUPER_NKOM
             wksp.nswflx .*= -1.0
             wksp.swflx  .*= -1.0
 
-            #wksp.sumflx[:, :]  = wksp.nswflx
-            #wksp.sumflx      .+= wksp.swflx
-            
-            wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / SUPER_NKOM.ρ)
-            wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
+            if configs["MLD_scheme"] == "prognostic"
+                wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / SUPER_NKOM.ρ)
+                wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
+            end
 
         end
 
-        if configs["mode"] == "Forced_h"
 
 
-        elseif config["mode"] == "Prognostic_h"
-
-            SUPER_NKOM.stepOceanColumnCollection!(
-                MD.occ;
-                fric_u = wksp.weighted_fric_u,
-                swflx  = wksp.swflx,
-                nswflx = wksp.nswflx,
-                frwflx = wksp.frwflx,
-                qflux  = wksp.qflux,
-                Δt     = Δt,
-                diffusion_Δt = Δt * MD.configs["substeps"],
-                do_diffusion = (substep == MD.configs["substeps"]),
-            )
-
-        end
+        SUPER_NKOM.stepOceanColumnCollection!(
+            MD.occ;
+            fric_u = wksp.weighted_fric_u,
+            swflx  = wksp.swflx,
+            nswflx = wksp.nswflx,
+            frwflx = wksp.frwflx,
+            qflx   = wksp.qflx,
+            h_ML   = wksp.h_ML,
+            Δt     = Δt,
+            diffusion_Δt = Δt * MD.configs["substeps"],
+            do_diffusion = (substep == MD.configs["substeps"]),
+        )
 
         if write_restart
             restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])

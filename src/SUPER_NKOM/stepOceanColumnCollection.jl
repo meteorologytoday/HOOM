@@ -21,6 +21,8 @@ function stepOceanColumnCollection!(
     swflx  :: AbstractArray{Float64, 2}, # Shortwave     energy flux at the surface (     J  / s m^2)
     nswflx :: AbstractArray{Float64, 2}, # Non-shortwave energy flux at the surface (     J  / s m^2)
     frwflx :: AbstractArray{Float64, 2}, # Freshwater           flux at the surface (     m  / s m^2)
+    qflx   :: UnionAbstractArray{Float64, 2}, # Freshwater           flux at the surface (     m  / s m^2)
+    h_ML   :: AbstractArray{Float64, 2}, # Freshwater           flux at the surface (     m  / s m^2)
     Δt     :: Float64,
     diffusion_Δt :: Float64,
     do_diffusion :: Bool = true, 
@@ -65,9 +67,9 @@ function stepOceanColumnCollection!(
         # be some numerical error making Δb slightly negative
         # (the one I got is like -1e-15). So I set a tolarence
         # ( 0.001 K ≈ 3e-6 m/s^2 ).
-        if Δb < 0.0 && -Δb <= 3e-6
-            Δb = 0.0
-        end
+#        if Δb < 0.0 && -Δb <= 3e-6
+#            Δb = 0.0
+#        end
 
 
 
