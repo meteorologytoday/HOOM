@@ -20,7 +20,7 @@ using Distributed
     @hinclude("OceanColumnCollection.jl")
     @hinclude("trivial_functions.jl")
 
-    @hinclude("calWeOrMLD.jl")
+    @hinclude("calNewMLD.jl")
     @hinclude("doConvectiveAdjustment.jl")
     @hinclude("doDiffusion.jl")
     @hinclude("getIntegratedBuoyancy.jl")

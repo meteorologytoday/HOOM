@@ -1,6 +1,6 @@
 """
 
-    calWeOrMLD(; h, B, fric_u, Δb, m=0.45, n=0.2)
+    calNewMLD(; h, B, fric_u, Δb, f, Δt, m=0.8, n=0.2)
 
 # Description
 
@@ -29,12 +29,13 @@
 This function returns a list with two elements. The first is a symbol. ``:we`` indicates the second value is the entrainment speed whereas ``:MLD`` indicates the second value is the diagnosed MLD.
 
 """
-function calWeOrMLD(;
+function calNewMLD(;
     h_ML   :: Float64,
     B      :: Float64, 
     fric_u :: Float64,  
     Δb     :: Float64,
     f      :: Float64,
+    Δt     :: Float64,
     m::Float64 = 0.8,
     n::Float64 = 0.20,
 )
@@ -56,7 +57,7 @@ function calWeOrMLD(;
         #    println("we abnormally large: ", we)
         #end
         #println(":we, h: ", h, "; Δb: ", Δb, "; B: ", B, "; k:", k)
-        return :we, we
+        return h_ML + Δt * we
     else
 
         # h becomes diagnostic.
@@ -67,7 +68,7 @@ function calWeOrMLD(;
             h_ML_diag = Term1 / Term2
         end
     
-        return :MLD, h_ML_diag
+        return h_ML_diag
     end
 
 end

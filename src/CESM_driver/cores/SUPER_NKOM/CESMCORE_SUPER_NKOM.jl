@@ -3,6 +3,7 @@ module CESMCORE_SUPER_NKOM
 
     include("Workspace_SUPER_NKOM.jl")
     include(joinpath(@__DIR__, "..", "..", "..", "share", "RecordTool.jl"))
+    include(joinpath(@__DIR__, "..", "..", "..", "share", "CheckDict.jl"))
     include(joinpath(@__DIR__, "..", "..", "..", "share", "AppendLine.jl"))
 
     using Formatting
@@ -39,7 +40,18 @@ module CESMCORE_SUPER_NKOM
         read_restart :: Bool,
     )
 
-        init_file = (haskey(configs, "init_file")) ? configs["init_file"] : nothing
+        checkDict!(configs, [
+            ("init_file",                    false, (nothing, String,),             nothing),
+            ("MLD_scheme",                    true, ("prognostic", "datastream",),  nothing),
+            ("Qflux_scheme",                  true, ("on", "off",),                 nothing),
+            ("diffusion_scheme",              true, ("on", "off",),                 nothing),
+            ("relaxation_scheme",             true, ("on", "off",),                 nothing),
+            ("convective_adjustment_scheme",  true, ("on", "off",),                 nothing),
+            ("daily_record",                  true, (Bool,),                        nothing),
+            ("monthly_record",                true, (Bool,),                        nothing),
+        ])
+
+        init_file = configs["init_file"]
 
         # If `read_restart` is true then read restart file: configs["rpointer_file"]
         # If not then initialize ocean with default profile if `initial_file`
@@ -48,10 +60,9 @@ module CESMCORE_SUPER_NKOM
         if read_restart
 
             println("`read_restart` is on")
-
-            if ! ("rpointer_file" in keys(configs))
-                throw(ErrorException("Cannot find `rpointer_file` in configs!"))
-            end
+            checkDict!( configs, [
+                ("rpointer_file", true, (String,), nothing),
+            ])
 
             if !isfile(configs["rpointer_file"])
                 throw(ErrorException(configs["rpointer_file"] * " does not exist!"))
@@ -92,9 +103,7 @@ module CESMCORE_SUPER_NKOM
         # calculated accroding to Niiler and Kraus dynamics.
         #
 
-        if ! haskey(configs, "MLD_scheme")
-            ErrorException("Missing key in configs: `MLD_scheme`. (\"prognostic\" or \"datastream\")") |> throw
-        elseif configs["MLD_scheme"] == "datastream"
+        if configs["MLD_scheme"] == "datastream"
 
             wksp.h_ML = nothing
             x2o = Dict(
@@ -117,16 +126,10 @@ module CESMCORE_SUPER_NKOM
                 "TFDIV"  => wksp.qflux,
             )
 
-        else
-
-            ErrorException("Unknown MLD_scheme: ", configs["MLD_scheme"]) |> throw
-
         end
 
 
-        if ! haskey(configs, "Qflux_scheme")
-            ErrorException("Missing key in configs: `Qflux_scheme`. (\"on\" or \"off\")") |> throw
-        elseif configs["Qflux_scheme"] == "off"
+        if configs["Qflux_scheme"] == "off"
             wksp.qflx = nothing
         else
             ErrorException("Unknown Qflux_scheme: ", configs["Qflux_scheme"]) |> throw
@@ -249,8 +252,11 @@ module CESMCORE_SUPER_NKOM
             qflx   = wksp.qflx,
             h_ML   = wksp.h_ML,
             Δt     = Δt,
-            diffusion_Δt = Δt * MD.configs["substeps"],
-            do_diffusion = (substep == MD.configs["substeps"]),
+            diffusion_Δt  = Δt * MD.configs["substeps"],
+            relaxation_Δt = Δt * MD.configs["substeps"],
+            do_diffusion  = (MD.configs["diffusion_scheme"] == "on" && substep == MD.configs["substeps"]),
+            do_relaxation = (MD.configs["relaxation_scheme"] == "on" && substep == MD.configs["substeps"]),
+            do_convadjust = MD.configs["convective_adjustment_scheme"] == "on",
         )
 
         if write_restart
