@@ -83,6 +83,7 @@ $wk_dir/make_init_each_model.sh                 \
     --topo-file=$new_topo_file                  \
     --T-unit=$T_unit                            \
     --S-unit=$S_unit                            \
+    --forcing-file=$qflux_file                  \
     --model=$model                              \
     --init-config=$init_config
 

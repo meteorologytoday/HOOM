@@ -99,8 +99,12 @@ Dataset(parsed["topo-file"], "r") do ds
 end
 
 if haskey(parsed, "forcing-file")
-    Dataset(parsed["forcing-file"], "r") do ds
-        global h_ML = replace(ds["hblt"][:], missing => NaN)
+    if isfile(parsed["forcing-file"]) 
+        Dataset(parsed["forcing-file"], "r") do ds
+            global h_ML = replace(ds["hblt"][:], missing => NaN)
+        end
+    else
+        println("Cannot find forcing file: ", parsed["forcing-file"],  ". Gonna skip it.")
     end
 end
 
