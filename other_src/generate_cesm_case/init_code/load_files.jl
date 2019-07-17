@@ -39,6 +39,10 @@ function parse_commandline()
             arg_type = String
             required = true
 
+        "--forcing-file"
+            help = "Qflux forcing file. Contains varnames: hblt and qdp."
+            arg_type = String
+            required = false
 
         "--T-unit"
             help = "Unit of temperature. Valid string: C, K."
@@ -92,6 +96,12 @@ end
 Dataset(parsed["topo-file"], "r") do ds
     global topo = zeros(Float64, 1, 1)
     topo = - replace(ds["depth"][:], missing => NaN)
+end
+
+if haskey(parsed, "forcing-file")
+    Dataset(parsed["forcing-file"], "r") do ds
+        global h_ML = replace(ds["hblt"][:], missing => NaN)
+    end
 end
 
 if parsed["T-unit"] == "C"
