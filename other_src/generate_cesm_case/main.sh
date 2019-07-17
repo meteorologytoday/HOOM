@@ -28,6 +28,7 @@ lopts=(
     model
     init-config
     ocn-ncpu
+    qflux-file
 )
 
 source $wk_dir/getopt_helper.sh
@@ -101,7 +102,8 @@ $wk_dir/make_cesm_sugar_script.sh           \
     --user-namelist-dir=$user_namelist_dir  \
     --model=$model                          \
     --init-config=$init_config              \
-    --ocn-ncpu=$ocn_ncpu 
+    --ocn-ncpu=$ocn_ncpu                    \
+    --qflux-file=$qflux_file 
 
     
 echo "Done."

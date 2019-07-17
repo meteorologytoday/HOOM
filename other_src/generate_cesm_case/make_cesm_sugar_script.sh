@@ -19,6 +19,7 @@ lopts=(
     model
     init-config
     ocn-ncpu
+    qflux-file
 )
 
 source $wk_dir/getopt_helper.sh
@@ -41,6 +42,7 @@ machine=$machine
 compset=$compset
 user_namelist_dir=$user_namelist_dir
 init_file=$init_file
+qflux_file="$qflux_file"
 
 walltime="${walltime}"
 
@@ -85,6 +87,14 @@ cd \$casename
 
 setXML "env_run.xml" "\${env_run[@]}"
 setXML "env_mach_pes.xml" "\${env_mach_pes[@]}"
+
+if [ -n "\$qflux_file" ]; then
+
+    echo "Qflux file nonempty. Now setting user-defined qflux."
+    setXML "env_run.xml" "DOCN_SOM_FILENAME" \\"\$qflux_file\\"
+  
+fi
+
 
 # Must setup here to get calculated TOTALPES
 ./cesm_setup
