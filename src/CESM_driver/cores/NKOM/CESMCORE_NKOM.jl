@@ -1,7 +1,6 @@
 include(joinpath(@__DIR__, "..", "..", "..", "NKOM", "NKOM.jl"))
 module CESMCORE_NKOM
 
-    include("Workspace_NKOM.jl")
     include(joinpath(@__DIR__, "..", "..", "..", "share", "RecordTool.jl"))
     include(joinpath(@__DIR__, "..", "..", "..", "share", "CheckDict.jl"))
     include(joinpath(@__DIR__, "..", "..", "..", "share", "AppendLine.jl"))
@@ -25,8 +24,6 @@ module CESMCORE_NKOM
         o2x         :: Dict
 
         configs       :: Dict
-
-        wksp        :: Workspace
 
         recorders   :: Dict
     end
@@ -92,7 +89,10 @@ module CESMCORE_NKOM
 
         end
 
-        wksp = Workspace(occ.Nx, occ.Ny, occ.Nz_bone)
+        println("Initializing parallization...")
+        NKOM.init(occ)
+
+        in_flds = occ.in_flds
 
         #
         # If it is "datastream", entrainment speed w_e would be 
@@ -106,33 +106,29 @@ module CESMCORE_NKOM
         if configs["MLD_scheme"] == "datastream"
 
             x2o = Dict(
-                "SWFLX"  => wksp.swflx,
-                "NSWFLX" => wksp.nswflx,
-                "FRWFLX" => wksp.frwflx,
-                "TFDIV"  => wksp.qflx,
-                "MLD"    => wksp.h_ML,
+                "SWFLX"  => in_flds.swflx,
+                "NSWFLX" => in_flds.nswflx,
+                "FRWFLX" => in_flds.frwflx,
+                "TFDIV"  => in_flds.qflx,
+                "MLD"    => in_flds.h_ML,
             )
 
         elseif configs["MLD_scheme"] == "prognostic"
 
-            wksp.h_ML = nothing
             x2o = Dict(
-                "SWFLX"  => wksp.swflx,
-                "NSWFLX" => wksp.nswflx,
-                "TAUX"  => wksp.taux,
-                "TAUY"  => wksp.tauy,
-                "IFRAC" => wksp.ifrac,
-                "FRWFLX" => wksp.frwflx,
-                "TFDIV"  => wksp.qflux,
+                "SWFLX"  => in_flds.swflx,
+                "NSWFLX" => in_flds.nswflx,
+                "TAUX"  => in_flds.taux,
+                "TAUY"  => in_flds.tauy,
+                "IFRAC" => in_flds.ifrac,
+                "FRWFLX" => in_flds.frwflx,
+                "TFDIV"  => in_flds.qflux,
             )
 
         end
 
 
-        if configs["Qflux_scheme"] == "off"
-            wksp.qflx = nothing
-        end
-
+        
         o2x = Dict(
             "SST"      => occ.T_ML,
             "QFLX2ATM" => occ.qflx2atm,
@@ -168,7 +164,7 @@ module CESMCORE_NKOM
             x2o,
             o2x,
             configs,
-            wksp,
+            in_flds,
             recorders,
         )
 
@@ -226,38 +222,37 @@ module CESMCORE_NKOM
 
         end
 
-        wksp = MD.wksp
+        in_flds = MD.occ.in_flds
 
         # Only process incoming data for the first time!! 
         if substep == 1
 
-            wksp.nswflx .*= -1.0
-            wksp.swflx  .*= -1.0
+            in_flds.nswflx .*= -1.0
+            in_flds.swflx  .*= -1.0
 
             if MD.configs["MLD_scheme"] == "prognostic"
-                wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / NKOM.ρ)
-                wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
+                in_flds.fric_u .= sqrt.(sqrt.((in_flds.taux).^2.0 .+ (in_flds.tauy).^2.0) / NKOM.ρ)
+                in_flds.weighted_fric_u .*= (1.0 .- in_flds.ifrac)
             end
 
         end
 
-
-
         NKOM.stepOceanColumnCollection!(
             MD.occ;
-            fric_u = wksp.weighted_fric_u,
-            swflx  = wksp.swflx,
-            nswflx = wksp.nswflx,
-            frwflx = wksp.frwflx,
-            qflx   = wksp.qflx,
-            h_ML   = wksp.h_ML,
-            Δt     = Δt,
+            use_qflx      = MD.configs["Qflux_scheme"] == "on",
+            use_h_ML      = MD.configs["MLD_scheme"] == "datastream",
+            Δt            = Δt,
             diffusion_Δt  = Δt * MD.configs["substeps"],
             relaxation_Δt = Δt * MD.configs["substeps"],
             do_diffusion  = (MD.configs["diffusion_scheme"] == "on" && substep == MD.configs["substeps"]),
             do_relaxation = (MD.configs["relaxation_scheme"] == "on" && substep == MD.configs["substeps"]),
             do_convadjust = MD.configs["convective_adjustment_scheme"] == "on",
         )
+
+        if substep == configs["substeps"]
+            NKOM.sync!(MD.occ)
+        end
+
 
         if write_restart
             restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])

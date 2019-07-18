@@ -1,18 +1,7 @@
-function allocate(kind::Symbol, dtype::DataType, dims...)
-    if kind == :local
-        return zeros(dtype, dims...)
-    elseif kind == :shared
-        return SharedArray{dtype}(dtype, dims...)
-    else
-
-        ErrorException("Unknown kind: " * string(kind)) |> throw
-    end
-
-end
 
 mutable struct OceanColumnCollection
 
-    id       :: Integer  # 0 = master, 1, ..., N = workers
+    id       :: Integer  # 1 = master, 2, ..., N = workers
 
     gi       :: Union{DisplacedPoleCoordinate.GridInfo, Nothing}
     gi_file  :: Union{AbstractString, Nothing}
@@ -71,6 +60,8 @@ mutable struct OceanColumnCollection
     Ts_clim_vw :: Any
     Ss_clim_vw :: Any
 
+    in_flds :: InputFields
+
     function OceanColumnCollection(;
         id       :: Integer, 
         gridinfo_file :: Union{AbstractString, Nothing},
@@ -95,6 +86,7 @@ mutable struct OceanColumnCollection
         topo     :: Union{AbstractArray{Float64, 2}, Nothing},
         fs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
         ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
+        in_flds  :: Union{InputFields, Nothing},
     )
 
         # Determine whether data should be local or shared (parallelization)
@@ -218,9 +210,9 @@ mutable struct OceanColumnCollection
         Nz_bone = length(zs_bone) - 1
 
         Nz   = allocate(datakind, Int64, Nx, Ny)
-        zs   = allocate(datakind, Float64, Nz_bone + 1, Nx, Ny)
-        hs   = allocate(datakind, Float64, Nz_bone    , Nx, Ny)
-        Δzs  = allocate(datakind, Float64, Nz_bone - 1, Nx, Ny)
+        zs   = allocate(datakind, Float64, Nx, Ny, Nz_bone + 1)
+        hs   = allocate(datakind, Float64, Nx, Ny, Nz_bone)
+        Δzs  = allocate(datakind, Float64, Nx, Ny, Nz_bone - 1)
 
         zs  .= NaN
         Nz  .= 0
@@ -528,6 +520,7 @@ mutable struct OceanColumnCollection
 
 
         occ = new(
+            id,
             gridinfo,
             gridinfo_file,
             Nx, Ny, Nz_bone,
@@ -543,6 +536,7 @@ mutable struct OceanColumnCollection
             _Ts_clim, _Ss_clim,
             Nx * Ny, hs, Δzs,
             zs_vw, bs_vw, Ts_vw, Ss_vw, Ts_clim_vw, Ss_clim_vw,
+            ( in_flds == nothing ) ? InputFields(datakind, Nx, Ny) : in_flds,
         )
 
         

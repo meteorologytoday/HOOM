@@ -16,14 +16,10 @@ This function update the OceanColumnCollection forward in time.
 
 """
 function stepOceanColumnCollection!(
-    occ    :: OceanColumnCollection;
-    fric_u :: AbstractArray{Float64, 2}, # Currently assumed to be u10
-    swflx  :: AbstractArray{Float64, 2}, # Shortwave     energy flux at the surface (     J  / s m^2)
-    nswflx :: AbstractArray{Float64, 2}, # Non-shortwave energy flux at the surface (     J  / s m^2)
-    frwflx :: AbstractArray{Float64, 2}, # Freshwater           flux at the surface (     m  / s m^2)
-    qflx   :: Union{AbstractArray{Float64, 2}, Nothing}, # Freshwater           flux at the surface (     m  / s m^2)
-    h_ML   :: Union{AbstractArray{Float64, 2}, Nothing}, # Freshwater           flux at the surface (     m  / s m^2)
-    Δt     :: Float64,
+    occ           :: OceanColumnCollection;
+    use_qflx      :: Bool,
+    use_h_ML      :: Bool,
+    Δt            :: Float64,
     diffusion_Δt  :: Float64,
     relaxation_Δt :: Float64,
     do_diffusion  :: Bool = true, 
@@ -31,8 +27,15 @@ function stepOceanColumnCollection!(
     do_convadjust :: Bool = true, 
 )
 
+    fric_u  = occ.in_flds.weighted_fric_u
+    swflx   = occ.in_flds.swflx
+    nswflx  = occ.in_flds.nswflx
+    frwflx  = occ.in_flds.frwflx
+    qflx    = occ.in_flds.qflx
+    h_ML    = occ.in_flds.h_ML
+ 
     # It is assumed here that buoyancy has already been updated.
-    @sync @distributed  for grid_idx in 1:size(occ.valid_idx)[2]
+    for grid_idx in 1:size(occ.valid_idx)[2]
 
         i = occ.valid_idx[1, grid_idx]
         j = occ.valid_idx[2, grid_idx]
@@ -54,7 +57,7 @@ function stepOceanColumnCollection!(
         #       conservation of buoyancy in water column
 
 
-        total_Tflx = ( swflx[i, j] + nswflx[i, j] + ( ( qflx != nothing ) ? 0.0 : qflx[i, j])) / (ρ*c_p) 
+        total_Tflx = ( swflx[i, j] + nswflx[i, j] + ( ( use_qflx ) ? qflx[i, j] : 0.0 )) / (ρ*c_p) 
         total_Sflx = - frwflx[i, j] * S_surf_avg
         total_bflx = g * ( α * total_Tflx - β * total_Sflx )
         
@@ -73,7 +76,11 @@ function stepOceanColumnCollection!(
         #        end
 
 
-        if h_ML == nothing  # h_ML is prognostic
+        if use_h_ML # h_ML is datastream
+
+            new_h_ML = h_ML[i, j]
+
+        else        # h_ML is prognostic
 
             new_h_ML = calWeOrMLD(;
                 h_ML   = old_h_ML,
@@ -92,8 +99,6 @@ function stepOceanColumnCollection!(
                 new_h_ML = old_h_ML + Δt * we
             end
 
-        else # h_ML is datastream
-            new_h_ML = h_ML[i, j]
         end
 
         new_h_ML = boundMLD(new_h_ML; h_ML_max=occ.h_ML_max[i, j], h_ML_min=occ.h_ML_min[i, j])

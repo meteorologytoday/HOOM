@@ -23,6 +23,7 @@ function loadSnapshot(
         end
 
         occ = OceanColumnCollection(
+            id       = 0,
             gridinfo_file = (gridinfo_file == nothing) ? ds.attrib["gridinfo_file"] : gridinfo_file,
             Nx       = ds.dim["Nx"],
             Ny       = ds.dim["Ny"],
@@ -45,6 +46,7 @@ function loadSnapshot(
             Ss_clim  = Ss_clim,
             mask     = nomissing(ds["mask"][:], NaN),
             topo     = nomissing(ds["topo"][:], NaN),
+            in_flds  = nothing,
         )
 
     end

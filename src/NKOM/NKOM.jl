@@ -1,5 +1,11 @@
 using Distributed
 
+macro hinclude(path)
+    return :(include(normpath(joinpath(@__DIR__, $path))))
+end
+
+
+
 @everywhere module NKOM
 
     using Printf
@@ -17,6 +23,7 @@ using Distributed
     @hinclude("../share/MapInfo.jl")
        
     @hinclude("../share/constants.jl")
+    @hinclude("InputFields.jl")
     @hinclude("OceanColumnCollection.jl")
     @hinclude("trivial_functions.jl")
 
@@ -31,5 +38,9 @@ using Distributed
     @hinclude("setOceanColumn.jl")
     @hinclude("takeSnapshot.jl")
 
+
+    @hinclude("driver.jl")
 end
+
+
 
