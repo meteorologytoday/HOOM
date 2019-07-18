@@ -20,6 +20,7 @@ lopts=(
     init-config
     ocn-ncpu
     qflux-file
+    ocn-branch
 )
 
 source $wk_dir/getopt_helper.sh
@@ -91,7 +92,7 @@ setXML "env_mach_pes.xml" "\${env_mach_pes[@]}"
 if [ -n "\$qflux_file" ]; then
 
     echo "Qflux file nonempty. Now setting user-defined qflux."
-    setXML "env_run.xml" "DOCN_SOM_FILENAME" \\"\$qflux_file\\"
+    setXML "env_run.xml" "DOCN_SOM_FILENAME" "\$qflux_file"
   
 fi
 
@@ -109,6 +110,12 @@ if [ "\$user_namelist_dir" != "" ]; then
 fi
 
 
+FORCING_DIR=\$( dirname \$qflux_file )
+FORCING_FILENAME=\$( basename \$qflux_file )
+
+cat << XEOFX > user_docn.streams.txt.som
+$( echo "$( cat $wk_dir/docn_stream.txt )" )
+XEOFX
 
 cat << XEOFX > config.jl
 
@@ -180,7 +187,8 @@ chmod +x \$casename.ocn.run
 chmod +x \$casename.run
 
 # Insert code
-git clone https://github.com/meteorologytoday/SMARTSLAB-main.git
+git clone --branch "$ocn_branch" https://github.com/meteorologytoday/SMARTSLAB-main.git
+
 cd ./SourceMods/src.docn
 ln -s ../../SMARTSLAB-main/src/CESM_driver/cesm1_docn_comp_mod.F90 ./docn_comp_mod.F90
 ln -s ../../SMARTSLAB-main/src/CESM_driver/ProgramTunnel .

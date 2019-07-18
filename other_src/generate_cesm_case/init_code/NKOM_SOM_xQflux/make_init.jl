@@ -6,10 +6,10 @@ using .NKOM
 zs = zeros(Float64, 2)
 
 zs[1] = 0.0
-zs[2] = mininum(topo)
+zs[2] = minimum(topo[isfinite.(topo)])
 
-Ts_clim = Ts_clim[:, :, 1]
-Ss_clim = Ss_clim[:, :, 1]
+Ts_clim = reshape(Ts_clim[:, :, 1], Nx, Ny, 1)
+Ss_clim = reshape(Ss_clim[:, :, 1], Nx, Ny, 1)
 
 occ = NKOM.OceanColumnCollection(
     gridinfo_file = parsed["domain-file"],
@@ -20,10 +20,10 @@ occ = NKOM.OceanColumnCollection(
     Ss       = Ss_clim,
     K_T      = 1e-5,
     K_S      = 1e-5,
-    T_ML     = Ts_clim,
-    S_ML     = Ss_clim,
+    T_ML     = Ts_clim[:, :, 1],
+    S_ML     = Ss_clim[:, :, 1],
     h_ML     = h_ML[:, :, 1], 
-    h_ML_min = 0.0,
+    h_ML_min = 1e-3,                 # cannot be 0 
     h_ML_max = -zs[end],             # make it unrestricted
     we_max   = 1e5,
     mask     = mask,
@@ -35,5 +35,3 @@ occ = NKOM.OceanColumnCollection(
 )
 
 NKOM.takeSnapshot(occ, parsed["output-file"])
-
-

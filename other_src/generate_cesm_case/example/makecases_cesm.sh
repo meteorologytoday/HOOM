@@ -7,26 +7,28 @@ compset=E_1850_CN_SPINUPOCN
 machine=xtt-centos-intel
 project_code=
 
-T_file=$pwd_dir/raw_init_cond/b.e11.B1850C5CN.f09_g16.005.pop.h.TEMP.100001-109912.nc
-S_file=$pwd_dir/raw_init_cond/b.e11.B1850C5CN.f09_g16.005.pop.h.SALT.100001-109912.nc
+raw_data_dir=$pwd_dir/raw_data
 
-topo_file=$pwd_dir/CESM_domains/ocean_topog_gx1v6.nc
+T_file=$raw_data_dir/b.e11.B1850C5CN.f09_g16.005.pop.h.TEMP.100001-109912.nc
+S_file=$raw_data_dir//b.e11.B1850C5CN.f09_g16.005.pop.h.SALT.100001-109912.nc
 
-old_domain=$pwd_dir/CESM_domains/domain.ocn.gx1v6.090206.nc
-new_domain=$pwd_dir/CESM_domains/domain.ocn.gx3v7.120323.nc
+topo_file=$raw_data_dir/ocean_topog_gx1v6.nc
+
+old_domain=$raw_data_dir/domain.ocn.gx1v6.090206.nc
+new_domain=$raw_data_dir/domain.ocn.gx3v7.120323.nc
 
 code_output_dir=$pwd_dir/cesm_scripts
 init_files_dir=$pwd_dir/init_cond
 cesm_env=$pwd_dir/env_settings.sh
 
 ocn_ncpu=2
+ocn_branch=dev/super-NKOM
 
 model_settings=(
-    SOM   default  "text.nc"
-    SOM   xQflux   ""
-    ESOM  default  ""
-    NKOM  default  ""
-    NKOM  xClim    ""
+    NKOM  xQflux        ""
+    NKOM  xQflux_xClim  ""
+    NKOM  SOM_default   "$raw_data_dir/pop_frc.gx3v7.110128.nc"
+    NKOM  SOM_xQflux    "$raw_data_dir/pop_frc.gx3v7.110128.nc"
 )
 
 #model_settings=(
@@ -64,7 +66,8 @@ for i in $(seq 1 $((${#model_settings[@]}/3))); do
         --cesm-env=$cesm_env                            \
         --ocn-ncpu=$ocn_ncpu                            \
         --project-code=$project_code                    \
-        --qflux-file=$qflux_file
+        --qflux-file=$qflux_file                        \
+        --ocn-branch=$ocn_branch
 
 
 done

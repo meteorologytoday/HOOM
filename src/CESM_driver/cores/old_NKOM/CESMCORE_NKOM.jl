@@ -1,31 +1,31 @@
-include(joinpath(@__DIR__, "..", "..", "..", "SUPER_NKOM", "SUPER_NKOM.jl"))
-module CESMCORE_SUPER_NKOM
+include(joinpath(@__DIR__, "..", "..", "..", "NKOM", "NKOM.jl"))
+module CESMCORE_NKOM
 
-    include("Workspace_SUPER_NKOM.jl")
+    include("Workspace_NKOM.jl")
     include(joinpath(@__DIR__, "..", "..", "..", "share", "RecordTool.jl"))
-    include(joinpath(@__DIR__, "..", "..", "..", "share", "CheckDict.jl"))
     include(joinpath(@__DIR__, "..", "..", "..", "share", "AppendLine.jl"))
 
     using Formatting
     using ..NetCDFIO
-    using ..SUPER_NKOM
+    using ..NKOM
     using NCDatasets
     using .RecordTool
 
-    name = "SUPER_NKOM"
+    name = "NKOM"
 
     days_of_mon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
-    mutable struct SUPER_NKOM_DATA
+    mutable struct NKOM_DATA
         casename    :: AbstractString
         map         :: NetCDFIO.MapInfo
-        occ         :: SUPER_NKOM.OceanColumnCollection
+        occ         :: NKOM.OceanColumnCollection
 
         x2o         :: Dict
         o2x         :: Dict
 
         configs       :: Dict
 
+        output_vars :: Dict
         wksp        :: Workspace
 
         recorders   :: Dict
@@ -40,18 +40,7 @@ module CESMCORE_SUPER_NKOM
         read_restart :: Bool,
     )
 
-        checkDict!(configs, [
-            ("init_file",                    false, (nothing, String,),             nothing),
-            ("MLD_scheme",                    true, ("prognostic", "datastream",),  nothing),
-            ("Qflux_scheme",                  true, ("on", "off",),                 nothing),
-            ("diffusion_scheme",              true, ("on", "off",),                 nothing),
-            ("relaxation_scheme",             true, ("on", "off",),                 nothing),
-            ("convective_adjustment_scheme",  true, ("on", "off",),                 nothing),
-            ("daily_record",                  true, (Bool,),                        nothing),
-            ("monthly_record",                true, (Bool,),                        nothing),
-        ])
-
-        init_file = configs["init_file"]
+        init_file = (haskey(configs, "init_file")) ? configs["init_file"] : nothing
 
         # If `read_restart` is true then read restart file: configs["rpointer_file"]
         # If not then initialize ocean with default profile if `initial_file`
@@ -60,9 +49,10 @@ module CESMCORE_SUPER_NKOM
         if read_restart
 
             println("`read_restart` is on")
-            checkDict!( configs, [
-                ("rpointer_file", true, (String,), nothing),
-            ])
+
+            if ! ("rpointer_file" in keys(configs))
+                throw(ErrorException("Cannot find `rpointer_file` in configs!"))
+            end
 
             if !isfile(configs["rpointer_file"])
                 throw(ErrorException(configs["rpointer_file"] * " does not exist!"))
@@ -84,7 +74,7 @@ module CESMCORE_SUPER_NKOM
         if typeof(init_file) <: AbstractString
 
             println("Initial ocean with profile: ", init_file)
-            occ = SUPER_NKOM.loadSnapshot(init_file)
+            occ = NKOM.loadSnapshot(init_file)
         
         else
 
@@ -94,50 +84,30 @@ module CESMCORE_SUPER_NKOM
 
         wksp = Workspace(occ.Nx, occ.Ny, occ.Nz_bone)
 
-        #
-        # If it is "datastream", entrainment speed w_e would be 
-        # calculated from h given. In fact there is no need
-        # to calculate w_e.
-        #
-        # If it is "prognostic", entrainment speed w_e would be
-        # calculated accroding to Niiler and Kraus dynamics.
-        #
-
-        if configs["MLD_scheme"] == "datastream"
-
-            wksp.h_ML = nothing
-            x2o = Dict(
-                "SWFLX"  => wksp.swflx,
-                "NSWFLX" => wksp.nswflx,
-                "FRWFLX" => wksp.frwflx,
-                "TFDIV"  => wksp.qflx,
-                "MLD"    => wksp.h_ML,
-            )
-
-        elseif configs["MLD_scheme"] == "prognostic"
-
-            x2o = Dict(
-                "SWFLX"  => wksp.swflx,
-                "NSWFLX" => wksp.nswflx,
-                "TAUX"  => wksp.taux,
-                "TAUY"  => wksp.tauy,
-                "IFRAC" => wksp.ifrac,
-                "FRWFLX" => wksp.frwflx,
-                "TFDIV"  => wksp.qflux,
-            )
-
-        end
-
-
-        if configs["Qflux_scheme"] == "off"
-            wksp.qflx = nothing
-        else
-            ErrorException("Unknown Qflux_scheme: ", configs["Qflux_scheme"]) |> throw
-        end
+        x2o = Dict(
+            "SWFLX"  => wksp.swflx,
+            "NSWFLX" => wksp.nswflx,
+            "TAUX"  => wksp.taux,
+            "TAUY"  => wksp.tauy,
+            "IFRAC" => wksp.ifrac,
+            "FRWFLX" => wksp.frwflx,
+        )
 
         o2x = Dict(
             "SST"      => occ.T_ML,
             "QFLX2ATM" => occ.qflx2atm,
+        )
+
+        output_vars = Dict(
+            #=
+            "rain"      => wksp.frwflx,
+            "mld"       => occ.h_ML,
+            "sst"       => occ.T_ML,
+            "qflx2atm"  => occ.qflx2atm,
+            "sumflx"    => wksp.sumflx,
+            "fric_u"    => wksp.fric_u,
+            "ifrac"     => wksp.ifrac,
+            =#
         )
         
         recorders = Dict()
@@ -161,13 +131,14 @@ module CESMCORE_SUPER_NKOM
             end
         end
 
-        return SUPER_NKOM_DATA(
+        return NKOM_DATA(
             casename,
             map,
             occ,
             x2o,
             o2x,
             configs,
+            output_vars,
             wksp,
             recorders,
         )
@@ -175,7 +146,7 @@ module CESMCORE_SUPER_NKOM
     end
 
     function run(
-        MD            :: SUPER_NKOM_DATA;
+        MD            :: NKOM_DATA;
         t             :: AbstractArray{Integer},
         t_cnt         :: Integer,
         t_flags       :: Dict,
@@ -234,34 +205,28 @@ module CESMCORE_SUPER_NKOM
             wksp.nswflx .*= -1.0
             wksp.swflx  .*= -1.0
 
-            if configs["MLD_scheme"] == "prognostic"
-                wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / SUPER_NKOM.ρ)
-                wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
-            end
+            #wksp.sumflx[:, :]  = wksp.nswflx
+            #wksp.sumflx      .+= wksp.swflx
+            
+            wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / NKOM.ρ)
+            wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
 
         end
 
-
-
-        SUPER_NKOM.stepOceanColumnCollection!(
+        NKOM.stepOceanColumnCollection!(
             MD.occ;
             fric_u = wksp.weighted_fric_u,
             swflx  = wksp.swflx,
             nswflx = wksp.nswflx,
             frwflx = wksp.frwflx,
-            qflx   = wksp.qflx,
-            h_ML   = wksp.h_ML,
             Δt     = Δt,
-            diffusion_Δt  = Δt * MD.configs["substeps"],
-            relaxation_Δt = Δt * MD.configs["substeps"],
-            do_diffusion  = (MD.configs["diffusion_scheme"] == "on" && substep == MD.configs["substeps"]),
-            do_relaxation = (MD.configs["relaxation_scheme"] == "on" && substep == MD.configs["substeps"]),
-            do_convadjust = MD.configs["convective_adjustment_scheme"] == "on",
+            diffusion_Δt = Δt * MD.configs["substeps"],
+            do_diffusion = (substep == MD.configs["substeps"]),
         )
 
         if write_restart
             restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
-            SUPER_NKOM.takeSnapshot(MD.occ, restart_file)
+            NKOM.takeSnapshot(MD.occ, restart_file)
              
             open(MD.configs["rpointer_file"], "w") do file
                 write(file, restart_file)
@@ -273,7 +238,7 @@ module CESMCORE_SUPER_NKOM
 
     end
 
-    function final(MD::SUPER_NKOM_DATA)
+    function final(MD::NKOM_DATA)
         
     end
 

@@ -28,6 +28,7 @@ lopts=(
     model
     init-config
     ocn-ncpu
+    ocn-branch
     qflux-file
 )
 
@@ -44,6 +45,11 @@ EOF
 echo "Making directories..."
 mkdir -p $code_output_dir
 mkdir -p $init_files_dir
+
+
+if [ -z "$ocn_branch" ] ; then
+    ocn_branch=master
+fi
 
 
 echo "Making initial files..."
@@ -104,7 +110,8 @@ $wk_dir/make_cesm_sugar_script.sh           \
     --model=$model                          \
     --init-config=$init_config              \
     --ocn-ncpu=$ocn_ncpu                    \
-    --qflux-file=$qflux_file 
+    --qflux-file=$qflux_file                \
+    --ocn-branch=$ocn_branch
 
     
 echo "Done."

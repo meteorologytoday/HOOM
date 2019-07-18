@@ -42,6 +42,8 @@ timeinfo_old = copy(timeinfo)
 timeinfo_old .= -1
 t_flags = Dict()
 
+ocn_run_time = 0.0
+ocn_run_N    = 0
 
 println("===== ", OMMODULE.name, " IS READY =====")
 
@@ -138,7 +140,10 @@ while true
 
         end
 
-        println(format("*** It takes {:.2f} secs. ***", cost))
+        global ocn_run_time += cost
+        global ocn_run_N += 1
+
+        println(format("*** It takes {:.2f} secs. (Avg: {:.2f} secs) ***", cost, ocn_run_time / ocn_run_N))
 
         writeBinary!(joinpath(configs["tmp_folder"], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
         writeBinary!(joinpath(configs["tmp_folder"], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)

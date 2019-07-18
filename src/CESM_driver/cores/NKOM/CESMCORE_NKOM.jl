@@ -3,6 +3,7 @@ module CESMCORE_NKOM
 
     include("Workspace_NKOM.jl")
     include(joinpath(@__DIR__, "..", "..", "..", "share", "RecordTool.jl"))
+    include(joinpath(@__DIR__, "..", "..", "..", "share", "CheckDict.jl"))
     include(joinpath(@__DIR__, "..", "..", "..", "share", "AppendLine.jl"))
 
     using Formatting
@@ -25,7 +26,6 @@ module CESMCORE_NKOM
 
         configs       :: Dict
 
-        output_vars :: Dict
         wksp        :: Workspace
 
         recorders   :: Dict
@@ -40,7 +40,18 @@ module CESMCORE_NKOM
         read_restart :: Bool,
     )
 
-        init_file = (haskey(configs, "init_file")) ? configs["init_file"] : nothing
+        checkDict!(configs, [
+            ("init_file",                    false, (nothing, String,),             nothing),
+            ("MLD_scheme",                    true, ("prognostic", "datastream",),  nothing),
+            ("Qflux_scheme",                  true, ("on", "off",),                 nothing),
+            ("diffusion_scheme",              true, ("on", "off",),                 nothing),
+            ("relaxation_scheme",             true, ("on", "off",),                 nothing),
+            ("convective_adjustment_scheme",  true, ("on", "off",),                 nothing),
+            ("daily_record",                  true, (Bool,),                        nothing),
+            ("monthly_record",                true, (Bool,),                        nothing),
+        ])
+
+        init_file = configs["init_file"]
 
         # If `read_restart` is true then read restart file: configs["rpointer_file"]
         # If not then initialize ocean with default profile if `initial_file`
@@ -49,10 +60,9 @@ module CESMCORE_NKOM
         if read_restart
 
             println("`read_restart` is on")
-
-            if ! ("rpointer_file" in keys(configs))
-                throw(ErrorException("Cannot find `rpointer_file` in configs!"))
-            end
+            checkDict!( configs, [
+                ("rpointer_file", true, (String,), nothing),
+            ])
 
             if !isfile(configs["rpointer_file"])
                 throw(ErrorException(configs["rpointer_file"] * " does not exist!"))
@@ -84,30 +94,48 @@ module CESMCORE_NKOM
 
         wksp = Workspace(occ.Nx, occ.Ny, occ.Nz_bone)
 
-        x2o = Dict(
-            "SWFLX"  => wksp.swflx,
-            "NSWFLX" => wksp.nswflx,
-            "TAUX"  => wksp.taux,
-            "TAUY"  => wksp.tauy,
-            "IFRAC" => wksp.ifrac,
-            "FRWFLX" => wksp.frwflx,
-        )
+        #
+        # If it is "datastream", entrainment speed w_e would be 
+        # calculated from h given. In fact there is no need
+        # to calculate w_e.
+        #
+        # If it is "prognostic", entrainment speed w_e would be
+        # calculated accroding to Niiler and Kraus dynamics.
+        #
+
+        if configs["MLD_scheme"] == "datastream"
+
+            x2o = Dict(
+                "SWFLX"  => wksp.swflx,
+                "NSWFLX" => wksp.nswflx,
+                "FRWFLX" => wksp.frwflx,
+                "TFDIV"  => wksp.qflx,
+                "MLD"    => wksp.h_ML,
+            )
+
+        elseif configs["MLD_scheme"] == "prognostic"
+
+            wksp.h_ML = nothing
+            x2o = Dict(
+                "SWFLX"  => wksp.swflx,
+                "NSWFLX" => wksp.nswflx,
+                "TAUX"  => wksp.taux,
+                "TAUY"  => wksp.tauy,
+                "IFRAC" => wksp.ifrac,
+                "FRWFLX" => wksp.frwflx,
+                "TFDIV"  => wksp.qflux,
+            )
+
+        end
+
+
+        if configs["Qflux_scheme"] == "off"
+            wksp.qflx = nothing
+        end
 
         o2x = Dict(
             "SST"      => occ.T_ML,
             "QFLX2ATM" => occ.qflx2atm,
-        )
-
-        output_vars = Dict(
-            #=
-            "rain"      => wksp.frwflx,
-            "mld"       => occ.h_ML,
-            "sst"       => occ.T_ML,
-            "qflx2atm"  => occ.qflx2atm,
-            "sumflx"    => wksp.sumflx,
-            "fric_u"    => wksp.fric_u,
-            "ifrac"     => wksp.ifrac,
-            =#
         )
         
         recorders = Dict()
@@ -122,7 +150,9 @@ module CESMCORE_NKOM
                     ), [
                         ("T",     occ.Ts, ("Nx", "Ny", "Nz_bone")),
                         ("S",     occ.Ss, ("Nx", "Ny", "Nz_bone")),
-                        ("MLD",   occ.h_ML, ("Nx", "Ny")),
+                        ("T_ML",  occ.T_ML, ("Nx", "Ny",)),
+                        ("S_ML",  occ.S_ML, ("Nx", "Ny",)),
+                        ("h_ML",  occ.h_ML, ("Nx", "Ny")),
                     ],
                 )
 
@@ -138,7 +168,6 @@ module CESMCORE_NKOM
             x2o,
             o2x,
             configs,
-            output_vars,
             wksp,
             recorders,
         )
@@ -205,13 +234,14 @@ module CESMCORE_NKOM
             wksp.nswflx .*= -1.0
             wksp.swflx  .*= -1.0
 
-            #wksp.sumflx[:, :]  = wksp.nswflx
-            #wksp.sumflx      .+= wksp.swflx
-            
-            wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / NKOM.ρ)
-            wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
+            if MD.configs["MLD_scheme"] == "prognostic"
+                wksp.fric_u .= sqrt.(sqrt.((wksp.taux).^2.0 .+ (wksp.tauy).^2.0) / NKOM.ρ)
+                wksp.weighted_fric_u .*= (1.0 .- wksp.ifrac)
+            end
 
         end
+
+
 
         NKOM.stepOceanColumnCollection!(
             MD.occ;
@@ -219,9 +249,14 @@ module CESMCORE_NKOM
             swflx  = wksp.swflx,
             nswflx = wksp.nswflx,
             frwflx = wksp.frwflx,
+            qflx   = wksp.qflx,
+            h_ML   = wksp.h_ML,
             Δt     = Δt,
-            diffusion_Δt = Δt * MD.configs["substeps"],
-            do_diffusion = (substep == MD.configs["substeps"]),
+            diffusion_Δt  = Δt * MD.configs["substeps"],
+            relaxation_Δt = Δt * MD.configs["substeps"],
+            do_diffusion  = (MD.configs["diffusion_scheme"] == "on" && substep == MD.configs["substeps"]),
+            do_relaxation = (MD.configs["relaxation_scheme"] == "on" && substep == MD.configs["substeps"]),
+            do_convadjust = MD.configs["convective_adjustment_scheme"] == "on",
         )
 
         if write_restart

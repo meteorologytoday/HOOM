@@ -2,8 +2,8 @@
 using Formatting
 
 function checkDict!(
-    d     :: AbstractArray,
-    infos :: AbstractArray,
+    d     :: Any,
+    infos :: Any,
 )
 
     for (key, required, valid_vts, default) in infos
@@ -28,7 +28,7 @@ function checkDict!(
             for valid_vt in valid_vts
 
                 if typeof(valid_vt) == DataType 
-                    if d[key] <: valid_vt
+                    if typeof(d[key]) <: valid_vt
                         pass = true
                     end
                 else
