@@ -4,22 +4,6 @@ mutable struct SubOCCInfo
     beg_x_idxs :: AbstractArray{Int64, 1}
 end
 
-function syncToMaster(occ::OceanColumnCollection)
-
-    global master_occ
-    
-    (master_occ.id == 0) || throw(ErrorException("`id` should not be 0 (master)."))
-
-    master_occ.Ts[rng3...] = occ.Ts
-    master_occ.Ss[rng3...] = occ.Ss
-
-    master_occ.FLDO[rng2...] = occ.FLDO
-    master_occ.T_ML[rng2...] = occ.T_ML
-    master_occ.S_ML[rng2...] = occ.S_ML
-    master_occ.h_ML[rng2...] = occ.h_ML
-
-end
-
 function makeSubOCC(
     occ :: OceanColumnCollection,
     block_id   :: Integer,
@@ -50,8 +34,8 @@ function makeSubOCC(
         we_max         = occ.we_max,
         Ts_clim_relax_time = occ.Ts_clim_relax_time,
         Ss_clim_relax_time = occ.Ss_clim_relax_time,
-        Ts_clim        = occ.Ts_clim[rng3...],
-        Ss_clim        = occ.Ss_clim[rng3...],
+        Ts_clim        = ( occ.Ts_clim != nothing ) ? occ.Ts_clim[rng3...] : nothing,
+        Ss_clim        = ( occ.Ss_clim != nothing ) ? occ.Ss_clim[rng3...] : nothing,
         mask           = occ.mask[rng2...],
         topo           = occ.topo[rng2...],
         fs             = occ.fs[rng2...],
@@ -63,30 +47,32 @@ function makeSubOCC(
 end
 
 function init(
-    master_occ::OceanColumnCollection,
+    occ::OceanColumnCollection,
 )
- 
-    (master_occ.id != 0) || throw(ErrorException("`id` is not 0 (master)."))
 
-    sub_Nx = ceil(Integer, master_occ.Nx / nworkers())
+    println("Number of workers: ", nworkers())
+
+    (occ.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(occ.id)))
+
+    sub_Nx = ceil(Integer, occ.Nx / nworkers())
     sub_Nxs = [sub_Nx for block_id = 1:nworkers()]
-    sub_Nxs[end] = master_occ.Nx - (nworkers()-1) * sub_Nx
+    sub_Nxs[end] = occ.Nx - (nworkers()-1) * sub_Nx
 
     beg_x_idxs = [sub_Nx * (block_id - 1) + 1 for block_id = 1:nworkers()]
 
     global sub_occ_info = SubOCCInfo(sub_Nxs, beg_x_idxs)
 
     @sync for (i, p) in enumerate(workers())
-
+        
         # We have P processors, N workers, N blocks
         # Block ids are numbered from 1 to N
-        @spawnat p makeSubOCC(master_occ, i, beg_x_idxs[i], sub_Nxs[i])
+        @spawnat p makeSubOCC(occ, i, beg_x_idxs[i], sub_Nxs[i])
 
     end
 end
 
-function run(
-    master_occ    :: OceanColumnCollection;
+function run!(
+    occ    :: OceanColumnCollection;
     use_qflx      :: Bool,
     use_h_ML      :: Bool,
     Δt            :: Float64,
@@ -97,7 +83,7 @@ function run(
     do_convadjust :: Bool = true, 
 )
 
-    (master_occ.id != 0) || throw(ErrorException("`id` is not 0 (master)."))
+    (occ.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(occ.id)))
     
     for (i, p) in enumerate(workers())
 
@@ -116,10 +102,29 @@ function run(
     end
 end
 
+function syncToMaster(occ::OceanColumnCollection)
+
+    global master_occ
+    
+    (occ.id != 0) || throw(ErrorException("`id` should not be 0 (master)."))
+
+    master_occ.Ts[rng3...] = occ.Ts
+    master_occ.Ss[rng3...] = occ.Ss
+
+    master_occ.FLDO[rng2...] = occ.FLDO
+    master_occ.T_ML[rng2...] = occ.T_ML 
+    master_occ.S_ML[rng2...] = occ.S_ML
+    master_occ.h_ML[rng2...] = occ.h_ML
+
+    #master_occ.T_ML[rng2...] .+= 10.0 * rand()
+    #println( pointer_from_objref(master_occ.T_ML))
+end
+
+
 function sync!(
-    master_occ :: OceanColumnCollection;
+    occ :: OceanColumnCollection;
 )
-    (master_occ.id != 0) || throw(ErrorException("`id` is not 0 (master)."))
+    (occ.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(occ.id)))
 
     @sync for (i, p) in enumerate(workers())
         @spawnat p NKOM.syncToMaster(worker_occ)

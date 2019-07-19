@@ -1,20 +1,4 @@
-"""
 
-    stepOceanColumn!(;
-
-        occ    :: OceanColumnCollection;
-        fric_u :: AbstractArray{Float64, 2}, # Currently assumed to be u10
-        swflx  :: AbstractArray{Float64, 2}, # Shortwave     energy flux at the surface (     J  / s m^2)
-        nswflx :: AbstractArray{Float64, 2}, # Non-shortwave energy flux at the surface (     J  / s m^2)
-        frwflx :: AbstractArray{Float64, 2}, # Freshwater           flux at the surface (     m  / s m^2)
-        Δt     :: Float64, 
-
-    )
-
-# Description
-This function update the OceanColumnCollection forward in time.
-
-"""
 function stepOceanColumnCollection!(
     occ           :: OceanColumnCollection;
     use_qflx      :: Bool,
@@ -33,7 +17,8 @@ function stepOceanColumnCollection!(
     frwflx  = occ.in_flds.frwflx
     qflx    = occ.in_flds.qflx
     h_ML    = occ.in_flds.h_ML
- 
+
+
     # It is assumed here that buoyancy has already been updated.
     for grid_idx in 1:size(occ.valid_idx)[2]
 
@@ -58,6 +43,7 @@ function stepOceanColumnCollection!(
 
 
         total_Tflx = ( swflx[i, j] + nswflx[i, j] + ( ( use_qflx ) ? qflx[i, j] : 0.0 )) / (ρ*c_p) 
+        #total_Tflx = ( -100.0 ) / (ρ*c_p) 
         total_Sflx = - frwflx[i, j] * S_surf_avg
         total_bflx = g * ( α * total_Tflx - β * total_Sflx )
         
@@ -133,9 +119,10 @@ function stepOceanColumnCollection!(
             end
         end
 
+        old_T_ML = occ.T_ML[i, j]
+
         new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - total_Tflx * Δt) / new_h_ML
         new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - total_Sflx * Δt) / new_h_ML
-
 
         OC_setMixedLayer!(
             occ, i, j;

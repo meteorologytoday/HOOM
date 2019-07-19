@@ -144,11 +144,12 @@ module CESMCORE_NKOM
                         "Ny" => occ.Ny,
                         "Nz_bone" => occ.Nz_bone,
                     ), [
-                        ("T",     occ.Ts, ("Nx", "Ny", "Nz_bone")),
-                        ("S",     occ.Ss, ("Nx", "Ny", "Nz_bone")),
+                        #("T",     occ.Ts, ("Nx", "Ny", "Nz_bone")),
+                        #("S",     occ.Ss, ("Nx", "Ny", "Nz_bone")),
                         ("T_ML",  occ.T_ML, ("Nx", "Ny",)),
-                        ("S_ML",  occ.S_ML, ("Nx", "Ny",)),
-                        ("h_ML",  occ.h_ML, ("Nx", "Ny")),
+                        #("S_ML",  occ.S_ML, ("Nx", "Ny",)),
+                        #("h_ML",  occ.h_ML, ("Nx", "Ny")),
+                        #("nswflx",  occ.in_flds.nswflx, ("Nx", "Ny")),
                     ],
                 )
 
@@ -164,7 +165,6 @@ module CESMCORE_NKOM
             x2o,
             o2x,
             configs,
-            in_flds,
             recorders,
         )
 
@@ -236,8 +236,8 @@ module CESMCORE_NKOM
             end
 
         end
-
-        NKOM.stepOceanColumnCollection!(
+       
+        NKOM.run!(
             MD.occ;
             use_qflx      = MD.configs["Qflux_scheme"] == "on",
             use_h_ML      = MD.configs["MLD_scheme"] == "datastream",
@@ -249,11 +249,9 @@ module CESMCORE_NKOM
             do_convadjust = MD.configs["convective_adjustment_scheme"] == "on",
         )
 
-        if substep == configs["substeps"]
-            NKOM.sync!(MD.occ)
-        end
-
-
+        # Force workers to update master's profile        
+        NKOM.sync!(MD.occ)
+        
         if write_restart
             restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
             NKOM.takeSnapshot(MD.occ, restart_file)

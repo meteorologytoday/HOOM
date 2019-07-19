@@ -26,7 +26,7 @@ PTI = ProgramTunnelInfo(
     path             = configs["tmp_folder"],
     timeout          = configs["timeout"],
     buffer           = 0.1,
-    recv_first_sleep = 2.0,
+    recv_first_sleep = 0.1,
     reverseRole      = true,
 )
 

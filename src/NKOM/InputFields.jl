@@ -14,7 +14,7 @@ end
 
 function InputFields(datakind::Symbol, Nx::Integer, Ny::Integer)
 
-    return new(
+    return InputFields(
         allocate(datakind, Float64, Nx, Ny),
         allocate(datakind, Float64, Nx, Ny),
         allocate(datakind, Float64, Nx, Ny),
@@ -30,7 +30,7 @@ function InputFields(datakind::Symbol, Nx::Integer, Ny::Integer)
 end
 
 function SubInputFields(in_flds, rngs...)
-    return new(
+    return InputFields(
         view( in_flds.taux,            rngs...), 
         view( in_flds.tauy,            rngs...), 
         view( in_flds.fric_u,          rngs...), 
