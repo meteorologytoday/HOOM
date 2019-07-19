@@ -1,4 +1,5 @@
 
+
 mutable struct OceanColumnCollection
 
     id       :: Integer  # 1 = master, 2, ..., N = workers
@@ -63,7 +64,7 @@ mutable struct OceanColumnCollection
     in_flds :: InputFields
 
     function OceanColumnCollection(;
-        id       :: Integer, 
+        id       :: Integer = 0, 
         gridinfo_file :: Union{AbstractString, Nothing},
         Nx       :: Integer,
         Ny       :: Integer,
@@ -86,7 +87,8 @@ mutable struct OceanColumnCollection
         topo     :: Union{AbstractArray{Float64, 2}, Nothing},
         fs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
         ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
-        in_flds  :: Union{InputFields, Nothing},
+        in_flds  :: Union{InputFields, Nothing} = nothing,
+        arrange  :: AbstractString = "zxy",
     )
 
         # Determine whether data should be local or shared (parallelization)
@@ -210,9 +212,9 @@ mutable struct OceanColumnCollection
         Nz_bone = length(zs_bone) - 1
 
         Nz   = allocate(datakind, Int64, Nx, Ny)
-        zs   = allocate(datakind, Float64, Nx, Ny, Nz_bone + 1)
-        hs   = allocate(datakind, Float64, Nx, Ny, Nz_bone)
-        Δzs  = allocate(datakind, Float64, Nx, Ny, Nz_bone - 1)
+        zs   = allocate(datakind, Float64, Nz_bone + 1, Nx, Ny)
+        hs   = allocate(datakind, Float64, Nz_bone    , Nx, Ny)
+        Δzs  = allocate(datakind, Float64, Nz_bone - 1, Nx, Ny)
 
         zs  .= NaN
         Nz  .= 0
@@ -241,14 +243,14 @@ mutable struct OceanColumnCollection
             Nz[i, j] = _Nz
 
             # Construct vertical coordinate
-            zs[i, j, 1:_Nz] = zs_bone[1:_Nz]
+            zs[1:_Nz, i, j] = zs_bone[1:_Nz]
 
-            zs[i, j, _Nz+1] = max(_topo[i, j], zs_bone[_Nz+1])
+            zs[_Nz+1, i, j] = max(_topo[i, j], zs_bone[_Nz+1])
 
             # Construct thickness of each layer
-            hs[ i, j, 1:_Nz]  = zs[i, j, 1:_Nz] - zs[i, j, 2:_Nz+1]
-            Δzs[i, j, 1:_Nz-1] = (hs[i, j, 1:_Nz-1] + hs[i, j, 2:_Nz]) / 2.0
-            
+            hs[ 1:_Nz,   i, j] = zs[1:_Nz, i, j] - zs[2:_Nz+1, i, j]
+            Δzs[1:_Nz-1, i, j] = (hs[1:_Nz-1, i, j] + hs[2:_Nz, i, j]) / 2.0
+           
         end
         
         # ===== [END] z coordinate =====
@@ -260,9 +262,9 @@ mutable struct OceanColumnCollection
         _S_ML     = allocate(datakind, Float64, Nx, Ny)
         _h_ML     = allocate(datakind, Float64, Nx, Ny)
 
-        _bs       = allocate(datakind, Float64, Nx, Ny, Nz_bone)
-        _Ts       = allocate(datakind, Float64, Nx, Ny, Nz_bone)
-        _Ss       = allocate(datakind, Float64, Nx, Ny, Nz_bone)
+        _bs       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _Ts       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _Ss       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _FLDO     = allocate(datakind, Int64, Nx, Ny)
         qflx2atm  = allocate(datakind, Float64, Nx, Ny)
 
@@ -288,20 +290,20 @@ mutable struct OceanColumnCollection
         end
 
         if typeof(Ts) <: AbstractArray{Float64, 3}
-            _Ts[:, :, :] = Ts
+            _Ts[:, :, :] = toZXY(Ts, arrange)
         elseif typeof(Ts) <: AbstractArray{Float64, 1}
             for i=1:Nx, j=1:Ny
-                _Ts[i, j, :] = Ts
+                _Ts[:, i, j] = Ts
             end
         elseif typeof(Ts) <: Float64 
             _Ts .= Ts
         end
 
         if typeof(Ss) <: AbstractArray{Float64, 3}
-            _Ss[:, :, :] = Ss
+            _Ss[:, :, :] = toZXY(Ss, arrange)
         elseif typeof(Ss) <: AbstractArray{Float64, 1}
             for i=1:Nx, j=1:Ny
-                _Ss[i, j, :] = Ss
+                _Ss[:, i, j] = Ss
             end
         elseif typeof(Ss) <: Float64 
             _Ss .= Ss
@@ -354,16 +356,16 @@ mutable struct OceanColumnCollection
 
         else
             
-            _Ts_clim = allocate(datakind, Float64, Nx, Ny, Nz_bone)
+            _Ts_clim = allocate(datakind, Float64, Nz_bone, Nx, Ny)
             
             if typeof(Ts_clim) <: AbstractArray{Float64, 3}
 
-                _Ts_clim[:, :, :] = Ts_clim
+                _Ts_clim[:, :, :] = toZXY(Ts_clim, arrange)
 
             elseif typeof(Ts_clim) <: AbstractArray{Float64, 1}
 
                 for i=1:Nx, j=1:Ny
-                    _Ts_clim[i, j, :] = Ts_clim
+                    _Ts_clim[:, i, j] = Ts_clim
                 end
 
             end
@@ -377,16 +379,16 @@ mutable struct OceanColumnCollection
 
         else
             
-            _Ss_clim = allocate(datakind, Float64, Nx, Ny, Nz_bone)
+            _Ss_clim = allocate(datakind, Float64, Nz_bone, Nx, Ny)
             
             if typeof(Ss_clim) <: AbstractArray{Float64, 3}
 
-                _Ss_clim[:, :, :] = Ss_clim
+                _Ss_clim[:, :, :] = toZXY(Ss_clim, arrange)
 
             elseif typeof(Ss_clim) <: AbstractArray{Float64, 1}
 
                 for i=1:Nx, j=1:Ny
-                    _Ss_clim[i, j, :] = Ss_clim
+                    _Ss_clim[:, i, j] = Ss_clim
                 end
 
             end
@@ -402,10 +404,10 @@ mutable struct OceanColumnCollection
         Ss_vw = Array{SubArray}(undef, Nx, Ny)
 
         for i=1:Nx, j=1:Ny
-            zs_vw[i, j]      = view(zs,  i, j, :)
-            bs_vw[i, j]      = view(_bs, i, j, :)
-            Ts_vw[i, j]      = view(_Ts, i, j, :)
-            Ss_vw[i, j]      = view(_Ss, i, j, :)
+            zs_vw[i, j]      = view(zs,  :, i, j)
+            bs_vw[i, j]      = view(_bs, :, i, j)
+            Ts_vw[i, j]      = view(_Ts, :, i, j)
+            Ss_vw[i, j]      = view(_Ss, :, i, j)
         end
 
         Ts_clim_vw = nothing
@@ -414,14 +416,14 @@ mutable struct OceanColumnCollection
         if Ts_clim != nothing
             Ts_clim_vw = Array{SubArray}(undef, Nx, Ny)
             for i=1:Nx, j=1:Ny
-                Ts_clim_vw[i, j] = view(_Ts_clim, i, j, :)
+                Ts_clim_vw[i, j] = view(_Ts_clim, :, i, j)
             end
         end
  
         if Ss_clim != nothing
             Ss_clim_vw = Array{SubArray}(undef, Nx, Ny)
             for i=1:Nx, j=1:Ny
-                Ss_clim_vw[i, j] = view(_Ss_clim, i, j, :)
+                Ss_clim_vw[i, j] = view(_Ss_clim, :, i, j)
             end
         end
      
@@ -429,12 +431,12 @@ mutable struct OceanColumnCollection
 
         # ===== [BEGIN] Mask out data =====
 
-        mask3 = zeros(Int64, Nx, Ny, Nz_bone)
+        mask3 = zeros(Int64, Nz_bone, Nx, Ny)
         mask3 .= 1
 
         # Clean up all variables
         for i=1:Nx, j=1:Ny
-            mask3[i, j, Nz[i, j] + 1:end] .= 0 
+            mask3[Nz[i, j] + 1:end, i, j] .= 0 
         end
 
         println("sum of mask3: ", sum(mask3))
@@ -465,11 +467,11 @@ mutable struct OceanColumnCollection
                 continue
             end
 
-            if ! (-_h_ML_min[i, j] >= - _h_ML_max[i, j] >= zs[i, j, Nz[i, j] + 1] >= _topo[i, j])
+            if ! (-_h_ML_min[i, j] >= - _h_ML_max[i, j] >= zs[Nz[i, j] + 1, i, j] >= _topo[i, j])
                 println("idx: (", i, ", ", j, ")")
                 println("h_ML_min: ", _h_ML_min[i, j])
                 println("h_ML_max: ", _h_ML_max[i, j])
-                println("z_deepest: ", zs[i, j, Nz[i, j] + 1])
+                println("z_deepest: ", zs[Nz[i, j] + 1, i, j])
                 println("topo: ", _topo[i, j])
                 ErrorException("Relative relation is wrong") |> throw
             end
@@ -552,6 +554,7 @@ mutable struct OceanColumnCollection
 
 end
 
+#=
 function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
 
     if (fr_occ.Nx, fr_occ.Ny, fr_occ.Nz_bone) != (to_occ.Nx, to_occ.Ny, to_occ.Nz_bone)
@@ -596,3 +599,4 @@ function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
     to_occ.Δzs[:, :, :]     = fr_occ.Δzs
 
 end
+=#

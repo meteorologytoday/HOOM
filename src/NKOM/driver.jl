@@ -13,9 +13,9 @@ function makeSubOCC(
 
     global master_occ = occ
     global rng2 = [beg_x_idx:beg_x_idx+sub_Nx-1, Colon()]
-    global rng3 = [beg_x_idx:beg_x_idx+sub_Nx-1, Colon(), Colon()]
+    global rng3 = [Colon(), beg_x_idx:beg_x_idx+sub_Nx-1, Colon()]
+    global master_sub_in_flds = SubInputFields(occ.in_flds, rng2...)
    
- 
     global worker_occ = OceanColumnCollection(
         id             = block_id,
         gridinfo_file  = nothing,
@@ -40,7 +40,9 @@ function makeSubOCC(
         topo           = occ.topo[rng2...],
         fs             = occ.fs[rng2...],
         ϵs             = occ.ϵs[rng2...],
-        in_flds        = SubInputFields(occ.in_flds, rng2...)
+        in_flds        = InputFields(:local, sub_Nx, occ.Ny),
+        #in_flds        = SubInputFields(occ.in_flds, :local, rng2...),
+        arrange        = "zxy",
     )
 
 
@@ -86,6 +88,8 @@ function run!(
     (occ.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(occ.id)))
     
     for (i, p) in enumerate(workers())
+
+        @fetchfrom p copyfrom!(worker_occ.in_flds, master_sub_in_flds)
 
         ( @fetchfrom p NKOM.stepOceanColumnCollection!(
             worker_occ,

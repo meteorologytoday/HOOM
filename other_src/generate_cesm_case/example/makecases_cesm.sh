@@ -22,7 +22,7 @@ init_files_dir=$pwd_dir/init_cond
 cesm_env=$pwd_dir/env_settings.sh
 
 ocn_ncpu=2
-ocn_branch=dev/super-NKOM
+ocn_branch=master
 
 model_settings=(
     NKOM  xQflux        ""

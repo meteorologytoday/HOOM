@@ -37,6 +37,7 @@ end
 
     @hinclude("setOceanColumn.jl")
     @hinclude("takeSnapshot.jl")
+    @hinclude("rearrange.jl")
 
 
     @hinclude("driver.jl")

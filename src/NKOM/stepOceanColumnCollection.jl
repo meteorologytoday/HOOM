@@ -53,7 +53,7 @@ function stepOceanColumnCollection!(
         
         old_FLDO = occ.FLDO[i, j]
         old_h_ML = occ.h_ML[i, j]
-        Δb = (old_FLDO != -1) ? occ.b_ML[i, j] - occ.bs[i, j, old_FLDO] : 0.0
+        Δb = (old_FLDO != -1) ? occ.b_ML[i, j] - occ.bs[old_FLDO, i, j] : 0.0
 
 
         # 2019/07/17 comment these code out. Keep it here just in case.
@@ -97,19 +97,19 @@ function stepOceanColumnCollection!(
 
             if old_FLDO == -1
 
-                occ.Ts[i, j, new_FLDO:Nz] .= occ.T_ML[i, j]
-                occ.Ss[i, j, new_FLDO:Nz] .= occ.S_ML[i, j]
+                occ.Ts[new_FLDO:Nz, i, j] .= occ.T_ML[i, j]
+                occ.Ss[new_FLDO:Nz, i, j] .= occ.S_ML[i, j]
 
             else
                 FLDO_Δz =  -zs[old_FLDO+1] - old_h_ML
                 retreat_Δz =  old_h_ML - ( (new_FLDO == old_FLDO) ? new_h_ML : (-zs[old_FLDO]) )
 
-                occ.Ts[i, j, new_FLDO] = (
-                    occ.Ts[i, j, old_FLDO] * FLDO_Δz + occ.T_ML[i, j] * retreat_Δz
+                occ.Ts[new_FLDO, i, j] = (
+                    occ.Ts[old_FLDO, i, j] * FLDO_Δz + occ.T_ML[i, j] * retreat_Δz
                 ) / (FLDO_Δz + retreat_Δz)
 
-                occ.Ss[i, j, new_FLDO] = (
-                    occ.Ss[i, j, old_FLDO] * FLDO_Δz + occ.S_ML[i, j] * retreat_Δz
+                occ.Ss[new_FLDO, i, j] = (
+                    occ.Ss[old_FLDO, i, j] * FLDO_Δz + occ.S_ML[i, j] * retreat_Δz
                 ) / (FLDO_Δz + retreat_Δz)
             end
         end

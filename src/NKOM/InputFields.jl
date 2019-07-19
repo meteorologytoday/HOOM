@@ -29,7 +29,10 @@ function InputFields(datakind::Symbol, Nx::Integer, Ny::Integer)
     )
 end
 
-function SubInputFields(in_flds, rngs...)
+function SubInputFields(
+    in_flds :: InputFields,
+    rngs...
+)
     return InputFields(
         view( in_flds.taux,            rngs...), 
         view( in_flds.tauy,            rngs...), 
@@ -43,6 +46,24 @@ function SubInputFields(in_flds, rngs...)
         view( in_flds.qflx,            rngs...), 
         view( in_flds.h_ML,            rngs...), 
     )
-       
+end
+
+function copyfrom!(
+    dst::InputFields,
+    src::InputFields,
+)
+
+    dst.taux[:] = src.taux
+    dst.tauy[:] = src.tauy
+    dst.fric_u[:] = src.fric_u
+    dst.weighted_fric_u[:] = src.weighted_fric_u
+    dst.nswflx[:] = src.nswflx
+    dst.swflx[:] = src.swflx
+    dst.sumflx[:] = src.sumflx
+    dst.ifrac[:] = src.ifrac
+    dst.frwflx[:] = src.frwflx
+    dst.qflx[:] = src.qflx
+    dst.h_ML[:] = src.h_ML
+
 end
 
