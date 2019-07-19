@@ -31,6 +31,11 @@ model_settings=(
     NKOM  SOM_xQflux    "$raw_data_dir/pop_frc.gx3v7.110128.nc"
 )
 
+model_settings=(
+    NKOM  xQflux        ""
+)
+
+
 #model_settings=(
 #    ESOM  default
 #)

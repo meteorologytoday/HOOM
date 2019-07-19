@@ -109,13 +109,16 @@ if [ "\$user_namelist_dir" != "" ]; then
     cp \$user_namelist_dir/user_nl_* .
 fi
 
+if [ ! -z "\$qflux_file" ]; then
 
-FORCING_DIR=\$( dirname \$qflux_file )
-FORCING_FILENAME=\$( basename \$qflux_file )
+    FORCING_DIR=\$( dirname \$qflux_file )
+    FORCING_FILENAME=\$( basename \$qflux_file )
 
-cat << XEOFX > user_docn.streams.txt.som
-$( echo "$( cat $wk_dir/docn_stream.txt )" )
+    cat << XEOFX > user_docn.streams.txt.som
+    $( echo "$( cat $wk_dir/docn_stream.txt )" )
 XEOFX
+
+fi
 
 cat << XEOFX > config.jl
 
