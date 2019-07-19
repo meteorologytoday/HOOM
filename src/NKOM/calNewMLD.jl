@@ -31,28 +31,40 @@ This function returns a list with two elements. The first is a symbol. ``:we`` i
 """
 function calNewMLD(;
     h_ML   :: Float64,
-    B      :: Float64, 
-    fric_u :: Float64,  
+    Bf     :: Float64,    # sum of sensible heat fluxes and longwave radiation flux
+    J0     :: Float64,    # shortwave radiation fluxe
+    fric_u :: Float64,
     Δb     :: Float64,
     f      :: Float64,
     Δt     :: Float64,
+    γ      :: Float64,    # inverse of decay scale length of shortwave penetration
     m::Float64 = 0.8,
     n::Float64 = 0.20,
+    h_init :: Float64 = 1000.0,
 )
-
 
     if Δb < 0
         throw(ErrorException("Δb cannot be negative. Right now Δb = ", Δb))
     end
 
-    Term1 = 2.0 * m * fric_u^3.0 * exp( -h_ML / (fric_u / abs(f)))
-    #Term2 =   0.5 * (B * (1.0 + n) + abs(B) * (1.0 - n))
-    Term2 = - 0.5 * (B * (1.0 + n) - abs(B) * (1.0 - n))
-    RHS = Term1 - h_ML * Term2
+    #
+    # Transform the equation of entrainment into the form
+    # we (h_ML × Δb + k) =  a exp(-h / λ) + b h + c S(h, γ) := Δ
+    #
+    # where Δ is called "determinant"
+    #       a       = 2 m u_fric^3
+    #       b       = Bf
+    #       c       = J0
+    #       S(h, γ) = h - 2/γ + exp(-γh) (h + 2/γ)
+    #       λ       = fric_u / abs(f)
+    #
+    
+    a, λ = calΔCoefficients(u_fric, f, m)
+    Δ = calΔ(h_ML, a, Bf, J0, λ, γ)
 
-    if RHS > 0
+    if Δ > 0
         k = getTKE(fric_u=fric_u)
-        we = RHS / (h_ML * Δb + k)
+        we = Δ / (h_ML * Δb + k)
         #if we > 1e-3
         #    println("we abnormally large: ", we)
         #end
@@ -61,16 +73,83 @@ function calNewMLD(;
     else
 
         # h becomes diagnostic.
-       
-        if Term2 == 0
-            h_ML_diag = h_ML
-        else
-            h_ML_diag = Term1 / Term2
-        end
-    
-        return h_ML_diag
+        #
+        return solveMoninObuhkovLength(h_init, a, Bf, J0, λ, γ)
     end
 
 end
 
+@inline function calΔCoefficients(
+    u_fric::Float64,
+    f::Float64,
+    m::Float64,
+)
+    return 2.0 * m * u_fric, u_fric / abs(f) 
+end
 
+@inline function calΔ(
+    h::Float64,
+    a::Float64,
+    b::Float64,
+    c::Float64,
+    λ::Float64,
+    γ::Float64,
+) 
+    return a * exp(-h/λ) + b * h + c * S(h,γ)
+end
+
+@inline function cal∂Δ∂h(
+    h::Float64,
+    a::Float64,
+    b::Float64,
+    c::Float64,
+    λ::Float64,
+    γ::Float64,
+)
+    return - a / λ * exp(-h / λ) + b + c ∂S∂h(h, γ)
+end
+
+
+@inline function S(h::Float64, γ::Float64)
+    return h - 2.0 / γ + exp(-h*γ) * (h + 2.0 / γ)
+end
+
+@inline function ∂S∂h(h::Float64, γ::Float64)
+    return 1 - exp(-h*γ) * (1 + h*γ)
+end
+
+
+function solveMoninObuhkovLength(
+    h      :: Float64,   # initial guess
+    a      :: Float64,
+    b      :: Float64,
+    c      :: Float64,
+    λ      :: Float64,
+    γ      :: Float64;
+    η      :: Float64 = 0.01,  # relative increment threshold = 1%
+    δh_max :: Float64 = 0.01,  # absolute increment threshold = 1cm
+    max    :: Integer = 100,
+)
+
+    if_converge = false
+    prev_δh = 0.0
+
+    for i=1:max
+        Δ    = calΔ(h, a, b, c, λ, γ)
+        ∂Δ∂h = cal∂Δ∂h(h, a, b, c, λ, γ)
+        δh = - Δ / ∂Δ∂h
+
+        if abs((δh - prev_δh) / prev_δh) >= η || abs(δh) >= δh_max
+            h, prev_δh = h + δh, δh
+        else
+            if_converge = true
+            break
+        end
+    end
+    
+    if if_converge
+        return h
+    else
+        throw(ErrorException("Monin-Obuhkov length iteration cannot converge"))
+    end
+end

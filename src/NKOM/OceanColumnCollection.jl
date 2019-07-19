@@ -41,6 +41,13 @@ mutable struct OceanColumnCollection
     h_ML_max :: AbstractArray{Float64, 2}
     we_max   :: Float64
 
+    # Radiation
+    γ_inv    :: Float64   # Light penetration depth
+    γ        :: Float64   # Inverse of light penetration depth
+    rad_decay_coe  :: AbstractArray{Float64, 3}
+    rad_absorb_coe :: AbstractArray{Float64, 3}
+    
+
     # Climatology states
     Ts_clim_relax_time :: Union{Float64, Nothing}
     Ss_clim_relax_time :: Union{Float64, Nothing}
@@ -79,6 +86,7 @@ mutable struct OceanColumnCollection
         h_ML_min :: Union{AbstractArray{Float64, 2}, Float64},
         h_ML_max :: Union{AbstractArray{Float64, 2}, Float64},
         we_max   :: Float64,
+        γ_inv    :: Float64,
         Ts_clim_relax_time :: Union{Float64, Nothing},
         Ss_clim_relax_time :: Union{Float64, Nothing},
         Ts_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
@@ -311,6 +319,24 @@ mutable struct OceanColumnCollection
 
         # ===== [END] Column information =====
 
+        # ===== [BEGIN] Radiation =====
+
+        γ = 1.0 / γ_inv
+        _rad_decay_coe  = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _rad_absorb_coe = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+
+        for i=1:Nx, j=1:Ny
+            for k=1:_Nz[i, j]
+                _rad_decay_coe[k, i, j]  = exp(- γ * hs[k, i, j])
+                _rad_absorb_coe[k, i, j] = 1.0 - _rad_decay_coe[k, i, j] 
+            end
+        end
+
+
+        # ===== [END] Radiation =====
+
+
+
         # ===== [BEG] GridInfo =====
 
         if gridinfo_file != nothing
@@ -534,6 +560,8 @@ mutable struct OceanColumnCollection
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,
+            γ_inv, γ,
+            _rad_decay_coe, _rad_absorb_coe,
             Ts_clim_relax_time, Ss_clim_relax_time,
             _Ts_clim, _Ss_clim,
             Nx * Ny, hs, Δzs,

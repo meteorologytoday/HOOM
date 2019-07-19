@@ -40,6 +40,7 @@ function loadSnapshot(
             h_ML_min = nomissing(ds["h_ML_min"][:], NaN),
             h_ML_max = nomissing(ds["h_ML_max"][:], NaN),
             we_max   = ds.attrib["we_max"],
+            γ_inv    = ds.attrib["gamma_inv"],
             Ts_clim_relax_time = Ts_clim_relax_time,
             Ss_clim_relax_time = Ss_clim_relax_time,
             Ts_clim  = Ts_clim,
@@ -69,6 +70,7 @@ function takeSnapshot(
         ds.attrib["K_S"] = occ.K_S
 
         ds.attrib["we_max"] = occ.we_max
+        ds.attrib["gamma_inv"] = occ.γ_inv
 
         if occ.Ts_clim_relax_time != nothing
             ds.attrib["Ts_clim_relax_time"] = occ.Ts_clim_relax_time

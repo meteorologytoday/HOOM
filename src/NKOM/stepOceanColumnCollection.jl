@@ -9,7 +9,8 @@ function stepOceanColumnCollection!(
     relaxation_Δt :: Float64,
     do_diffusion  :: Bool = true, 
     do_relaxation :: Bool = true, 
-    do_convadjust :: Bool = true, 
+    do_convadjust :: Bool = true,
+    do_radiation_decay :: Bool = false, 
 )
 
     fric_u  = occ.in_flds.weighted_fric_u
