@@ -184,7 +184,7 @@ while true
     else
         OMMODULE.crash(OMDATA) 
         sendText(PTI, "CRASH")
-        throw(ErrorException("Unknown status: stage " * stage * ", MSG: " * String(msg["MSG"])))
+        throw(ErrorException("Unknown status: stage " * string(stage) * ", MSG: " * string(msg["MSG"])))
     end
 
     flush(stdout)

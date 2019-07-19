@@ -122,7 +122,7 @@ module CESMCORE_NKOM
                 "TAUY"  => in_flds.tauy,
                 "IFRAC" => in_flds.ifrac,
                 "FRWFLX" => in_flds.frwflx,
-                "TFDIV"  => in_flds.qflux,
+                "TFDIV"  => in_flds.qflx,
             )
 
         end
@@ -144,12 +144,11 @@ module CESMCORE_NKOM
                         "Ny" => occ.Ny,
                         "Nz_bone" => occ.Nz_bone,
                     ), [
-                        #("T",     occ.Ts, ("Nx", "Ny", "Nz_bone")),
-                        #("S",     occ.Ss, ("Nx", "Ny", "Nz_bone")),
+                        ("T",     occ.Ts, ("Nx", "Ny", "Nz_bone")),
+                        ("S",     occ.Ss, ("Nx", "Ny", "Nz_bone")),
                         ("T_ML",  occ.T_ML, ("Nx", "Ny",)),
-                        #("S_ML",  occ.S_ML, ("Nx", "Ny",)),
-                        #("h_ML",  occ.h_ML, ("Nx", "Ny")),
-                        #("nswflx",  occ.in_flds.nswflx, ("Nx", "Ny")),
+                        ("S_ML",  occ.S_ML, ("Nx", "Ny",)),
+                        ("h_ML",  occ.h_ML, ("Nx", "Ny")),
                     ],
                 )
 

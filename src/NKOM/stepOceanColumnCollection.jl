@@ -1,3 +1,4 @@
+using Statistics
 
 function stepOceanColumnCollection!(
     occ           :: OceanColumnCollection;
@@ -18,9 +19,13 @@ function stepOceanColumnCollection!(
     qflx    = occ.in_flds.qflx
     h_ML    = occ.in_flds.h_ML
 
+    #x = nswflx + swflx
+    #println("Mean of energy flx: ", mean(x[isfinite.(x)]))
+    #println("use_h_ML: ", use_h_ML)
 
     # It is assumed here that buoyancy has already been updated.
     for grid_idx in 1:size(occ.valid_idx)[2]
+
 
         i = occ.valid_idx[1, grid_idx]
         j = occ.valid_idx[2, grid_idx]
@@ -43,7 +48,6 @@ function stepOceanColumnCollection!(
 
 
         total_Tflx = ( swflx[i, j] + nswflx[i, j] + ( ( use_qflx ) ? qflx[i, j] : 0.0 )) / (ρ*c_p) 
-        #total_Tflx = ( -100.0 ) / (ρ*c_p) 
         total_Sflx = - frwflx[i, j] * S_surf_avg
         total_bflx = g * ( α * total_Tflx - β * total_Sflx )
         
@@ -61,14 +65,14 @@ function stepOceanColumnCollection!(
         #            Δb = 0.0
         #        end
 
+        new_h_ML = old_h_ML
 
         if use_h_ML # h_ML is datastream
 
             new_h_ML = h_ML[i, j]
 
         else        # h_ML is prognostic
-
-            new_h_ML = calWeOrMLD(;
+            new_h_ML = calNewMLD(;
                 h_ML   = old_h_ML,
                 B      = total_bflx,
                 fric_u = fric_u[i, j],
@@ -76,15 +80,6 @@ function stepOceanColumnCollection!(
                 Δt     = Δt,
                 f      = occ.fs[i, j],
             )
-
-            if flag == :MLD
-                we = 0.0
-                new_h_ML  = val
-            elseif flag == :we
-                we = val 
-                new_h_ML = old_h_ML + Δt * we
-            end
-
         end
 
         new_h_ML = boundMLD(new_h_ML; h_ML_max=occ.h_ML_max[i, j], h_ML_min=occ.h_ML_min[i, j])
@@ -118,8 +113,6 @@ function stepOceanColumnCollection!(
                 ) / (FLDO_Δz + retreat_Δz)
             end
         end
-
-        old_T_ML = occ.T_ML[i, j]
 
         new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - total_Tflx * Δt) / new_h_ML
         new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - total_Sflx * Δt) / new_h_ML
@@ -157,6 +150,8 @@ function stepOceanColumnCollection!(
     end
 
     updateB!(occ)
+
+    return 0
 end
 
 

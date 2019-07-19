@@ -87,7 +87,7 @@ function run!(
     
     for (i, p) in enumerate(workers())
 
-        @spawnat p NKOM.stepOceanColumnCollection!(
+        ( @fetchfrom p NKOM.stepOceanColumnCollection!(
             worker_occ,
             use_qflx      = use_qflx,
             use_h_ML      = use_h_ML,
@@ -97,7 +97,7 @@ function run!(
             do_diffusion  = do_diffusion,
             do_relaxation = do_relaxation,
             do_convadjust = do_convadjust,
-        )
+        ) == 0) || throw(ErrorException("Error: stepOceanColumnCollection! does not return 0 from worker " * string(p)))
 
     end
 end
