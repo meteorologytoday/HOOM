@@ -55,9 +55,9 @@ fi
 echo "Making initial files..."
 
 
-new_data_clim_T_file=$init_files_dir/${label}_$( basename $data_clim_T_file ".nc" ).nc
-new_data_clim_S_file=$init_files_dir/${label}_$( basename $data_clim_S_file ".nc" ).nc
-new_topo_file=$init_files_dir/${label}_$( basename $topo_file ".nc" ).nc
+new_data_clim_T_file=$init_files_dir/${label}_${resolution}_$( basename $data_clim_T_file ".nc" ).nc
+new_data_clim_S_file=$init_files_dir/${label}_${resolution}_$( basename $data_clim_S_file ".nc" ).nc
+new_topo_file=$init_files_dir/${label}_${resolution}_$( basename $topo_file ".nc" ).nc
 
 zdomain_file=$init_files_dir/zdomain.nc
 
@@ -77,7 +77,7 @@ $wk_dir/make_init.sh                            \
 
 
 echo "Making initial files for a specific model"
-init_file=$init_files_dir/init_${label}_${model}_${init_config}.nc
+init_file=$init_files_dir/init_${label}_${resolution}_${model}_${init_config}.nc
 
 $wk_dir/make_init_each_model.sh                 \
     --output-file=$init_file                    \

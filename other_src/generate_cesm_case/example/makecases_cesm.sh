@@ -7,15 +7,19 @@ compset=E_1850_CN_SPINUPOCN
 machine=xtt-centos-intel
 project_code=
 
+label=LENS
 raw_data_dir=$pwd_dir/raw_data
 
 T_file=$raw_data_dir/b.e11.B1850C5CN.f09_g16.005.pop.h.TEMP.100001-109912.nc
-S_file=$raw_data_dir//b.e11.B1850C5CN.f09_g16.005.pop.h.SALT.100001-109912.nc
+S_file=$raw_data_dir/b.e11.B1850C5CN.f09_g16.005.pop.h.SALT.100001-109912.nc
+
+resolution=f45_g37
 
 topo_file=$raw_data_dir/ocean_topog_gx1v6.nc
 
 old_domain=$raw_data_dir/domain.ocn.gx1v6.090206.nc
 new_domain=$raw_data_dir/domain.ocn.gx3v7.120323.nc
+#new_domain=$raw_data_dir/domain.ocn.gx1v6.090206.nc
 
 code_output_dir=$pwd_dir/cesm_scripts
 init_files_dir=$pwd_dir/init_cond
@@ -32,7 +36,7 @@ model_settings=(
 )
 
 model_settings=(
-    NKOM  xQflux        ""
+    NKOM  xQflux        "pop_frc.gx3v7.110128.nc"
 )
 
 
@@ -53,8 +57,8 @@ for i in $(seq 1 $((${#model_settings[@]}/3))); do
     SMARTSLAB-code/other_src/generate_cesm_case/main.sh \
         --code-output-dir=$code_output_dir              \
         --init-files-dir=$init_files_dir                \
-        --label=LENS                                    \
-        --resolution=f45_g37                            \
+        --label=$label                                  \
+        --resolution=$resolution                        \
         --walltime="06:00:00"                           \
         --data-clim-T-file=$T_file                      \
         --data-clim-S-file=$S_file                      \

@@ -41,7 +41,6 @@ function makeSubOCC(
         fs             = occ.fs[rng2...],
         ϵs             = occ.ϵs[rng2...],
         in_flds        = InputFields(:local, sub_Nx, occ.Ny),
-        #in_flds        = SubInputFields(occ.in_flds, :local, rng2...),
         arrange        = "zxy",
     )
 
@@ -82,16 +81,22 @@ function run!(
     relaxation_Δt :: Float64,
     do_diffusion  :: Bool = true, 
     do_relaxation :: Bool = true, 
-    do_convadjust :: Bool = true, 
+    do_convadjust :: Bool = true,
+    copy_in_flds  :: Bool = false, 
 )
 
     (occ.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(occ.id)))
+
+    futures= []
     
-    for (i, p) in enumerate(workers())
+    @sync for (i, p) in enumerate(workers())
 
-        @fetchfrom p copyfrom!(worker_occ.in_flds, master_sub_in_flds)
+        if copy_in_flds
+            @spawnat p copyfrom!(worker_occ.in_flds, master_sub_in_flds)
+        end
 
-        ( @fetchfrom p NKOM.stepOceanColumnCollection!(
+#=
+        ( @spawnat p NKOM.stepOceanColumnCollection!(
             worker_occ,
             use_qflx      = use_qflx,
             use_h_ML      = use_h_ML,
@@ -102,8 +107,22 @@ function run!(
             do_relaxation = do_relaxation,
             do_convadjust = do_convadjust,
         ) == 0) || throw(ErrorException("Error: stepOceanColumnCollection! does not return 0 from worker " * string(p)))
+=#
+
+        @spawnat p NKOM.stepOceanColumnCollection!(
+            worker_occ,
+            use_qflx      = use_qflx,
+            use_h_ML      = use_h_ML,
+            Δt            = Δt,
+            diffusion_Δt  = diffusion_Δt,
+            relaxation_Δt = relaxation_Δt,
+            do_diffusion  = do_diffusion,
+            do_relaxation = do_relaxation,
+            do_convadjust = do_convadjust,
+        )
 
     end
+
 end
 
 function syncToMaster(occ::OceanColumnCollection)

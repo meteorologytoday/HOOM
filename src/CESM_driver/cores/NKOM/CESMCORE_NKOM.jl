@@ -26,6 +26,7 @@ module CESMCORE_NKOM
         configs       :: Dict
 
         recorders   :: Dict
+
     end
 
 
@@ -179,16 +180,16 @@ module CESMCORE_NKOM
         write_restart :: Bool,
     )
 
-        if MD.configs["enable_short_term_archive"]
+        if MD.configs["enable_short_term_archive"] && substep == 1
 
             if MD.configs["daily_record"]
  
                 RecordTool.record!(
                     MD.recorders["daily_record"];
-                    avg_and_output = ( t_flags["new_day"] && substep==1 && t_cnt != 1)
+                    avg_and_output = ( t_flags["new_day"] && t_cnt != 1)
                 )
                
-                if t_flags["new_month"] && substep == 1
+                if t_flags["new_month"]
                         filename = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
                         RecordTool.setNewNCFile!(
                             MD.recorders["daily_record"],
@@ -204,10 +205,10 @@ module CESMCORE_NKOM
 
                 RecordTool.record!(
                     MD.recorders["monthly_record"];
-                    avg_and_output = ( t_flags["new_month"] && substep==1 && t_cnt != 1)
+                    avg_and_output = ( t_flags["new_month"] && t_cnt != 1)
                 )
 
-                if t_flags["new_year"] && substep == 1
+                if t_flags["new_year"]
                         filename = format("{}.ocn.h.monthly.{:04d}.nc", MD.casename, t[1])
                         RecordTool.setNewNCFile!(
                             MD.recorders["monthly_record"],
@@ -246,10 +247,13 @@ module CESMCORE_NKOM
             do_diffusion  = (MD.configs["diffusion_scheme"] == "on" && substep == MD.configs["substeps"]),
             do_relaxation = (MD.configs["relaxation_scheme"] == "on" && substep == MD.configs["substeps"]),
             do_convadjust = MD.configs["convective_adjustment_scheme"] == "on",
+            copy_in_flds  = substep == 1,
         )
 
-        # Force workers to update master's profile        
-        NKOM.sync!(MD.occ)
+        # Force workers to update master's profile
+        if substep == MD.configs["substeps"]
+            NKOM.sync!(MD.occ)
+        end
         
         if write_restart
             restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])

@@ -48,7 +48,7 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
     echo "[$varname] $data_file => $new_data_file"
 
     tmp1=$tmp_dir/${label}_$( basename $data_file ".nc" ).clim.nc
-    tmp2=$tmp_dir/${label}_$( basename $data_file ".nc" ).new-domain.nc
+    tmp2=$tmp_dir/${label}_${resolution}_$( basename $data_file ".nc" ).new-domain.nc
 
     if [ ! -f $new_data_file ]; then
         
