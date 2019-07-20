@@ -44,8 +44,8 @@ mutable struct OceanColumnCollection
     # Radiation
     γ_inv    :: Float64   # Light penetration depth
     γ        :: Float64   # Inverse of light penetration depth
-    rad_decay_coe  :: AbstractArray{Float64, 3}
-    rad_absorb_coe :: AbstractArray{Float64, 3}
+    rad_decay_coes  :: AbstractArray{Float64, 3}
+    rad_absorp_coes :: AbstractArray{Float64, 3}
     
 
     # Climatology states
@@ -62,11 +62,15 @@ mutable struct OceanColumnCollection
 
     # 1D Views to make clean code
     zs_vw :: Any 
+    hs_vw :: Any 
     bs_vw :: Any
     Ts_vw :: Any
     Ss_vw :: Any
     Ts_clim_vw :: Any
     Ss_clim_vw :: Any
+    rad_decay_coes_vw  :: Any
+    rad_absorp_coes_vw :: Any
+
 
     in_flds :: InputFields
 
@@ -322,14 +326,17 @@ mutable struct OceanColumnCollection
         # ===== [BEGIN] Radiation =====
 
         γ = 1.0 / γ_inv
-        _rad_decay_coe  = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _rad_absorb_coe = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _rad_decay_coes  = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _rad_absorp_coes = allocate(datakind, Float64, Nz_bone, Nx, Ny)
 
         for i=1:Nx, j=1:Ny
             for k=1:_Nz[i, j]
-                _rad_decay_coe[k, i, j]  = exp(- γ * hs[k, i, j])
-                _rad_absorb_coe[k, i, j] = 1.0 - _rad_decay_coe[k, i, j] 
+                _rad_decay_coes[k, i, j]  = exp(γ * zs[k, i, j])         # From surface to top of the layer
+                _rad_absorp_coes[k, i, j] = 1.0 - exp(- γ * hs[k, i, j])
             end
+
+            # Since we assume the bottome of ocean absorbs anything
+            _rad_absorp_coes[_Nz[i, j], i, j] = 1.0
         end
 
 
@@ -425,15 +432,21 @@ mutable struct OceanColumnCollection
 
         # ===== [BEGIN] Construct Views =====
         zs_vw = Array{SubArray}(undef, Nx, Ny)
+        hs_vw = Array{SubArray}(undef, Nx, Ny)
         bs_vw = Array{SubArray}(undef, Nx, Ny)
         Ts_vw = Array{SubArray}(undef, Nx, Ny)
         Ss_vw = Array{SubArray}(undef, Nx, Ny)
+        rad_decay_coes_vw  = Array{SubArray}(undef, Nx, Ny)
+        rad_absorb_coes_vw = Array{SubArray}(undef, Nx, Ny)
 
         for i=1:Nx, j=1:Ny
-            zs_vw[i, j]      = view(zs,  :, i, j)
-            bs_vw[i, j]      = view(_bs, :, i, j)
-            Ts_vw[i, j]      = view(_Ts, :, i, j)
-            Ss_vw[i, j]      = view(_Ss, :, i, j)
+            zs_vw[i, j]              = view(zs,  :, i, j)
+            hs_vw[i, j]              = view(hs,  :, i, j)
+            bs_vw[i, j]              = view(_bs, :, i, j)
+            Ts_vw[i, j]              = view(_Ts, :, i, j)
+            Ss_vw[i, j]              = view(_Ss, :, i, j)
+            rad_decay_coes_vw[i, j]  = view(_rad_decay_coes,  :, i, j)
+            rad_absorp_coes_vw[i, j] = view(_rad_absorp_coes, :, i, j)
         end
 
         Ts_clim_vw = nothing
@@ -561,11 +574,12 @@ mutable struct OceanColumnCollection
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,
             γ_inv, γ,
-            _rad_decay_coe, _rad_absorb_coe,
+            _rad_decay_coe, _rad_absorp_coe,
             Ts_clim_relax_time, Ss_clim_relax_time,
             _Ts_clim, _Ss_clim,
             Nx * Ny, hs, Δzs,
-            zs_vw, bs_vw, Ts_vw, Ss_vw, Ts_clim_vw, Ss_clim_vw,
+            zs_vw, hs_vw, bs_vw, Ts_vw, Ss_vw, Ts_clim_vw, Ss_clim_vw,
+            rad_decay_coes_vw, rad_absorp_coes_vw,
             ( in_flds == nothing ) ? InputFields(datakind, Nx, Ny) : in_flds,
         )
 

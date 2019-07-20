@@ -32,6 +32,7 @@ end
     @hinclude("doDiffusion.jl")
     @hinclude("getIntegratedBuoyancy.jl")
     @hinclude("doNewtonianRelaxation.jl")
+    @hinclude("doShortwaveRadiation.jl")
     @hinclude("stepOceanColumnCollection.jl")
 
 

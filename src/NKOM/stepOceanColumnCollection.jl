@@ -4,13 +4,14 @@ function stepOceanColumnCollection!(
     occ           :: OceanColumnCollection;
     use_qflx      :: Bool,
     use_h_ML      :: Bool,
+    do_rad_decay  :: Bool,    # whether to absorb radiation totally at the surface layer or not
     Δt            :: Float64,
     diffusion_Δt  :: Float64,
     relaxation_Δt :: Float64,
     do_diffusion  :: Bool = true, 
     do_relaxation :: Bool = true, 
     do_convadjust :: Bool = true,
-    do_radiation_decay :: Bool = false, 
+
 )
 
     fric_u  = occ.in_flds.weighted_fric_u
@@ -48,9 +49,11 @@ function stepOceanColumnCollection!(
         #       conservation of buoyancy in water column
 
 
-        total_Tflx = ( swflx[i, j] + nswflx[i, j] + ( ( use_qflx ) ? qflx[i, j] : 0.0 )) / (ρ*c_p) 
-        total_Sflx = - frwflx[i, j] * S_surf_avg
-        total_bflx = g * ( α * total_Tflx - β * total_Sflx )
+        surf_Tnswflx = ( nswflx[i, j] + ( ( use_qflx ) ? qflx[i, j] : 0.0 )) / (ρ*c_p) 
+        surf_Tswflx  = swflx[i, j] / (ρ*c_p)
+        surf_Jflx    = g*α*surf_Tswflx
+        surf_Sflx    = - frwflx[i, j] * S_surf_avg
+        surf_bflx    = g * ( α * surf_Tnswflx - β * total_Sflx )
         
         old_FLDO = occ.FLDO[i, j]
         old_h_ML = occ.h_ML[i, j]
@@ -73,14 +76,26 @@ function stepOceanColumnCollection!(
             new_h_ML = h_ML[i, j]
 
         else        # h_ML is prognostic
-            new_h_ML = calNewMLD(;
-                h_ML   = old_h_ML,
-                B      = total_bflx,
-                fric_u = fric_u[i, j],
-                Δb     = Δb,
-                Δt     = Δt,
-                f      = occ.fs[i, j],
-            )
+            
+            if do_rad_decay
+ 
+                new_h_ML = calNewMLD(;
+                    h_ML   = old_h_ML,
+                    Bf     = surf_bflx,
+                    J0     = surf_Jflx,
+                    fric_u = fric_u[i, j],
+                    Δb     = Δb,
+                    f      = occ.fs[i, j],
+                    Δt     = Δt,
+                    γ      = occ.γ,
+                )
+
+            else 
+                
+                throw(ErrorException("Prognostic MLD scheme needs do_rad_decay to be true. Complete absorbtion at the surface causes overshallow MLD."))
+                
+            end
+
         end
 
         new_h_ML = boundMLD(new_h_ML; h_ML_max=occ.h_ML_max[i, j], h_ML_min=occ.h_ML_min[i, j])
@@ -115,8 +130,9 @@ function stepOceanColumnCollection!(
             end
         end
 
-        new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - total_Tflx * Δt) / new_h_ML
+        # Shortwave radiation is not included yet
         new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - total_Sflx * Δt) / new_h_ML
+        new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - total_Tnswflx * Δt) / new_h_ML
 
         OC_setMixedLayer!(
             occ, i, j;
@@ -124,6 +140,14 @@ function stepOceanColumnCollection!(
             S_ML=new_S_ML,
             h_ML=new_h_ML,
         )
+
+        # Shortwave radiation
+        if do_rad_decay
+            OC_doShortwaveRadiation!(occ, i, j; Tswflx=surf_Tswflx, Δt=Δt) 
+        else
+            occ.T_ML[i, j] += - surf_Tswflx * Δt / new_h_ML
+        end
+
  
        
         # Climatology relaxation

@@ -32,7 +32,7 @@ This function returns a list with two elements. The first is a symbol. ``:we`` i
 function calNewMLD(;
     h_ML   :: Float64,
     Bf     :: Float64,    # sum of sensible heat fluxes and longwave radiation flux
-    J0     :: Float64,    # shortwave radiation fluxe
+    J0     :: Float64,    # shortwave radiation flux (converted to buoyancy flux)
     fric_u :: Float64,
     Δb     :: Float64,
     f      :: Float64,
@@ -106,7 +106,7 @@ end
     λ::Float64,
     γ::Float64,
 )
-    return - a / λ * exp(-h / λ) + b + c ∂S∂h(h, γ)
+    return - a / λ * exp(-h / λ) + b + c * ∂S∂h(h, γ)
 end
 
 
