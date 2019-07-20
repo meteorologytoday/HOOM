@@ -43,7 +43,9 @@ mutable struct OceanColumnCollection
 
     # Radiation Scheme
     # The parameterization is referenced to Paulson and Simpson (1977).
-    # I use the original form instead of assuming ζ1→0.0 as in Oberhuber (1993).
+    # I made assumption that ζ1→0.0 as adapted in Oberhuber (1993).
+    # This means `R` portion of the irradiance is going to be treated
+    # as surface heat fluxes (δ like absorption).
     # 
     # Reference: 
     #
@@ -55,11 +57,10 @@ mutable struct OceanColumnCollection
     #    Journal of Physical Oceanography, 7(6), 952-956.
     #
     R               :: Float64   # Fast absorption portion of sunlight.
-    ζ1              :: Float64   # Light penetration depth for the top layer
-    ζ2              :: Float64   # Light penetration depth for the rest
+    ζ               :: Float64   # Light penetration depth of DO ( = ζ2 in Paulson and Simpson (1977) )
 
-    rad_decay_coes  :: AbstractArray{Float64, 4}
-    rad_absorp_coes :: AbstractArray{Float64, 4}
+    rad_decay_coes  :: AbstractArray{Float64, 3}
+    rad_absorp_coes :: AbstractArray{Float64, 3}
     
 
     # Climatology states
@@ -103,8 +104,9 @@ mutable struct OceanColumnCollection
         h_ML     :: Union{AbstractArray{Float64, 2}, Float64, Nothing},
         h_ML_min :: Union{AbstractArray{Float64, 2}, Float64},
         h_ML_max :: Union{AbstractArray{Float64, 2}, Float64},
-        we_max   :: Float64,
-        γ_inv    :: Float64,
+        we_max   :: Float64 =  1e-2,
+        R        :: Float64 =  0.58,  # See Paulson and Simpson (1977) Type I clear water
+        ζ        :: Float64 = 23.00,  # See Paulson and Simpson (1977) Type I clear water
         Ts_clim_relax_time :: Union{Float64, Nothing},
         Ss_clim_relax_time :: Union{Float64, Nothing},
         Ts_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
@@ -339,8 +341,8 @@ mutable struct OceanColumnCollection
 
         # ===== [BEGIN] Radiation =====
 
-        _rad_decay_coes  = allocate(datakind, Float64, 2, Nz_bone, Nx, Ny)
-        _rad_absorp_coes = allocate(datakind, Float64, 2, Nz_bone, Nx, Ny)
+        _rad_decay_coes  = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _rad_absorp_coes = allocate(datakind, Float64, Nz_bone, Nx, Ny)
 
         for i=1:Nx, j=1:Ny
 
@@ -349,8 +351,8 @@ mutable struct OceanColumnCollection
             end
 
             for k=1:Nz[i, j]
-                _rad_decay_coes[k, i, j]  = exp(zs[k, i, j])         # From surface to top of the layer
-                _rad_absorp_coes[k, i, j] = 1.0 - exp(- γ * hs[k, i, j])
+                _rad_decay_coes[k, i, j]  = (1.0 - R) * exp(zs[k, i, j])         # From surface to top of the layer
+                _rad_absorp_coes[k, i, j] = 1.0 - exp(- hs[k, i, j] / ζ)
             end
 
             # Since we assume the bottome of ocean absorbs anything
@@ -591,7 +593,7 @@ mutable struct OceanColumnCollection
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,
-            R, ζ1, ζ2,
+            R, ζ,
             _rad_decay_coes, _rad_absorp_coes,
             Ts_clim_relax_time, Ss_clim_relax_time,
             _Ts_clim, _Ss_clim,

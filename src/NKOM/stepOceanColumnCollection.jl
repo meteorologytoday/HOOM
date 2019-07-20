@@ -87,13 +87,13 @@ function stepOceanColumnCollection!(
             
             new_h_ML = calNewMLD(;
                 h_ML   = old_h_ML,
-                Bf     = surf_bflx,
-                J0     = surf_Jflx,
+                Bf     = surf_bflx + surf_Jflx * occ.R,
+                J0     = surf_Jflx * (1.0 - occ.R),
                 fric_u = weighted_fric_u[i, j],
                 Δb     = Δb,
                 f      = occ.fs[i, j],
                 Δt     = Δt,
-                γ      = occ.γ,
+                ζ      = occ.ζ,
             )
 
         end
@@ -143,6 +143,7 @@ function stepOceanColumnCollection!(
 
         # Shortwave radiation
         if rad_scheme == :exponential
+            occ.T_ML[i, j] += - occ.R * surf_Tswflx * Δt / new_h_ML
             OC_doShortwaveRadiation!(occ, i, j; Tswflx=surf_Tswflx, Δt=Δt) 
         elseif rad_scheme == :step
             occ.T_ML[i, j] += - surf_Tswflx * Δt / new_h_ML

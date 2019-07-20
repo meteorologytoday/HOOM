@@ -26,7 +26,6 @@ occ = NKOM.OceanColumnCollection(
     h_ML_min = 1e-3,                 # cannot be 0 
     h_ML_max = -zs[end],             # make it unrestricted
     we_max   = 1e5,
-    γ_inv    = 23.0,
     mask     = mask,
     topo     = topo,
     Ts_clim_relax_time = 0.0,

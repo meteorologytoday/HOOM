@@ -16,7 +16,7 @@ function OC_doShortwaveRadiation!(
         h_ML = occ.h_ML[i, j],
         Nz   = occ.Nz[i, j],
         FLDO = occ.FLDO[i, j],
-        γ    = occ.γ,
+        ζ    = occ.ζ,
         Δt   = Δt,
 
     )
@@ -34,7 +34,7 @@ function doShortwaveRadiation!(;
     h_ML            :: Float64,
     Nz              :: Integer,
     FLDO            :: Integer,
-    γ               :: Float64,
+    ζ               :: Float64,
     Δt              :: Float64,
 )
 

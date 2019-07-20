@@ -37,10 +37,11 @@ function calNewMLD(;
     Δb     :: Float64,
     f      :: Float64,
     Δt     :: Float64,
-    γ      :: Float64,    # inverse of decay scale length of shortwave penetration
+    ζ      :: Float64,    # decay scale length of shortwave penetration
     m::Float64 = 0.8,
     n::Float64 = 0.20,
     h_init :: Float64 = 1000.0,
+    we_max :: Float64,
 )
 
     if Δb < 0
@@ -49,33 +50,34 @@ function calNewMLD(;
 
     #
     # Transform the equation of entrainment into the form
-    # we (h_ML × Δb + k) =  a exp(-h / λ) + b h + c S(h, γ) := Δ
+    # we (h_ML × Δb + k) =  a exp(-h / λ) + b h + c S(h, ζ) := Δ
     #
     # where Δ is called "determinant"
     #       a       = 2 m u_fric^3
     #       b       = Bf
     #       c       = J0
-    #       S(h, γ) = h - 2/γ + exp(-γh) (h + 2/γ)
+    #       S(h, γ) = h - 2 ζ + exp(-h/ζ) (h + 2 ζ)
     #       λ       = fric_u / abs(f)
     #
     
     a, λ = calΔCoefficients(fric_u, f, m)
-    Δ, _ = calΔ_and_∂Δ∂h(h_ML, a, Bf, J0, λ, γ, n; need_∂Δ∂h=false)
+    Δ, _ = calΔ_and_∂Δ∂h(h_ML, a, Bf, J0, λ, ζ, n; need_∂Δ∂h=false)
+
+    h_MO = solveMoninObuhkovLength(h_init, a, Bf, J0, λ, ζ, n)
 
     if Δ >= 0
         k = getTKE(fric_u=fric_u)
         we = Δ / (h_ML * Δb + k)
-        if we > 1e-3
-            println("we abnormally large: ", we)
-            #println(":we, h: ", h, "; Δb: ", Δb, "; B: ", B, "; k:", k)
-        end
 
-        return h_ML + Δt * we
+        # First min function restrict the maximum of entrainment speed
+        # Second min function restrict the maximum of MLD
+
+        return min(h_ML + Δt * min(we, we_max), h_MO)
     else
 
         # h becomes diagnostic.
-        #
-        return solveMoninObuhkovLength(h_init, a, Bf, J0, λ, γ, n)
+        # Notice that if Δ < 0, then finite positive solution of h_MO exists
+        return h_MO
     end
 
 end
@@ -94,23 +96,23 @@ function calΔ_and_∂Δ∂h(
     b::Float64,
     c::Float64,
     λ::Float64,
-    γ::Float64,
+    ζ::Float64,
     n::Float64;
     need_∂Δ∂h=true,
 )
-    Bh = b * h + c * S(h, γ)
+    Bh = b * h + c * S(h, ζ)
     ( Bh < 0.0 ) && ( n = 1.0 )
-    exponential = exp(-h/λ)
+    exponential = exp(-h / λ)
     return ( ( λ == 0.0 ) ? 0.0 : a * exponential ) + n * Bh,
-           ( need_∂Δ∂h ) ? ( ( λ == 0.0 ) ? 0.0 : - a / λ * exponential ) + n * (b + c * ∂S∂h(h, γ)) : 0.0
+           ( need_∂Δ∂h ) ? ( ( λ == 0.0 ) ? 0.0 : - a / λ * exponential ) + n * (b + c * ∂S∂h(h, ζ)) : 0.0
 end
 
-@inline function S(h::Float64, γ::Float64)
-    return h - 2.0 / γ + exp(-h*γ) * (h + 2.0 / γ)
+@inline function S(h::Float64, ζ::Float64)
+    return h - 2.0 * ζ + exp(-h / ζ) * (h + 2.0 * ζ)
 end
 
 @inline function ∂S∂h(h::Float64, γ::Float64)
-    return 1 - exp(-h*γ) * (1 + h*γ)
+    return 1 - exp(-h / ζ) * (1 + h / ζ)
 end
 
 
@@ -120,7 +122,7 @@ function solveMoninObuhkovLength(
     b      :: Float64,
     c      :: Float64,
     λ      :: Float64,
-    γ      :: Float64,
+    ζ      :: Float64,
     n      :: Float64;
     η      :: Float64 = 0.01,  # relative increment threshold = 1%
     δh_max :: Float64 = 0.01,  # absolute increment threshold = 1cm
@@ -130,8 +132,13 @@ function solveMoninObuhkovLength(
     if_converge = false
     prev_δh = 0.0
 
+    # The only contribution of negativity comes from b + c
+    if b + c > 0
+        return Inf
+    end
+
     for i=1:max
-        Δ, ∂Δ∂h = calΔ_and_∂Δ∂h(h, a, b, c, λ, γ, n)
+        Δ, ∂Δ∂h = calΔ_and_∂Δ∂h(h, a, b, c, λ, ζ, n)
         δh = - Δ / ∂Δ∂h
         #println(i, ":", h, "; δh=",δh, ", Δ=", Δ, "; ∂Δ∂h=", ∂Δ∂h)
         if abs((δh - prev_δh) / prev_δh) >= η && abs(δh) >= δh_max
