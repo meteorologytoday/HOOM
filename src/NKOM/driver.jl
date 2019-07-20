@@ -32,6 +32,7 @@ function makeSubOCC(
         h_ML_min       = occ.h_ML_min[rng2...],
         h_ML_max       = occ.h_ML_max[rng2...],
         we_max         = occ.we_max,
+        γ_inv          = occ.γ_inv,
         Ts_clim_relax_time = occ.Ts_clim_relax_time,
         Ss_clim_relax_time = occ.Ss_clim_relax_time,
         Ts_clim        = ( occ.Ts_clim != nothing ) ? occ.Ts_clim[rng3...] : nothing,

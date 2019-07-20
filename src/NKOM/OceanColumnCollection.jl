@@ -330,13 +330,18 @@ mutable struct OceanColumnCollection
         _rad_absorp_coes = allocate(datakind, Float64, Nz_bone, Nx, Ny)
 
         for i=1:Nx, j=1:Ny
-            for k=1:_Nz[i, j]
+
+            if _mask[i, j] == 0.0
+                continue
+            end
+
+            for k=1:Nz[i, j]
                 _rad_decay_coes[k, i, j]  = exp(γ * zs[k, i, j])         # From surface to top of the layer
                 _rad_absorp_coes[k, i, j] = 1.0 - exp(- γ * hs[k, i, j])
             end
 
             # Since we assume the bottome of ocean absorbs anything
-            _rad_absorp_coes[_Nz[i, j], i, j] = 1.0
+            _rad_absorp_coes[Nz[i, j], i, j] = 1.0
         end
 
 
@@ -437,7 +442,7 @@ mutable struct OceanColumnCollection
         Ts_vw = Array{SubArray}(undef, Nx, Ny)
         Ss_vw = Array{SubArray}(undef, Nx, Ny)
         rad_decay_coes_vw  = Array{SubArray}(undef, Nx, Ny)
-        rad_absorb_coes_vw = Array{SubArray}(undef, Nx, Ny)
+        rad_absorp_coes_vw = Array{SubArray}(undef, Nx, Ny)
 
         for i=1:Nx, j=1:Ny
             zs_vw[i, j]              = view(zs,  :, i, j)
@@ -574,7 +579,7 @@ mutable struct OceanColumnCollection
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,
             γ_inv, γ,
-            _rad_decay_coe, _rad_absorp_coe,
+            _rad_decay_coes, _rad_absorp_coes,
             Ts_clim_relax_time, Ss_clim_relax_time,
             _Ts_clim, _Ss_clim,
             Nx * Ny, hs, Δzs,
