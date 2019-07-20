@@ -44,7 +44,7 @@ function calNewMLD(;
 )
 
     if Δb < 0
-        throw(ErrorException("Δb cannot be negative. Right now Δb = ", Δb))
+        throw(ErrorException("Δb cannot be negative. Right now Δb = " * string(Δb)))
     end
 
     #
@@ -59,22 +59,23 @@ function calNewMLD(;
     #       λ       = fric_u / abs(f)
     #
     
-    a, λ = calΔCoefficients(u_fric, f, m)
-    Δ = calΔ(h_ML, a, Bf, J0, λ, γ)
+    a, λ = calΔCoefficients(fric_u, f, m)
+    Δ, _ = calΔ_and_∂Δ∂h(h_ML, a, Bf, J0, λ, γ, n; need_∂Δ∂h=false)
 
-    if Δ > 0
+    if Δ >= 0
         k = getTKE(fric_u=fric_u)
         we = Δ / (h_ML * Δb + k)
-        #if we > 1e-3
-        #    println("we abnormally large: ", we)
-        #end
-        #println(":we, h: ", h, "; Δb: ", Δb, "; B: ", B, "; k:", k)
+        if we > 1e-3
+            println("we abnormally large: ", we)
+            #println(":we, h: ", h, "; Δb: ", Δb, "; B: ", B, "; k:", k)
+        end
+
         return h_ML + Δt * we
     else
 
         # h becomes diagnostic.
         #
-        return solveMoninObuhkovLength(h_init, a, Bf, J0, λ, γ)
+        return solveMoninObuhkovLength(h_init, a, Bf, J0, λ, γ, n)
     end
 
 end
@@ -87,28 +88,22 @@ end
     return 2.0 * m * u_fric, u_fric / abs(f) 
 end
 
-@inline function calΔ(
+function calΔ_and_∂Δ∂h(
     h::Float64,
     a::Float64,
     b::Float64,
     c::Float64,
     λ::Float64,
     γ::Float64,
-) 
-    return a * exp(-h/λ) + b * h + c * S(h,γ)
-end
-
-@inline function cal∂Δ∂h(
-    h::Float64,
-    a::Float64,
-    b::Float64,
-    c::Float64,
-    λ::Float64,
-    γ::Float64,
+    n::Float64;
+    need_∂Δ∂h=true,
 )
-    return - a / λ * exp(-h / λ) + b + c * ∂S∂h(h, γ)
+    Bh = b * h + c * S(h, γ)
+    ( Bh < 0.0 ) && ( n = 1.0 )
+    exponential = exp(-h/λ)
+    return ( ( λ == 0.0 ) ? 0.0 : a * exponential ) + n * Bh,
+           ( need_∂Δ∂h ) ? ( ( λ == 0.0 ) ? 0.0 : - a / λ * exponential ) + n * (b + c * ∂S∂h(h, γ)) : 0.0
 end
-
 
 @inline function S(h::Float64, γ::Float64)
     return h - 2.0 / γ + exp(-h*γ) * (h + 2.0 / γ)
@@ -125,7 +120,8 @@ function solveMoninObuhkovLength(
     b      :: Float64,
     c      :: Float64,
     λ      :: Float64,
-    γ      :: Float64;
+    γ      :: Float64,
+    n      :: Float64;
     η      :: Float64 = 0.01,  # relative increment threshold = 1%
     δh_max :: Float64 = 0.01,  # absolute increment threshold = 1cm
     max    :: Integer = 100,
@@ -135,14 +131,16 @@ function solveMoninObuhkovLength(
     prev_δh = 0.0
 
     for i=1:max
-        Δ    = calΔ(h, a, b, c, λ, γ)
-        ∂Δ∂h = cal∂Δ∂h(h, a, b, c, λ, γ)
+        Δ, ∂Δ∂h = calΔ_and_∂Δ∂h(h, a, b, c, λ, γ, n)
         δh = - Δ / ∂Δ∂h
-
-        if abs((δh - prev_δh) / prev_δh) >= η || abs(δh) >= δh_max
+        #println(i, ":", h, "; δh=",δh, ", Δ=", Δ, "; ∂Δ∂h=", ∂Δ∂h)
+        if abs((δh - prev_δh) / prev_δh) >= η && abs(δh) >= δh_max
             h, prev_δh = h + δh, δh
         else
             if_converge = true
+#            if h < 10.0
+#                println("Converge!", h, ",", a, ",", b, ",", c, ",", λ)
+#            end
             break
         end
     end

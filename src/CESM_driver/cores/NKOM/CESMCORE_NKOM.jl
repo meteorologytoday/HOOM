@@ -39,15 +39,22 @@ module CESMCORE_NKOM
     )
 
         checkDict!(configs, [
-            ("init_file",                    false, (nothing, String,),             nothing),
-            ("MLD_scheme",                    true, ("prognostic", "datastream",),  nothing),
-            ("Qflux_scheme",                  true, ("on", "off",),                 nothing),
-            ("diffusion_scheme",              true, ("on", "off",),                 nothing),
-            ("relaxation_scheme",             true, ("on", "off",),                 nothing),
-            ("convective_adjustment_scheme",  true, ("on", "off",),                 nothing),
-            ("daily_record",                  true, (Bool,),                        nothing),
-            ("monthly_record",                true, (Bool,),                        nothing),
+            ("init_file",                    false, (nothing, String,),          nothing),
+            ("MLD_scheme",                    true, (:prognostic, :datastream,), nothing),
+            ("Qflux_scheme",                  true, (:on, :off,),                nothing),
+            ("diffusion_scheme",              true, (:on, :off,),                nothing),
+            ("relaxation_scheme",             true, (:on, :off,),                nothing),
+            ("convective_adjustment_scheme",  true, (:on, :off,),                nothing),
+            ("radiation_scheme",              true, (:exponential, :step,),      nothing),
+            ("daily_record",                  true, (Bool,),                     nothing),
+            ("monthly_record",                true, (Bool,),                     nothing),
         ])
+
+
+        if configs["MLD_scheme"] == :prognostic && configs["radiation_scheme"] == :step
+            throw(ErrorException(":prognostic MLD_scheme cannot use :step in radiation_scheme."))
+        end
+
 
         init_file = configs["init_file"]
 
@@ -104,7 +111,7 @@ module CESMCORE_NKOM
         # calculated accroding to Niiler and Kraus dynamics.
         #
 
-        if configs["MLD_scheme"] == "datastream"
+        if configs["MLD_scheme"] == :datastream
 
             x2o = Dict(
                 "SWFLX"  => in_flds.swflx,
@@ -114,7 +121,7 @@ module CESMCORE_NKOM
                 "MLD"    => in_flds.h_ML,
             )
 
-        elseif configs["MLD_scheme"] == "prognostic"
+        elseif configs["MLD_scheme"] == :prognostic
 
             x2o = Dict(
                 "SWFLX"  => in_flds.swflx,
@@ -128,8 +135,6 @@ module CESMCORE_NKOM
 
         end
 
-
-        
         o2x = Dict(
             "SST"      => occ.T_ML,
             "QFLX2ATM" => occ.qflx2atm,
@@ -150,6 +155,8 @@ module CESMCORE_NKOM
                         ("T_ML",  occ.T_ML, ("Nx", "Ny",)),
                         ("S_ML",  occ.S_ML, ("Nx", "Ny",)),
                         ("h_ML",  occ.h_ML, ("Nx", "Ny")),
+                        ("weighted_fric_u",  occ.in_flds.weighted_fric_u, ("Nx", "Ny")),
+                        ("fric_u",  occ.in_flds.fric_u, ("Nx", "Ny")),
                     ],
                 )
 
@@ -229,24 +236,28 @@ module CESMCORE_NKOM
 
             in_flds.nswflx .*= -1.0
             in_flds.swflx  .*= -1.0
+#            in_flds.nswflx .= 100.0
+#            in_flds.swflx  .= -50000.0
 
-            if MD.configs["MLD_scheme"] == "prognostic"
-                in_flds.fric_u .= sqrt.(sqrt.((in_flds.taux).^2.0 .+ (in_flds.tauy).^2.0) / NKOM.ρ)
-                in_flds.weighted_fric_u .*= (1.0 .- in_flds.ifrac)
-            end
+
+            #if MD.configs["MLD_scheme"] == :prognostic
+                #in_flds.fric_u .= sqrt.(sqrt.((in_flds.taux).^2.0 .+ (in_flds.tauy).^2.0) / NKOM.ρ)
+                #in_flds.weighted_fric_u .*= (1.0 .- in_flds.ifrac)
+            #end
 
         end
        
         NKOM.run!(
             MD.occ;
-            use_qflx      = MD.configs["Qflux_scheme"] == "on",
-            use_h_ML      = MD.configs["MLD_scheme"] == "datastream",
+            use_qflx      = MD.configs["Qflux_scheme"] == :on,
+            use_h_ML      = MD.configs["MLD_scheme"] == :datastream,
             Δt            = Δt,
             diffusion_Δt  = Δt * MD.configs["substeps"],
             relaxation_Δt = Δt * MD.configs["substeps"],
-            do_diffusion  = (MD.configs["diffusion_scheme"] == "on" && substep == MD.configs["substeps"]),
-            do_relaxation = (MD.configs["relaxation_scheme"] == "on" && substep == MD.configs["substeps"]),
-            do_convadjust = MD.configs["convective_adjustment_scheme"] == "on",
+            do_diffusion  = (MD.configs["diffusion_scheme"] == :on && substep == MD.configs["substeps"]),
+            do_relaxation = (MD.configs["relaxation_scheme"] == :on && substep == MD.configs["substeps"]),
+            do_convadjust = MD.configs["convective_adjustment_scheme"] == :on,
+            rad_scheme    = MD.configs["radiation_scheme"],
             copy_in_flds  = substep == 1,
         )
 

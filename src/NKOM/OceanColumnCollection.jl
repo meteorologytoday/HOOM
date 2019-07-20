@@ -41,11 +41,25 @@ mutable struct OceanColumnCollection
     h_ML_max :: AbstractArray{Float64, 2}
     we_max   :: Float64
 
-    # Radiation
-    γ_inv    :: Float64   # Light penetration depth
-    γ        :: Float64   # Inverse of light penetration depth
-    rad_decay_coes  :: AbstractArray{Float64, 3}
-    rad_absorp_coes :: AbstractArray{Float64, 3}
+    # Radiation Scheme
+    # The parameterization is referenced to Paulson and Simpson (1977).
+    # I use the original form instead of assuming ζ1→0.0 as in Oberhuber (1993).
+    # 
+    # Reference: 
+    #
+    # 1. Oberhuber, J. M. (1993). Simulation of the Atlantic circulation with a coupled sea
+    #    ice-mixed layer-isopycnal general circulation model. Part I: Model description.
+    #    Journal of Physical Oceanography, 23(5), 808-829.
+    #
+    # 2. Paulson, C. A., & Simpson, J. J. (1977). Irradiance measurements in the upper ocean.
+    #    Journal of Physical Oceanography, 7(6), 952-956.
+    #
+    R               :: Float64   # Fast absorption portion of sunlight.
+    ζ1              :: Float64   # Light penetration depth for the top layer
+    ζ2              :: Float64   # Light penetration depth for the rest
+
+    rad_decay_coes  :: AbstractArray{Float64, 4}
+    rad_absorp_coes :: AbstractArray{Float64, 4}
     
 
     # Climatology states
@@ -325,9 +339,8 @@ mutable struct OceanColumnCollection
 
         # ===== [BEGIN] Radiation =====
 
-        γ = 1.0 / γ_inv
-        _rad_decay_coes  = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _rad_absorp_coes = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _rad_decay_coes  = allocate(datakind, Float64, 2, Nz_bone, Nx, Ny)
+        _rad_absorp_coes = allocate(datakind, Float64, 2, Nz_bone, Nx, Ny)
 
         for i=1:Nx, j=1:Ny
 
@@ -336,7 +349,7 @@ mutable struct OceanColumnCollection
             end
 
             for k=1:Nz[i, j]
-                _rad_decay_coes[k, i, j]  = exp(γ * zs[k, i, j])         # From surface to top of the layer
+                _rad_decay_coes[k, i, j]  = exp(zs[k, i, j])         # From surface to top of the layer
                 _rad_absorp_coes[k, i, j] = 1.0 - exp(- γ * hs[k, i, j])
             end
 
@@ -578,7 +591,7 @@ mutable struct OceanColumnCollection
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,
-            γ_inv, γ,
+            R, ζ1, ζ2,
             _rad_decay_coes, _rad_absorp_coes,
             Ts_clim_relax_time, Ss_clim_relax_time,
             _Ts_clim, _Ss_clim,

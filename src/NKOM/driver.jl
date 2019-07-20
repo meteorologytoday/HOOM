@@ -1,26 +1,26 @@
 # used by master
 mutable struct SubOCCInfo
-    sub_Nxs    :: AbstractArray{Int64, 1}
-    beg_x_idxs :: AbstractArray{Int64, 1}
+    sub_Nys    :: AbstractArray{Int64, 1}
+    beg_y_idxs :: AbstractArray{Int64, 1}
 end
 
 function makeSubOCC(
     occ :: OceanColumnCollection,
     block_id   :: Integer,
-    beg_x_idx  :: Integer,
-    sub_Nx     :: Integer,
+    beg_y_idx  :: Integer,
+    sub_Ny     :: Integer,
 )
 
     global master_occ = occ
-    global rng2 = [beg_x_idx:beg_x_idx+sub_Nx-1, Colon()]
-    global rng3 = [Colon(), beg_x_idx:beg_x_idx+sub_Nx-1, Colon()]
+    global rng2 = [Colon(), beg_y_idx:beg_y_idx+sub_Ny-1]
+    global rng3 = [Colon(), Colon(), beg_y_idx:beg_y_idx+sub_Ny-1]
     global master_sub_in_flds = SubInputFields(occ.in_flds, rng2...)
    
     global worker_occ = OceanColumnCollection(
         id             = block_id,
         gridinfo_file  = nothing,
-        Nx             = sub_Nx,
-        Ny             = occ.Ny,
+        Nx             = occ.Nx,
+        Ny             = sub_Ny,
         zs_bone        = occ.zs_bone,
         Ts             = occ.Ts[rng3...],
         Ss             = occ.Ss[rng3...],
@@ -41,7 +41,7 @@ function makeSubOCC(
         topo           = occ.topo[rng2...],
         fs             = occ.fs[rng2...],
         ϵs             = occ.ϵs[rng2...],
-        in_flds        = InputFields(:local, sub_Nx, occ.Ny),
+        in_flds        = InputFields(:local, occ.Nx, sub_Ny),
         arrange        = "zxy",
     )
 
@@ -56,34 +56,27 @@ function init(
 
     (occ.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(occ.id)))
 
-    sub_Nx = ceil(Integer, occ.Nx / nworkers())
-    sub_Nxs = [sub_Nx for block_id = 1:nworkers()]
-    sub_Nxs[end] = occ.Nx - (nworkers()-1) * sub_Nx
+    sub_Ny = ceil(Integer, occ.Nx / nworkers())
+    sub_Nys = [sub_Ny for block_id = 1:nworkers()]
+    sub_Nys[end] = occ.Ny - (nworkers()-1) * sub_Ny
 
-    beg_x_idxs = [sub_Nx * (block_id - 1) + 1 for block_id = 1:nworkers()]
+    beg_y_idxs = [sub_Ny * (block_id - 1) + 1 for block_id = 1:nworkers()]
 
-    global sub_occ_info = SubOCCInfo(sub_Nxs, beg_x_idxs)
+    global sub_occ_info = SubOCCInfo(sub_Nys, beg_y_idxs)
 
     @sync for (i, p) in enumerate(workers())
         
         # We have P processors, N workers, N blocks
         # Block ids are numbered from 1 to N
-        @spawnat p makeSubOCC(occ, i, beg_x_idxs[i], sub_Nxs[i])
+        @spawnat p makeSubOCC(occ, i, beg_y_idxs[i], sub_Nys[i])
 
     end
 end
 
 function run!(
     occ    :: OceanColumnCollection;
-    use_qflx      :: Bool,
-    use_h_ML      :: Bool,
-    Δt            :: Float64,
-    diffusion_Δt  :: Float64,
-    relaxation_Δt :: Float64,
-    do_diffusion  :: Bool = true, 
-    do_relaxation :: Bool = true, 
-    do_convadjust :: Bool = true,
-    copy_in_flds  :: Bool = false, 
+    copy_in_flds  :: Bool = false,
+    kwargs... 
 )
 
     (occ.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(occ.id)))
@@ -96,30 +89,9 @@ function run!(
             @spawnat p copyfrom!(worker_occ.in_flds, master_sub_in_flds)
         end
 
-#=
-        ( @spawnat p NKOM.stepOceanColumnCollection!(
-            worker_occ,
-            use_qflx      = use_qflx,
-            use_h_ML      = use_h_ML,
-            Δt            = Δt,
-            diffusion_Δt  = diffusion_Δt,
-            relaxation_Δt = relaxation_Δt,
-            do_diffusion  = do_diffusion,
-            do_relaxation = do_relaxation,
-            do_convadjust = do_convadjust,
-        ) == 0) || throw(ErrorException("Error: stepOceanColumnCollection! does not return 0 from worker " * string(p)))
-=#
-
         @spawnat p NKOM.stepOceanColumnCollection!(
-            worker_occ,
-            use_qflx      = use_qflx,
-            use_h_ML      = use_h_ML,
-            Δt            = Δt,
-            diffusion_Δt  = diffusion_Δt,
-            relaxation_Δt = relaxation_Δt,
-            do_diffusion  = do_diffusion,
-            do_relaxation = do_relaxation,
-            do_convadjust = do_convadjust,
+            worker_occ;
+            kwargs...
         )
 
     end

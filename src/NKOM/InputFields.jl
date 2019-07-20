@@ -56,7 +56,6 @@ function copyfrom!(
     dst.taux[:] = src.taux
     dst.tauy[:] = src.tauy
     dst.fric_u[:] = src.fric_u
-    dst.weighted_fric_u[:] = src.weighted_fric_u
     dst.nswflx[:] = src.nswflx
     dst.swflx[:] = src.swflx
     dst.sumflx[:] = src.sumflx

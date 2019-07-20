@@ -4,7 +4,7 @@ function stepOceanColumnCollection!(
     occ           :: OceanColumnCollection;
     use_qflx      :: Bool,
     use_h_ML      :: Bool,
-    do_rad_decay  :: Bool,    # whether to absorb radiation totally at the surface layer or not
+    rad_scheme    :: Symbol,    # whether to absorb radiation totally at the surface layer or not
     Δt            :: Float64,
     diffusion_Δt  :: Float64,
     relaxation_Δt :: Float64,
@@ -14,7 +14,11 @@ function stepOceanColumnCollection!(
 
 )
 
-    fric_u  = occ.in_flds.weighted_fric_u
+    fric_u  = occ.in_flds.fric_u
+    ifrac   = occ.in_flds.ifrac
+    weighted_fric_u = occ.in_flds.weighted_fric_u
+    taux    = occ.in_flds.taux
+    tauy    = occ.in_flds.tauy
     swflx   = occ.in_flds.swflx
     nswflx  = occ.in_flds.nswflx
     frwflx  = occ.in_flds.frwflx
@@ -35,6 +39,11 @@ function stepOceanColumnCollection!(
         zs = occ.zs_vw[i, j]
         Nz = occ.Nz[i, j]
 
+        #fric_u[i, j] = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / NKOM.ρ) * 0.0
+        fric_u[i, j] = sqrt( sqrt(taux[i, j]^2.0 + tauy[i, j]^2.0) / NKOM.ρ )
+        weighted_fric_u[i, j] = fric_u[i, j] * (1.0 - ifrac[i, j])
+
+
         # Pseudo code
         # Current using only Euler forward scheme:
         # 1. Determine h at t+Δt
@@ -53,21 +62,20 @@ function stepOceanColumnCollection!(
         surf_Tswflx  = swflx[i, j] / (ρ*c_p)
         surf_Jflx    = g*α*surf_Tswflx
         surf_Sflx    = - frwflx[i, j] * S_surf_avg
-        surf_bflx    = g * ( α * surf_Tnswflx - β * total_Sflx )
+        surf_bflx    = g * ( α * surf_Tnswflx - β * surf_Sflx )
         
         old_FLDO = occ.FLDO[i, j]
         old_h_ML = occ.h_ML[i, j]
         Δb = (old_FLDO != -1) ? occ.b_ML[i, j] - occ.bs[old_FLDO, i, j] : 0.0
 
 
-        # 2019/07/17 comment these code out. Keep it here just in case.
         # After convective adjustment, there still might
         # be some numerical error making Δb slightly negative
-        # (the one I got is like -1e-15). So I set a tolarence
-        # ( 0.001 K ≈ 3e-6 m/s^2 ).
-        #        if Δb < 0.0 && -Δb <= 3e-6
-        #            Δb = 0.0
-        #        end
+        # (the one I got is like -1e-15 ~ -1e-8). So I set a
+        # tolarence δb = 3e-6 ( 0.001 K => 3e-6 m/s^2 ).
+        if Δb < 0.0 && -Δb <= 3e-6
+            Δb = 0.0
+        end
 
         new_h_ML = old_h_ML
 
@@ -77,24 +85,16 @@ function stepOceanColumnCollection!(
 
         else        # h_ML is prognostic
             
-            if do_rad_decay
- 
-                new_h_ML = calNewMLD(;
-                    h_ML   = old_h_ML,
-                    Bf     = surf_bflx,
-                    J0     = surf_Jflx,
-                    fric_u = fric_u[i, j],
-                    Δb     = Δb,
-                    f      = occ.fs[i, j],
-                    Δt     = Δt,
-                    γ      = occ.γ,
-                )
-
-            else 
-                
-                throw(ErrorException("Prognostic MLD scheme needs do_rad_decay to be true. Complete absorbtion at the surface causes overshallow MLD."))
-                
-            end
+            new_h_ML = calNewMLD(;
+                h_ML   = old_h_ML,
+                Bf     = surf_bflx,
+                J0     = surf_Jflx,
+                fric_u = weighted_fric_u[i, j],
+                Δb     = Δb,
+                f      = occ.fs[i, j],
+                Δt     = Δt,
+                γ      = occ.γ,
+            )
 
         end
 
@@ -131,8 +131,8 @@ function stepOceanColumnCollection!(
         end
 
         # Shortwave radiation is not included yet
-        new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - total_Sflx * Δt) / new_h_ML
-        new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - total_Tnswflx * Δt) / new_h_ML
+        new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - surf_Sflx * Δt) / new_h_ML
+        new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - surf_Tnswflx * Δt) / new_h_ML
 
         OC_setMixedLayer!(
             occ, i, j;
@@ -142,9 +142,9 @@ function stepOceanColumnCollection!(
         )
 
         # Shortwave radiation
-        if do_rad_decay
+        if rad_scheme == :exponential
             OC_doShortwaveRadiation!(occ, i, j; Tswflx=surf_Tswflx, Δt=Δt) 
-        else
+        elseif rad_scheme == :step
             occ.T_ML[i, j] += - surf_Tswflx * Δt / new_h_ML
         end
 
