@@ -124,20 +124,20 @@ cat << XEOFX > config.jl
 
 let
 global overwrite_configs = Dict(
-    "casename"                   => "\${casename}",
-    "caseroot"                   => "\${caseroot}",
-    "caserun"                    => "\${caserun}",
-    "domain_file"                => "\${ocn_domain_path}/\${ocn_domain_file}",
-    "short_term_archive_dir"     => "\${caserun}",
-    "long_term_archive_dir"      => "\${dout_s_root}/ocn/hist",
-    "enable_short_term_archive"  => true,
-    "enable_long_term_archive"   => true,
-    "daily_record"               => false,
-    "monthly_record"             => true,
-    "yearly_snapshot"            => true,
-    "short_term_archive_list"    => "SSM_short_term_archive_list.txt",
-    "substeps"                   => 8,
-    "init_file"                  => "\${init_file}",
+    :casename                   => "\${casename}",
+    :caseroot                   => "\${caseroot}",
+    :caserun                    => "\${caserun}",
+    :domain_file                => "\${ocn_domain_path}/\${ocn_domain_file}",
+    :short_term_archive_dir     => "\${caserun}",
+    :long_term_archive_dir      => "\${dout_s_root}/ocn/hist",
+    :enable_short_term_archive  => true,
+    :enable_long_term_archive   => true,
+    :daily_record               => false,
+    :monthly_record             => true,
+    :yearly_snapshot            => true,
+    :short_term_archive_list    => "SSM_short_term_archive_list.txt",
+    :substeps                   => 8,
+    :init_file                  => "\${init_file}",
 )
 end
 
