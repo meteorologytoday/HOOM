@@ -36,23 +36,19 @@ model_settings=(
 )
 
 model_settings=(
-    NKOM  xQflux        "pop_frc.gx3v7.110128.nc"
+    NKOM  default       "$raw_data_dir/pop_frc.gx3v7.110128.nc"
+    NKOM  xQflux        "$raw_data_dir/pop_frc.gx3v7.110128.nc"
+
 )
 
-
-#model_settings=(
-#    ESOM  default
-#)
-
-
-
+casenames=()
 
 for i in $(seq 1 $((${#model_settings[@]}/3))); do
     model=${model_settings[$((3*(i-1)))]}
     init_config=${model_settings[$((3*(i-1)+1))]}
     qflux_file=${model_settings[$((3*(i-1)+2))]}
 
-    printf "Gonna making %s-%s\n" $model $model_config
+    printf "Gonna making %s %s\n" $model $init_config
 
     SMARTSLAB-code/other_src/generate_cesm_case/main.sh \
         --code-output-dir=$code_output_dir              \
@@ -76,7 +72,33 @@ for i in $(seq 1 $((${#model_settings[@]}/3))); do
         --ocn-ncpu=$ocn_ncpu                            \
         --project-code=$project_code                    \
         --qflux-file=$qflux_file                        \
-        --ocn-branch=$ocn_branch
+        --ocn-branch=$ocn_branch                        \
+        | tee tmp.txt
 
+        casenames+=$(tail -n 1 tmp.txt)
+done
+
+all_clean_build="$code_output_dir/00_all_clean_build.sh"
+all_makecase="$code_output_dir/01_all_makecase.sh"
+all_build="$code_output_dir/02_all_build.sh"
+all_run="$code_output_dir/03_all_run.sh"
+
+
+for file in $all_makecase $all_build $all_clean_build $all_run ; do
+    echo "#!/bin/bash" > $file
+    echo "p=\$(pwd)" > $file
+    chmod +x $file
+done
+
+for casename in "${casenames[@]}"; do
+   
+    echo "Making all files for : $casename"
+ 
+    echo "$code_output_dir/makecase_${casename}.sh" >> $all_makecase 
+    echo "cd $casename; ./cesm_setup; ./${casename}.build; cd \$p" >> $all_build 
+    echo "cd $casename; ./${casename}.clean_build; ./cesm_setup -clean; cd \$p" >> $all_clean_build 
+    echo "cd $casename; ./${casename}.run; cd \$p" >> $all_run
 
 done
+
+echo "Done."

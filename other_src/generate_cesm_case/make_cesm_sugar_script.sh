@@ -5,6 +5,7 @@ echo $( basename $0 )
 echo "wk_dir: $wk_dir"
 
 lopts=(
+    casename
     code-output-dir
     init-file
     label
@@ -25,8 +26,9 @@ lopts=(
 
 source $wk_dir/getopt_helper.sh
 
-
-export casename="${resolution}_${label}_${model}_${init_config}"
+if [ ! -z "$casename" ]; then
+    export casename="${label}_${resolution}_${model}_${init_config}"
+fi
 
 script_file=$code_output_dir/makecase_$casename.sh
 
@@ -200,4 +202,4 @@ EOF
 
 chmod +x $script_file 
 
-
+echo "$casename"

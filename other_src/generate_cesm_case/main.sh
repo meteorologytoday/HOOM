@@ -77,7 +77,8 @@ $wk_dir/make_init.sh                            \
 
 
 echo "Making initial files for a specific model"
-init_file=$init_files_dir/init_${label}_${resolution}_${model}_${init_config}.nc
+casename=${label}_${resolution}_${model}_${init_config}
+init_file=$init_files_dir/init_${casename}.nc
 
 $wk_dir/make_init_each_model.sh                 \
     --output-file=$init_file                    \
@@ -95,7 +96,9 @@ $wk_dir/make_init_each_model.sh                 \
 
 
 echo "Generate cesm sugar scripts..."
+
 $wk_dir/make_cesm_sugar_script.sh           \
+    --casename=$casename                    \
     --code-output-dir=$code_output_dir      \
     --init-file=$init_file                  \
     --resolution=$resolution                \
@@ -114,4 +117,4 @@ $wk_dir/make_cesm_sugar_script.sh           \
     --ocn-branch=$ocn_branch
 
     
-echo "Done."
+echo "$casename"
