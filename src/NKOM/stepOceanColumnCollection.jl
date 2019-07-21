@@ -39,8 +39,14 @@ function stepOceanColumnCollection!(
         zs = occ.zs_vw[i, j]
         Nz = occ.Nz[i, j]
 
-        #fric_u[i, j] = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / NKOM.ρ) * 0.0
-        fric_u[i, j] = sqrt( sqrt(taux[i, j]^2.0 + tauy[i, j]^2.0) / NKOM.ρ )
+        #for k=1:Nz
+        #    isfinite(occ.Ts[k, i, j]) || throw(ErrorException("Not good at " * string(i) * ", " * string(j) * " and k=" * string(k)))
+        #end
+
+
+
+        #fric_u[i, j] = sqrt( sqrt(taux[i, j]^2.0 + tauy[i, j]^2.0) / NKOM.ρ )
+        fric_u[i, j] = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / NKOM.ρ) * 0.0
         weighted_fric_u[i, j] = fric_u[i, j] * (1.0 - ifrac[i, j])
 
 
@@ -84,7 +90,7 @@ function stepOceanColumnCollection!(
             new_h_ML = h_ML[i, j]
 
         else        # h_ML is prognostic
-            
+             
             new_h_ML = calNewMLD(;
                 h_ML   = old_h_ML,
                 Bf     = surf_bflx + surf_Jflx * occ.R,
@@ -94,8 +100,9 @@ function stepOceanColumnCollection!(
                 f      = occ.fs[i, j],
                 Δt     = Δt,
                 ζ      = occ.ζ,
+                we_max = occ.we_max,
             )
-
+            
         end
 
         new_h_ML = boundMLD(new_h_ML; h_ML_max=occ.h_ML_max[i, j], h_ML_min=occ.h_ML_min[i, j])
@@ -143,8 +150,10 @@ function stepOceanColumnCollection!(
 
         # Shortwave radiation
         if rad_scheme == :exponential
+            FLDO = occ.FLDO[i, j]
             occ.T_ML[i, j] += - occ.R * surf_Tswflx * Δt / new_h_ML
-            OC_doShortwaveRadiation!(occ, i, j; Tswflx=surf_Tswflx, Δt=Δt) 
+            occ.Ts[1:((FLDO == -1) ? Nz : FLDO-1 ), i, j] .= occ.T_ML[i, j]
+            OC_doShortwaveRadiation!(occ, i, j; Tswflx=(1.0 - occ.R) * surf_Tswflx, Δt=Δt) 
         elseif rad_scheme == :step
             occ.T_ML[i, j] += - surf_Tswflx * Δt / new_h_ML
         end

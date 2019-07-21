@@ -43,7 +43,7 @@ function makeSubOCC(
         fs             = occ.fs[rng2...],
         ϵs             = occ.ϵs[rng2...],
         in_flds        = InputFields(:local, occ.Nx, sub_Ny),
-        arrange        = "zxy",
+        arrange        = :zxy,
     )
 
 

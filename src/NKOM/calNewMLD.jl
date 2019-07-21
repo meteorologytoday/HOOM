@@ -64,7 +64,9 @@ function calNewMLD(;
     Δ, _ = calΔ_and_∂Δ∂h(h_ML, a, Bf, J0, λ, ζ, n; need_∂Δ∂h=false)
 
     h_MO = solveMoninObuhkovLength(h_init, a, Bf, J0, λ, ζ, n)
-
+    #if isinf(h_MO)
+    #    println("f = ", f, ", sinθ = ", f / (2 * NKOM.Ωe), "; lat: ", asin(f / (2 * NKOM.Ωe)) * 180/π)
+    #end
     if Δ >= 0
         k = getTKE(fric_u=fric_u)
         we = Δ / (h_ML * Δb + k)
@@ -87,7 +89,7 @@ end
     f::Float64,
     m::Float64,
 )
-    return 2.0 * m * u_fric, u_fric / abs(f) 
+    return 2.0 * m * u_fric^3.0, u_fric / abs(f) 
 end
 
 function calΔ_and_∂Δ∂h(
@@ -111,7 +113,7 @@ end
     return h - 2.0 * ζ + exp(-h / ζ) * (h + 2.0 * ζ)
 end
 
-@inline function ∂S∂h(h::Float64, γ::Float64)
+@inline function ∂S∂h(h::Float64, ζ::Float64)
     return 1 - exp(-h / ζ) * (1 + h / ζ)
 end
 
@@ -134,6 +136,7 @@ function solveMoninObuhkovLength(
 
     # The only contribution of negativity comes from b + c
     if b + c > 0
+#        println("MO Length Inf!", h, ",", a, ",", b, ",", c, ",", λ)
         return Inf
     end
 

@@ -116,7 +116,7 @@ mutable struct OceanColumnCollection
         fs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
         ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
         in_flds  :: Union{InputFields, Nothing} = nothing,
-        arrange  :: AbstractString = "zxy",
+        arrange  :: Symbol = :zxy,
     )
 
         # Determine whether data should be local or shared (parallelization)
@@ -305,6 +305,16 @@ mutable struct OceanColumnCollection
             _h_ML .= h_ML_min
         end
 
+        # Need to constraint h_ML
+        for i=1:Nx, j=1:Ny
+
+            (_mask[i, j] == 0.0) && continue
+            
+            _h_ML[i, j] = boundMLD(_h_ML[i, j]; h_ML_max=_h_ML_max[i, j], h_ML_min=_h_ML_min[i, j])
+
+        end
+
+
         if typeof(T_ML) <: AbstractArray{Float64, 2}
             _T_ML[:, :] = T_ML
         elseif typeof(T_ML) <: Float64
@@ -351,7 +361,7 @@ mutable struct OceanColumnCollection
             end
 
             for k=1:Nz[i, j]
-                _rad_decay_coes[k, i, j]  = (1.0 - R) * exp(zs[k, i, j])         # From surface to top of the layer
+                _rad_decay_coes[k, i, j]  = exp(zs[k, i, j] / ζ)         # From surface to top of the layer
                 _rad_absorp_coes[k, i, j] = 1.0 - exp(- hs[k, i, j] / ζ)
             end
 

@@ -11,7 +11,7 @@ function checkDict!(
         if ! haskey(d, key)
             msg = format(
                 "Missing key: `{:s}`. Valid values: `{:s}`.",
-                key,
+                string(key),
                 join(valid_vts, "` ,`")
             )
 

@@ -1,21 +1,20 @@
 overwrite_configs = Dict()
 configs = Dict(
-    "casename"    => "casename",
-    "substeps"    => 1,                 # This controls how many steps will occur for each CESM coupling. Example: ocean couple to atmosphere every 24 hours but itself steps every 3 hours. This means we would expect `Δt` = 86400, and we set `substeps` = 8.
-
-    "caseroot"                  => pwd(),
-    "domain_file"               => "/home/tienyiah/cesm_inputdata/cesm1/share/domains/domain.ocn.gx3v7.120323.nc",
-    "short_term_archive_dir"    => pwd(),
-    "long_term_archive_dir"     => pwd(),
-    "enable_short_term_archive" => false,
-    "enable_long_term_archive"  => false,
-    "daily_record"              => false,
-    "monthly_record"            => true,
-    "yearly_snapshot"           => true,
-    "short_term_archive_list"   => "SMARTSLAB_short_term_archive_list.txt",
-    "rpointer_file"             => "rpointer.ssm_ocn",
-    "wdir"                      => pwd(),
-    "timeout"                   => 60.0 * 5,
+    :casename    => "casename",
+    :substeps    => 1,                 # This controls how many steps will occur for each CESM coupling. Example: ocean couple to atmosphere every 24 hours but itself steps every 3 hours. This means we would expect `Δt` = 86400, and we set `substeps` = 8.
+    :caseroot                  => pwd(),
+    :domain_file               => "/home/tienyiah/cesm_inputdata/cesm1/share/domains/domain.ocn.gx3v7.120323.nc",
+    :short_term_archive_dir    => pwd(),
+    :long_term_archive_dir     => pwd(),
+    :enable_short_term_archive => false,
+    :enable_long_term_archive  => false,
+    :daily_record              => false,
+    :monthly_record            => true,
+    :yearly_snapshot           => true,
+    :short_term_archive_list   => "SMARTSLAB_short_term_archive_list.txt",
+    :rpointer_file             => "rpointer.ssm_ocn",
+    :wdir                      => pwd(),
+    :timeout                   => 60.0 * 5,
 )
 
 function parse_commandline()
@@ -80,7 +79,7 @@ end
 
 if ! ( "tmp_folder" in keys(configs) )
     
-    configs["tmp_folder"] = joinpath(configs["caserun"], "x_tmp")
+    configs[:tmp_folder] = joinpath(configs[:caserun], "x_tmp")
     
 end
 

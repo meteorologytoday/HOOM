@@ -5,7 +5,7 @@ function OC_doShortwaveRadiation!(
     Tswflx :: Float64,
     Δt     :: Float64,
 )
-    doShortwaveRadiation!(
+    occ.T_ML[i, j] = doShortwaveRadiation!(
         Tswflx = Tswflx,
         Ts   = occ.Ts_vw[i, j],
         zs   = occ.zs_vw[i, j],
@@ -18,8 +18,10 @@ function OC_doShortwaveRadiation!(
         FLDO = occ.FLDO[i, j],
         ζ    = occ.ζ,
         Δt   = Δt,
-
     )
+
+
+
 end
 
 
@@ -43,22 +45,22 @@ function doShortwaveRadiation!(;
 
     if FLDO == -1      # Entire ocean column is mixed-layer
         T_ML += - Tswflx * Δt / h_ML
-        return
+        return T_ML
     end
 
 
-    rad_decay_coes_ML = exp(-γ*h_ML)
+    rad_decay_coes_ML = exp(-h_ML/ζ)
     T_ML += - Tswflx * (1.0 - rad_decay_coes_ML) * Δt / h_ML
     
     # ===== [END] Mixed layer =====
 
     # ===== [BEGIN] FLDO layer =====
 
-    h_FLDO = -h_ML - zs[FLDO+1]
+    h_FLDO = - h_ML - zs[FLDO+1]
 
     if FLDO == Nz  # FLDO is last layer
         Ts[FLDO] += - Tswflx * rad_decay_coes_ML * Δt / h_FLDO
-        return
+        return T_ML
     else
         Ts[FLDO] += - Tswflx * (rad_decay_coes_ML - rad_decay_coes[FLDO+1]) * Δt / h_FLDO
     end
@@ -71,6 +73,7 @@ function doShortwaveRadiation!(;
     end
 
     # ===== [END] Rest layers =====
-
+        
+    return T_ML
 end
 
