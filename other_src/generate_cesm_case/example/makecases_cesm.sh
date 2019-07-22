@@ -100,7 +100,7 @@ for casename in "${casenames[@]}"; do
     echo "cd $casename; ./cesm_setup; ./${casename}.build; cd \$p" >> $all_build 
     echo "cd $casename; ./${casename}.clean_build; ./cesm_setup -clean; cd \$p" >> $all_clean_build 
     echo "cd $casename; ./${casename}.run; cd \$p" >> $all_run
-    echo "set -x; cd $casename/SMARTSLAB-main; git \${@:1}; cd \$p" >> $all_git
+    echo "cd $casename/SMARTSLAB-main; git \${@:1}; cd \$p" >> $all_git
 
 done
 
