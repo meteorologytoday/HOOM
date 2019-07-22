@@ -1,11 +1,23 @@
-include("load_files.jl")
-include(joinpath(src, "ESOM", "ESOM.jl"))
-using .ESOM
+include(joinpath("..", "load_files.jl"))
+include(joinpath(src, "NKOM", "NKOM.jl"))
+using .NKOM
 
-include("load_files.jl")
 
 Δz_1 =  50.0 
 Δz_2 = 250.0
+
+
+Dataset(parsed["forcing-file"], "r") do ds
+
+    h_ML = replace(ds["hblt"][:], missing=>NaN)
+
+    global h_ML_max = maximum(h_ML[isfinite.(h_ML)])
+    global replace    
+
+
+
+end
+
 
 for i = 1:length(zs)
     if 0.0 - zs[i] >= Δz_1
@@ -97,5 +109,34 @@ occ = ESOM.OceanColumnCollection(
 )
 
 ESOM.takeSnapshot(occ, parsed["output-file"])
+
+
+
+
+occ = NKOM.OceanColumnCollection(
+    gridinfo_file = parsed["domain-file"],
+    Nx       = Nx,
+    Ny       = Ny,
+    zs_bone  = zs,
+    Ts       = copy(Ts_clim),
+    Ss       = copy(Ss_clim),
+    K_T      = 1e-5,
+    K_S      = 1e-5,
+    T_ML     = Ts_clim[:, :, 1],
+    S_ML     = Ss_clim[:, :, 1],
+    h_ML     = 10.0, 
+    h_ML_min = 10.0,
+    h_ML_max = 1e5,             # make it unrestricted
+    we_max   = 1e-2,             # make it unrestricted
+    mask     = mask,
+    topo     = topo,
+    Ts_clim_relax_time = 86400.0 * 365 * 10, # 10 years
+    Ts_clim            = copy(Ts_clim),
+    Ss_clim_relax_time = 86400.0 * 365 * 10, # 10 years
+    Ss_clim            = copy(Ss_clim),
+    arrange  = "xyz",
+)
+
+NKOM.takeSnapshot(occ, parsed["output-file"])
 
 
