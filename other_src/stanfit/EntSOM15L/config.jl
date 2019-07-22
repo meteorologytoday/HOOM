@@ -20,11 +20,11 @@ let
         "stan-samples"    => 500,
         "stan-warmup"     => 100,
         "sub-output-size" => 10,
-        "T-sigma"         =>  0.1,
+        "T-sigma"         =>  0.01,
         "h_mean-sigma"    => 10.0,
         "output-root-dir" => data_dir,
         "exp-name"        => "LENS.g37",
-        "steps"           => [2 for _ in 1:12],
+        "steps"           => [10 for _ in 1:12],
     )
 
     config["exp-name"] = format("NKMLM-gamma_{:s}_c{:d}_s{:d}_w{:d}", config["exp-name"], config["stan-chains"], config["stan-samples"], config["stan-warmup"])

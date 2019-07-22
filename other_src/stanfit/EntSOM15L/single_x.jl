@@ -3,6 +3,7 @@ program_beg_time = Base.time()
 using Printf
 using Formatting
 using NCDatasets
+using Random
 import Statistics: mean, std
 
 using ArgParse
@@ -68,7 +69,7 @@ println("ENV[\"CMDSTAN_HOME\"] = ", ENV["CMDSTAN_HOME"])
 using Stan
 @printf("done\n")
 
-script_path = normpath(joinpath(dirname(@__FILE__), "NKMLM_gamma.stan"))
+script_path = normpath(joinpath(dirname(@__FILE__), "EntSOM15L.stan"))
 model_script = read(script_path, String)
 
 stanmodel = Stanmodel(
@@ -92,8 +93,8 @@ time_stat = Dict()
 
 total_time = 0.0
 
-β_mean = zeros(Float64, config["sub-output-size"], 25)
-β_std = zeros(Float64, config["sub-output-size"], 25)
+β_mean = zeros(Float64, config["sub-output-size"], 26)
+β_std = zeros(Float64, config["sub-output-size"], 26)
 
 
 Dataset(config["SHF-file"], "r") do ds
@@ -110,8 +111,8 @@ end
 
 N  = size(F)[end]
 dom = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-steps = [1 for _ in 1:12]
-for i = 1:total_sub_output
+steps = [2 for _ in 1:12]
+for (_, i) in enumerate(shuffle(1:total_sub_output))
 
     if file_exists[i]
 
@@ -153,7 +154,7 @@ for i = 1:total_sub_output
                 "raw_N"  => N, 
                 "dom"    => dom,
                 "steps"  => steps,
-#                "h_mean" => mean_h,
+                "h_mean" => mean_h,
                 "raw_T"  => SST[j, :], 
                 "raw_F"  => F[j, :],
                 "T_std"  => config["T-sigma"],
@@ -162,7 +163,7 @@ for i = 1:total_sub_output
             )
 
             init = Dict(
-                "h" => mean_seasonal_h,
+                "partial_h" => [mean(mean_seasonal_h) for l=1:11],
             )
             
             rc, sim1 = stan(

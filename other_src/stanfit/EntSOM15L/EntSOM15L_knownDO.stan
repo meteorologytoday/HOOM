@@ -13,6 +13,24 @@ functions {
     }
 
 
+    real find_Ts(real z, real[] zs, real[] Ts) {
+        return Ts[find_z_index(z, zs)];
+    }
+
+    int find_z_index(real z, real[] zs) {
+        if (z == 0) {
+            return 1;
+        }
+
+        for (k in 1:size(zs)-1) {
+            if(zs[k] > z && z >= zs[k+1]) {
+                return k;
+            }
+        }
+        raise_exception("Can't find_z_index. Out of range. z:", z, "; zs: ", zs);
+    }
+
+
     
 }
 
@@ -29,6 +47,10 @@ data {
 
     real c_sw;
     real rho_sw;
+    
+    real Nz;
+    real Ts[Nz];
+    real hs[Nz];
 }
 
 transformed data {
@@ -46,6 +68,8 @@ transformed data {
     real sub_dt[12];
 
     real heat_cap_density = c_sw * rho_sw;
+
+    real zs[Nz+1];
 
     if(raw_N % 12 != 0) {
        reject("raw_N = ", raw_N, " is not multiple of 12");
@@ -75,6 +99,11 @@ transformed data {
         }
     }
     
+    zs[1] = 0.0;
+    for(k in 2:Nz) {
+        zs[k] = zs[k-1] - hs[k-1];
+    }
+    
     true_future_T[1:total_steps-1] = T[2:total_steps];
     true_future_T[total_steps] = interpolate(steps[12]-0.5, 0.0, raw_T[raw_N - 12], steps[12], raw_T[raw_N - 11]);
  
@@ -89,6 +118,7 @@ transformed data {
     print("sd(F)        = ", sd(F));
     print("T[13:24]     = ", T[13:24]);
     print("true_future_T[13:24]  = ", true_future_T[13:24]);
+    print("zs = ", zs);
 }
 /*
 parameters {
@@ -101,8 +131,6 @@ parameters {
 parameters {
     real<lower=1>    partial_h[11];
     real             Q[12];
-    real<lower=0.0>  gamma;
-    real<lower=-1.8>    Td;
 }
 
 transformed parameters {
@@ -116,20 +144,11 @@ transformed parameters {
 
 model{
 
-    real dhdt[12];
-    real we[12];
-
     real h_interp[sum_steps];
     real Q_interp[sum_steps];
 
-    real h_max = max(h);
-
     int t;
     int step_in_year;
-
-    #print("h series:", h);
-    #print("Q series:", Q);
-    #print("h_max:", h_max, "; Td:", Td, "; gamma=", gamma);
 
     for(m in 1:11) {
         dhdt[m] = (h[m+1] - h[m]) / dt[m];
@@ -163,24 +182,18 @@ model{
             
                 real predict_T = T[t];
                 real old_T = predict_T;
-                real Te = Td + gamma * (h_max - h_interp[step_in_year]);
+                real Te = find_Ts(-h_interp[step_in_year], zs, Ts);
+
                 #print("Te: ", Te);
 
                 predict_T += ( ( F[t] + Q_interp[step_in_year] ) / heat_cap_density - (predict_T - Te) * we[m] ) * sub_dt[m] / h_interp[step_in_year];
                
-
                 // convective adjustment 
                 if (predict_T < Te) {
                     predict_T = Te;
                 } 
  
                 // Likelihood
-                if (is_nan(predict_T)) {
-                    print("k = ", k);
-                    print("h = ", h);
-                    print("t = ", t, "; old_T = ", old_T, "; predict_T = ", predict_T, "true_future_T = ", true_future_T[t], "; diff=", predict_T - true_future_T[t]);
-                    print("h_interp =", h_interp[step_in_year], "; Te = ", Te, "; we= ", we[m]);
-                }
                 (predict_T - true_future_T[t]) ~ normal(0, T_std);
 
                 step_in_year += 1;

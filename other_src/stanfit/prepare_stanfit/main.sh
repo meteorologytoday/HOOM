@@ -9,7 +9,7 @@ export wgt_file=wgt_gx1v6_to_gx3v7.nc
 i_fmt="b.e11.B1850C5CN.f09_g16.005.pop.h.%s.100001-109912.nc"
 o_fmt="transformed_b.e11.B1850C5CN.f45_g37.005.pop.h.%s.100001-109912.nc"
 
-vars=( HMXL SHF SST )
+vars=( HMXL SHF SST TEMP )
 
 if [ -f "$wgt_file" ]; then
     echo "Weight file \"$wgt_file\" already exists. No need to create a new one."
