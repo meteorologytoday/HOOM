@@ -60,7 +60,7 @@ function doNewtonianRelaxation!(;
             end
         end
 
-    elseif τ = 0.0
+    elseif τ == 0.0
  
         if FLDO != -1
             for i = FLDO:Nz

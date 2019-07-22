@@ -11,6 +11,10 @@ zs[2] = minimum(topo[isfinite.(topo)])
 Ts_clim = reshape(Ts_clim[:, :, 1], Nx, Ny, 1)
 Ss_clim = reshape(Ss_clim[:, :, 1], Nx, Ny, 1)
 
+h_ML = zeros(Nx, Ny)
+h_ML .= 1.0
+
+
 occ = NKOM.OceanColumnCollection(
     gridinfo_file = parsed["domain-file"],
     Nx       = Nx,
@@ -22,7 +26,7 @@ occ = NKOM.OceanColumnCollection(
     K_S      = 1e-5,
     T_ML     = Ts_clim[:, :, 1],
     S_ML     = Ss_clim[:, :, 1],
-    h_ML     = h_ML[:, :, 1], 
+    h_ML     = h_ML, 
     h_ML_min = 1e-3,                 # cannot be 0 
     h_ML_max = -zs[end],             # make it unrestricted
     we_max   = 1e5,                  # ignored in this scheme
@@ -32,7 +36,7 @@ occ = NKOM.OceanColumnCollection(
     Ts_clim            = nothing,
     Ss_clim_relax_time = 0.0,
     Ss_clim            = nothing,
-    arrange  = "xyz",
+    arrange  = :xyz,
 )
 
 NKOM.takeSnapshot(occ, parsed["output-file"])

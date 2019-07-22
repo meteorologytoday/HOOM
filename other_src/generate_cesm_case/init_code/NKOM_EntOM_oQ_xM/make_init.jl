@@ -23,7 +23,7 @@ occ = NKOM.OceanColumnCollection(
     Ts_clim            = copy(Ts_clim),
     Ss_clim_relax_time = 0.0, # Fixed
     Ss_clim            = copy(Ss_clim),
-    arrange  = "xyz",
+    arrange  = :xyz,
 )
 
 NKOM.takeSnapshot(occ, parsed["output-file"])

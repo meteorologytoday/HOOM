@@ -77,7 +77,7 @@ for i in $(seq 1 $((${#model_settings[@]}/3))); do
         --ocn-branch=$ocn_branch                        \
         | tee tmp.txt
 
-        casenames+=$(tail -n 1 tmp.txt)
+        casenames+=($(tail -n 1 tmp.txt))
 done
 
 all_clean_build="$code_output_dir/00_all_clean_build.sh"
@@ -88,7 +88,7 @@ all_run="$code_output_dir/03_all_run.sh"
 
 for file in $all_makecase $all_build $all_clean_build $all_run ; do
     echo "#!/bin/bash" > $file
-    echo "p=\$(pwd)" > $file
+    echo "p=\$(pwd)" >> $file
     chmod +x $file
 done
 
