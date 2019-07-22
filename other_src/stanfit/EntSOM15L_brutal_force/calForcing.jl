@@ -100,26 +100,30 @@ function integrate(zb, zt, zs, Ts)
 
 end
 
-Qs = zeros(Float64, Nx, Ny, 12)
-hs = zeros(Float64, Nx, Ny, 12) 
+Qs_EntSOM15L = zeros(Float64, Nx, Ny, 12)
+hs_EntSOM15L = zeros(Float64, Nx, Ny, 12) 
 
-Qs .= NaN
-hs .= NaN
+Qs_SOM       = zeros(Float64, Nx, Ny, 12)
+hs_SOM       = zeros(Float64, Nx, Ny, 12)
 
+
+Qs_EntSOM15L .= NaN
+hs_EntSOM15L .= NaN
+Qs_SOM       .= NaN
+hs_SOM       .= NaN
+
+# SOM
+println("Doing SOM...")
 for i=1:Nx, j=1:Ny
-    print("\r(", i, ", ", j, ")")
 
     isnan(SST[i, j, 1]) && continue
 
-    Q = view(Qs, i, j, :)
+    Q = view(Qs_SOM, i, j, :)
 
     T      = SST[i, j, 13:Nt-12]
     T_next = SST[i, j, 14:Nt-11]
 
-    #h  =  HMXL[i, j, 14:Nt-11] + HMXL[i, j, 13:Nt-12] ) / 2.0
-    h       =   HMXL[i, j, 13:Nt-12]
-    h_next  =   HMXL[i, j, 14:Nt-11]
-    Δh = h_next - h
+    h = mean(HMXL[i, j, 13:Nt-12])
     
     F      = SHF[i, j, 13:Nt-12]
     F_next = SHF[i, j, 14:Nt-11]
@@ -127,22 +131,9 @@ for i=1:Nx, j=1:Ny
     Q .= 0.0
     for t=1:length(T)
         m = (t-1)%12+1
+        
         Q[m] += - (F[t] + F_next[t]) / 2.0
-
-        if Δh[t] > 0.0
-            Q[m] += ρ * c_p * (
-                h_next[t] * (T_next[t] - getTd(-h_next[t], i, j))
-              - h[t]      * (T[t]      - getTd(-h[t]     , i, j))
-            )  / Δts[m]
-        else
-            Q[m] += ρ * c_p * (T_next[t] - T[t]) * (h[t] + h_next[t]) / 2.0 / Δts[m]
-        end
-
-#        if ρ * c_p * ( h_next[t] * (T_next[t] - getTd(-h_next[t], i, j) - h[t] * (T[t] - getTd(-h[t], i, j))) ) / Δts[m] > 1e5
-#            println("h_next ", h_next[t], ", ΔT: ", T_next[t] - getTd(-h_next[t], i, j), "; h: ", h[t], "; ΔT:", T[t] - getTd(-h[t], i, j))
-#            println( h_next[t] * (T_next[t] - getTd(-h_next[t], i, j) - h[t] * (T[t] - getTd(-h[t], i, j))) )
-#            throw(Exception())
-#        end
+        Q[m] += ρ * c_p * (T_next[t] - T[t]) * h / Δts[m]
 
     end
 
@@ -153,9 +144,56 @@ for i=1:Nx, j=1:Ny
         println(format("Position (i, j) = ({:d}, {:d}) has NaN Qflux!", i, j))
     end
 
-    hs[i, j, :] = mean(reshape(h, 12, :), dims=2)[:, 1]
+    hs_SOM[i, j, :] .= h
 end
 
+
+# EntSOM15L
+println("Doing EntSOM15L...")
+for i=1:Nx, j=1:Ny
+
+    isnan(SST[i, j, 1]) && continue
+
+    Q = view(Qs_EntSOM15L, i, j, :)
+
+    T      = SST[i, j, 13:Nt-12]
+    T_next = SST[i, j, 14:Nt-11]
+
+    #h  =  HMXL[i, j, 14:Nt-11] + HMXL[i, j, 13:Nt-12] ) / 2.0
+    h       =   HMXL[i, j, 13:Nt-12]
+    h_next  =   HMXL[i, j, 14:Nt-11]
+    Δh      = h_next - h
+    
+    F      = SHF[i, j, 13:Nt-12]
+    F_next = SHF[i, j, 14:Nt-11]
+
+    Q .= 0.0
+    for t=1:length(T)
+        m = (t-1)%12+1
+        
+        Q[m] += - (F[t] + F_next[t]) / 2.0
+        Q[m] += ρ * c_p * (T_next[t] - T[t]) * (h[t] + h_next[t]) / 2.0 / Δts[m]
+
+        if Δh[t] > 0.0
+            Q[m] += ρ * c_p * (
+                (T_next[t] - getTd(-h_next[t], i, j))
+              + (T[t]      - getTd(-h[t]     , i, j))
+            ) * Δh[t]  / 2.0 / Δts[m]
+        end
+
+    end
+
+    Q[:] /= (nyears - 2)   # remember we discard the first and last year
+    Q[:] = (Q + circshift(Q, 1) ) / 2.0
+
+    if any(isnan.(Q))
+        println(format("Position (i, j) = ({:d}, {:d}) has NaN Qflux!", i, j))
+    end
+
+    hs_EntSOM15L[i, j, :] = mean(reshape(h, 12, :), dims=2)[:, 1]
+end
+
+println("Output file...")
 
 Dataset(out_file, "c") do ds
 
@@ -165,12 +203,24 @@ Dataset(out_file, "c") do ds
 
     for o in (
         [
-            "h", hs, ("Nx", "Ny", "time"), Dict(
+            "h_SOM", hs_SOM, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Mixed-layer Depth",
             "units"=>"m",
             )
         ], [
-            "qflux", Qs, ("Nx", "Ny", "time"), Dict(
+            "qflux_SOM", Qs_SOM, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Q-flux",
+            "units"=>"W / m^2",
+            )
+        ],
+
+        [
+            "h_EntSOM15L", hs_EntSOM15L, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Mixed-layer Depth",
+            "units"=>"m",
+            )
+        ], [
+            "qflux_EntSOM15L", Qs_EntSOM15L, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Q-flux",
             "units"=>"W / m^2",
             )

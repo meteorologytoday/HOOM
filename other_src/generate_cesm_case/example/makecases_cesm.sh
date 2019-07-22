@@ -29,17 +29,19 @@ ocn_ncpu=2
 ocn_branch=master
 
 model_settings=(
-    NKOM  xQflux        ""
-    NKOM  xQflux_xClim  ""
-    NKOM  SOM_default   "$raw_data_dir/pop_frc.gx3v7.110128.nc"
-    NKOM  SOM_xQflux    "$raw_data_dir/pop_frc.gx3v7.110128.nc"
+    NKOM  oQ_oC         "$raw_data_dir/docn_forcing.EntOM_xM.LENS.g37.nc"
+    NKOM  xQ_oC         ""
+    NKOM  xQ_xC         ""
+    NKOM  EntOM_oQ_xM   "$raw_data_dir/docn_forcing.EntOM_xM.LENS.g37.nc"
+    NKOM  EntOM_oQ_oM   "$raw_data_dir/docn_forcing.EntOM_xM.LENS.g37.nc"
+    NKOM  SOM_oQ        "$raw_data_dir/docn_forcing.SOM.LENS.g37.nc"
+    NKOM  SOM_xQ        ""
 )
 
-model_settings=(
-    NKOM  default       "$raw_data_dir/pop_frc.gx3v7.110128.nc"
-    NKOM  xQflux        "$raw_data_dir/pop_frc.gx3v7.110128.nc"
-
-)
+#model_settings=(
+#    NKOM  default       "$raw_data_dir/pop_frc.gx3v7.110128.nc"
+#    NKOM  xQflux        "$raw_data_dir/pop_frc.gx3v7.110128.nc"
+#)
 
 casenames=()
 

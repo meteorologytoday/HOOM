@@ -50,7 +50,7 @@ data {
     
     real Nz;
     real Ts[Nz];
-    real hs[Nz];
+    real zs[Nz+1];
 }
 
 transformed data {

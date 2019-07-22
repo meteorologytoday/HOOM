@@ -7,13 +7,18 @@ function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin
 
-        "--Qflux-file"
+        "--input-file"
             help = "Qflux file"
             arg_type = String
             required = true
 
         "--Qflux-varname"
             help = "Qflux variable name in file"
+            arg_type = String
+            required = true
+
+        "--MLD-varname"
+            help = "MLD variable name in file"
             arg_type = String
             required = true
 
@@ -47,8 +52,9 @@ Dataset(parsed["domain-file"], "r") do ds
     ni, nj = size(area)
 end
 
-Dataset(parsed["Qflux-file"], "r") do ds
+Dataset(parsed["input-file"], "r") do ds
     global qflux = ds[parsed["Qflux-varname"]][:] |> nomissing
+    global h     = ds[parsed["MLD-varname"]][:] |> nomissing
 end 
 
 
@@ -105,13 +111,17 @@ Dataset(parsed["output-file"], "c") do ds
             "long_name" => "ocean heat flux convergence",
         )),
 
+        ("hblt", h, ("ni", "nj", "time"), Dict(
+            "units"     => "m",
+            "long_name" => "Mixed-layer depth",
+        )),
+
         ("S",    empty , ("ni", "nj", "time"), Dict()),
         ("T",    empty , ("ni", "nj", "time"), Dict()),
         ("U",    empty , ("ni", "nj", "time"), Dict()),
         ("V",    empty , ("ni", "nj", "time"), Dict()),
         ("dhdx", empty , ("ni", "nj", "time"), Dict()),
         ("dhdy", empty , ("ni", "nj", "time"), Dict()),
-        ("hblt", empty , ("ni", "nj", "time"), Dict()),
     ]
 
         var = defVar(ds, varname, Float64, vardim)

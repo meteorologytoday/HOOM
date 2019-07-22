@@ -6,6 +6,7 @@ env_run=(
     OCN_NCPL          1 
     CONTINUE_RUN      FALSE
     RESUBMIT          1
+    DOCN_FILENAME     "pop_frc.gx3v7.110128.nc"
 )
 
 env_mach_pes=(
