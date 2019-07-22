@@ -86,11 +86,11 @@ Dataset(parsed["zdomain-file"], "r") do ds
 end
 
 Dataset(parsed["data-clim-T-file"], "r") do ds
-    global Ts_clim = replace(ds["TEMP"][:, :, :, 1], missing=>NaN)
+    global Ts_clim = replace(ds["TEMP"][:, :, :], missing=>NaN)
 end
 
 Dataset(parsed["data-clim-S-file"], "r") do ds
-    global Ss_clim = replace(ds["SALT"][:, :, :, 1], missing=>NaN)
+    global Ss_clim = replace(ds["SALT"][:, :, :], missing=>NaN)
 end
 
 Dataset(parsed["topo-file"], "r") do ds
