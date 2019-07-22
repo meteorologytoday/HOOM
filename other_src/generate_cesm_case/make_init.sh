@@ -61,7 +61,7 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
         julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp1 --d-file=$tmp2 --w-file=$wgt_file --vars=$varname --x-dim=Nx --y-dim=Ny --z-dim=Nz
         julia $script_coordtrans_dir/convert_z.jl $tmp2 $new_data_file $varname
         
-        rm -f $tmp1 $tmp2
+#        rm -f $tmp1 $tmp2
     fi
 done
 
