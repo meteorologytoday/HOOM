@@ -66,7 +66,7 @@ module CESMCORE_NKOM
 
             println("`read_restart` is on")
             checkDict!( configs, [
-                ("rpointer_file", true, (String,), nothing),
+                (:rpointer_file, true, (String,), nothing),
             ])
 
             if !isfile(configs[:rpointer_file])
