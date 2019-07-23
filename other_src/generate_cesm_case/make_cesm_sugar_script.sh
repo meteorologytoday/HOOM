@@ -22,6 +22,7 @@ lopts=(
     ocn-ncpu
     qflux-file
     ocn-branch
+    single-job
 )
 
 source $wk_dir/getopt_helper.sh
@@ -48,6 +49,8 @@ init_file=$init_file
 qflux_file="$qflux_file"
 
 walltime="${walltime}"
+single_job="${single_job}"
+
 
 export PROJECT=${project_code}
 
@@ -88,10 +91,6 @@ fi
 
 cd \$casename
 
-# "BATCHSUBMIT" is used when automatically resubmitting the job
-# Currently the design is to submit batch job through another script
-# file. So BATCHSUBMIT is set to just bash.
-setXML "env_run.xml" "BATCHSUBMIT" "bash"
 
 setXML "env_run.xml" "\${env_run[@]}"
 setXML "env_mach_pes.xml" "\${env_mach_pes[@]}"
@@ -184,14 +183,56 @@ XEOFX
 
 mv \${casename}.run \${casename}.cesm.run
 
-cat << XEOFX > \${casename}.run
+# ===== JOB SUBMISSION BLOCK BEGIN =====
 
+if [ "\$single_job" != "on" ]; then
+
+    echo "single_job != on. Use 2 jobs to complete a run."
+
+    # "BATCHSUBMIT" is used when automatically resubmitting the job
+    # Currently the design is to submit batch job through another script
+    # file. So BATCHSUBMIT is set to just bash.
+    setXML "env_run.xml" "BATCHSUBMIT" "bash"
+
+    cat << XEOFX > \${casename}.run
 #!/bin/bash
 
 qsub -A \$PROJECT -l walltime="\$walltime" \${caseroot}/\${casename}.ocn.run
 qsub -A \$PROJECT -l walltime="\$walltime" \${caseroot}/\${casename}.cesm.run 
+XEOFX
+
+else
+    echo "single_job = on. Use 1 job to complete a run."
+
+    if [ "\$nodes" -gt "1" ]; then
+        echo "ERROR: Only 1 node is allowed when single_job variable is set as 'on'."
+        exit 1
+    fi
+
+    # Single job Run (Experimental. Currently may only works on a single node because CESM 
+    # was designed to take all the resources of each nodes. This scripts needs "env_mach_pes.xml"
+    # configured correctly. If a single node got N cores. It would be M cores for cesm and (N-M)
+    # cores for ocn model.
+    
+    cat << XEOFX > \${casename}.run
+#PBS -A \${PROJECT}
+#PBS -N \${casename}
+#PBS -q regular
+#PBS -l select=1:ncpus=\${max_tasks_per_node}:mpiprocs=\${max_tasks_per_node}:ompthreads=1
+#PBS -l walltime="\${walltime}"
+#PBS -j oe
+#PBS -S /bin/bash
+
+#!/bin/bash
+
+/bin/csh \${caseroot}/\${casename}.cesm.run &
+\${caseroot}/\${casename}.ocn.run &
+wait
 
 XEOFX
+fi
+
+# ===== JOB SUBMISSION BLOCK END =====
 
 chmod +x \$casename.ocn.run
 chmod +x \$casename.run
@@ -202,6 +243,7 @@ git clone --branch "$ocn_branch" https://github.com/meteorologytoday/SMARTSLAB-m
 cd ./SourceMods/src.docn
 ln -s ../../SMARTSLAB-main/src/CESM_driver/cesm1_docn_comp_mod.F90 ./docn_comp_mod.F90
 ln -s ../../SMARTSLAB-main/src/CESM_driver/ProgramTunnel .
+
 
 EOF
 

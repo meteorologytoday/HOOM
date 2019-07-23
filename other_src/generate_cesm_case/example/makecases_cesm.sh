@@ -26,8 +26,10 @@ code_output_dir=$pwd_dir/cesm_scripts
 init_files_dir=$pwd_dir/init_cond
 cesm_env=$pwd_dir/env_settings.sh
 
-ocn_ncpu=4
+ocn_ncpu=3
 ocn_branch=master
+
+single_job="on"
 
 model_settings=(
     NKOM  oQ_oC         "$raw_data_dir/docn_forcing.EntOM_xM.LENS.g37.nc"
@@ -40,9 +42,10 @@ model_settings=(
 )
 
 #model_settings=(
-#    NKOM  default       "$raw_data_dir/pop_frc.gx3v7.110128.nc"
-#    NKOM  xQflux        "$raw_data_dir/pop_frc.gx3v7.110128.nc"
+#    NKOM  SOM_oQ        "$raw_data_dir/docn_forcing.SOM.LENS.g37.nc"
 #)
+
+
 
 casenames=()
 
@@ -76,16 +79,18 @@ for i in $(seq 1 $((${#model_settings[@]}/3))); do
         --project-code=$project_code                    \
         --qflux-file=$qflux_file                        \
         --ocn-branch=$ocn_branch                        \
+        --single-job="$single_job"                      \
         | tee tmp.txt
 
         casenames+=($(tail -n 1 tmp.txt))
 done
 
-all_clean_build="$code_output_dir/00_all_clean_build.sh"
-all_makecase="$code_output_dir/01_all_makecase.sh"
-all_build="$code_output_dir/02_all_build.sh"
-all_run="$code_output_dir/03_all_run.sh"
-all_cmd="$code_output_dir/04_all_cmd.sh"
+all_cmd="$code_output_dir/00_all_cmd.sh"
+all_clean_build="$code_output_dir/01_all_clean_build.sh"
+all_makecase="$code_output_dir/02_all_makecase.sh"
+all_build="$code_output_dir/03_all_build.sh"
+all_run="$code_output_dir/04_all_run.sh"
+
 
 for file in $all_makecase $all_build $all_clean_build $all_run $all_cmd ; do
     echo "#!/bin/bash" > $file
@@ -106,9 +111,14 @@ for casename in "${casenames[@]}"; do
     echo "$code_output_dir/makecase_${casename}.sh" >> $all_makecase 
     echo "cd $case_dir; ./cesm_setup; ./${casename}.build; cd \$p" >> $all_build 
     echo "cd $case_dir; ./${casename}.clean_build; ./cesm_setup -clean; cd \$p" >> $all_clean_build 
-    echo "cd $case_dir; ./${casename}.run; cd \$p" >> $all_run
-    echo "cd $case_dir/SMARTSLAB-main; \${@:1}; cd \$p" >> $all_cmd
 
+    echo "if [ \$1 = \"cesm\" ] ; then cd $case_dir; elif [ \$1 = \"ocn\" ] ; then cd $case_dir/SMARTSLAB-main; else echo \"ERROR: First arg not 'cesm' nor 'ocn'.\"; exit 1; fi; echo \$(pwd); \${@:2}; cd \$p" >> $all_cmd
+
+    if [ "$single_job" != "on" ]; then
+        echo "cd $case_dir; ./${casename}.run; cd \$p" >> $all_run
+    else
+        echo "cd $case_dir; qsub ./${casename}.run; cd \$p" >> $all_run
+    fi
 done
 
 echo "Done."
