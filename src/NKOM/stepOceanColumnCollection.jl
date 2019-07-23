@@ -66,7 +66,7 @@ function stepOceanColumnCollection!(
 
         surf_Tnswflx = ( nswflx[i, j] + ( ( use_qflx ) ? qflx[i, j] : 0.0 )) / (ρ*c_p) 
         surf_Tswflx  = swflx[i, j] / (ρ*c_p)
-        surf_Jflx    = g*α*surf_Tswflx
+        surf_Jflx    = g * α * surf_Tswflx
         surf_Sflx    = - frwflx[i, j] * S_surf_avg
         surf_bflx    = g * ( α * surf_Tnswflx - β * surf_Sflx )
         
@@ -158,8 +158,6 @@ function stepOceanColumnCollection!(
             occ.T_ML[i, j] += - surf_Tswflx * Δt / new_h_ML
         end
 
- 
-       
         # Climatology relaxation
         if do_relaxation
             OC_doNewtonianRelaxation_T!(occ, i, j; Δt=relaxation_Δt)
@@ -172,7 +170,6 @@ function stepOceanColumnCollection!(
 
         OC_updateB!(occ, i, j)
 
-        # TODO: convective adjustment cannot break h_ML_max
         if do_convadjust
             OC_doConvectiveAdjustment!(occ, i, j;)
         end

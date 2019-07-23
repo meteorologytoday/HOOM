@@ -295,7 +295,7 @@ using Distributed
         in_filename   :: AbstractString,
         out_filename  :: AbstractString,
         wgt_filename  :: AbstractString;
-        varnames      :: Union{Tuple, Array} = (),
+        varnames      :: Union{Nothing, Array} = nothing,
         copy_varnames :: Union{Tuple, Array} = (:,),
         xydim         :: AbstractString = "grid",
         xdim          :: AbstractString = "lon",
@@ -357,6 +357,10 @@ using Distributed
             defVar(ds_out, zdim, zdim_val, (zdim,))
         elseif zdim in ds_in
             defVar(ds_out, zdim, replace(ds_in[zdim][:], missing=>0), (zdim,))
+        end
+
+        if varnames == nothing
+            varnames = keys(ds_in)
         end
 
         # Converting variables
