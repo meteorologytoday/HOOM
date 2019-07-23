@@ -131,7 +131,7 @@ module docn_comp_mod
   integer :: x_iostat, x_ptm_fds(3), x_w_fd, x_r_fd
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
-                           x_ifrac(:), x_q(:), x_frwflx(:), x_tfdiv(:), x_mld(:), &
+                           x_ifrac(:), x_q(:), x_frwflx(:), qflx(:), x_mld(:), &
                            x_mask(:) 
 
   !--- formats   ---
@@ -703,7 +703,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         kevap  = mct_aVect_indexRA(x2o,'Foxx_evap')
 
 
-        allocate(x_tfdiv(lsize))
+        allocate(qflx(lsize))
         allocate(x_mld(lsize))
         allocate(x_nswflx(lsize))
         allocate(x_swflx(lsize))
@@ -719,7 +719,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                 somtp(n) = o2x%rAttr(kt,n) + TkFrz
             end if
 
-            x_tfdiv(n)   = 0.0_R8
+            qflx(n)   = 0.0_R8
             x_mld(n)     = 0.0_R8
             x_q(n)       = 0.0_R8 
             x_nswflx(n)  = 0.0_R8
@@ -828,7 +828,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_tauy(n)  = x2o%rAttr(ktauy,n)
             x_ifrac(n) = x2o%rAttr(kifrac,n)
 
-            x_tfdiv(n) = avstrm%rAttr(kqbot,n)
+            qflx(n)    = avstrm%rAttr(kqbot,n)
             x_mld(n)   = avstrm%rAttr(kh,n)
 
           end if
@@ -836,7 +836,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         
 
 
-        call write_1Dfield(x_w_fd, trim(x_path)//"/TFDIV.bin",  x_tfdiv,  lsize)
+        call write_1Dfield(x_w_fd, trim(x_path)//"/QFLX.bin",  qflx,  lsize)
         call write_1Dfield(x_w_fd, trim(x_path)//"/MLD.bin",    x_mld,    lsize)
         call write_1Dfield(x_w_fd, trim(x_path)//"/NSWFLX.bin", x_nswflx, lsize)
         call write_1Dfield(x_w_fd, trim(x_path)//"/SWFLX.bin",  x_swflx,  lsize)

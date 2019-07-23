@@ -126,11 +126,11 @@ module CESMCORE_NKOM
             x2o = Dict(
                 "SWFLX"  => in_flds.swflx,
                 "NSWFLX" => in_flds.nswflx,
-                "TAUX"  => in_flds.taux,
-                "TAUY"  => in_flds.tauy,
-                "IFRAC" => in_flds.ifrac,
+                "TAUX"   => in_flds.taux,
+                "TAUY"   => in_flds.tauy,
+                "IFRAC"  => in_flds.ifrac,
                 "FRWFLX" => in_flds.frwflx,
-                "TFDIV"  => in_flds.qflx,
+                "QFLX"   => in_flds.qflx,
             )
 
         end
