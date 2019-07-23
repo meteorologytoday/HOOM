@@ -85,9 +85,9 @@ all_clean_build="$code_output_dir/00_all_clean_build.sh"
 all_makecase="$code_output_dir/01_all_makecase.sh"
 all_build="$code_output_dir/02_all_build.sh"
 all_run="$code_output_dir/03_all_run.sh"
-all_git="$code_output_dir/04_all_git.sh"
+all_cmd="$code_output_dir/04_all_cmd.sh"
 
-for file in $all_makecase $all_build $all_clean_build $all_run $all_git ; do
+for file in $all_makecase $all_build $all_clean_build $all_run $all_cmd ; do
     echo "#!/bin/bash" > $file
     echo "p=\$(pwd)" >> $file
     chmod +x $file
@@ -107,7 +107,7 @@ for casename in "${casenames[@]}"; do
     echo "cd $case_dir; ./cesm_setup; ./${casename}.build; cd \$p" >> $all_build 
     echo "cd $case_dir; ./${casename}.clean_build; ./cesm_setup -clean; cd \$p" >> $all_clean_build 
     echo "cd $case_dir; ./${casename}.run; cd \$p" >> $all_run
-    echo "cd $case_dir/SMARTSLAB-main; git \${@:1}; cd \$p" >> $all_git
+    echo "cd $case_dir/SMARTSLAB-main; \${@:1}; cd \$p" >> $all_cmd
 
 done
 

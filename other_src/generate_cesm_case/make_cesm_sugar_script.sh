@@ -88,6 +88,11 @@ fi
 
 cd \$casename
 
+# "BATCHSUBMIT" is used when automatically resubmitting the job
+# Currently the design is to submit batch job through another script
+# file. So BATCHSUBMIT is set to just bash.
+setXML "env_run.xml" "BATCHSUBMIT" "bash"
+
 setXML "env_run.xml" "\${env_run[@]}"
 setXML "env_mach_pes.xml" "\${env_mach_pes[@]}"
 
