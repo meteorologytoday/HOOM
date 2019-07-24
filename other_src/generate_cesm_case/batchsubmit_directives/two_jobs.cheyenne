@@ -1,0 +1,15 @@
+#!/bin/bash
+qsub -A \$PROJECT                                     \\
+     -N \$casename-ocn                                \\
+     -l walltime="\$walltime"                         \\
+     -l select=1:ncpus=\$ocn_ncpu:mpiprocs=\$ocn_ncpu \\
+     -q share                                         \\
+     -j oe                                            \\
+     -m abe                                           \\
+     -M meteorologytoday@gmail.com                    \\
+     \${caseroot}/\${casename}.ocn.run
+
+qsub -A \$PROJECT                                     \\
+     -l walltime="\$walltime"                         \\
+     \${caseroot}/\${casename}.cesm.run
+

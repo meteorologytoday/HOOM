@@ -31,6 +31,7 @@ lopts=(
     ocn-branch
     qflux-file
     single-job
+    machine
 )
 
 source $wk_dir/getopt_helper.sh
@@ -116,7 +117,8 @@ $wk_dir/make_cesm_sugar_script.sh           \
     --ocn-ncpu=$ocn_ncpu                    \
     --qflux-file=$qflux_file                \
     --ocn-branch=$ocn_branch                \
-    --single-job=$single_job
+    --single-job=$single_job                \
+    --machine=$machine
 
     
 echo "$casename"

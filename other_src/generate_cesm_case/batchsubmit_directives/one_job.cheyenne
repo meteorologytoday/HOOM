@@ -1,0 +1,15 @@
+#PBS -A \${PROJECT}
+#PBS -N \${casename}
+#PBS -q regular
+#PBS -l select=1:ncpus=\${max_tasks_per_node}:mpiprocs=\${max_tasks_per_node}:ompthreads=1
+#PBS -l walltime="\${walltime}"
+#PBS -j oe
+#PBS -S /bin/bash
+
+#!/bin/bash
+
+/bin/csh \${caseroot}/\${casename}.cesm.run &
+\${caseroot}/\${casename}.ocn.run &
+wait
+
+

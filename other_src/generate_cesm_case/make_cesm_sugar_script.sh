@@ -23,6 +23,7 @@ lopts=(
     qflux-file
     ocn-branch
     single-job
+    machine
 )
 
 source $wk_dir/getopt_helper.sh
@@ -50,9 +51,10 @@ qflux_file="$qflux_file"
 
 walltime="${walltime}"
 single_job="${single_job}"
-
+ocn_ncpu=$ocn_ncpu
 
 export PROJECT=${project_code}
+
 
 env_vars=(
     caseroot           CASEROOT
@@ -158,22 +160,13 @@ XEOFX
 cat << XEOFX > \$casename.ocn.run
 
 #!/bin/bash
-#PBS -N \$casename-ocn
-#PBS -l walltime=\$walltime
-#PBS -q share
-### Merge output and error files
-#PBS -j oe
-#PBS -l select=1:ncpus=$ocn_ncpu:mpiprocs=$ocn_ncpu
-### Send email on abort, begin and end
-#PBS -m abe
-#PBS -M meteorologytoday@gmail.com
 
 ### Run the ocean model ###
 
 LID="\\\$(date +%y%m%d-%H%M)"
 ocn_code="\$caseroot/SMARTSLAB-main/src/CESM_driver/run.jl"
 config_file="\$caseroot/config.jl"
-ocn_ncpu=$ocn_ncpu
+ocn_ncpu=\$ocn_ncpu
 
 julia -p \\\$ocn_ncpu \\\$ocn_code --config="\\\$config_file" --core=${model} | tee -a SMARTSLAB.log.\\\$LID
 
@@ -192,13 +185,11 @@ if [ "\$single_job" != "on" ]; then
     # "BATCHSUBMIT" is used when automatically resubmitting the job
     # Currently the design is to submit batch job through another script
     # file. So BATCHSUBMIT is set to just bash.
+
     setXML "env_run.xml" "BATCHSUBMIT" "bash"
 
     cat << XEOFX > \${casename}.run
-#!/bin/bash
-
-qsub -A \$PROJECT -l walltime="\$walltime" \${caseroot}/\${casename}.ocn.run
-qsub -A \$PROJECT -l walltime="\$walltime" \${caseroot}/\${casename}.cesm.run 
+$( echo "$( cat $wk_dir/batchsubmit_directives/two_jobs.${machine} )" )
 XEOFX
 
 else
@@ -215,20 +206,7 @@ else
     # cores for ocn model.
     
     cat << XEOFX > \${casename}.run
-#PBS -A \${PROJECT}
-#PBS -N \${casename}
-#PBS -q regular
-#PBS -l select=1:ncpus=\${max_tasks_per_node}:mpiprocs=\${max_tasks_per_node}:ompthreads=1
-#PBS -l walltime="\${walltime}"
-#PBS -j oe
-#PBS -S /bin/bash
-
-#!/bin/bash
-
-/bin/csh \${caseroot}/\${casename}.cesm.run &
-\${caseroot}/\${casename}.ocn.run &
-wait
-
+$( echo "$( cat $wk_dir/batchsubmit_directives/one_job.${machine} )" )
 XEOFX
 fi
 

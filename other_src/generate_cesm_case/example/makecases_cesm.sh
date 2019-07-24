@@ -29,7 +29,8 @@ cesm_env=$pwd_dir/env_settings.sh
 ocn_ncpu=3
 ocn_branch=master
 
-single_job="on"
+single_job=on
+machine=cheyenne
 
 model_settings=(
     NKOM  oQ_oC         "$raw_data_dir/docn_forcing.EntOM_xM.LENS.g37.nc"
@@ -79,7 +80,8 @@ for i in $(seq 1 $((${#model_settings[@]}/3))); do
         --project-code=$project_code                    \
         --qflux-file=$qflux_file                        \
         --ocn-branch=$ocn_branch                        \
-        --single-job="$single_job"                      \
+        --single-job=$single_job                        \
+        --machine=$machine                              \
         | tee tmp.txt
 
         casenames+=($(tail -n 1 tmp.txt))
