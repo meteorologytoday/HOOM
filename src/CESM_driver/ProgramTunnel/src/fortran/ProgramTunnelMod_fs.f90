@@ -215,8 +215,9 @@ integer function ptm_recvText(PTI, msg)
         end do
     end if
 
-    print *, "[ptm_recvText] Got new message"
+
     if (get_through .eqv. .true.) then
+        print *, "[ptm_recvText] Got new message"
         ptm_recvText = 0
     else
         ptm_recvText = 1

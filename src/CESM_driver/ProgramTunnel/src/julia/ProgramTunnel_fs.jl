@@ -106,7 +106,7 @@ function releaseLock(PTI::ProgramTunnelInfo)
 end
 
 function recvText(PTI::ProgramTunnelInfo)
-    local result
+    local result = "X"
 
     get_through = false
     sleep(PTI.recv_first_sleep)
@@ -124,6 +124,7 @@ function recvText(PTI::ProgramTunnelInfo)
 
             if isfile(PTI.recv_fn)
                 get_through = true
+                println("[recvText] Good guess of the recv_first_sleep : ", PTI.recv_first_sleep)
 
                 if cnt > PTI.buffer_cnt
                     # Out of buffer, need to adjust: increase PTI.recv_first_sleep
@@ -146,7 +147,6 @@ function recvText(PTI::ProgramTunnelInfo)
         end
 
         rm(PTI.recv_fn, force=true)
-        releaseLock(PTI)
 
     end
 
