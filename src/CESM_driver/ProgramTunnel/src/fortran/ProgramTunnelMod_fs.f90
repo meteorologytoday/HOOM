@@ -125,11 +125,10 @@ subroutine ptm_obtainLock(PTI, stat)
             print *, "Lock got"
 
             exit
-        else
-            ! But if open file fails then try again
-            call ptm_busySleep(PTI%chk_freq)
-            cycle
         end if
+
+        ! But if open file fails then try again
+        call ptm_busySleep(PTI%chk_freq)
 
     end do 
 
@@ -150,16 +149,22 @@ end subroutine
 
 subroutine ptm_delFile(fn, fd)
     implicit none
-    integer :: fd
+    integer :: fd, io
     character(len=*) :: fn
     logical :: file_exists
 
-    inquire(file=fn, exist=file_exists)
-
-    if (file_exists .eqv. .true.) then
-        open(unit=fd, file=fn, status="old")
-        close(unit=fd, status="delete")
-    end if
+    do 
+        inquire(file=fn, exist=file_exists)
+        if (file_exists .eqv. .true.) then
+            open(unit=fd, file=fn, status="old", iostat=io)
+            close(unit=fd, status="delete")
+            if (io == 0) then
+                exit
+            end if
+        else
+            exit
+        end if
+    end do
 
 end subroutine
 
@@ -274,6 +279,8 @@ integer function ptm_sendText(PTI, msg)
     close(PTI%send_fd)
 
     call ptm_releaseLock(PTI)
+
+    print *, "[ptm_sendText] Text sent."
 
 end function
 
