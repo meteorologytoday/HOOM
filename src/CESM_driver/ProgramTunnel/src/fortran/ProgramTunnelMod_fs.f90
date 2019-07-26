@@ -227,6 +227,7 @@ integer function ptm_recvText(PTI, msg)
 
     call ptm_obtainLock(PTI, ptm_recvText)
     if (ptm_recvText /= 0 ) then
+        print *, "[ptm_recvText] Can't obtain lock. iostat: ", ptm_recvText
         return
     end if
     
