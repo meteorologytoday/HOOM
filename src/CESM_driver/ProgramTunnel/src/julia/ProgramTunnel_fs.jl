@@ -124,14 +124,20 @@ function recvText(PTI::ProgramTunnelInfo)
 
             if isfile(PTI.recv_fn)
                 get_through = true
-                println("[recvText] Good guess of the recv_first_sleep : ", PTI.recv_first_sleep)
 
-                if cnt > PTI.buffer_cnt
+                if cnt <= PTI.buffer_cnt
+
+                    println("[recvText] Good guess of the recv_first_sleep : ", PTI.recv_first_sleep)
+
+                elseif
+
                     # Out of buffer, need to adjust: increase PTI.recv_first_sleep
                     PTI.recv_first_sleep += PTI.chk_freq 
                     println("[recvText] Out of buffer. Adjust recv_first_sleep to : ", PTI.recv_first_sleep)
+
                 end
                 break
+
             end
 
         end
@@ -142,11 +148,14 @@ function recvText(PTI::ProgramTunnelInfo)
     end
 
     lock(PTI) do
+
         open(PTI.recv_fn, "r") do io
             result = strip(read(io, String))
         end
 
-        rm(PTI.recv_fn, force=true)
+        while isfile(PTI.recv_fn)
+            rm(PTI.recv_fn, force=true)
+        end
 
     end
 
