@@ -129,7 +129,7 @@ function recvText(PTI::ProgramTunnelInfo)
 
                     println("[recvText] Good guess of the recv_first_sleep : ", PTI.recv_first_sleep)
 
-                elseif
+                else
 
                     # Out of buffer, need to adjust: increase PTI.recv_first_sleep
                     PTI.recv_first_sleep += PTI.chk_freq 
