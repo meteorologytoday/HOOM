@@ -163,19 +163,24 @@ function recvText(PTI::ProgramTunnelInfo)
 end
 
 function sendText(PTI::ProgramTunnelInfo, msg::AbstractString)
+    local double_chk_msg
 
     lock(PTI) do
         
         while true
 
+
             open(PTI.send_fn, "w") do io
                 write(io, msg)
             end
 
+            double_chk_msg = ""
             open(PTI.send_fn, "r") do io
-                if strip(read(io, String)) == strip(msg) 
-                    break
-                end
+                double_chk_msg = read(io, String) 
+            end
+
+            if double_chk_msg == msg
+                break
             end
         end
     end
