@@ -266,6 +266,7 @@ integer function ptm_sendText(PTI, msg)
     implicit none
     type(ptm_ProgramTunnelInfo)  :: PTI
     character(len=*)       :: msg
+    character(len=1024)    :: double_chk_msg
 
     ptm_sendText = 0
     call ptm_obtainLock(PTI, ptm_sendText)
@@ -280,18 +281,32 @@ integer function ptm_sendText(PTI, msg)
         return
     end if
 
-    ptm_sendText = 0
-    write (PTI%send_fd, *, iostat=ptm_sendText) msg
-    if (ptm_sendText /= 0) then
-        print *, "Output send file iostat: ", ptm_sendText
-        return
-    end if
-    
-    close(PTI%send_fd)
+   
+    do
+
+        ptm_sendText = 0
+        write (PTI%send_fd, *, iostat=ptm_sendText) msg
+        if (ptm_sendText /= 0) then
+            print *, "Output send file iostat: ", ptm_sendText
+            return
+        end if
+        close(PTI%send_fd)
+
+        ptm_sendText = 0
+        double_chk_msg = ""
+        open(unit=PTI%send_fd, file=PTI%send_fn, form="formatted", access="stream", action="read", iostat=ptm_sendText)
+        read (PTI%send_fd, '(A)', iostat=ptm_sendText) double_chk_msg
+        close(PTI%send_fd)
+       
+        if (ptm_messageCompare(msg, double_chk_msg) .eqv. .true.) then
+            exit
+        end if
+
+    end do
 
     call ptm_releaseLock(PTI)
 
-    print *, "[ptm_sendText] Text sent."
+    print *, "[ptm_sendText] Text sent and checked."
 
 end function
 
@@ -328,7 +343,7 @@ logical function ptm_messageCompare(msg1, msg2)
     implicit none
     character(*) :: msg1, msg2
 
-    if (msg1 .eq. msg2) then
+    if (trim(msg1) .eq. trim(msg2)) then
         ptm_messageCompare = .true.
     else
         ptm_messageCompare = .false.

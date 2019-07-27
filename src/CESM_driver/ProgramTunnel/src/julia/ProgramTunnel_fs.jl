@@ -165,8 +165,18 @@ end
 function sendText(PTI::ProgramTunnelInfo, msg::AbstractString)
 
     lock(PTI) do
-        open(PTI.send_fn, "w") do io
-            write(io, msg)
+        
+        while true
+
+            open(PTI.send_fn, "w") do io
+                write(io, msg)
+            end
+
+            open(PTI.send_fn, "r") do io
+                if strip(read(io, String)) == strip(msg) 
+                    break
+                end
+            end
         end
     end
 end
