@@ -20,6 +20,9 @@ output_vars = Dict()
 
 stage = :INIT
 
+# Need to find a way to avoid receiving the msg
+# from last run
+
 mkpath(configs[:tmp_folder])
 
 PTI = ProgramTunnelInfo(
