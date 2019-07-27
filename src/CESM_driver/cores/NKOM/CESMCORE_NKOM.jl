@@ -117,7 +117,7 @@ module CESMCORE_NKOM
                 "SWFLX"  => in_flds.swflx,
                 "NSWFLX" => in_flds.nswflx,
                 "FRWFLX" => in_flds.frwflx,
-                "TFDIV"  => in_flds.qflx,
+                "QFLX"  => in_flds.qflx,
                 "MLD"    => in_flds.h_ML,
             )
 

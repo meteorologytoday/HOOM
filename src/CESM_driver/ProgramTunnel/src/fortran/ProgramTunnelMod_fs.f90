@@ -297,7 +297,10 @@ integer function ptm_sendText(PTI, msg)
         open(unit=PTI%send_fd, file=PTI%send_fn, form="formatted", access="stream", action="read", iostat=ptm_sendText)
         read (PTI%send_fd, '(A)', iostat=ptm_sendText) double_chk_msg
         close(PTI%send_fd)
-       
+      
+        !print *, "msg:[", trim(msg), "]#[", trim(double_chk_msg), "]"
+        !print *, "msglen:", len_trim(msg), "#", len_trim(double_chk_msg)
+ 
         if (ptm_messageCompare(msg, double_chk_msg) .eqv. .true.) then
             exit
         end if
@@ -343,7 +346,7 @@ logical function ptm_messageCompare(msg1, msg2)
     implicit none
     character(*) :: msg1, msg2
 
-    if (trim(msg1) .eq. trim(msg2)) then
+    if (trim(adjustl(msg1)) .eq. trim(adjustl(msg2))) then
         ptm_messageCompare = .true.
     else
         ptm_messageCompare = .false.

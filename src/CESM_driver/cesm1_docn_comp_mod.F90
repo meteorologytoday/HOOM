@@ -762,7 +762,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
-        x_msg = trim(x_msg)//"VAR2D:TFDIV,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
+        x_msg = trim(x_msg)//"VAR2D:QFLX,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
         if (read_restart) then
             x_msg = trim(x_msg)//"READ_RESTART:TRUE;"
         else
