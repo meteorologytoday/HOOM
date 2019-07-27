@@ -149,6 +149,17 @@ end subroutine
 
 subroutine ptm_delFile(fn, fd)
     implicit none
+    integer :: fd
+    character(len=*) :: fn
+
+    open(unit=fd, file=fn, status="old")
+    close(unit=fd, status="delete")
+
+end subroutine
+
+
+subroutine ptm_delFile_until_gone(fn, fd)
+    implicit none
     integer :: fd, io
     character(len=*) :: fn
     logical :: file_exists
@@ -245,7 +256,7 @@ integer function ptm_recvText(PTI, msg)
     msg = trim(msg)
     print *, "[ptm_recvText] Received: [", trim(msg) , "]"
 
-    call ptm_delFile(PTI%recv_fn, PTI%recv_fd)
+    call ptm_delFile_until_gone(PTI%recv_fn, PTI%recv_fd)
     call ptm_releaseLock(PTI)
     
 end function
