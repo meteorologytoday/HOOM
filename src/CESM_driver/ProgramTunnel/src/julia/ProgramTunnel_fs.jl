@@ -6,32 +6,56 @@ export ProgramTunnelInfo, hello, recvText, sendText, reverseRole!
 
 mutable struct ProgramTunnelInfo
 
-    recv_fn    :: AbstractString
-    send_fn    :: AbstractString
-    lock_fn    :: AbstractString
-    chk_freq   :: AbstractFloat
+    recv_fn      :: AbstractString
+    send_fn      :: AbstractString
+    done_recv_fn :: AbstractString
+    done_send_fn :: AbstractString
+
+    chk_freq     :: AbstractFloat
     timeout    :: AbstractFloat
     timeout_limit_cnt :: Integer
     buffer_cnt :: Integer
+
+    recv_first_sleep_max :: AbstractFloat
     recv_first_sleep :: AbstractFloat
     recv_first_cnt   :: Integer
+
+    rotate       :: Integer
+    recv_trackno :: Integer
+    send_trackno :: Integer
+
+    paths        :: AbstractArray
+    error_sleep  :: Float64
+
+    history_length :: Integer
+
 
     function ProgramTunnelInfo(;
         recv          :: AbstractString     = "ProgramTunnel-Y2X.txt",
         send          :: AbstractString     = "ProgramTunnel-X2Y.txt",
-        lock          :: AbstractString     = "ProgramTunnel-lock.txt",
+        done_recv     :: AbstractString     = "ProgramTunnel-DONE-Y2X.txt",
+        done_send     :: AbstractString     = "ProgramTunnel-DONE-X2Y.txt",
         chk_freq      :: AbstractFloat                  = 0.05,
         path          :: Union{AbstractString, Nothing} = nothing,
         timeout       :: AbstractFloat                  = 10.0,
         buffer        :: AbstractFloat                  = 0.1,
+        recv_first_sleep_max :: AbstractFloat = 5.00,
         recv_first_sleep :: AbstractFloat = 0.0,
         reverseRole   :: Bool = false,
+        rotate        :: Integer = 100,
+        history_length:: Integer = 20,
     )
 
         if chk_freq <= 0.0
             ErrorException("chk_freq must be positive.") |> throw
         end
         
+
+        paths = []
+        for i = 1:rotate
+            push!(paths, joinpath(MPI.path, format("{:03d}")))
+        end
+
         PTI = new(
             recv,
             send,
@@ -40,8 +64,10 @@ mutable struct ProgramTunnelInfo
             timeout,
             ceil(timeout / chk_freq),
             ceil(buffer / chk_freq),
+            recv_first_sleep_max,
             recv_first_sleep,
             ceil(recv_first_sleep / chk_freq),
+            rotate, 1, 1, paths, 1.0, history_length,
         )
 
         if path != nothing
@@ -52,66 +78,86 @@ mutable struct ProgramTunnelInfo
             reverseRole!(PTI)
         end
 
+        makeDirs(PTI)
+
         return PTI
     end
 end
 
+function makeDirs(PTI::ProgramTunnelInfo)
+    for path in PTI.paths
+        makepath(path)
+    end
+end
+
+function cleanDir(PTI::ProgramTunnelInfo, i::Integer)
+    rm(PTI.paths[i], recursive=true, force=true)
+    makepath(PTI.paths[i])
+end
+
+function cleanHistory(PTI::ProgramTunelInfo)
+    cleanDir(PTI, ((PTI.send_trackno-1 - PTI.history_length -1) % PTI.rotate) + 1)
+end
+
+
 function appendPath(PTI::ProgramTunnelInfo, path::AbstractString)
-    PTI.recv_fn = joinpath(path, PTI.recv_fn)
-    PTI.send_fn = joinpath(path, PTI.send_fn)
-    PTI.lock_fn = joinpath(path, PTI.lock_fn)
+    for i = 1:PTI.rotate
+        PTI.paths[i] = joinpath(path, PTI.paths[i])
+    end
 end
 
 function reverseRole!(PTI::ProgramTunnelInfo)
     PTI.recv_fn, PTI.send_fn = PTI.send_fn, PTI.recv_fn
+    PTI.done_recv_fn, PTI.done_send_fn = PTI.done_send_fn, PTI.done_recv_fn
 end
 
-function lock(
-    fn::Function,
-    PTI::ProgramTunnelInfo,
-)
 
-    if obtainLock(PTI)
-        fn()
-        releaseLock(PTI)
-    else
-        ErrorException("Lock cannot be obtained before timeout.") |> throw
+function sendText(PTI::ProgramTunnelInfo, msg::AbstractString)
+#    local double_chk_msg
+
+    if strip(msg) == ""
+        throw(ErrorException("Cannot send empty msg."))
     end
-end
 
-
-function obtainLock(PTI::ProgramTunnelInfo)
-
-    for cnt in 1:PTI.timeout_limit_cnt
-        if ! isfile(PTI.lock_fn)
-
-            try
-                open(PTI.lock_fn, "w") do io
-                end
-                return true
-            catch
-                # do nothing
+    while true
+        try
+            open(joinpath(PTI.paths[PTI.send_trackno], PTI.send_fn), "w") do io
+                write(io, msg)
             end
-
+        catch ex
+            println(string(ex))
+            println("keep sending msg.")
+            sleep(PTI.error_sleep)
         end
-
-        sleep(PTI.chk_freq)
+        break
     end
 
-    return false
-end
+    while true
+        try
+            open(joinpath(PTI.paths[PTI.send_trackno], PTI.done_send_fn), "w") do io
+                write(io, "DONE")
+            end
+        catch ex
+            println(string(ex))
+            println("keep sending done.")
+            sleep(PTI.error_sleep)
+        end
+        break
+    end
+    
+    PTI.send_trackno = (PTI.send_trackno % PTI.rotate) + 1
 
-function releaseLock(PTI::ProgramTunnelInfo)
-    rm(PTI.lock_fn, force=true)
 end
 
 function recvText(PTI::ProgramTunnelInfo)
-    local result = "X"
+
+    recv_fn = joinpath(PTI.paths[PTI.recv_trackno], PTI.recv_fn)
+    done_recv_fn = joinpath(PTI.paths[PTI.recv_trackno], PTI.done_recv_fn)
 
     get_through = false
     sleep(PTI.recv_first_sleep)
 
-    if isfile(PTI.recv_fn)
+    if ! (isfile(recv_fn) && isfile(done_recv_fn))
         PTI.recv_first_sleep -= PTI.chk_freq
         PTI.recv_first_sleep = max(0.0, PTI.recv_first_sleep)
         get_through = true
@@ -122,20 +168,24 @@ function recvText(PTI::ProgramTunnelInfo)
 
             sleep(PTI.chk_freq)
 
-            if isfile(PTI.recv_fn)
+            if isfile(recv_fn) && isfile(done_recv_fn)
                 get_through = true
 
                 if cnt <= PTI.buffer_cnt
 
                     println("[recvText] Good guess of the recv_first_sleep : ", PTI.recv_first_sleep)
 
-                else
+                elseif PTI.recv_first_sleep < PTI.recv_first_sleep_max
 
                     # Out of buffer, need to adjust: increase PTI.recv_first_sleep
                     PTI.recv_first_sleep += PTI.chk_freq 
+                    PTI.recv_first_sleep = min(PTI.recv_first_sleep_max, PTI.chk_freq)
                     println("[recvText] Out of buffer. Adjust recv_first_sleep to : ", PTI.recv_first_sleep)
 
+                else
+                    println("[recvText] Out of buffer. But reach to recv_first_sleep_max : ", PTI.recv_first_sleep)
                 end
+                    
                 break
 
             end
@@ -147,54 +197,39 @@ function recvText(PTI::ProgramTunnelInfo)
         ErrorException("[recvText] No further incoming message within timeout.") |> throw
     end
 
-    lock(PTI) do
+    result = ""
 
-        open(PTI.recv_fn, "r") do io
-            result = strip(read(io, String))
+    while true
+
+        try
+            open(PTI.recv_fn, "r") do io
+                result = strip(read(io, String))
+            end
+        catch ex
+            println(string(ex))
+            println("Keep receiving...")
+            sleep(PTI.error_sleep)
+            continue
         end
 
-        while isfile(PTI.recv_fn)
-            rm(PTI.recv_fn, force=true)
+        if result == ""
+            println("Empty msg received. Maybe due to IO delay. Sleep and do it again.")
+            sleep(PTI.error_sleep)
+            continue
         end
 
+        break
     end
 
+
+
+    PTI.recv_trackno = (PTI.recv_trackno % PTI.rotate) + 1
+    
+    cleanHistory(PTI)
+    
     return result
 end
 
-function sendText(PTI::ProgramTunnelInfo, msg::AbstractString)
-    local double_chk_msg
 
-    lock(PTI) do
-        
-        while true
-
-
-            open(PTI.send_fn, "w") do io
-                write(io, msg)
-            end
-
-            double_chk_msg = ""
-            open(PTI.send_fn, "r") do io
-                double_chk_msg = read(io, String) 
-            end
-
-            if double_chk_msg == msg
-                break
-            end
-        end
-    end
-end
-
-
-#=
-function hello(PTI::ProgramTunnelInfo; max_try::Integer=default_max_try)
-    send(PTI, "<<TEST>>", max_try)
-    recv_msg = recv(PTI, max_try) 
-    if recv_msg != "<<TEST>>"
-        throw(ErrorException("Weird message: " * recv_msg))
-    end
-end
-=#
 
 end

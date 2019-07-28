@@ -25,6 +25,11 @@ stage = :INIT
 
 mkpath(configs[:tmp_folder])
 
+TS = defaultTunnelSet(path=configs[:tmp_folder])
+reverseRole!(TS)
+mkTunnel(TS)
+
+#=
 PTI = ProgramTunnelInfo(
     path             = configs[:tmp_folder],
     timeout          = configs[:timeout],
@@ -32,6 +37,7 @@ PTI = ProgramTunnelInfo(
     recv_first_sleep = 0.1,
     reverseRole      = true,
 )
+=#
 
 map = NetCDFIO.MapInfo{Float64}(configs[:domain_file])
 
@@ -61,7 +67,7 @@ while true
     println(format("# Time Counter for RUN  : {:d}", t_cnt))
     println(format("# Stage                 : {}", String(stage)))
 
-    msg = parseMsg(recvText(PTI))
+    msg = parseMsg(recvText(TS))
     println("==== MESSAGE RECEIVED ====")
     print(json(msg, 4))
     println("==========================")
@@ -93,11 +99,11 @@ while true
             println(format(" ({:d}) {:s} => {:s}", i, varname, ( x2o_wanted_flag[i] ) ? "Wanted" : "Abandoned" ))
         end
 
-        writeBinary!(joinpath(configs[:tmp_folder], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
-        writeBinary!(joinpath(configs[:tmp_folder], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
-        writeBinary!(joinpath(configs[:tmp_folder], "MASK.bin"), map.mask, buffer2d; endianess=:little_endian)
+        sendText(TS, "OK")
 
-        sendText(PTI, "OK")
+        sendBinary!(TS, OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        sendBinary!(TS, OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+        sendBinary!(TS, map.mask, buffer2d; endianess=:little_endian)
 
         stage = :RUN
         
@@ -109,15 +115,23 @@ while true
 
         timeinfo_old[:] = timeinfo
 
+        # receiving data
         for i = 1:length(x2o_available_varnames)
             varname = x2o_available_varnames[i]
 
             if x2o_wanted_flag[i]
-                readBinary!(
-                    joinpath(configs[:tmp_folder], varname * ".bin"),
+                recvBinary!(
+                    TS,
                     OMDATA.x2o[varname],
                     buffer2d;
-                    endianess=:little_endian, delete=false
+                    endianess=:little_endian,
+                )
+            else
+                recvBinary!(
+                    TS,
+                    null2d,
+                    buffer2d;
+                    endianess=:little_endian,
                 )
             end
         end
@@ -147,11 +161,13 @@ while true
         global ocn_run_N += 1
 
         println(format("*** It takes {:.2f} secs. (Avg: {:.2f} secs) ***", cost, ocn_run_time / ocn_run_N))
+        
+        sendText(TS, "OK")
 
-        writeBinary!(joinpath(configs[:tmp_folder], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
-        writeBinary!(joinpath(configs[:tmp_folder], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+        sendBinary!(TS, OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        sendBinary!(TS, OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+ 
 
-        sendText(PTI, "OK")
 
         t_cnt += 1
 
@@ -186,7 +202,7 @@ while true
         break
     else
         OMMODULE.crash(OMDATA) 
-        sendText(PTI, "CRASH")
+        sendText(TS, "CRASH")
         throw(ErrorException("Unknown status: stage " * string(stage) * ", MSG: " * string(msg["MSG"])))
     end
 

@@ -131,7 +131,8 @@ module docn_comp_mod
   integer :: x_iostat, x_fds(8)
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
-                           x_ifrac(:), x_q(:), x_frwflx(:), x_tfdiv(:), x_mld(:) 
+                           x_ifrac(:), x_q(:), x_frwflx(:), x_tfdiv(:), x_mld(:), &
+                           x_mask(:), 
 
   !--- formats   ---
   character(*), parameter :: x_F00 = "(a, '.ssm.', a, '.', a)" 
@@ -708,6 +709,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         allocate(x_ifrac(lsize))
         allocate(x_q(lsize))
         allocate(x_frwflx(lsize))
+        allocate(x_mask(lsize))
 
         do n = 1,lsize
             if (.not. read_restart) then
@@ -762,15 +764,24 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             call shr_sys_abort ('SSM init failed.')
         end if
          
-        call stop_if_bad(ptm_recvBinary(x_TS, somtp, lsize), "RECV_SST")
-        call stop_if_bad(ptm_recvBinary(x_TS, x_q,   lsize), "RECV_QFLX2ATM")
+        call stop_if_bad(ptm_recvBinary(x_TS, somtp,  lsize), "RECV_SST")
+        call stop_if_bad(ptm_recvBinary(x_TS, x_q,    lsize), "RECV_QFLX2ATM")
+        call stop_if_bad(ptm_recvBinary(x_TS, x_mask, lsize), "RECV_MASK")
 
         do n = 1, lsize
-          o2x%rAttr(kt,n) = somtp(n)
-          o2x%rAttr(kq,n) = x_q(n)
+            if (imask(n) /= x_mask(n)) then
+                call shr_sys_abort ('SSM init failed: mask does not match')
+            end if
         end do
 
-      else
+        do n = 1, lsize
+          if (imask(n) /= 0) then
+            o2x%rAttr(kt,n) = somtp(n)
+            o2x%rAttr(kq,n) = x_q(n)
+          end if
+        end do
+
+      else  ! if NOT first call
 
         x_msg = "MSG:RUN;CESMTIME:"//trim(x_datetime_str)//";"
         if (read_restart) then
