@@ -6,7 +6,7 @@ module ProgramTunnel_fs
     using Formatting
     using ..TBIO
 
-    export ProgramTunnelInfo, hello, recvText, sendText, reverseRole!
+    export ProgramTunnelInfo, sendData, recvData!
 
     mutable struct ProgramTunnelInfo
 
@@ -28,7 +28,7 @@ module ProgramTunnel_fs
         recv_trackno :: Integer
         send_trackno :: Integer
 
-        path         :: AbstractArray
+        path         :: AbstractString
         error_sleep  :: Float64
 
         history_len  :: Integer
@@ -47,20 +47,16 @@ module ProgramTunnel_fs
             buffer        :: AbstractFloat                  = 0.1,
             recv_first_sleep_max :: AbstractFloat = 5.00,
             recv_first_sleep :: AbstractFloat = 0.0,
-            reverseRole   :: Bool = false,
+            reverse_role  :: Bool = false,
             rotate        :: Integer = 100,
             error_sleep   :: Float64 = 1.0,
-            history_len   :: Integer = 20,
+            history_len   :: Integer = 5,
         )
 
             if chk_freq <= 0.0
                 ErrorException("chk_freq must be positive.") |> throw
             end
             
-
-            for i = 1:rotate
-                push!(paths, joinpath(MPI.path, format("{:03d}")))
-            end
 
             PTI = new(
                 nchars,
@@ -79,15 +75,11 @@ module ProgramTunnel_fs
                 [], [],
             )
 
-            if path != nothing
-                appendPath(PTI, path)
-            end
-
-            if reverseRole
+            if reverse_role
                 reverseRole!(PTI)
             end
             
-            makepath(path)
+            mkpath(path)
             updateFiles!(PTI)        
 
 
@@ -99,8 +91,8 @@ module ProgramTunnel_fs
         recv_fns = []
         send_fns = []
         for i = 1:PTI.rotate
-            push!(recv_fns, joinpath(PTI.path, format("{:s}_{:03d}.tb", PTI.recv_fn)))
-            push!(send_fns, joinpath(PTI.path, format("{:s}_{:03d}.tb", PTI.send_fn)))
+            push!(recv_fns, joinpath(PTI.path, format("{:s}_{:03d}.tb", PTI.recv_fn, i)))
+            push!(send_fns, joinpath(PTI.path, format("{:s}_{:03d}.tb", PTI.send_fn, i)))
         end
 
         PTI.recv_fns = recv_fns
@@ -119,11 +111,12 @@ module ProgramTunnel_fs
     function incTrackno(PTI::ProgramTunnelInfo, which::Symbol)
         if which == :recv
             rm( PTI.recv_fns[mod( PTI.recv_trackno - 1 - PTI.history_len, PTI.rotate) + 1], force=true)
-            PTI.recv_trackno = mod(PTI.recv_trackno, PTI.rotate) + 1
+            PTI.recv_trackno += 1
 
         elseif which == :send
             rm( PTI.send_fns[mod( PTI.send_trackno - 1 - PTI.history_len, PTI.rotate) + 1], force=true)
-            PTI.send_trackno = mod(PTI.send_trackno, PTI.rotate) + 1
+            PTI.send_trackno += 1
+
         end
     end
 
@@ -133,11 +126,14 @@ module ProgramTunnel_fs
         arrs :: AbstractArray,
     )
 
+        send_fn = PTI.send_fns[mod(PTI.send_trackno - 1, PTI.rotate) + 1]
+
         while true
             try
+            
                 writeTB(
-                    PTI.send_fns[PTI.send_trackno],
-                    format("{:d}#", PTI.send_trackno),
+                    send_fn,
+                    format("{:d}#{:s}", PTI.send_trackno, msg),
                     PTI.nchars,
                     arrs,
                 )
@@ -158,7 +154,7 @@ module ProgramTunnel_fs
         PTI  :: ProgramTunnelInfo,
         arrs :: AbstractArray,
     )
-        recv_fn = PTI.recv_fns[PTI.recv_trackno]
+        recv_fn = PTI.recv_fns[mod(PTI.recv_trackno - 1, PTI.rotate) + 1]
 
         get_through = false
         sleep(PTI.recv_first_sleep)

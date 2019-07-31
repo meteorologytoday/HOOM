@@ -92,22 +92,4 @@ module TBIO
 
 end
 
-using .TBIO
-
-filename = "Test.tb"
-msg = "HELLO THIS IS CESM"
-
-obin = [collect(Float64, 1:10) / 2.0]
-ibin = [zeros(Float64, 10)]
-
-print(typeof(obin))
-
-
-writeTB(filename, msg, 100, obin)
-println(ibin)
-println("==========")
-println(readTB!(filename, 100, ibin))
-println(ibin)
-
-
 
