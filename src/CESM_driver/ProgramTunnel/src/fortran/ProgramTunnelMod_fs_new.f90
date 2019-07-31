@@ -53,8 +53,8 @@ subroutine ptm_setDefault(PTI, fds)
     PTI%recv_fd = fds(1)
     PTI%send_fd = fds(2)
 
-    PTI%chk_freq = 50          ! millisecs (0.05 secs)
-    PTI%timeout  = 30 * 1000   ! millisecs (30 secs)
+    PTI%chk_freq = 50               ! millisecs (0.05 secs)
+    PTI%timeout  = 30 * 60 * 1000   ! millisecs (30 min)
 
     PTI%buffer   =  200        ! millisecs (0.2 secs)
     PTI%buffer_cnt = 40        ! A buffer cnt is a chk_freq
@@ -120,7 +120,7 @@ integer function ptm_sendData(PTI, msg, dat)
 
     write(mod_msg, '(i0.3, "#", A)') PTI%send_trackno, trim(adjustl(msg)) 
     write(send_fn, '(A, "/", A, "_", i0.3, ".tb")') trim(PTI%path), trim(PTI%send_fn), mod(PTI%send_trackno-1, PTI%rotate) + 1
-    
+    print *, "[ptm_sendData] Filename: ", trim(send_fn)
     !print *, "ready to send: [", mod_msg, "]"
     do error_cnt = 1, PTI%error_max
 
@@ -172,10 +172,9 @@ integer function ptm_recvData(PTI, msg, dat)
     n = size(dat)
 
     write(recv_fn, '(A, "/", A, "_", i0.3, ".tb")') trim(PTI%path), trim(PTI%recv_fn), mod(PTI%recv_trackno-1, PTI%rotate) + 1
+    print *, "[ptm_recvData] Expecting filename: ", trim(recv_fn)
 
     ptm_recvData = 0
-    
-    print *, "[ptm_recvText] Detecting if new message exists."
     get_through = .false.
     call ptm_busysleep(PTI%recv_first_sleep)
 

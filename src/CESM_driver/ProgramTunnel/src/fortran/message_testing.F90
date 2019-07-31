@@ -16,7 +16,7 @@ program test_TB
     call ptm_setDefault(PTI, fds)
     PTI%rotate = 30
  
-    n = 10
+    n = 20
 
     allocate(dat(n))
     do t = 1, 100
@@ -28,14 +28,14 @@ program test_TB
         write (msg, '("This is the ", I, " time.")') t
 
         print *, "Sending data: ", trim(msg)
-        i = ptm_sendData(PTI, msg, dat)
+        i = ptm_sendData(PTI, msg, dat(1:10))
         print *, "i: ", i
 
         do i = 1, n
             dat(i) = 0.0
         end do
         msg = ""
-        i = ptm_recvData(PTI, msg, dat)
+        i = ptm_recvData(PTI, msg, dat(1:10))
         print *, "Read message: [", trim(msg), "]"
         do i = 1, n
             print *, dat(i)

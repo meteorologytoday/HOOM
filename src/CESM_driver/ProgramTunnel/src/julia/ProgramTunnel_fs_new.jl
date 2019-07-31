@@ -43,7 +43,7 @@ module ProgramTunnel_fs
             send_fn       :: AbstractString     = "X2Y",
             chk_freq      :: AbstractFloat                  = 0.05,
             path          :: Union{AbstractString, Nothing} = "x_tmp",
-            timeout       :: AbstractFloat                  = 10.0,
+            timeout       :: AbstractFloat                  = 60.0 * 30,
             buffer        :: AbstractFloat                  = 0.1,
             recv_first_sleep_max :: AbstractFloat = 5.00,
             recv_first_sleep :: AbstractFloat = 0.0,
@@ -166,7 +166,7 @@ module ProgramTunnel_fs
             PTI.recv_first_sleep -= PTI.chk_freq
             PTI.recv_first_sleep = max(0.0, PTI.recv_first_sleep)
             get_through = true
-            println("[recvText] Message is already there. Adjust recv_first_sleep to : ", PTI.recv_first_sleep)
+            println("[recvData] Message is already there. Adjust recv_first_sleep to : ", PTI.recv_first_sleep)
         else
             for cnt in 1:(PTI.timeout_limit_cnt - PTI.recv_first_cnt)
 
@@ -177,17 +177,17 @@ module ProgramTunnel_fs
 
                     if cnt <= PTI.buffer_cnt
 
-                        println("[recvText] Good guess of the recv_first_sleep : ", PTI.recv_first_sleep)
+                        println("[recvData] Good guess of the recv_first_sleep : ", PTI.recv_first_sleep)
 
                     elseif PTI.recv_first_sleep < PTI.recv_first_sleep_max
 
                         # Out of buffer, need to adjust: increase PTI.recv_first_sleep
                         PTI.recv_first_sleep += PTI.chk_freq 
                         PTI.recv_first_sleep = min(PTI.recv_first_sleep_max, PTI.chk_freq)
-                        println("[recvText] Out of buffer. Adjust recv_first_sleep to : ", PTI.recv_first_sleep)
+                        println("[recvData] Out of buffer. Adjust recv_first_sleep to : ", PTI.recv_first_sleep)
 
                     else
-                        println("[recvText] Out of buffer. But reach to recv_first_sleep_max : ", PTI.recv_first_sleep)
+                        println("[recvData] Out of buffer. But reach to recv_first_sleep_max : ", PTI.recv_first_sleep)
                     end
                         
                     break
@@ -198,7 +198,7 @@ module ProgramTunnel_fs
         end
 
         if ! get_through
-            ErrorException("[recvText] No further incoming message within timeout.") |> throw
+            ErrorException("[recvData] No further incoming message within timeout.") |> throw
         end
 
         local msg
@@ -217,6 +217,7 @@ module ProgramTunnel_fs
                     println("Keep receiving...")
                     sleep(PTI.error_sleep)
                     continue
+
                 end
 
             catch ex

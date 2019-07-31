@@ -23,7 +23,11 @@ stage = :INIT
 # Need to find a way to avoid receiving the msg
 # from last run
 
-PTI = ProgramTunnelInfo(reverse_role=true)
+mkpath(configs[:tmp_folder])
+
+TS = defaultTunnelSet(path=configs[:tmp_folder])
+reverseRole!(TS)
+mkTunnel(TS)
 
 #=
 PTI = ProgramTunnelInfo(
@@ -41,7 +45,6 @@ t_cnt = 1
 output_filename = ""
 buffer2d = zeros(UInt8, map.lsize * 8)
 null2d   = zeros(Float64, map.lsize)
-nullbin  = zeros(Float64, 1)
 
 timeinfo = zeros(Integer, 4) 
 timeinfo_old = copy(timeinfo)
@@ -64,8 +67,7 @@ while true
     println(format("# Time Counter for RUN  : {:d}", t_cnt))
     println(format("# Stage                 : {}", String(stage)))
 
-    msg = parseMsg( recvData!(PTI, [nullbin]) )
-
+    msg = parseMsg(recvText(TS))
     println("==== MESSAGE RECEIVED ====")
     print(json(msg, 4))
     println("==========================")
@@ -85,10 +87,7 @@ while true
             configs      = configs,
             read_restart = (msg["READ_RESTART"] == "TRUE") ? true : false,
         )
- 
-        global send_data_list = Array{Float64}[OMDATA.o2x["SST"], OMDATA.o2x["QFLX2ATM"]]
-        global recv_data_list = Array{Float64}[]
-      
+        
         rm(configs[:short_term_archive_list], force=true)
 
         global x2o_available_varnames  = split(msg["VAR2D"], ",")
@@ -98,11 +97,13 @@ while true
         println("List of available x2o variables:")
         for (i, varname) in enumerate(x2o_available_varnames)
             println(format(" ({:d}) {:s} => {:s}", i, varname, ( x2o_wanted_flag[i] ) ? "Wanted" : "Abandoned" ))
-            push!(recv_data_list, ( x2o_wanted_flag[i] ) ? OMDATA.x2o[varname] : null2d )
         end
 
-        sendData(PTI, "OK", send_data_list)
-        sendData(PTI, "MASKDATA", [map.mask])
+        sendText(TS, "OK")
+
+        sendBinary!(TS, OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        sendBinary!(TS, OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+        sendBinary!(TS, map.mask, buffer2d; endianess=:little_endian)
 
         stage = :RUN
         
@@ -114,10 +115,26 @@ while true
 
         timeinfo_old[:] = timeinfo
 
-        recvData!(
-            PTI,
-            recv_data_list,
-        )
+        # receiving data
+        for i = 1:length(x2o_available_varnames)
+            varname = x2o_available_varnames[i]
+
+            if x2o_wanted_flag[i]
+                recvBinary!(
+                    TS,
+                    OMDATA.x2o[varname],
+                    buffer2d;
+                    endianess=:little_endian,
+                )
+            else
+                recvBinary!(
+                    TS,
+                    null2d,
+                    buffer2d;
+                    endianess=:little_endian,
+                )
+            end
+        end
        
         println("Calling ", OMMODULE.name, " to do MAGICAL calculations")
 
@@ -144,8 +161,12 @@ while true
         global ocn_run_N += 1
 
         println(format("*** It takes {:.2f} secs. (Avg: {:.2f} secs) ***", cost, ocn_run_time / ocn_run_N))
-       
-        sendData(PTI, "OK", send_data_list)
+        
+        sendText(TS, "OK")
+
+        sendBinary!(TS, OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        sendBinary!(TS, OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+ 
 
 
         t_cnt += 1
@@ -180,8 +201,8 @@ while true
         println("Simulation ends peacefully.")
         break
     else
-        #OMMODULE.crash(OMDATA) 
-        sendData(PTI, "CRASH", send_data_list)
+        OMMODULE.crash(OMDATA) 
+        sendText(TS, "CRASH")
         throw(ErrorException("Unknown status: stage " * string(stage) * ", MSG: " * string(msg["MSG"])))
     end
 
