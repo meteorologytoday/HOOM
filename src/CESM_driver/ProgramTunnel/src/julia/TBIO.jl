@@ -21,22 +21,22 @@ module TBIO
 
         msg = nothing
 
-        if isfile(filename)
-            if filesize(filename) == (sum(length.(arrs)) * 8 + txt_nchars)
-                open(filename, "r") do io
-                    msg = String(read(io, txt_nchars))
-                    for i = 1:length(arrs)
-                        read!(io, arrs[i])
-                    end
+        if isfile(filename) &&
+           filesize(filename) == (sum(length.(arrs)) * 8 + txt_nchars)
 
-                    if     endianess == :LITTLE && Base.ENDIAN_BOM == 0x01020304
-                        for i = 1:length(arrs)
-                            arrs[i][:] = ltoh.(arrs[i])
-                        end
-                    elseif endianess == :BIG && Base.ENDIAN_BOM == 0x04030201
-                        for i = 1:length(arrs)
-                            arrs[i][:] = ntoh.(arrs[i])
-                        end
+            open(filename, "r") do io
+                msg = String(read(io, txt_nchars))
+                for i = 1:length(arrs)
+                    read!(io, arrs[i])
+                end
+
+                if     endianess == :LITTLE && Base.ENDIAN_BOM == 0x01020304
+                    for i = 1:length(arrs)
+                        arrs[i][:] = ltoh.(arrs[i])
+                    end
+                elseif endianess == :BIG && Base.ENDIAN_BOM == 0x04030201
+                    for i = 1:length(arrs)
+                        arrs[i][:] = ntoh.(arrs[i])
                     end
                 end
             end
