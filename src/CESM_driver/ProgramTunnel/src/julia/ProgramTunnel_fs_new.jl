@@ -49,7 +49,7 @@ module ProgramTunnel_fs
             recv_first_sleep :: AbstractFloat = 0.0,
             reverse_role  :: Bool = false,
             rotate        :: Integer = 100,
-            error_sleep   :: Float64 = 1.0,
+            error_sleep   :: Float64 = 0.05,
             history_len   :: Integer = 5,
         )
 
@@ -156,6 +156,7 @@ module ProgramTunnel_fs
     )
         recv_fn = PTI.recv_fns[mod(PTI.recv_trackno - 1, PTI.rotate) + 1]
 
+        println(format("[recvData!] Expecting file: {:s}", recv_fn))
         get_through = false
         sleep(PTI.recv_first_sleep)
 
@@ -220,6 +221,14 @@ module ProgramTunnel_fs
 
                 end
 
+                recv_no, msg = split(msg, "#")
+                if parse(Int, recv_no) != PTI.recv_trackno
+                    println(format("Recive file trackno does not match. Expect {:d} but got {:s}", PTI.recv_trackno, recv_no))
+                    println("Keep receiving...")
+                    sleep(PTI.error_sleep)
+                    continue
+                end
+
             catch ex
                 println(string(ex))
                 println("Keep receiving...")
@@ -227,13 +236,6 @@ module ProgramTunnel_fs
                 continue
             end
 
-            recv_no, msg = split(msg, "#")
-            if parse(Int, recv_no) != PTI.recv_trackno
-                println(format("Recive file trackno does not match. Expect {:d} but got {:s}", PTI.recv_trackno, recv_no))
-                println("Keep receiving...")
-                sleep(PTI.error_sleep)
-                continue
-            end
 
             break
         end
