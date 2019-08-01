@@ -46,9 +46,8 @@ module TBIO
                             arrs[i][:] = ntoh.(arrs[i])
                         end
                     end
-
+                    
                     received_cs   = reinterpret(UInt64, read(io, 8))[1]
-                    #println(received_cs, "; ", typeof(received_cs))
                     calculated_cs = calChecksum(arrs)
 
                     if received_cs != calculated_cs
@@ -144,7 +143,7 @@ module TBIO
 
         end
 
-        println(format("{:X}", s))
+#        println(format("{:X}", s))
         return s
     end
 end

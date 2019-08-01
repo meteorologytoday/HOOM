@@ -39,9 +39,7 @@ map = NetCDFIO.MapInfo{Float64}(configs[:domain_file])
 
 t_cnt = 1
 output_filename = ""
-buffer2d = zeros(UInt8, map.lsize * 8)
-null2d   = zeros(Float64, map.lsize)
-nullbin  = zeros(Float64, 1)
+nullbin  = [zeros(Float64, 1)]
 
 timeinfo = zeros(Integer, 4) 
 timeinfo_old = copy(timeinfo)
@@ -64,7 +62,7 @@ while true
     println(format("# Time Counter for RUN  : {:d}", t_cnt))
     println(format("# Stage                 : {}", String(stage)))
 
-    msg = parseMsg( recvData!(PTI, [nullbin]) )
+    msg = parseMsg( recvData!(PTI, nullbin) )
 
     println("==== MESSAGE RECEIVED ====")
     print(json(msg, 4))
@@ -98,7 +96,7 @@ while true
         println("List of available x2o variables:")
         for (i, varname) in enumerate(x2o_available_varnames)
             println(format(" ({:d}) {:s} => {:s}", i, varname, ( x2o_wanted_flag[i] ) ? "Wanted" : "Abandoned" ))
-            push!(recv_data_list, ( x2o_wanted_flag[i] ) ? OMDATA.x2o[varname] : null2d )
+            push!(recv_data_list, ( x2o_wanted_flag[i] ) ? OMDATA.x2o[varname] :  zeros(Float64, map.lsize))
         end
 
         sendData(PTI, "OK", send_data_list)
