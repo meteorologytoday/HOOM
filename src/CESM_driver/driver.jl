@@ -15,6 +15,14 @@ function parseCESMTIME!(ts::AbstractString, timeinfo::AbstractArray{Integer})
     timeinfo[4] = parse(Int, ts[10:17])
 end
 
+function copy_list_to!(
+    a,
+    b,
+)
+    for i = 1:length(a)
+        b[i][:] = a[i]
+    end
+end
 
 output_vars = Dict()
 
@@ -84,9 +92,13 @@ while true
             read_restart = (msg["READ_RESTART"] == "TRUE") ? true : false,
         )
  
+        # Must declare SharedArray to avoid implicit copying!!!!
+        global send_data_list_shared = SharedArray{Float64}[OMDATA.o2x["SST"], OMDATA.o2x["QFLX2ATM"]]
+        global recv_data_list_shared = SharedArray{Float64}[]
+ 
         global send_data_list = Array{Float64}[OMDATA.o2x["SST"], OMDATA.o2x["QFLX2ATM"]]
         global recv_data_list = Array{Float64}[]
-      
+     
         rm(configs[:short_term_archive_list], force=true)
 
         global x2o_available_varnames  = split(msg["VAR2D"], ",")
@@ -95,9 +107,13 @@ while true
 
         println("List of available x2o variables:")
         for (i, varname) in enumerate(x2o_available_varnames)
+            push!(recv_data_list_shared, ( x2o_wanted_flag[i] ) ? OMDATA.x2o[varname] :  SharedArray{Float64}(map.lsize))
+            push!(recv_data_list       , ( x2o_wanted_flag[i] ) ? OMDATA.x2o[varname] :  zeros(Float64, map.lsize))
             println(format(" ({:d}) {:s} => {:s}", i, varname, ( x2o_wanted_flag[i] ) ? "Wanted" : "Abandoned" ))
-            push!(recv_data_list, ( x2o_wanted_flag[i] ) ? OMDATA.x2o[varname] :  zeros(Float64, map.lsize))
         end
+
+        
+        copy_list_to!(send_data_list_shared, send_data_list)
 
         sendData(PTI, "OK", send_data_list)
         sendData(PTI, "MASKDATA", [map.mask])
@@ -116,7 +132,9 @@ while true
             PTI,
             recv_data_list,
         )
-       
+      
+        copy_list_to!(recv_data_list, recv_data_list_shared)
+        
         println("Calling ", OMMODULE.name, " to do MAGICAL calculations")
 
         Δt = parse(Float64, msg["DT"])
@@ -143,8 +161,8 @@ while true
 
         println(format("*** It takes {:.2f} secs. (Avg: {:.2f} secs) ***", cost, ocn_run_time / ocn_run_N))
        
+        copy_list_to!(send_data_list_shared, send_data_list)
         sendData(PTI, "OK", send_data_list)
-
 
         t_cnt += 1
 

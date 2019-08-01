@@ -33,6 +33,7 @@ module TBIO
                     
                     trim && (msg = strip(msg))
                     
+
                     for i = 1:length(arrs)
                         read!(io, arrs[i])
                     end
@@ -46,7 +47,7 @@ module TBIO
                             arrs[i][:] = ntoh.(arrs[i])
                         end
                     end
-                    
+
                     received_cs   = reinterpret(UInt64, read(io, 8))[1]
                     calculated_cs = calChecksum(arrs)
 
@@ -54,7 +55,6 @@ module TBIO
                         msg = nothing
                         println(format("[readTB!] Checksum does not match. Received: {:X}, calculated: {:X}", received_cs, calculated_cs))
                     end
-                    
 
                 end
             else 

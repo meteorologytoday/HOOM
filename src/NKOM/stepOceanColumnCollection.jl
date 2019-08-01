@@ -24,6 +24,8 @@ function stepOceanColumnCollection!(
     frwflx  = occ.in_flds.frwflx
     qflx    = occ.in_flds.qflx
     h_ML    = occ.in_flds.h_ML
+    #println("sum of h_ML: ", sum(h_ML[isfinite.(h_ML)]))
+    #println("sum of nswflx: ", sum(nswflx[isfinite.(nswflx)]))
 
     #x = nswflx + swflx
     #println("Mean of energy flx: ", mean(x[isfinite.(x)]))
