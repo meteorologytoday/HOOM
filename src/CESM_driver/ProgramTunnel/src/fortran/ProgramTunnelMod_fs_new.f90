@@ -62,8 +62,8 @@ subroutine ptm_setDefault(PTI, fds)
     PTI%recv_first_sleep = 0
     PTI%recv_first_cnt = 0
 
-    PTI%error_sleep = 5000
-    PTI%error_max   = 100
+    PTI%error_sleep = 50
+
 
     call ptm_autoCalculateCnt(PTI)
 end subroutine 
@@ -75,6 +75,7 @@ subroutine ptm_autoCalculateCnt(PTI)
     PTI%timeout_limit_cnt = ceiling(real(PTI%timeout)          / real(PTI%chk_freq))
     PTI%buffer_cnt        = ceiling(real(PTI%buffer)           / real(PTI%chk_freq))
     PTI%recv_first_cnt    = ceiling(real(PTI%recv_first_sleep) / real(PTI%chk_freq))
+    PTI%error_max         = ceiling(real(PTI%timeout)          / real(PTI%error_sleep))
 end
 
 
