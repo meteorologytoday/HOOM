@@ -8,6 +8,52 @@ module ProgramTunnel_fs
 
     export ProgramTunnelInfo, sendData, recvData!
 
+    mutable struct Timing
+        chk_freq             :: Float64
+        timeout              :: Float64
+        buffer               :: Float64
+        recv_first_sleep     :: Float64
+        recv_first_sleep_max :: Float64
+
+        timeout_limit_cnt    :: Integer
+        buffer_cnt           :: Integer
+        recv_first_cnt       :: Integer
+
+
+
+
+        function Timing(;
+            chk_freq             :: Float64,
+            timeout              :: Float64,
+            buffer               :: Float64,
+            recv_first_sleep_max :: Float64,
+            recv_first_sleep     :: Float64,
+        )
+
+            T = new(
+                chk_freq,
+                timeout,
+                buffer,
+                recv_first_sleep,
+                recv_first_sleep_max,
+                0,
+                0,
+                0,
+            )
+    
+            updateCount!(T)
+
+            return T
+        end
+
+    end
+
+    function updateCount!(T::Timing)
+        T.timeout_limit_cnt = ceil(T.timeout          / T.chk_freq)
+        T.buffer_cnt        = ceil(T.buffer           / T.chk_freq)
+        T.recv_first_cnt    = ceil(T.recv_first_sleep / T.chk_freq)
+    end
+
     mutable struct ProgramTunnelInfo
 
         nchars       :: Integer
@@ -15,14 +61,7 @@ module ProgramTunnel_fs
         recv_fn      :: AbstractString
         send_fn      :: AbstractString
 
-        chk_freq          :: AbstractFloat
-        timeout           :: AbstractFloat
-        timeout_limit_cnt :: Integer
-        buffer_cnt        :: Integer
-
-        recv_first_sleep_max :: AbstractFloat
-        recv_first_sleep :: AbstractFloat
-        recv_first_cnt   :: Integer
+        recv_channels :: AbstractArray{Timing}
 
         rotate       :: Integer
         recv_trackno :: Integer
@@ -38,37 +77,43 @@ module ProgramTunnel_fs
 
 
         function ProgramTunnelInfo(;
-            nchars        :: Integer            = 512,
-            recv_fn       :: AbstractString     = "Y2X",
-            send_fn       :: AbstractString     = "X2Y",
-            chk_freq      :: AbstractFloat                  = 0.05,
-            path          :: Union{AbstractString, Nothing} = "x_tmp",
-            timeout       :: AbstractFloat                  = 60.0 * 30,
-            buffer        :: AbstractFloat                  = 0.1,
-            recv_first_sleep_max :: AbstractFloat = 5.00,
-            recv_first_sleep :: AbstractFloat = 0.0,
-            reverse_role  :: Bool = false,
-            rotate        :: Integer = 100,
-            error_sleep   :: Float64 = 0.05,
-            history_len   :: Integer = 5,
+            path                 :: Union{AbstractString, Nothing} = "x_tmp",
+            nchars               :: Integer            = 512,
+            recv_fn              :: AbstractString     = "Y2X",
+            send_fn              :: AbstractString     = "X2Y",
+            recv_channels        :: Integer            = 1,
+            chk_freq             :: AbstractFloat      = 0.05,
+            timeout              :: AbstractFloat      = 60.0 * 30,
+            buffer               :: AbstractFloat      = 0.1,
+            recv_first_sleep_max :: AbstractFloat      = 5.00,
+            recv_first_sleep     :: AbstractFloat      = 0.0,
+            reverse_role         :: Bool               = false,
+            rotate               :: Integer            = 100,
+            error_sleep          :: Float64            = 0.05,
+            history_len          :: Integer            = 5,
         )
 
             if chk_freq <= 0.0
                 ErrorException("chk_freq must be positive.") |> throw
             end
             
+            recv_channels = [
+                Timing(
+                    chk_freq             = chk_freq,
+                    timeout              = timeout,
+                    buffer               = buffer,
+                    recv_first_sleep_max = recv_first_sleep_max,
+                    recv_first_sleep     = recv_first_sleep,
+                )
+                for i = 1:recv_channels
+            ]
+
 
             PTI = new(
                 nchars,
                 recv_fn,
                 send_fn,
-                chk_freq,
-                timeout,
-                ceil(timeout / chk_freq),
-                ceil(buffer / chk_freq),
-                recv_first_sleep_max,
-                recv_first_sleep,
-                ceil(recv_first_sleep / chk_freq),
+                recv_channels,
                 rotate, 1, 1,
                 path,
                 1.0, history_len,
@@ -152,44 +197,49 @@ module ProgramTunnel_fs
 
 
     function recvData!(
-        PTI  :: ProgramTunnelInfo,
-        arrs :: AbstractArray,
+        PTI     :: ProgramTunnelInfo,
+        arrs    :: AbstractArray;
+        which   :: Integer = 1,
     )
+
+        channel = PTI.recv_channels[which]
+
         recv_fn = PTI.recv_fns[mod(PTI.recv_trackno - 1, PTI.rotate) + 1]
 
         println(format("[recvData!] Expecting file: {:s}", recv_fn))
         get_through = false
-        sleep(PTI.recv_first_sleep)
+        sleep(channel.recv_first_sleep)
 
         msg_get = false
 
         
         if isfile(recv_fn)
-            PTI.recv_first_sleep -= PTI.chk_freq
-            PTI.recv_first_sleep = max(0.0, PTI.recv_first_sleep)
-            get_through = true
-            println("[recvData] Message is already there. Adjust recv_first_sleep to : ", PTI.recv_first_sleep)
-        else
-            for cnt in 1:(PTI.timeout_limit_cnt - PTI.recv_first_cnt)
+            channel.recv_first_sleep -= channel.chk_freq
+            channel.recv_first_sleep = max(0.0, channel.recv_first_sleep)
 
-                sleep(PTI.chk_freq)
+            get_through = true
+            println(format("[recvData!] [{:d}] Message is already there. Adjust recv_first_sleep to : {:.2f}", which, channel.recv_first_sleep))
+        else
+            for cnt in 1:(channel.timeout_limit_cnt - channel.recv_first_cnt)
+
+                sleep(channel.chk_freq)
 
                 if isfile(recv_fn)
                     get_through = true
 
-                    if cnt <= PTI.buffer_cnt
+                    if cnt <= channel.buffer_cnt
 
-                        println("[recvData] Good guess of the recv_first_sleep : ", PTI.recv_first_sleep)
+                        println(format("[recvData!] [{:d}] Good guess of the recv_first_sleep : {:.2f}", which, channel.recv_first_sleep))
 
-                    elseif PTI.recv_first_sleep < PTI.recv_first_sleep_max
+                    elseif channel.recv_first_sleep < channel.recv_first_sleep_max
 
                         # Out of buffer, need to adjust: increase PTI.recv_first_sleep
-                        PTI.recv_first_sleep += PTI.chk_freq 
-                        PTI.recv_first_sleep = min(PTI.recv_first_sleep_max, PTI.chk_freq)
-                        println("[recvData] Out of buffer. Adjust recv_first_sleep to : ", PTI.recv_first_sleep)
+                        channel.recv_first_sleep += channel.chk_freq 
+                        channel.recv_first_sleep = min(channel.recv_first_sleep_max, channel.chk_freq)
+                        println(format("[recvData!] [{:d}] Out of buffer. recv_first_sleep to : {:.2f} ", which, channel.recv_first_sleep))
 
                     else
-                        println("[recvData] Out of buffer. But reach to recv_first_sleep_max : ", PTI.recv_first_sleep)
+                        println(format("[recvData!] [{:d}] Out of buffer. But reach to recv_first_sleep_max : {:.2f}", which, channel.recv_first_sleep))
                     end
                         
                     break
@@ -198,9 +248,11 @@ module ProgramTunnel_fs
 
             end
         end
+            
+        updateCount!(channel)
 
         if ! get_through
-            ErrorException("[recvData] No further incoming message within timeout.") |> throw
+            ErrorException(format("[recvData!] [{:d}] No further incoming message within timeout.", which)) |> throw
         end
 
         local msg

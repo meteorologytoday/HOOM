@@ -31,7 +31,10 @@ stage = :INIT
 # Need to find a way to avoid receiving the msg
 # from last run
 
-PTI = ProgramTunnelInfo(reverse_role=true)
+PTI = ProgramTunnelInfo(
+    reverse_role  = true,
+    recv_channels = 2,
+)
 
 #=
 PTI = ProgramTunnelInfo(
@@ -70,7 +73,7 @@ while true
     println(format("# Time Counter for RUN  : {:d}", t_cnt))
     println(format("# Stage                 : {}", String(stage)))
 
-    msg = parseMsg( recvData!(PTI, nullbin) )
+    msg = parseMsg( recvData!(PTI, nullbin, which=1) )
 
     println("==== MESSAGE RECEIVED ====")
     print(json(msg, 4))
@@ -131,6 +134,7 @@ while true
         recvData!(
             PTI,
             recv_data_list,
+            which=2
         )
       
         copy_list_to!(recv_data_list, recv_data_list_shared)
