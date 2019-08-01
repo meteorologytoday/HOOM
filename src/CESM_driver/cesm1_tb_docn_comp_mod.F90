@@ -671,10 +671,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
     case('SOM_AQUAP', 'SOM')
  
-      print *, "XTT modified code. This proves its modified."
-      
-      call GETCWD(x_cwd) 
-      print *, "Current working directory: ", trim(x_cwd)
+      !call GETCWD(x_cwd) 
+      !print *, "Current working directory: ", trim(x_cwd)
       ! CESM 1 does not provide shr_cal_ymdtod2string
       write(x_datetime_str, '(i0.8, A, i0.8)') currentYMD, "-", currentTOD
     
