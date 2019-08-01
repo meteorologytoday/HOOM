@@ -206,13 +206,9 @@ module ProgramTunnel_fs
 
         recv_fn = PTI.recv_fns[mod(PTI.recv_trackno - 1, PTI.rotate) + 1]
 
-        println(format("[recvData!] Expecting file: {:s}", recv_fn))
+        println(format("[recvData!] [{:d}] Expecting file: {:s}. First sleep: {:.2f} ", which, recv_fn, channel.recv_first_sleep))
         get_through = false
         sleep(channel.recv_first_sleep)
-
-        msg_get = false
-
-        
         if isfile(recv_fn)
             channel.recv_first_sleep -= channel.chk_freq
             channel.recv_first_sleep = max(0.0, channel.recv_first_sleep)
@@ -235,7 +231,7 @@ module ProgramTunnel_fs
 
                         # Out of buffer, need to adjust: increase PTI.recv_first_sleep
                         channel.recv_first_sleep += channel.chk_freq 
-                        channel.recv_first_sleep = min(channel.recv_first_sleep_max, channel.chk_freq)
+                        channel.recv_first_sleep = min(channel.recv_first_sleep_max, channel.recv_first_sleep)
                         println(format("[recvData!] [{:d}] Out of buffer. recv_first_sleep to : {:.2f} ", which, channel.recv_first_sleep))
 
                     else
@@ -267,8 +263,7 @@ module ProgramTunnel_fs
 
                 if msg == nothing
 
-                    println("File does not exist or not the expected size.")
-                    println("Keep receiving...")
+                    println("File does not exist / not the expected size / checksum failed. Keep receiving...")
                     sleep(PTI.error_sleep)
                     continue
 
@@ -276,8 +271,7 @@ module ProgramTunnel_fs
 
                 recv_no, msg = split(msg, "#")
                 if parse(Int, recv_no) != PTI.recv_trackno
-                    println(format("Recive file trackno does not match. Expect {:d} but got {:s}", PTI.recv_trackno, recv_no))
-                    println("Keep receiving...")
+                    println(format("Recive file trackno does not match. Expect {:d} but got {:s}. Keep receiving...", PTI.recv_trackno, recv_no))
                     sleep(PTI.error_sleep)
                     continue
                 end
