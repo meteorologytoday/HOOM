@@ -138,7 +138,9 @@ integer function ptm_sendData(PTI, msg, dat)
             end if
         end if
 
-        if (correct .eqv. .false.) then
+        if (correct .eqv. .true. ) then
+            exit
+        else
             if (error_cnt .lt. PTI%error_max) then
                 print *, "[ptm_sendData] ERROR: Fail to send data. Sleep and redo..."
                 print *, error_cnt
@@ -148,6 +150,7 @@ integer function ptm_sendData(PTI, msg, dat)
                 return
             end if
         end if
+
     end do
 
     PTI%send_trackno = PTI%send_trackno + 1
@@ -317,9 +320,11 @@ integer function ptm_writeData(fn, fd, msg, nchars, dat)
     real(8)                  :: dat(:)
     integer                  :: fd, nchars
     
-    integer                  :: i
+    integer                  :: i, n
 
     
+    n = size(dat)
+
     if (LEN(msg) > nchars) then
         print *, "ERROR: length of message should be less than ", nchars  ," (including the msg numbering). Now: ", LEN(msg)
         ptm_writeData = 1
@@ -342,7 +347,6 @@ integer function ptm_writeData(fn, fd, msg, nchars, dat)
     ptm_writeData = 0
     write (fd, '(A)', iostat=ptm_writeData, advance="no") msg
     do i=1, nchars - LEN(msg)
-        print *, "Padding..."
         write (fd, '(A)', iostat=ptm_writeData, advance="no") " "
     end do
 
@@ -367,9 +371,17 @@ integer function ptm_writeData(fn, fd, msg, nchars, dat)
 
 
     ptm_writeData = 0
-    write (fd, iostat=ptm_writeData, pos=nchars+1) (dat(i), i=1,size(dat),1)
+    write (fd, iostat=ptm_writeData, pos=nchars+1) (dat(i), i=1,n,1)
     if (ptm_writeData .gt. 0) then
         print *, "[ptm_writeData] Error during write binary, err code: ", ptm_writeData
+        close(fd)
+        return
+    end if
+ 
+    ptm_writeData = 0
+    write (fd, iostat=ptm_writeData, pos=nchars+n*8+1) ptm_calChecksum(dat)
+    if (ptm_writeData .gt. 0) then
+        print *, "[ptm_writeData] Error during write checksum, err code: ", ptm_writeData
         close(fd)
         return
     end if
@@ -386,6 +398,7 @@ integer function ptm_readData(fn, fd, msg, nchars, dat)
     
     integer                  :: i, n, expect_file_size, file_size
     logical                  :: file_exists
+    integer(8)               :: calculated_checksum, received_checksum
 
     n = size(dat)
     !if ((msg) < nchars) then
@@ -403,7 +416,7 @@ integer function ptm_readData(fn, fd, msg, nchars, dat)
     end if
 
 
-    expect_file_size = nchars + 8 * n
+    expect_file_size = nchars + 8 * n + 8
     inquire(file=fn, size=file_size)
     if ( file_size /= expect_file_size ) then
         print *, "[ptm_readData] ERROR: Wrong file size. Expect: ", expect_file_size, ", but got ", file_size
@@ -434,16 +447,33 @@ integer function ptm_readData(fn, fd, msg, nchars, dat)
     ptm_readData = 0
     read (fd, pos=nchars+1, iostat=ptm_readData) (dat(i),i=1,n,1)
     if (ptm_readData .gt. 0) then
-        print *, "[ptm_readData] Error during read text part. iostat: ", ptm_readData
+        print *, "[ptm_readData] Error during read binary part. iostat: ", ptm_readData
+        close(fd)
+        return
+    end if
+
+    ptm_readData = 0
+    read (fd, pos=nchars+n*8+1, iostat=ptm_readData) received_checksum
+    if (ptm_readData .gt. 0) then
+        print *, "[ptm_readData] Error during read checksum. iostat: ", ptm_readData
         close(fd)
         return
     end if
 
     close(fd)
+
+    calculated_checksum = ptm_calChecksum(dat)
+    if (received_checksum /= calculated_checksum) then
+        print '(A, Z, A, Z)', "[ptm_readData] ERROR: Checksum does not match. File checksum: ", received_checksum, "; calculated: ", calculated_checksum
+        ptm_readData = 1
+        return
+    endif
+
     print *, "RECEIVED: ", trim(msg) 
 end function
 
 integer function ptm_parseMessage(raw_msg, trackno, real_msg)
+    implicit none
     character(len=*) :: raw_msg, real_msg
     integer          :: trackno
 
@@ -463,5 +493,22 @@ integer function ptm_parseMessage(raw_msg, trackno, real_msg)
     end if
 end function
 
+
+integer(8) function ptm_calChecksum(dat)
+    implicit none
+    real(8)       :: dat(:)
+    integer(8)    :: dat_int(size(dat))
+    integer(8)    :: i, k
+
+    dat_int = transfer(dat, dat_int)
+    ptm_calChecksum = 0
+    k = 0
+    do i = 1, size(dat)
+        ptm_calChecksum = XOR(ptm_calChecksum, ISHFTC(dat_int(i), k) )
+        k = mod(k+1, 64)
+    end do
+    !print ('(Z)'), ptm_calChecksum
+
+end function
 
 end module ProgramTunnelMod_fs

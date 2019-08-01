@@ -138,6 +138,7 @@ module ProgramTunnel_fs
                     arrs,
                 )
             catch ex
+                throw(ex)
                 println(string(ex))
                 println("keep sending msg.")
                 sleep(PTI.error_sleep)
@@ -244,7 +245,6 @@ module ProgramTunnel_fs
         
         return msg 
     end
-
 
 
 end

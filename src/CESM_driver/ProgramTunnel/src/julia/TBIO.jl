@@ -25,7 +25,7 @@ module TBIO
         if isfile(filename)
 
             get_filesize = filesize(filename)
-            expect_filesize = sum(length.(arrs)) * 8 + txt_nchars
+            expect_filesize = sum(length.(arrs)) * 8 + txt_nchars + 8
             if get_filesize == expect_filesize 
 
                 open(filename, "r") do io
@@ -46,6 +46,17 @@ module TBIO
                             arrs[i][:] = ntoh.(arrs[i])
                         end
                     end
+
+                    received_cs   = reinterpret(UInt64, read(io, 8))[1]
+                    #println(received_cs, "; ", typeof(received_cs))
+                    calculated_cs = calChecksum(arrs)
+
+                    if received_cs != calculated_cs
+                        msg = nothing
+                        println(format("[readTB!] Checksum does not match. Received: {:X}, calculated: {:X}", received_cs, calculated_cs))
+                    end
+                    
+
                 end
             else 
                 println(format("[readTB!] Expecting filesize: {} bytes, but got {} bytes", expect_filesize, get_filesize))
@@ -90,18 +101,52 @@ module TBIO
                 for i = 1:length(arrs)
                     write(io, htol.(arrs[i]))
                 end
+                write(io, htol(calChecksum(arrs)))
             elseif endianess == :BIG && Base.ENDIAN_BOM == 0x04030201
                 for i = 1:length(arrs)
                     write(io, hton.(arrs[i]))
                 end
+                write(io, hton(calChecksum(arrs)))
             else
                 for i = 1:length(arrs)
                     write(io, arrs[i])
                 end
+                write(io, calChecksum(arrs))
             end
+
+
+
         end
     end
 
+    # ror, rol :: bitwise circular shift to right / left
+    # Source:
+    # https://discourse.julialang.org/t/efficient-bit-rotate-functions-ror-rol-what-is-the-official-way-for-julia-v1/19062
+    ror(x::UInt64, k::Int) = (x >>> (0x3f & k)) | (x << (0x3f & -k))
+    rol(x::UInt64, k::Int) = (x >>> (0x3f & -k)) | (x << (0x3f & k))
+
+
+    function calChecksum(
+        arrs :: AbstractArray{T},
+    ) where T <: AbstractArray{Float64}
+
+        k = 0
+        s = UInt64(0)
+        for i = 1:length(arrs)
+            arr = reinterpret(UInt64, arrs[i])
+            
+            for j = 1:length(arr)
+
+                s = xor(s, rol(arr[j], k))
+                #s = xor(s, arr[j])
+                k = mod(k+1, 64)
+            end
+
+        end
+
+        println(format("{:X}", s))
+        return s
+    end
 end
 
 
