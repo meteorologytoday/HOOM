@@ -197,6 +197,7 @@ if [ "\$single_job" != "on" ]; then
     cat << XEOFX > \${casename}.run
 #!/bin/bash
 
+rm -rf \${caserun}/x_tmp/*
 qsub -A \$PROJECT -l walltime="\$walltime" \${caseroot}/\${casename}.ocn.run
 qsub -A \$PROJECT -l walltime="\$walltime" \${caseroot}/\${casename}.cesm.run 
 XEOFX
@@ -241,7 +242,7 @@ chmod +x \$casename.run
 git clone --branch "$ocn_branch" https://github.com/meteorologytoday/SMARTSLAB-main.git
 
 cd ./SourceMods/src.docn
-ln -s ../../SMARTSLAB-main/src/CESM_driver/cesm1_docn_comp_mod.F90 ./docn_comp_mod.F90
+ln -s ../../SMARTSLAB-main/src/CESM_driver/cesm1_tb_docn_comp_mod.F90 ./docn_comp_mod.F90
 ln -s ../../SMARTSLAB-main/src/CESM_driver/ProgramTunnel .
 
 
