@@ -109,8 +109,9 @@ function syncToMaster(occ::OceanColumnCollection)
     master_occ.S_ML[rng2...] = occ.S_ML
     master_occ.h_ML[rng2...] = occ.h_ML
 
-    #master_occ.T_ML[rng2...] .+= 10.0 * rand()
-    #println( pointer_from_objref(master_occ.T_ML))
+    master_occ.qflx2atm[rng2...] = occ.qflx2atm
+
+
 end
 
 
