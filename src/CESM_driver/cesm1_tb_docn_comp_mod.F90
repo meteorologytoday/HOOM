@@ -124,7 +124,7 @@ module docn_comp_mod
 ! ===== XTT MODIFIED BEGIN =====
   integer(IN)   :: ktaux, ktauy, kifrac, kprec, kevap  ! field indices
  
-  character(1024)             :: x_msg, x_datetime_str, x_cwd
+  character(1024)             :: x_msg, x_datetime_str, x_cwd, x_real_time
   type(ptm_ProgramTunnelInfo) :: x_PTI
   integer                     :: x_curr_ymd
 
@@ -674,12 +674,19 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
       !call GETCWD(x_cwd) 
       !print *, "Current working directory: ", trim(x_cwd)
       ! CESM 1 does not provide shr_cal_ymdtod2string
-      write(x_datetime_str, '(i0.8, A, i0.8)') currentYMD, "-", currentTOD
+
     
       ! The following line is CESM 2 only 
       !call shr_cal_ymdtod2string(x_datetime_str, yy, mm, dd, currentTOD)
- 
-      print *, "# WHAT TIME IS IT? ", trim(x_datetime_str)
+
+
+      call current_time(x_real_time) 
+      write(x_datetime_str, '(i0.8, A, i0.8)') currentYMD, "-", currentTOD
+      print *, "############################" 
+      print *, "# Real  time: ", trim(x_datetime_str)
+      print *, "# Model time: ", trim(x_real_time)
+      print *, "############################" 
+
       
       lsize = mct_avect_lsize(o2x)
       ! XTT: This line dumps every stream data from `SDOCN%avs(n)` into `avstrm`
@@ -1103,7 +1110,17 @@ subroutine copy_from_blob(blob, blksize, blkid, dat)
 
 end subroutine
 
+subroutine current_time(str)
+    implicit none
+    character(len=*)      :: str
+    integer, dimension(8) :: t             ! arguments for date_and_time
+   
+    call date_and_time(values=t)
 
+    write (str, '(i0.4, "/", i0.2, "/", i0.2, " ", i0.2, ":", i0.2, ":", i0.2, " ", i0.3)') &
+        t(1), t(2), t(3), t(5), t(6), t(7), t(8)
+
+end subroutine
 
 ! ===== XTT MODIFIED END   =====
 

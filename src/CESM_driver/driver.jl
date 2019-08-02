@@ -69,7 +69,8 @@ while true
 
     end_time = Base.time()
 
-    println(format("Execution time          : {:d} s", floor(end_time - beg_time)))
+    println(format("# Current real time:      : {:s}", Dates.format(now(), "yyyy/mm/dd HH:MM:SS")))
+    println(format("# Execution time          : {:d} s", floor(end_time - beg_time)))
     println(format("# Time Counter for RUN  : {:d}", t_cnt))
     println(format("# Stage                 : {}", String(stage)))
 

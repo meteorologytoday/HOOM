@@ -154,6 +154,7 @@ integer function ptm_sendData(PTI, msg, dat)
     end do
 
     PTI%send_trackno = PTI%send_trackno + 1
+    print *, "[ptm_sendData] File sent: ", trim(send_fn)
 
 end function
 
