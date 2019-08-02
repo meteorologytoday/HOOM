@@ -142,20 +142,16 @@ while true
         println("Calling ", OMMODULE.name, " to do MAGICAL calculations")
 
         Δt = parse(Float64, msg["DT"])
-        Δt_substeps = Δt / configs[:substeps]
 
+        cost = @elapsed let
 
-        cost = @elapsed for substep = 1:configs[:substeps]
-
-            print(format("Substep: {:d}/{:d}\r", substep, configs[:substeps]))
-
-            OMMODULE.run(OMDATA;
+            OMMODULE.run(
+                OMDATA;
                 t             = timeinfo,
                 t_cnt         = t_cnt,
                 t_flags       = t_flags,
-                Δt            = Δt_substeps,
-                substep       = substep,
-                write_restart = ( msg["WRITE_RESTART"] == "TRUE" && substep == 1 ),
+                Δt            = Δt
+                write_restart = msg["WRITE_RESTART"] == "TRUE",
             )
 
         end

@@ -183,11 +183,10 @@ module CESMCORE_NKOM
         t_cnt         :: Integer,
         t_flags       :: Dict,
         Δt            :: Float64,
-        substep       :: Integer,
         write_restart :: Bool,
     )
 
-        if MD.configs[:enable_short_term_archive] && substep == 1
+        if MD.configs[:enable_short_term_archive]
 
             if MD.configs[:daily_record]
  
@@ -231,38 +230,22 @@ module CESMCORE_NKOM
 
         in_flds = MD.occ.in_flds
 
-        # Only process incoming data for the first time!! 
-        if substep == 1
+        in_flds.nswflx .*= -1.0
+        in_flds.swflx  .*= -1.0
 
-            in_flds.nswflx .*= -1.0
-            in_flds.swflx  .*= -1.0
-            #in_flds.nswflx  .*= 0.0
-            #in_flds.swflx  .=-1000.0
-            #if MD.configs[:MLD_scheme] == :prognostic
-            #in_flds.fric_u .= sqrt.(sqrt.((in_flds.taux).^2.0 .+ (in_flds.tauy).^2.0) / NKOM.ρ)
-            #in_flds.weighted_fric_u .*= (1.0 .- in_flds.ifrac)
-            #end
-
-        end
-       
         NKOM.run!(
             MD.occ;
+            substeps      = MD.configs[:substeps],
             use_qflx      = MD.configs[:Qflux_scheme] == :on,
             use_h_ML      = MD.configs[:MLD_scheme] == :datastream,
             Δt            = Δt,
-            diffusion_Δt  = Δt * MD.configs[:substeps],
-            relaxation_Δt = Δt * MD.configs[:substeps],
-            do_diffusion  = (MD.configs[:diffusion_scheme] == :on && substep == MD.configs[:substeps]),
-            do_relaxation = (MD.configs[:relaxation_scheme] == :on && substep == MD.configs[:substeps]),
+            do_diffusion  = MD.configs[:diffusion_scheme] == :on,
+            do_relaxation = MD.configs[:relaxation_scheme] == :on,
             do_convadjust = MD.configs[:convective_adjustment_scheme] == :on,
             rad_scheme    = MD.configs[:radiation_scheme],
-            copy_in_flds  = substep == 1,
         )
 
-        # Force workers to update master's profile
-        if substep == MD.configs[:substeps]
-            NKOM.sync!(MD.occ)
-        end
+        NKOM.sync!(MD.occ)
         
         if write_restart
             restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])

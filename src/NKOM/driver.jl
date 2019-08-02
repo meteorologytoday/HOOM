@@ -76,7 +76,6 @@ end
 
 function run!(
     occ    :: OceanColumnCollection;
-    copy_in_flds  :: Bool = false,
     kwargs... 
 )
 
@@ -86,10 +85,7 @@ function run!(
 
     @sync for (i, p) in enumerate(workers())
 
-        if copy_in_flds
-            @spawnat p copyfrom!(worker_occ.in_flds, master_sub_in_flds)
-        end
-
+        @spawnat p copyfrom!(worker_occ.in_flds, master_sub_in_flds)
         @spawnat p NKOM.stepOceanColumnCollection!(
             worker_occ;
             kwargs...
