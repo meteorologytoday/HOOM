@@ -150,7 +150,7 @@ while true
                 t             = timeinfo,
                 t_cnt         = t_cnt,
                 t_flags       = t_flags,
-                Δt            = Δt
+                Δt            = Δt,
                 write_restart = msg["WRITE_RESTART"] == "TRUE",
             )
 

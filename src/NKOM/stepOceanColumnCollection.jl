@@ -2,7 +2,7 @@ using Statistics
 
 function stepOceanColumnCollection!(
     occ           :: OceanColumnCollection;
-    substeps      :: Integer
+    substeps      :: Integer,
     use_qflx      :: Bool,
     use_h_ML      :: Bool,
     Δt            :: Float64,
