@@ -84,7 +84,7 @@ function stepOceanColumnCollection!(
 
             else        # h_ML is prognostic
                  
-                new_h_ML = calNewMLD(;
+                new_h_ML, occ.h_MO[i, j] = calNewMLD(;
                     h_ML   = old_h_ML,
                     Bf     = surf_bflx + surf_Jflx * occ.R,
                     J0     = surf_Jflx * (1.0 - occ.R),

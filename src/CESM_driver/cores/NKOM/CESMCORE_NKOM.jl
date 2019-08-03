@@ -142,6 +142,10 @@ module CESMCORE_NKOM
         
         recorders = Dict()
 
+
+
+
+
         for rec_key in [:daily_record, :monthly_record]
             if configs[rec_key]
                  recorder = RecordTool.Recorder(
@@ -150,13 +154,16 @@ module CESMCORE_NKOM
                         "Ny" => occ.Ny,
                         "Nz_bone" => occ.Nz_bone,
                     ), [
-                        ("T",     NKOM.toXYZ(occ.Ts, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("S",     NKOM.toXYZ(occ.Ss, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("T_ML",  occ.T_ML, ("Nx", "Ny",)),
-                        ("S_ML",  occ.S_ML, ("Nx", "Ny",)),
-                        ("h_ML",  occ.h_ML, ("Nx", "Ny")),
-                        ("weighted_fric_u",  occ.in_flds.weighted_fric_u, ("Nx", "Ny")),
+                        ("T",       NKOM.toXYZ(occ.Ts, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("S",       NKOM.toXYZ(occ.Ss, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("T_ML",    occ.T_ML, ("Nx", "Ny",)),
+                        ("S_ML",    occ.S_ML, ("Nx", "Ny",)),
+                        ("h_ML",    occ.h_ML, ("Nx", "Ny")),
+                        ("h_MO",    occ.h_MO, ("Nx", "Ny")),
+                        ("nswflx",  occ.in_flds.nswflx, ("Nx", "Ny")),
+                        ("swflx",   occ.in_flds.swflx,  ("Nx", "Ny")),
                         ("fric_u",  occ.in_flds.fric_u, ("Nx", "Ny")),
+
                     ],
                 )
 
