@@ -48,6 +48,7 @@ module CESMCORE_NKOM
             (:radiation_scheme,              true, (:exponential, :step,),      nothing),
             (:daily_record,                  true, (Bool,),                     nothing),
             (:monthly_record,                true, (Bool,),                     nothing),
+            (:turn_off_frwflx,              false, (Bool,),                     false),
         ])
 
 
@@ -119,9 +120,6 @@ module CESMCORE_NKOM
                 "FRWFLX" => in_flds.frwflx,
                 "QFLX"   => in_flds.qflx,
                 "MLD"    => in_flds.h_ML,
-                "TAUX"   => in_flds.taux,
-                "TAUY"   => in_flds.tauy,
-
             )
 
         elseif configs[:MLD_scheme] == :prognostic
@@ -165,6 +163,7 @@ module CESMCORE_NKOM
                         ("h_MO",    occ.h_MO, ("Nx", "Ny")),
                         ("nswflx",  occ.in_flds.nswflx, ("Nx", "Ny")),
                         ("swflx",   occ.in_flds.swflx,  ("Nx", "Ny")),
+                        ("frwflx",  occ.in_flds.frwflx, ("Nx", "Ny")),
                         ("fric_u",  occ.fric_u, ("Nx", "Ny")),
 
                     ],
@@ -242,6 +241,10 @@ module CESMCORE_NKOM
 
         in_flds.nswflx .*= -1.0
         in_flds.swflx  .*= -1.0
+
+        if MD.configs[:turn_off_frwflx]
+            in_flds.frwflx .= 0.0
+        end
 
         NKOM.run!(
             MD.occ;
