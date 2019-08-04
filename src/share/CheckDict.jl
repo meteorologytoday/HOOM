@@ -29,7 +29,7 @@ function checkDict!(
                 ErrorException(format("[Required] {:s}", msg)) |> throw
             else
                 d[key] = default
-                println(format("[Optional] {:s} Set to default: {:s}", d[key]))
+                println(format("[Optional] {:s} Set to default: {:s}", key, d[key]))
 
             end
 
