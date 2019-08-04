@@ -19,9 +19,9 @@ occ = NKOM.OceanColumnCollection(
     we_max   = 1e-2,
     mask     = mask,
     topo     = topo,
-    Ts_clim_relax_time = 86400.0 * 365 * 10, # 10 years
+    Ts_clim_relax_time = 86400.0 * 365 * 100, # 100 years
     Ts_clim            = copy(Ts_clim),
-    Ss_clim_relax_time = 86400.0 * 365 * 10, # 10 years
+    Ss_clim_relax_time = 86400.0 * 365 * 100, # 100 years
     Ss_clim            = copy(Ss_clim),
     arrange  = :xyz,
 )

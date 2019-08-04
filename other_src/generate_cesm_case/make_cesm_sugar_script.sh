@@ -226,6 +226,7 @@ else
 
 #!/bin/bash
 
+rm -rf \${caserun}/x_tmp/*
 /bin/csh \${caseroot}/\${casename}.cesm.run &
 \${caseroot}/\${casename}.ocn.run &
 wait
