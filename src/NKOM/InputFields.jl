@@ -1,8 +1,6 @@
 mutable struct InputFields
     taux   :: AbstractArray{Float64, 2}
     tauy   :: AbstractArray{Float64, 2}
-    fric_u :: AbstractArray{Float64, 2}
-    weighted_fric_u :: AbstractArray{Float64, 2}
     nswflx :: AbstractArray{Float64, 2}
     swflx  :: AbstractArray{Float64, 2}
     sumflx :: AbstractArray{Float64, 2}
@@ -24,8 +22,6 @@ function InputFields(datakind::Symbol, Nx::Integer, Ny::Integer)
         allocate(datakind, Float64, Nx, Ny),
         allocate(datakind, Float64, Nx, Ny),
         allocate(datakind, Float64, Nx, Ny),
-        allocate(datakind, Float64, Nx, Ny),
-        allocate(datakind, Float64, Nx, Ny),
     )
 end
 
@@ -36,8 +32,6 @@ function SubInputFields(
     return InputFields(
         view( in_flds.taux,            rngs...), 
         view( in_flds.tauy,            rngs...), 
-        view( in_flds.fric_u,          rngs...), 
-        view( in_flds.weighted_fric_u, rngs...), 
         view( in_flds.nswflx,          rngs...), 
         view( in_flds.swflx,           rngs...), 
         view( in_flds.sumflx,          rngs...), 
@@ -55,7 +49,6 @@ function copyfrom!(
 
     dst.taux[:] = src.taux
     dst.tauy[:] = src.tauy
-    dst.fric_u[:] = src.fric_u
     dst.nswflx[:] = src.nswflx
     dst.swflx[:] = src.swflx
     dst.sumflx[:] = src.sumflx

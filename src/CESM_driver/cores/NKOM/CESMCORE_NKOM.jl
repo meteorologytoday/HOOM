@@ -119,6 +119,9 @@ module CESMCORE_NKOM
                 "FRWFLX" => in_flds.frwflx,
                 "QFLX"   => in_flds.qflx,
                 "MLD"    => in_flds.h_ML,
+                "TAUX"   => in_flds.taux,
+                "TAUY"   => in_flds.tauy,
+
             )
 
         elseif configs[:MLD_scheme] == :prognostic
@@ -162,7 +165,7 @@ module CESMCORE_NKOM
                         ("h_MO",    occ.h_MO, ("Nx", "Ny")),
                         ("nswflx",  occ.in_flds.nswflx, ("Nx", "Ny")),
                         ("swflx",   occ.in_flds.swflx,  ("Nx", "Ny")),
-                        ("fric_u",  occ.in_flds.fric_u, ("Nx", "Ny")),
+                        ("fric_u",  occ.fric_u, ("Nx", "Ny")),
 
                     ],
                 )

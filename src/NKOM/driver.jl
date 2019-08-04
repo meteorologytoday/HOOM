@@ -109,8 +109,6 @@ function syncToMaster(occ::OceanColumnCollection)
     master_occ.S_ML[rng2...] = occ.S_ML
     master_occ.h_ML[rng2...] = occ.h_ML
     master_occ.h_MO[rng2...] = occ.h_MO
-    master_occ.nswflx[rng2...] = occ.nswflx
-    master_occ.swflx[rng2...]  = occ.swflx
     master_occ.fric_u[rng2...] = occ.fric_u
 
     master_occ.qflx2atm[rng2...] = occ.qflx2atm

@@ -12,18 +12,16 @@ function stepOceanColumnCollection!(
     rad_scheme    :: Symbol,    # whether to absorb radiation totally at the surface layer or not
 )
 
-    fric_u  = occ.in_flds.fric_u
     ifrac   = occ.in_flds.ifrac
-    weighted_fric_u = occ.in_flds.weighted_fric_u
 
     taux    = occ.in_flds.taux
     tauy    = occ.in_flds.tauy
+    fric_u  = occ.fric_u
 
     swflx   = occ.in_flds.swflx
     nswflx  = occ.in_flds.nswflx
     frwflx  = occ.in_flds.frwflx
     qflx    = occ.in_flds.qflx
-
 
     dt = Δt / substeps
 
@@ -39,8 +37,8 @@ function stepOceanColumnCollection!(
             zs = occ.zs_vw[i, j]
             Nz = occ.Nz[i, j]
 
-            fric_u[i, j] = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / NKOM.ρ) * 0.0
-            weighted_fric_u[i, j] = fric_u[i, j] * (1.0 - ifrac[i, j])
+            fric_u[i, j] = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / NKOM.ρ)
+            weighted_fric_u = fric_u[i, j] * (1.0 - ifrac[i, j])
 
 
             # Pseudo code
@@ -88,7 +86,7 @@ function stepOceanColumnCollection!(
                     h_ML   = old_h_ML,
                     Bf     = surf_bflx + surf_Jflx * occ.R,
                     J0     = surf_Jflx * (1.0 - occ.R),
-                    fric_u = weighted_fric_u[i, j],
+                    fric_u = weighted_fric_u,
                     Δb     = Δb,
                     f      = occ.fs[i, j],
                     Δt     = dt,
