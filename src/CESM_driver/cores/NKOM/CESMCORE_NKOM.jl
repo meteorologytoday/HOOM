@@ -195,6 +195,17 @@ module CESMCORE_NKOM
         write_restart :: Bool,
     )
 
+        # process input fields before record
+        in_flds = MD.occ.in_flds
+
+        in_flds.nswflx .*= -1.0
+        in_flds.swflx  .*= -1.0
+
+        if MD.configs[:turn_off_frwflx]
+            in_flds.frwflx .= 0.0
+        end
+
+
         if MD.configs[:enable_short_term_archive]
 
             if MD.configs[:daily_record]
@@ -237,14 +248,6 @@ module CESMCORE_NKOM
 
         end
 
-        in_flds = MD.occ.in_flds
-
-        in_flds.nswflx .*= -1.0
-        in_flds.swflx  .*= -1.0
-
-        if MD.configs[:turn_off_frwflx]
-            in_flds.frwflx .= 0.0
-        end
 
         NKOM.run!(
             MD.occ;
