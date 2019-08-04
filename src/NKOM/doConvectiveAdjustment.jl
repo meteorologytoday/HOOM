@@ -198,7 +198,7 @@ function doConvectiveAdjustment!(;
                 new_S_ML = mixed_S
                 
                 # update T, S profile but do not update h_ML and FLDO 
-                setMixedLayer!(Ts=Ts, Ss=Ss, T_ML=new_T_ML, S_ML=new_S_ML, h_ML= - bot_z, Nz=Nz)
+                setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML= - bot_z, Nz=Nz)
 
                 #= 
 
