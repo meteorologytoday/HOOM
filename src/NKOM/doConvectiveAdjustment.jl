@@ -190,6 +190,18 @@ function doConvectiveAdjustment!(;
             ))  / Δz
            
             if top_layer == -1  # Even the mixed layer is mixed
+
+                # 2019/08/04 Decide that convective adjustment does not change MLD.
+                # This makes ML dynamic less complicated
+
+                new_T_ML = mixed_T 
+                new_S_ML = mixed_S
+                
+                # update T, S profile but do not update h_ML and FLDO 
+                setMixedLayer!(Ts=Ts, Ss=Ss, T_ML=new_T_ML, S_ML=new_S_ML, h_ML= - bot_z, Nz=Nz)
+
+                #= 
+
                 new_T_ML = mixed_T
                 new_S_ML = mixed_S
                 new_h_ML = - bot_z
@@ -205,6 +217,7 @@ function doConvectiveAdjustment!(;
                     # original code before 2019/05/10
                     # new_FLDO = getFLDO(zs=zs, h_ML=h_ML_max, Nz=Nz)   # original code
                 end
+                =#
 
             else
                 Ts[top_layer:bot_layer] .= mixed_T

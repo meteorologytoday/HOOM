@@ -58,7 +58,7 @@ function stepOceanColumnCollection!(
             surf_Tnswflx = ( nswflx[i, j] + ( ( use_qflx ) ? qflx[i, j] : 0.0 )) / (ρ*c_p) 
             surf_Tswflx  = swflx[i, j] / (ρ*c_p)
             surf_Jflx    = g * α * surf_Tswflx
-            surf_Sflx    = - frwflx[i, j] * S_surf_avg
+            surf_Sflx    = - frwflx[i, j] * occ.S_ML[i, j]
             surf_bflx    = g * ( α * surf_Tnswflx - β * surf_Sflx )
             
             old_FLDO = occ.FLDO[i, j]
@@ -129,8 +129,8 @@ function stepOceanColumnCollection!(
             end
 
             # Shortwave radiation is not included yet
-            new_S_ML = (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - surf_Sflx * dt) / new_h_ML
-            new_T_ML = (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - surf_Tnswflx * dt) / new_h_ML
+            new_S_ML = max( (OC_getIntegratedSalinity(   occ, i, j; target_z = -new_h_ML) - surf_Sflx * dt)    / new_h_ML, 0.0)
+            new_T_ML =      (OC_getIntegratedTemperature(occ, i, j; target_z = -new_h_ML) - surf_Tnswflx * dt) / new_h_ML
 
             OC_setMixedLayer!(
                 occ, i, j;
