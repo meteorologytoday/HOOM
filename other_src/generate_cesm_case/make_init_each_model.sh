@@ -18,6 +18,7 @@ lopts=(
     S-unit
     model
     init-config
+    forcing-file
 )
 
 source $wk_dir/getopt_helper.sh
@@ -35,6 +36,7 @@ if [ ! -f $output_file ]; then
         --domain-file=$domain_file                  \
         --zdomain-file=$zdomain_file                \
         --T-unit=$T_unit                            \
-        --S-unit=$S_unit
+        --S-unit=$S_unit                            \
+        --forcing-file=$forcing_file
 
 fi

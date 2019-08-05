@@ -16,13 +16,14 @@ occ = NKOM.OceanColumnCollection(
     h_ML     = 10.0, 
     h_ML_min = 10.0,
     h_ML_max = 1e5,             # make it unrestricted
-    we_max   = 1e5,             # make it unrestricted
+    we_max   = 1e-2,             # make it unrestricted
     mask     = mask,
     topo     = topo,
-    Ts_clim_relax_time = nothing, # Make it unrestricted
-    Ts_clim            = nothing,
-    Ss_clim_relax_time = nothing,
-    Ss_clim            = nothing,
+    Ts_clim_relax_time = 86400.0 * 365 * 10, # 10 years
+    Ts_clim            = copy(Ts_clim),
+    Ss_clim_relax_time = 86400.0 * 365 * 10, # 10 years
+    Ss_clim            = copy(Ss_clim),
+    arrange  = "xyz",
 )
 
 NKOM.takeSnapshot(occ, parsed["output-file"])

@@ -28,6 +28,7 @@ lopts=(
     model
     init-config
     ocn-ncpu
+    ocn-branch
     qflux-file
 )
 
@@ -46,12 +47,17 @@ mkdir -p $code_output_dir
 mkdir -p $init_files_dir
 
 
+if [ -z "$ocn_branch" ] ; then
+    ocn_branch=master
+fi
+
+
 echo "Making initial files..."
 
 
-new_data_clim_T_file=$init_files_dir/${label}_$( basename $data_clim_T_file ".nc" ).nc
-new_data_clim_S_file=$init_files_dir/${label}_$( basename $data_clim_S_file ".nc" ).nc
-new_topo_file=$init_files_dir/${label}_$( basename $topo_file ".nc" ).nc
+new_data_clim_T_file=$init_files_dir/${label}_${resolution}_$( basename $data_clim_T_file ".nc" ).nc
+new_data_clim_S_file=$init_files_dir/${label}_${resolution}_$( basename $data_clim_S_file ".nc" ).nc
+new_topo_file=$init_files_dir/${label}_${resolution}_$( basename $topo_file ".nc" ).nc
 
 zdomain_file=$init_files_dir/zdomain.nc
 
@@ -71,7 +77,8 @@ $wk_dir/make_init.sh                            \
 
 
 echo "Making initial files for a specific model"
-init_file=$init_files_dir/init_${label}_${model}_${init_config}.nc
+casename=${label}_${resolution}_${model}_${init_config}
+init_file=$init_files_dir/init_${casename}.nc
 
 $wk_dir/make_init_each_model.sh                 \
     --output-file=$init_file                    \
@@ -83,12 +90,15 @@ $wk_dir/make_init_each_model.sh                 \
     --topo-file=$new_topo_file                  \
     --T-unit=$T_unit                            \
     --S-unit=$S_unit                            \
+    --forcing-file=$qflux_file                  \
     --model=$model                              \
     --init-config=$init_config
 
 
 echo "Generate cesm sugar scripts..."
+
 $wk_dir/make_cesm_sugar_script.sh           \
+    --casename=$casename                    \
     --code-output-dir=$code_output_dir      \
     --init-file=$init_file                  \
     --resolution=$resolution                \
@@ -103,7 +113,8 @@ $wk_dir/make_cesm_sugar_script.sh           \
     --model=$model                          \
     --init-config=$init_config              \
     --ocn-ncpu=$ocn_ncpu                    \
-    --qflux-file=$qflux_file 
+    --qflux-file=$qflux_file                \
+    --ocn-branch=$ocn_branch
 
     
-echo "Done."
+echo "$casename"

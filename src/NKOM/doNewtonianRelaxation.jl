@@ -51,12 +51,23 @@ function doNewtonianRelaxation!(;
     Δt         :: Float64,
 )
 
-    r = Δt / τ
-    if FLDO != -1
-        for i = FLDO:Nz
-            qs[i] = (qs[i] + r * qs_clim[i]) / (1+r)
-        end
-    end
+    if τ > 0.0
 
+        r = Δt / τ
+        if FLDO != -1
+            for i = FLDO:Nz
+                qs[i] = (qs[i] + r * qs_clim[i]) / (1+r)
+            end
+        end
+
+    elseif τ = 0.0
+ 
+        if FLDO != -1
+            for i = FLDO:Nz
+                qs[i] = qs_clim[i]
+            end
+        end
+   
+    end
 end
 

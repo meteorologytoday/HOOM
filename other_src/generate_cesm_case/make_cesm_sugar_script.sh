@@ -5,6 +5,7 @@ echo $( basename $0 )
 echo "wk_dir: $wk_dir"
 
 lopts=(
+    casename
     code-output-dir
     init-file
     label
@@ -20,12 +21,14 @@ lopts=(
     init-config
     ocn-ncpu
     qflux-file
+    ocn-branch
 )
 
 source $wk_dir/getopt_helper.sh
 
-
-export casename="${resolution}_${label}_${model}_${init_config}"
+if [ ! -z "$casename" ]; then
+    export casename="${label}_${resolution}_${model}_${init_config}"
+fi
 
 script_file=$code_output_dir/makecase_$casename.sh
 
@@ -64,6 +67,13 @@ cat $cesm_env >> $script_file
 
 cat << EOF >> $script_file
 
+if [ -d \$casename ]; then
+    echo "Error: \$casename already exists. Abort."
+    exit 1;
+fi
+
+
+
 $cesm_create_newcase         \\
     -case      \$casename    \\
     -compset   \$compset     \\
@@ -84,7 +94,7 @@ setXML "env_mach_pes.xml" "\${env_mach_pes[@]}"
 if [ -n "\$qflux_file" ]; then
 
     echo "Qflux file nonempty. Now setting user-defined qflux."
-    setXML "env_run.xml" "DOCN_SOM_FILENAME" \\"\$qflux_file\\"
+    setXML "env_run.xml" "DOCN_SOM_FILENAME" "\$qflux_file"
   
 fi
 
@@ -101,26 +111,35 @@ if [ "\$user_namelist_dir" != "" ]; then
     cp \$user_namelist_dir/user_nl_* .
 fi
 
+if [ ! -z "\$qflux_file" ]; then
 
+    FORCING_DIR=\$( dirname \$qflux_file )
+    FORCING_FILENAME=\$( basename \$qflux_file )
+
+    cat << XEOFX > user_docn.streams.txt.som
+    $( echo "$( cat $wk_dir/docn_stream.txt )" )
+XEOFX
+
+fi
 
 cat << XEOFX > config.jl
 
 let
 global overwrite_configs = Dict(
-    "casename"                   => "\${casename}",
-    "caseroot"                   => "\${caseroot}",
-    "caserun"                    => "\${caserun}",
-    "domain_file"                => "\${ocn_domain_path}/\${ocn_domain_file}",
-    "short_term_archive_dir"     => "\${caserun}",
-    "long_term_archive_dir"      => "\${dout_s_root}/ocn/hist",
-    "enable_short_term_archive"  => true,
-    "enable_long_term_archive"   => true,
-    "daily_record"               => false,
-    "monthly_record"             => true,
-    "yearly_snapshot"            => true,
-    "short_term_archive_list"    => "SSM_short_term_archive_list.txt",
-    "substeps"                   => 8,
-    "init_file"                  => "\${init_file}",
+    :casename                   => "\${casename}",
+    :caseroot                   => "\${caseroot}",
+    :caserun                    => "\${caserun}",
+    :domain_file                => "\${ocn_domain_path}/\${ocn_domain_file}",
+    :short_term_archive_dir     => "\${caserun}",
+    :long_term_archive_dir      => "\${dout_s_root}/ocn/hist",
+    :enable_short_term_archive  => true,
+    :enable_long_term_archive   => true,
+    :daily_record               => false,
+    :monthly_record             => true,
+    :yearly_snapshot            => true,
+    :short_term_archive_list    => "SSM_short_term_archive_list.txt",
+    :substeps                   => 8,
+    :init_file                  => "\${init_file}",
 )
 end
 
@@ -140,7 +159,7 @@ cat << XEOFX > \$casename.ocn.run
 #PBS -q share
 ### Merge output and error files
 #PBS -j oe
-#PBS -l select=1:ncpus=36:mpiprocs=36
+#PBS -l select=1:ncpus=$ocn_ncpu:mpiprocs=$ocn_ncpu
 ### Send email on abort, begin and end
 #PBS -m abe
 #PBS -M meteorologytoday@gmail.com
@@ -152,7 +171,7 @@ ocn_code="\$caseroot/SMARTSLAB-main/src/CESM_driver/run.jl"
 config_file="\$caseroot/config.jl"
 ocn_ncpu=$ocn_ncpu
 
-julia -p $ocn_ncpu \\\$ocn_code --config="\\\$config_file" --core=${model} | tee -a SMARTSLAB.log.\\\$LID
+julia -p \\\$ocn_ncpu \\\$ocn_code --config="\\\$config_file" --core=${model} | tee -a SMARTSLAB.log.\\\$LID
 
 XEOFX
 
@@ -173,7 +192,8 @@ chmod +x \$casename.ocn.run
 chmod +x \$casename.run
 
 # Insert code
-git clone https://github.com/meteorologytoday/SMARTSLAB-main.git
+git clone --branch "$ocn_branch" https://github.com/meteorologytoday/SMARTSLAB-main.git
+
 cd ./SourceMods/src.docn
 ln -s ../../SMARTSLAB-main/src/CESM_driver/cesm1_docn_comp_mod.F90 ./docn_comp_mod.F90
 ln -s ../../SMARTSLAB-main/src/CESM_driver/ProgramTunnel .
@@ -182,4 +202,4 @@ EOF
 
 chmod +x $script_file 
 
-
+echo "$casename"

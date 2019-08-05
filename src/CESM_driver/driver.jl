@@ -1,9 +1,9 @@
 println("===== Universal Driver Initialization BEGIN =====")
 
-if isdir(configs["caserun"])
-    cd(configs["caserun"])
+if isdir(configs[:caserun])
+    cd(configs[:caserun])
 else
-    throw(ErrorException("Caserun directory [ " * configs["caserun"] * " ] does not exist."))
+    throw(ErrorException("Caserun directory [ " * configs[:caserun] * " ] does not exist."))
 end
 
 
@@ -20,12 +20,17 @@ output_vars = Dict()
 
 stage = :INIT
 
-mkpath(configs["tmp_folder"])
+mkpath(configs[:tmp_folder])
 
-PTI = ProgramTunnelInfo(path=configs["tmp_folder"], timeout=configs["timeout"])
-reverseRole!(PTI)
+PTI = ProgramTunnelInfo(
+    path             = configs[:tmp_folder],
+    timeout          = configs[:timeout],
+    buffer           = 0.1,
+    recv_first_sleep = 0.1,
+    reverseRole      = true,
+)
 
-map = NetCDFIO.MapInfo{Float64}(configs["domain_file"])
+map = NetCDFIO.MapInfo{Float64}(configs[:domain_file])
 
 t_cnt = 1
 output_filename = ""
@@ -37,6 +42,8 @@ timeinfo_old = copy(timeinfo)
 timeinfo_old .= -1
 t_flags = Dict()
 
+ocn_run_time = 0.0
+ocn_run_N    = 0
 
 println("===== ", OMMODULE.name, " IS READY =====")
 
@@ -65,14 +72,14 @@ while true
         println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
 
         OMDATA = OMMODULE.init(
-            casename     = configs["casename"],
+            casename     = configs[:casename],
             map          = map,
             t            = timeinfo,
             configs      = configs,
             read_restart = (msg["READ_RESTART"] == "TRUE") ? true : false,
         )
         
-        rm(configs["short_term_archive_list"], force=true)
+        rm(configs[:short_term_archive_list], force=true)
 
         global x2o_available_varnames  = split(msg["VAR2D"], ",")
         global x2o_wanted_varnames = keys(OMDATA.x2o)
@@ -83,9 +90,9 @@ while true
             println(format(" ({:d}) {:s} => {:s}", i, varname, ( x2o_wanted_flag[i] ) ? "Wanted" : "Abandoned" ))
         end
 
-        writeBinary!(joinpath(configs["tmp_folder"], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
-        writeBinary!(joinpath(configs["tmp_folder"], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
-        writeBinary!(joinpath(configs["tmp_folder"], "MASK.bin"), map.mask, buffer2d; endianess=:little_endian)
+        writeBinary!(joinpath(configs[:tmp_folder], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        writeBinary!(joinpath(configs[:tmp_folder], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+        writeBinary!(joinpath(configs[:tmp_folder], "MASK.bin"), map.mask, buffer2d; endianess=:little_endian)
 
         sendText(PTI, "OK")
 
@@ -93,9 +100,9 @@ while true
         
     elseif stage == :RUN && msg["MSG"] == "RUN"
 
-        t_flags["new_year"]  = (timeinfo[1] != timeinfo_old[1])
-        t_flags["new_month"] = (timeinfo[2] != timeinfo_old[2])
-        t_flags["new_day"]   = (timeinfo[3] != timeinfo_old[3])
+        t_flags[:new_year]  = (timeinfo[1] != timeinfo_old[1])
+        t_flags[:new_month] = (timeinfo[2] != timeinfo_old[2])
+        t_flags[:new_day]   = (timeinfo[3] != timeinfo_old[3])
 
         timeinfo_old[:] = timeinfo
 
@@ -104,7 +111,7 @@ while true
 
             if x2o_wanted_flag[i]
                 readBinary!(
-                    joinpath(configs["tmp_folder"], varname * ".bin"),
+                    joinpath(configs[:tmp_folder], varname * ".bin"),
                     OMDATA.x2o[varname],
                     buffer2d;
                     endianess=:little_endian, delete=false
@@ -115,12 +122,12 @@ while true
         println("Calling ", OMMODULE.name, " to do MAGICAL calculations")
 
         Δt = parse(Float64, msg["DT"])
-        Δt_substeps = Δt / configs["substeps"]
+        Δt_substeps = Δt / configs[:substeps]
 
 
-        cost = @elapsed for substep = 1:configs["substeps"]
+        cost = @elapsed for substep = 1:configs[:substeps]
 
-            print(format("Substep: {:d}/{:d}\r", substep, configs["substeps"]))
+            print(format("Substep: {:d}/{:d}\r", substep, configs[:substeps]))
 
             OMMODULE.run(OMDATA;
                 t             = timeinfo,
@@ -133,10 +140,13 @@ while true
 
         end
 
-        println(format("*** It takes {:.2f} secs. ***", cost))
+        global ocn_run_time += cost
+        global ocn_run_N += 1
 
-        writeBinary!(joinpath(configs["tmp_folder"], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
-        writeBinary!(joinpath(configs["tmp_folder"], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
+        println(format("*** It takes {:.2f} secs. (Avg: {:.2f} secs) ***", cost, ocn_run_time / ocn_run_N))
+
+        writeBinary!(joinpath(configs[:tmp_folder], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
+        writeBinary!(joinpath(configs[:tmp_folder], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
 
         sendText(PTI, "OK")
 
@@ -145,12 +155,12 @@ while true
     elseif stage == :RUN && msg["MSG"] == "END"
 
         # move short_term_archive_files to long term archive directory
-        if configs["enable_long_term_archive"]
+        if configs[:enable_long_term_archive]
             println("===== Long term archiving files BEGIN =====")
-            sdir = configs["short_term_archive_dir"]
-            ldir = configs["long_term_archive_dir"]
+            sdir = configs[:short_term_archive_dir]
+            ldir = configs[:long_term_archive_dir]
             mkpath(ldir)
-            for fname in eachline(configs["short_term_archive_list"])
+            for fname in eachline(configs[:short_term_archive_list])
                 src = joinpath(sdir, fname)
                 dst = joinpath(ldir, fname)
                 
@@ -174,7 +184,7 @@ while true
     else
         OMMODULE.crash(OMDATA) 
         sendText(PTI, "CRASH")
-        throw(ErrorException("Unknown status: stage " * stage * ", MSG: " * String(msg["MSG"])))
+        throw(ErrorException("Unknown status: stage " * string(stage) * ", MSG: " * string(msg["MSG"])))
     end
 
     flush(stdout)

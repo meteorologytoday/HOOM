@@ -1,7 +1,11 @@
+
+
 mutable struct OceanColumnCollection
 
-    gi       :: DisplacedPoleCoordinate.GridInfo
-    gi_file  :: AbstractString
+    id       :: Integer  # 1 = master, 2, ..., N = workers
+
+    gi       :: Union{DisplacedPoleCoordinate.GridInfo, Nothing}
+    gi_file  :: Union{AbstractString, Nothing}
 
     Nx       :: Integer           # Number of columns in i direction
     Ny       :: Integer           # Number of columns in j direction
@@ -37,6 +41,28 @@ mutable struct OceanColumnCollection
     h_ML_max :: AbstractArray{Float64, 2}
     we_max   :: Float64
 
+    # Radiation Scheme
+    # The parameterization is referenced to Paulson and Simpson (1977).
+    # I made assumption that ζ1→0.0 as adapted in Oberhuber (1993).
+    # This means `R` portion of the irradiance is going to be treated
+    # as surface heat fluxes (δ like absorption).
+    # 
+    # Reference: 
+    #
+    # 1. Oberhuber, J. M. (1993). Simulation of the Atlantic circulation with a coupled sea
+    #    ice-mixed layer-isopycnal general circulation model. Part I: Model description.
+    #    Journal of Physical Oceanography, 23(5), 808-829.
+    #
+    # 2. Paulson, C. A., & Simpson, J. J. (1977). Irradiance measurements in the upper ocean.
+    #    Journal of Physical Oceanography, 7(6), 952-956.
+    #
+    R               :: Float64   # Fast absorption portion of sunlight.
+    ζ               :: Float64   # Light penetration depth of DO ( = ζ2 in Paulson and Simpson (1977) )
+
+    rad_decay_coes  :: AbstractArray{Float64, 3}
+    rad_absorp_coes :: AbstractArray{Float64, 3}
+    
+
     # Climatology states
     Ts_clim_relax_time :: Union{Float64, Nothing}
     Ss_clim_relax_time :: Union{Float64, Nothing}
@@ -51,14 +77,21 @@ mutable struct OceanColumnCollection
 
     # 1D Views to make clean code
     zs_vw :: Any 
+    hs_vw :: Any 
     bs_vw :: Any
     Ts_vw :: Any
     Ss_vw :: Any
     Ts_clim_vw :: Any
     Ss_clim_vw :: Any
+    rad_decay_coes_vw  :: Any
+    rad_absorp_coes_vw :: Any
+
+
+    in_flds :: InputFields
 
     function OceanColumnCollection(;
-        gridinfo_file :: AbstractString,
+        id       :: Integer = 0, 
+        gridinfo_file :: Union{AbstractString, Nothing},
         Nx       :: Integer,
         Ny       :: Integer,
         zs_bone  :: AbstractArray{Float64, 1},
@@ -71,7 +104,9 @@ mutable struct OceanColumnCollection
         h_ML     :: Union{AbstractArray{Float64, 2}, Float64, Nothing},
         h_ML_min :: Union{AbstractArray{Float64, 2}, Float64},
         h_ML_max :: Union{AbstractArray{Float64, 2}, Float64},
-        we_max   :: Float64,
+        we_max   :: Float64 =  1e-2,
+        R        :: Float64 =  0.58,  # See Paulson and Simpson (1977) Type I clear water
+        ζ        :: Float64 = 23.00,  # See Paulson and Simpson (1977) Type I clear water
         Ts_clim_relax_time :: Union{Float64, Nothing},
         Ss_clim_relax_time :: Union{Float64, Nothing},
         Ts_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
@@ -80,17 +115,22 @@ mutable struct OceanColumnCollection
         topo     :: Union{AbstractArray{Float64, 2}, Nothing},
         fs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
         ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
+        in_flds  :: Union{InputFields, Nothing} = nothing,
+        arrange  :: Symbol = :zxy,
     )
+
+        # Determine whether data should be local or shared (parallelization)
+        datakind = ( id == 0 ) ? (:shared) : (:local)
 
         # ===== [BEGIN] topo, mask, h_ML_min, h_ML_max =====
         # Min/max of ML is tricky because it cannot be
         # deeper than the bottom boundary
         # Also, in real data topo can be 0 and not masked out
        
-        _topo = SharedArray{Float64}(Nx, Ny)
-        _h_ML_min = SharedArray{Float64}(Nx, Ny)
-        _h_ML_max = SharedArray{Float64}(Nx, Ny)
-        _mask = SharedArray{Float64}(Nx, Ny)
+        _topo = allocate(datakind, Float64, Nx, Ny)
+        _h_ML_min = allocate(datakind, Float64, Nx, Ny)
+        _h_ML_max = allocate(datakind, Float64, Nx, Ny)
+        _mask = allocate(datakind, Float64, Nx, Ny)
 
         if topo == nothing
             _topo .= zs_bone[end]
@@ -109,7 +149,7 @@ mutable struct OceanColumnCollection
 
         # Arrage like (2, cnt) instead of (cnt, 2) to
         # enhance speed through memory cache
-        valid_idx = SharedArray{Int64}(2, sum(mask_idx))
+        valid_idx = allocate(datakind, Int64, 2, sum(mask_idx))
         
         let k = 1
             for idx in CartesianIndices((Nx, Ny))
@@ -177,7 +217,6 @@ mutable struct OceanColumnCollection
 
 
             if hmin > hbot
-                #println(mask[i,j]) 
                 println(format("Point ({},{}) got depth {:.2f} which is smaller than h_ML_min {}. Tune h_ML_min/max to depth.", i, j, hbot, hmin))
                 hbot = hmin
             end
@@ -200,10 +239,10 @@ mutable struct OceanColumnCollection
         zs_bone = copy(zs_bone)
         Nz_bone = length(zs_bone) - 1
 
-        Nz   = SharedArray{Int64}(Nx, Ny)
-        zs   = SharedArray{Float64}(Nx, Ny, Nz_bone + 1)
-        hs   = SharedArray{Float64}(Nx, Ny, Nz_bone    )
-        Δzs  = SharedArray{Float64}(Nx, Ny, Nz_bone - 1)
+        Nz   = allocate(datakind, Int64, Nx, Ny)
+        zs   = allocate(datakind, Float64, Nz_bone + 1, Nx, Ny)
+        hs   = allocate(datakind, Float64, Nz_bone    , Nx, Ny)
+        Δzs  = allocate(datakind, Float64, Nz_bone - 1, Nx, Ny)
 
         zs  .= NaN
         Nz  .= 0
@@ -232,30 +271,30 @@ mutable struct OceanColumnCollection
             Nz[i, j] = _Nz
 
             # Construct vertical coordinate
-            zs[i, j, 1:_Nz] = zs_bone[1:_Nz]
+            zs[1:_Nz, i, j] = zs_bone[1:_Nz]
 
-            zs[i, j, _Nz+1] = max(_topo[i, j], zs_bone[_Nz+1])
+            zs[_Nz+1, i, j] = max(_topo[i, j], zs_bone[_Nz+1])
 
             # Construct thickness of each layer
-            hs[ i, j, 1:_Nz]  = zs[i, j, 1:_Nz] - zs[i, j, 2:_Nz+1]
-            Δzs[i, j, 1:_Nz-1] = (hs[i, j, 1:_Nz-1] + hs[i, j, 2:_Nz]) / 2.0
-            
+            hs[ 1:_Nz,   i, j] = zs[1:_Nz, i, j] - zs[2:_Nz+1, i, j]
+            Δzs[1:_Nz-1, i, j] = (hs[1:_Nz-1, i, j] + hs[2:_Nz, i, j]) / 2.0
+           
         end
         
         # ===== [END] z coordinate =====
 
         # ===== [BEGIN] Column information =====
 
-        _b_ML     = SharedArray{Float64}(Nx, Ny)
-        _T_ML     = SharedArray{Float64}(Nx, Ny)
-        _S_ML     = SharedArray{Float64}(Nx, Ny)
-        _h_ML     = SharedArray{Float64}(Nx, Ny)
+        _b_ML     = allocate(datakind, Float64, Nx, Ny)
+        _T_ML     = allocate(datakind, Float64, Nx, Ny)
+        _S_ML     = allocate(datakind, Float64, Nx, Ny)
+        _h_ML     = allocate(datakind, Float64, Nx, Ny)
 
-        _bs       = SharedArray{Float64}(Nx, Ny, Nz_bone)
-        _Ts       = SharedArray{Float64}(Nx, Ny, Nz_bone)
-        _Ss       = SharedArray{Float64}(Nx, Ny, Nz_bone)
-        _FLDO     = SharedArray{Int64}(Nx, Ny)
-        qflx2atm  = SharedArray{Float64}(Nx, Ny)
+        _bs       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _Ts       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _Ss       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _FLDO     = allocate(datakind, Int64, Nx, Ny)
+        qflx2atm  = allocate(datakind, Float64, Nx, Ny)
 
 
         if typeof(h_ML) <: AbstractArray{Float64, 2}
@@ -265,6 +304,16 @@ mutable struct OceanColumnCollection
         elseif h_ML == nothing
             _h_ML .= h_ML_min
         end
+
+        # Need to constraint h_ML
+        for i=1:Nx, j=1:Ny
+
+            (_mask[i, j] == 0.0) && continue
+            
+            _h_ML[i, j] = boundMLD(_h_ML[i, j]; h_ML_max=_h_ML_max[i, j], h_ML_min=_h_ML_min[i, j])
+
+        end
+
 
         if typeof(T_ML) <: AbstractArray{Float64, 2}
             _T_ML[:, :] = T_ML
@@ -279,20 +328,20 @@ mutable struct OceanColumnCollection
         end
 
         if typeof(Ts) <: AbstractArray{Float64, 3}
-            _Ts[:, :, :] = Ts
+            _Ts[:, :, :] = toZXY(Ts, arrange)
         elseif typeof(Ts) <: AbstractArray{Float64, 1}
             for i=1:Nx, j=1:Ny
-                _Ts[i, j, :] = Ts
+                _Ts[:, i, j] = Ts
             end
         elseif typeof(Ts) <: Float64 
             _Ts .= Ts
         end
 
         if typeof(Ss) <: AbstractArray{Float64, 3}
-            _Ss[:, :, :] = Ss
+            _Ss[:, :, :] = toZXY(Ss, arrange)
         elseif typeof(Ss) <: AbstractArray{Float64, 1}
             for i=1:Nx, j=1:Ny
-                _Ss[i, j, :] = Ss
+                _Ss[:, i, j] = Ss
             end
         elseif typeof(Ss) <: Float64 
             _Ss .= Ss
@@ -300,16 +349,51 @@ mutable struct OceanColumnCollection
 
         # ===== [END] Column information =====
 
+        # ===== [BEGIN] Radiation =====
+
+        _rad_decay_coes  = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _rad_absorp_coes = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+
+        for i=1:Nx, j=1:Ny
+
+            if _mask[i, j] == 0.0
+                continue
+            end
+
+            for k=1:Nz[i, j]
+                _rad_decay_coes[k, i, j]  = exp(zs[k, i, j] / ζ)         # From surface to top of the layer
+                _rad_absorp_coes[k, i, j] = 1.0 - exp(- hs[k, i, j] / ζ)
+            end
+
+            # Since we assume the bottome of ocean absorbs anything
+            _rad_absorp_coes[Nz[i, j], i, j] = 1.0
+        end
+
+
+        # ===== [END] Radiation =====
+
+
+
         # ===== [BEG] GridInfo =====
-        mi = ModelMap.MapInfo{Float64}(gridinfo_file)
-        gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv; angle_unit=:deg)
+
+        if gridinfo_file != nothing
+
+            mi = ModelMap.MapInfo{Float64}(gridinfo_file)
+            gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv; angle_unit=:deg)
+
+        else
+    
+            mi = nothing
+            gridinfo = nothing
+
+        end
 
         # ===== [END] GridInfo =====
 
         # ===== [BEGIN] fs and ϵs =====
 
-        _fs       = SharedArray{Float64}(Nx, Ny)
-        _ϵs       = SharedArray{Float64}(Nx, Ny)
+        _fs       = allocate(datakind, Float64, Nx, Ny)
+        _ϵs       = allocate(datakind, Float64, Nx, Ny)
 
         if typeof(fs) <: AbstractArray{Float64, 2}
             _fs[:, :] = fs
@@ -329,26 +413,22 @@ mutable struct OceanColumnCollection
 
         # ===== [BEGIN] Climatology =====
 
-        # TODO: Need to detect whether all
-        #       climatology data points are
-        #       valid or not.
-
         if Ts_clim == nothing
 
             _Ts_clim = nothing
 
         else
             
-            _Ts_clim = SharedArray{Float64}(Nx, Ny, Nz_bone)
+            _Ts_clim = allocate(datakind, Float64, Nz_bone, Nx, Ny)
             
             if typeof(Ts_clim) <: AbstractArray{Float64, 3}
 
-                _Ts_clim[:, :, :] = Ts_clim
+                _Ts_clim[:, :, :] = toZXY(Ts_clim, arrange)
 
             elseif typeof(Ts_clim) <: AbstractArray{Float64, 1}
 
                 for i=1:Nx, j=1:Ny
-                    _Ts_clim[i, j, :] = Ts_clim
+                    _Ts_clim[:, i, j] = Ts_clim
                 end
 
             end
@@ -362,16 +442,16 @@ mutable struct OceanColumnCollection
 
         else
             
-            _Ss_clim = SharedArray{Float64}(Nx, Ny, Nz_bone)
+            _Ss_clim = allocate(datakind, Float64, Nz_bone, Nx, Ny)
             
             if typeof(Ss_clim) <: AbstractArray{Float64, 3}
 
-                _Ss_clim[:, :, :] = Ss_clim
+                _Ss_clim[:, :, :] = toZXY(Ss_clim, arrange)
 
             elseif typeof(Ss_clim) <: AbstractArray{Float64, 1}
 
                 for i=1:Nx, j=1:Ny
-                    _Ss_clim[i, j, :] = Ss_clim
+                    _Ss_clim[:, i, j] = Ss_clim
                 end
 
             end
@@ -382,15 +462,21 @@ mutable struct OceanColumnCollection
 
         # ===== [BEGIN] Construct Views =====
         zs_vw = Array{SubArray}(undef, Nx, Ny)
+        hs_vw = Array{SubArray}(undef, Nx, Ny)
         bs_vw = Array{SubArray}(undef, Nx, Ny)
         Ts_vw = Array{SubArray}(undef, Nx, Ny)
         Ss_vw = Array{SubArray}(undef, Nx, Ny)
+        rad_decay_coes_vw  = Array{SubArray}(undef, Nx, Ny)
+        rad_absorp_coes_vw = Array{SubArray}(undef, Nx, Ny)
 
         for i=1:Nx, j=1:Ny
-            zs_vw[i, j]      = view(zs,  i, j, :)
-            bs_vw[i, j]      = view(_bs, i, j, :)
-            Ts_vw[i, j]      = view(_Ts, i, j, :)
-            Ss_vw[i, j]      = view(_Ss, i, j, :)
+            zs_vw[i, j]              = view(zs,  :, i, j)
+            hs_vw[i, j]              = view(hs,  :, i, j)
+            bs_vw[i, j]              = view(_bs, :, i, j)
+            Ts_vw[i, j]              = view(_Ts, :, i, j)
+            Ss_vw[i, j]              = view(_Ss, :, i, j)
+            rad_decay_coes_vw[i, j]  = view(_rad_decay_coes,  :, i, j)
+            rad_absorp_coes_vw[i, j] = view(_rad_absorp_coes, :, i, j)
         end
 
         Ts_clim_vw = nothing
@@ -399,14 +485,14 @@ mutable struct OceanColumnCollection
         if Ts_clim != nothing
             Ts_clim_vw = Array{SubArray}(undef, Nx, Ny)
             for i=1:Nx, j=1:Ny
-                Ts_clim_vw[i, j] = view(_Ts_clim, i, j, :)
+                Ts_clim_vw[i, j] = view(_Ts_clim, :, i, j)
             end
         end
  
         if Ss_clim != nothing
             Ss_clim_vw = Array{SubArray}(undef, Nx, Ny)
             for i=1:Nx, j=1:Ny
-                Ss_clim_vw[i, j] = view(_Ss_clim, i, j, :)
+                Ss_clim_vw[i, j] = view(_Ss_clim, :, i, j)
             end
         end
      
@@ -414,12 +500,12 @@ mutable struct OceanColumnCollection
 
         # ===== [BEGIN] Mask out data =====
 
-        mask3 = zeros(Int64, Nx, Ny, Nz_bone)
+        mask3 = zeros(Int64, Nz_bone, Nx, Ny)
         mask3 .= 1
 
         # Clean up all variables
         for i=1:Nx, j=1:Ny
-            mask3[i, j, Nz[i, j] + 1:end] .= 0 
+            mask3[Nz[i, j] + 1:end, i, j] .= 0 
         end
 
         println("sum of mask3: ", sum(mask3))
@@ -450,11 +536,11 @@ mutable struct OceanColumnCollection
                 continue
             end
 
-            if ! (-_h_ML_min[i, j] >= - _h_ML_max[i, j] >= zs[i, j, Nz[i, j] + 1] >= _topo[i, j])
+            if ! (-_h_ML_min[i, j] >= - _h_ML_max[i, j] >= zs[Nz[i, j] + 1, i, j] >= _topo[i, j])
                 println("idx: (", i, ", ", j, ")")
                 println("h_ML_min: ", _h_ML_min[i, j])
                 println("h_ML_max: ", _h_ML_max[i, j])
-                println("z_deepest: ", zs[i, j, Nz[i, j] + 1])
+                println("z_deepest: ", zs[Nz[i, j] + 1, i, j])
                 println("topo: ", _topo[i, j])
                 ErrorException("Relative relation is wrong") |> throw
             end
@@ -505,6 +591,7 @@ mutable struct OceanColumnCollection
 
 
         occ = new(
+            id,
             gridinfo,
             gridinfo_file,
             Nx, Ny, Nz_bone,
@@ -516,10 +603,14 @@ mutable struct OceanColumnCollection
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,
+            R, ζ,
+            _rad_decay_coes, _rad_absorp_coes,
             Ts_clim_relax_time, Ss_clim_relax_time,
             _Ts_clim, _Ss_clim,
             Nx * Ny, hs, Δzs,
-            zs_vw, bs_vw, Ts_vw, Ss_vw, Ts_clim_vw, Ss_clim_vw,
+            zs_vw, hs_vw, bs_vw, Ts_vw, Ss_vw, Ts_clim_vw, Ss_clim_vw,
+            rad_decay_coes_vw, rad_absorp_coes_vw,
+            ( in_flds == nothing ) ? InputFields(datakind, Nx, Ny) : in_flds,
         )
 
         
@@ -535,6 +626,7 @@ mutable struct OceanColumnCollection
 
 end
 
+#=
 function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
 
     if (fr_occ.Nx, fr_occ.Ny, fr_occ.Nz_bone) != (to_occ.Nx, to_occ.Ny, to_occ.Nz_bone)
@@ -579,103 +671,4 @@ function copyOCC!(fr_occ::OceanColumnCollection, to_occ::OceanColumnCollection)
     to_occ.Δzs[:, :, :]     = fr_occ.Δzs
 
 end
-#=
-function copyOCC(occ::OceanColumnCollection)
-    occ2 = makeBlankOceanColumnCollection(occ.Nx, occ.Ny, occ.zs; mask=mask)
-    copyOCC!(occ, occ2)
-    
-    return occ2
-end
 =#
-#=
-function makeBlankOceanColumnCollection(
-    Nx      :: Integer,
-    Ny      :: Integer,
-    zs_bone :: AbstractArray{Float64, 1};
-    mask    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
-    topo    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
-)
-
-    return OceanColumnCollection(;
-        Nx       = Nx,
-        Ny       = Ny,
-        zs_bone  = zs_bone,
-        Ts       = nothing,
-        Ss       = nothing,
-        K_T      = 0.0,
-        K_S      = 0.0,
-        T_ML     = 0.0,
-        S_ML     = 0.0,
-        h_ML     = -zs_bone[2],
-        h_ML_min = -zs_bone[2],
-        h_ML_max = -zs_bone[end-1],
-        we_max   = 0.0,
-        mask     = mask,
-        topo     = topo,
-    )
-end
-=#
-
-
-
-function makeBasicOceanColumnCollection(;
-    Nx      :: Integer,
-    Ny      :: Integer,
-    zs_bone :: AbstractArray{Float64, 1},
-    T_slope :: Float64,
-    S_slope :: Float64,
-    T_ML    :: Float64,
-    S_ML    :: Float64,
-    h_ML    :: Float64,
-    ΔT      :: Float64,
-    ΔS      :: Float64,
-    K_T     :: Float64,
-    K_S     :: Float64,
-    h_ML_min:: Float64,
-    h_ML_max:: Float64,
-    we_max  :: Float64,
-    Ts_clim :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1},  Nothing} = nothing,
-    Ss_clim :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1},  Nothing} = nothing,
-    Ts_clim_relax_time :: Union{Float64, Nothing} = nothing,
-    Ss_clim_relax_time :: Union{Float64, Nothing} = nothing,
-
-    mask    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
-    topo    :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
-)
-
-    
-    Ts = zeros(Float64, length(zs_bone)-1)
-    Ss = zeros(Float64, length(zs_bone)-1)
-    for i = 1:length(Ts)
-        z = (zs_bone[i] + zs_bone[i+1]) / 2.0
-        if z > -h_ML
-            Ts[i] = T_ML
-            Ss[i] = S_ML
-        else
-            Ts[i] = T_ML - ΔT - T_slope * (-z - h_ML)
-            Ss[i] = S_ML - ΔS - S_slope * (-z - h_ML)
-        end
-    end
-
-    return OceanColumnCollection(;
-        Nx                 = Nx,
-        Ny                 = Ny,
-        zs_bone            = zs_bone,
-        Ts                 = Ts,
-        Ss                 = Ss,
-        K_T                = K_T,
-        K_S                = K_S,
-        T_ML               = T_ML,
-        S_ML               = S_ML,
-        h_ML               = h_ML,
-        h_ML_min           = h_ML_min,        
-        h_ML_max           = h_ML_max,
-        we_max             = we_max,
-        Ts_clim_relax_time = Ts_clim_relax_time,
-        Ss_clim_relax_time = Ss_clim_relax_time,
-        Ts_clim            = Ts_clim,
-        Ss_clim            = Ss_clim,
-        mask               = mask,
-        topo               = topo,
-    )
-end

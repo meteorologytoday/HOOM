@@ -1,3 +1,12 @@
+function allocate(datakind::Symbol, dtype::DataType, dims...)
+    if datakind == :local
+        return zeros(dtype, dims...)
+    elseif datakind == :shared
+        return SharedArray{dtype}(dims...)
+    else
+        ErrorException("Unknown kind: " * string(datakind)) |> throw
+    end
+end
 
 #=
 """
@@ -131,7 +140,7 @@ function OC_updateB!(
 
     occ.b_ML[i, j] = TS2b(occ.T_ML[i, j], occ.S_ML[i, j])
     for k=1:occ.Nz[i, j]
-        occ.bs[i, j, k] = TS2b(occ.Ts[i, j, k], occ.Ss[i, j, k])
+        occ.bs[k, i, j] = TS2b(occ.Ts[k, i, j], occ.Ss[k, i, j])
     end
 
 end

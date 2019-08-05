@@ -16,6 +16,13 @@ type ptm_ProgramTunnelInfo
     integer :: chk_freq
     integer :: timeout
     integer :: timeout_limit_cnt
+
+    integer :: buffer
+    integer :: buffer_cnt
+    integer :: recv_first_sleep
+    integer :: recv_first_cnt
+
+
 end type
 
 
@@ -34,23 +41,29 @@ subroutine ptm_setDefault(PTI, fds)
     PTI%recv_cnt = 0
     PTI%send_cnt = 0
 
-
-
     PTI%recv_fd = fds(1)
     PTI%send_fd = fds(2)
     PTI%lock_fd = fds(3)
 
-    PTI%chk_freq = 50          ! millisecs
-    PTI%timeout  = 30 * 1000   ! millisecs
+    PTI%chk_freq = 50          ! millisecs (0.05 secs)
+    PTI%timeout  = 30 * 1000   ! millisecs (30 secs)
 
-    call ptm_setTimeout(PTI)
+    PTI%buffer   =  200        ! millisecs (0.2 secs)
+    PTI%buffer_cnt = 40        ! A buffer cnt is a chk_freq
+    PTI%recv_first_sleep = 0
+    PTI%recv_first_cnt = 0
+
+
+    call ptm_autoCalculateCnt(PTI)
 end subroutine 
 
 
-subroutine ptm_setTimeout(PTI)
+subroutine ptm_autoCalculateCnt(PTI)
     implicit none
     type(ptm_ProgramTunnelInfo) :: PTI
-    PTI%timeout_limit_cnt = ceiling(real(PTI%timeout) / real(PTI%chk_freq))
+    PTI%timeout_limit_cnt = ceiling(real(PTI%timeout)          / real(PTI%chk_freq))
+    PTI%buffer_cnt        = ceiling(real(PTI%buffer)           / real(PTI%chk_freq))
+    PTI%recv_first_cnt    = ceiling(real(PTI%recv_first_sleep) / real(PTI%chk_freq))
 end
 
 
@@ -170,20 +183,39 @@ integer function ptm_recvText(PTI, msg)
     logical :: get_through
 
     ptm_recvText = 0
-
-    print *, "Detecting if new message exists."
+    
+    print *, "[ptm_recvText] Detecting if new message exists."
     get_through = .false.
-    do cnt = 1, PTI%timeout_limit_cnt
-        inquire(file=PTI%recv_fn, exist=file_exists)
-        if (file_exists .eqv. .true.) then
-            get_through = .true.
-            exit
-        else
-            call ptm_busysleep(PTI%chk_freq)
-            cycle
+    call ptm_busysleep(PTI%recv_first_sleep)
+
+    inquire(file=PTI%recv_fn, exist=file_exists)
+    if (file_exists .eqv. .true.) then
+        get_through = .true.
+        if (PTI%recv_first_sleep > PTI%chk_freq) then
+            PTI%recv_first_sleep = PTI%recv_first_sleep - PTI%chk_freq
+            print *, "[ptm_recvText] Message is already there. Adjust recv_first_sleep to ", PTI%recv_first_sleep
         end if
-    end do
-    print *, "Got new message"
+    else
+        do cnt = 1, (PTI%timeout_limit_cnt - PTI%recv_first_cnt)
+!            print *, "[ptm_recvText] test"
+            inquire(file=PTI%recv_fn, exist=file_exists)
+            if (file_exists .eqv. .true.) then
+                get_through = .true.
+
+                if (cnt > PTI%buffer_cnt) then
+                    PTI%recv_first_sleep = PTI%recv_first_sleep + PTI%chk_freq
+                    print *, "[ptm_recvText] Out of buffer. Adjust recv_first_sleep to : ", PTI%recv_first_sleep
+                end if
+
+                exit
+            else
+                call ptm_busysleep(PTI%chk_freq)
+                cycle
+            end if
+        end do
+    end if
+
+    print *, "[ptm_recvText] Got new message"
     if (get_through .eqv. .true.) then
         ptm_recvText = 0
     else
@@ -204,7 +236,7 @@ integer function ptm_recvText(PTI, msg)
     close(PTI%recv_fd)
     
     msg = trim(msg)
-    print *, "Received: [", trim(msg) , "]"
+    print *, "[ptm_recvText] Received: [", trim(msg) , "]"
 
     call ptm_delFile(PTI%recv_fn, PTI%recv_fd)
     call ptm_releaseLock(PTI)

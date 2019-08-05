@@ -14,21 +14,22 @@ function loadSnapshot(
 
         if haskey(ds, "Ts_clim")
             Ts_clim_relax_time = ds.attrib["Ts_clim_relax_time"]
-            Ts_clim = nomissing(ds["Ts_clim"][:], NaN)
+            Ts_clim = toZXY(nomissing(ds["Ts_clim"][:], NaN), :xyz)
         end
 
         if haskey(ds, "Ss_clim")
             Ss_clim_relax_time = ds.attrib["Ss_clim_relax_time"]
-            Ss_clim = nomissing(ds["Ss_clim"][:], NaN)
+            Ss_clim = toZXY(nomissing(ds["Ss_clim"][:], NaN), :xyz)
         end
 
         occ = OceanColumnCollection(
+            id       = 0,
             gridinfo_file = (gridinfo_file == nothing) ? ds.attrib["gridinfo_file"] : gridinfo_file,
             Nx       = ds.dim["Nx"],
             Ny       = ds.dim["Ny"],
             zs_bone  = nomissing(ds["zs_bone"][:], NaN);
-            Ts       = nomissing(ds["Ts"][:], NaN),
-            Ss       = nomissing(ds["Ss"][:], NaN),
+            Ts       = toZXY( nomissing(ds["Ts"][:], NaN), :xyz),
+            Ss       = toZXY( nomissing(ds["Ss"][:], NaN), :xyz),
             K_T      = ds.attrib["K_T"],
             K_S      = ds.attrib["K_S"],
             fs       = nomissing(ds["fs"][:], NaN),
@@ -39,12 +40,15 @@ function loadSnapshot(
             h_ML_min = nomissing(ds["h_ML_min"][:], NaN),
             h_ML_max = nomissing(ds["h_ML_max"][:], NaN),
             we_max   = ds.attrib["we_max"],
+            R        = ds.attrib["R"],
+            ζ        = ds.attrib["zeta"],
             Ts_clim_relax_time = Ts_clim_relax_time,
             Ss_clim_relax_time = Ss_clim_relax_time,
             Ts_clim  = Ts_clim,
             Ss_clim  = Ss_clim,
             mask     = nomissing(ds["mask"][:], NaN),
             topo     = nomissing(ds["topo"][:], NaN),
+            in_flds  = nothing,
         )
 
     end
@@ -67,6 +71,8 @@ function takeSnapshot(
         ds.attrib["K_S"] = occ.K_S
 
         ds.attrib["we_max"] = occ.we_max
+        ds.attrib["R"]    = occ.R
+        ds.attrib["zeta"] = occ.ζ
 
         if occ.Ts_clim_relax_time != nothing
             ds.attrib["Ts_clim_relax_time"] = occ.Ts_clim_relax_time
@@ -78,9 +84,9 @@ function takeSnapshot(
        
         _write2NCFile(ds, "zs_bone", ("NP_zs_bone",), occ.zs_bone, missing_value)
 
-        _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz_bone"), occ.Ts, missing_value)
-        _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz_bone"), occ.Ss, missing_value)
-        _write2NCFile(ds, "bs", ("Nx", "Ny", "Nz_bone"), occ.bs, missing_value)
+        _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz_bone"), toXYZ(occ.Ts, :zxy), missing_value)
+        _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz_bone"), toXYZ(occ.Ss, :zxy), missing_value)
+        _write2NCFile(ds, "bs", ("Nx", "Ny", "Nz_bone"), toXYZ(occ.bs, :zxy), missing_value)
         _write2NCFile(ds, "T_ML", ("Nx", "Ny",), occ.T_ML, missing_value)
         _write2NCFile(ds, "S_ML", ("Nx", "Ny",), occ.S_ML, missing_value)
         _write2NCFile(ds, "h_ML", ("Nx", "Ny",), occ.h_ML, missing_value)
@@ -89,11 +95,11 @@ function takeSnapshot(
         _write2NCFile(ds, "h_ML_max", ("Nx", "Ny",), occ.h_ML_max, missing_value)
 
         if occ.Ts_clim != nothing
-            _write2NCFile(ds, "Ts_clim", ("Nx", "Ny", "Nz_bone"), occ.Ts_clim, missing_value)
+            _write2NCFile(ds, "Ts_clim", ("Nx", "Ny", "Nz_bone"), toXYZ(occ.Ts_clim, :zxy), missing_value)
         end
 
         if occ.Ss_clim != nothing
-            _write2NCFile(ds, "Ss_clim", ("Nx", "Ny", "Nz_bone"), occ.Ss_clim, missing_value)
+            _write2NCFile(ds, "Ss_clim", ("Nx", "Ny", "Nz_bone"), toXYZ(occ.Ss_clim, :zxy), missing_value)
         end
 
         _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
