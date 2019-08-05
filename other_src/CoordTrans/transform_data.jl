@@ -29,6 +29,11 @@ function parse_commandline()
             arg_type = String
             required = true
 
+        "--copy-vars"
+            help = "Variable names list."
+            arg_type = String
+
+
         "--x-dim"
             help = "Variable name of x-dimension."
             arg_type = String
@@ -69,4 +74,5 @@ CoordTrans.convertFile(
     ydim = parsed["y-dim"],
     zdim = parsed["z-dim"],
     tdim = parsed["t-dim"],
+    copy_varnames = (parsed["copy-vars"] == nothing) ? (:,) : split(parsed["copy-vars"], ",") ,
 )

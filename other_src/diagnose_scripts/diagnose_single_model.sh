@@ -1,6 +1,20 @@
 #!/bin/bash
 
-lopts=(res casename sim-data-dir diag-data-dir graph-dir atm-domain ocn-domain ice-domain beg-year end-year  PDO-file AO-file)
+lopts=(
+    label
+    res
+    casename
+    sim-data-dir
+    diag-data-dir
+    graph-dir
+    atm-domain
+    ocn-domain
+    ice-domain
+    beg-year
+    end-year
+    PDO-file
+    AO-file
+)
 
 options=$(getopt -o '' --long $(printf "%s:," "${lopts[@]}") -- "$@")
 [ $? -eq 0 ] || { 
@@ -60,13 +74,13 @@ else
 fi
 
 export casename=$casename
-export res_casename=${res}_${casename}
+export full_casename=${label}_${res}_${casename}
 
 # directories
-export diag_dir=$diag_data_dir/$res_casename
-export sim_dir=$sim_data_dir/$res_casename
+export diag_dir=$diag_data_dir/$full_casename
+export sim_dir=$sim_data_dir/$full_casename
 export atm_hist_dir=$sim_dir/atm/hist
-export ocn_hist_dir=$sim_dir/ocn
+export ocn_hist_dir=$sim_dir/ocn/hist
 export ice_hist_dir=$sim_dir/ice/hist
 
 # filenames
