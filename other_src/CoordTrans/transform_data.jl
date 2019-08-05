@@ -27,7 +27,6 @@ function parse_commandline()
         "--vars"
             help = "Variable names list. They should by dimension 2 (x, y) or 3 (x, y, z) with or without record (time) dimension. Ex: --vars=Ts,Ss,MLD"
             arg_type = String
-            required = true
 
         "--copy-vars"
             help = "Variable names list."
@@ -62,8 +61,12 @@ println("Running ", @__FILE__)
 
 parsed = parse_commandline()
 print(json(parsed, 4))
-    
-varnames=collect(split(parsed["vars"], ","; keepempty=false))
+
+if parsed["vars"] != nothing
+    varnames=collect(split(parsed["vars"], ","; keepempty=false))
+else
+    varnames=nothing
+end
 
 CoordTrans.convertFile(
     parsed["s-file"],

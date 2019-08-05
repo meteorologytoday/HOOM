@@ -15,13 +15,28 @@ function parseCESMTIME!(ts::AbstractString, timeinfo::AbstractArray{Integer})
     timeinfo[4] = parse(Int, ts[10:17])
 end
 
+function copy_list_to!(
+    a,
+    b,
+)
+    for i = 1:length(a)
+        b[i][:] = a[i]
+    end
+end
 
 output_vars = Dict()
 
 stage = :INIT
 
-mkpath(configs[:tmp_folder])
+# Need to find a way to avoid receiving the msg
+# from last run
 
+PTI = ProgramTunnelInfo(
+    reverse_role  = true,
+    recv_channels = 2,
+)
+
+#=
 PTI = ProgramTunnelInfo(
     path             = configs[:tmp_folder],
     timeout          = configs[:timeout],
@@ -29,13 +44,13 @@ PTI = ProgramTunnelInfo(
     recv_first_sleep = 0.1,
     reverseRole      = true,
 )
+=#
 
 map = NetCDFIO.MapInfo{Float64}(configs[:domain_file])
 
 t_cnt = 1
 output_filename = ""
-buffer2d = zeros(UInt8, map.lsize * 8)
-null2d   = zeros(Float64, map.lsize)
+nullbin  = [zeros(Float64, 1)]
 
 timeinfo = zeros(Integer, 4) 
 timeinfo_old = copy(timeinfo)
@@ -54,11 +69,13 @@ while true
 
     end_time = Base.time()
 
-    println(format("Execution time          : {:d} s", floor(end_time - beg_time)))
+    println(format("# Current real time:      : {:s}", Dates.format(now(), "yyyy/mm/dd HH:MM:SS")))
+    println(format("# Execution time          : {:d} s", floor(end_time - beg_time)))
     println(format("# Time Counter for RUN  : {:d}", t_cnt))
     println(format("# Stage                 : {}", String(stage)))
 
-    msg = parseMsg(recvText(PTI))
+    msg = parseMsg( recvData!(PTI, nullbin, which=1) )
+
     println("==== MESSAGE RECEIVED ====")
     print(json(msg, 4))
     println("==========================")
@@ -78,7 +95,14 @@ while true
             configs      = configs,
             read_restart = (msg["READ_RESTART"] == "TRUE") ? true : false,
         )
-        
+ 
+        # Must declare SharedArray to avoid implicit copying!!!!
+        global send_data_list_shared = SharedArray{Float64}[OMDATA.o2x["SST"], OMDATA.o2x["QFLX2ATM"]]
+        global recv_data_list_shared = SharedArray{Float64}[]
+ 
+        global send_data_list = Array{Float64}[OMDATA.o2x["SST"], OMDATA.o2x["QFLX2ATM"]]
+        global recv_data_list = Array{Float64}[]
+     
         rm(configs[:short_term_archive_list], force=true)
 
         global x2o_available_varnames  = split(msg["VAR2D"], ",")
@@ -87,14 +111,16 @@ while true
 
         println("List of available x2o variables:")
         for (i, varname) in enumerate(x2o_available_varnames)
+            push!(recv_data_list_shared, ( x2o_wanted_flag[i] ) ? OMDATA.x2o[varname] :  SharedArray{Float64}(map.lsize))
+            push!(recv_data_list       , ( x2o_wanted_flag[i] ) ? OMDATA.x2o[varname] :  zeros(Float64, map.lsize))
             println(format(" ({:d}) {:s} => {:s}", i, varname, ( x2o_wanted_flag[i] ) ? "Wanted" : "Abandoned" ))
         end
 
-        writeBinary!(joinpath(configs[:tmp_folder], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
-        writeBinary!(joinpath(configs[:tmp_folder], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
-        writeBinary!(joinpath(configs[:tmp_folder], "MASK.bin"), map.mask, buffer2d; endianess=:little_endian)
+        
+        copy_list_to!(send_data_list_shared, send_data_list)
 
-        sendText(PTI, "OK")
+        sendData(PTI, "OK", send_data_list)
+        sendData(PTI, "MASKDATA", [map.mask])
 
         stage = :RUN
         
@@ -106,36 +132,27 @@ while true
 
         timeinfo_old[:] = timeinfo
 
-        for i = 1:length(x2o_available_varnames)
-            varname = x2o_available_varnames[i]
-
-            if x2o_wanted_flag[i]
-                readBinary!(
-                    joinpath(configs[:tmp_folder], varname * ".bin"),
-                    OMDATA.x2o[varname],
-                    buffer2d;
-                    endianess=:little_endian, delete=false
-                )
-            end
-        end
-       
+        recvData!(
+            PTI,
+            recv_data_list,
+            which=2
+        )
+      
+        copy_list_to!(recv_data_list, recv_data_list_shared)
+        
         println("Calling ", OMMODULE.name, " to do MAGICAL calculations")
 
         Δt = parse(Float64, msg["DT"])
-        Δt_substeps = Δt / configs[:substeps]
 
+        cost = @elapsed let
 
-        cost = @elapsed for substep = 1:configs[:substeps]
-
-            print(format("Substep: {:d}/{:d}\r", substep, configs[:substeps]))
-
-            OMMODULE.run(OMDATA;
+            OMMODULE.run(
+                OMDATA;
                 t             = timeinfo,
                 t_cnt         = t_cnt,
                 t_flags       = t_flags,
-                Δt            = Δt_substeps,
-                substep       = substep,
-                write_restart = ( msg["WRITE_RESTART"] == "TRUE" && substep == 1 ),
+                Δt            = Δt,
+                write_restart = msg["WRITE_RESTART"] == "TRUE",
             )
 
         end
@@ -144,11 +161,9 @@ while true
         global ocn_run_N += 1
 
         println(format("*** It takes {:.2f} secs. (Avg: {:.2f} secs) ***", cost, ocn_run_time / ocn_run_N))
-
-        writeBinary!(joinpath(configs[:tmp_folder], "SST.bin"), OMDATA.o2x["SST"], buffer2d; endianess=:little_endian)
-        writeBinary!(joinpath(configs[:tmp_folder], "QFLX2ATM.bin"), OMDATA.o2x["QFLX2ATM"], buffer2d; endianess=:little_endian)
-
-        sendText(PTI, "OK")
+       
+        copy_list_to!(send_data_list_shared, send_data_list)
+        sendData(PTI, "OK", send_data_list)
 
         t_cnt += 1
 
@@ -182,8 +197,8 @@ while true
         println("Simulation ends peacefully.")
         break
     else
-        OMMODULE.crash(OMDATA) 
-        sendText(PTI, "CRASH")
+        #OMMODULE.crash(OMDATA) 
+        sendData(PTI, "CRASH", send_data_list)
         throw(ErrorException("Unknown status: stage " * string(stage) * ", MSG: " * string(msg["MSG"])))
     end
 

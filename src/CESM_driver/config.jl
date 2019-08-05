@@ -14,7 +14,7 @@ configs = Dict(
     :short_term_archive_list   => "SMARTSLAB_short_term_archive_list.txt",
     :rpointer_file             => "rpointer.ssm_ocn",
     :wdir                      => pwd(),
-    :timeout                   => 60.0 * 5,
+    :timeout                   => 60.0 * 20, 
 )
 
 function parse_commandline()

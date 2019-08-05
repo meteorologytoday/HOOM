@@ -2,7 +2,7 @@ module ProgramTunnelMod
 implicit none
 
 integer, parameter :: c_send_txt = 1, c_recv_txt = 2, c_send_bin = 3, c_recv_bin = 4
-character(len=256), parameter :: keys(4) = (/"XX2Y_txt", "Y2X_txt", "X2Y_bin", "Y2X_bin"/)
+character(len=256), parameter :: keys(4) = (/"X2Y_txt", "Y2X_txt", "X2Y_bin", "Y2X_bin"/)
 
 
 type ptm_Tunnel
@@ -42,6 +42,37 @@ subroutine ptm_makeFilename(filename, id, n)
 
 end subroutine
 
+subroutine ptm_blockUntilTunnelCreated(TS)
+    implicit none
+    type(ptm_TunnelSet) :: TS
+    integer :: fds(8)
+    integer :: i, j
+    logical file_exists, all_pass
+
+
+    all_pass = .false.
+    
+    do
+        all_pass = .true.
+        
+        do i = 1, 4
+            do j = 1, 2
+                inquire(file=TS%tnls(i)%fns(j), exist=file_exists)
+                all_pass = all_pass .and. file_exists
+            end do
+        end do
+
+        if (all_pass .eqv. .true.) then
+            print *, "Tunnels are created!"
+            exit
+        else
+            print *, "Tunnels are not created, sleep and check again..."
+            call sleep(1)
+        end if  
+    end do
+end subroutine 
+
+
 subroutine ptm_setDefaultTunnelSet(TS, fds)
     implicit none
     type(ptm_TunnelSet) :: TS
@@ -56,6 +87,19 @@ subroutine ptm_setDefaultTunnelSet(TS, fds)
     end do
 end subroutine 
 
+subroutine ptm_appendPath(TS, path)
+    implicit none
+    type(ptm_TunnelSet) :: TS
+    integer :: fds(8)
+    integer :: i, j
+    character(len=256) :: path
+    do i = 1, 4
+        do j = 1, 2
+            TS%tnls(i)%fns(j) = trim(path) // "/" // trim(TS%tnls(i)%fns(j))
+            print *, "FIFO: ", trim(TS%tnls(i)%fns(j) )
+        end do
+    end do
+end subroutine 
 
 
 subroutine ptm_printSummary(TS)
@@ -130,7 +174,7 @@ integer function ptm_sendText(TS, msg)
     print *, "Filename: ", trim(fn)
 
     ptm_sendText = 0
-    open(unit=fd, file=fn, form="formatted", access="stream", action="write", iostat=ptm_sendText)
+    open(unit=fd, file=fn, form="formatted", access="stream", action="write", iostat=ptm_sendText, status="OLD")
     if (ptm_sendText .gt. 0) then
         print *, "[ptm_sendText] Error during open."
         close(fd)
@@ -160,7 +204,7 @@ integer function ptm_recvText(TS, msg)
     call ptm_getTunnelInfo(TS, c_recv_txt, fd, fn, .true.)
 
     ptm_recvText = 0
-    open(unit=fd, file=fn, form="formatted", access="stream", action="read", iostat=ptm_recvText)
+    open(unit=fd, file=fn, form="formatted", access="stream", action="read", iostat=ptm_recvText, status="OLD")
     if (ptm_recvText .gt. 0) then
         print *, "ERROR OPENING RECV TXT PIPE, errcode:", ptm_recvText
         close(fd)
@@ -195,7 +239,7 @@ integer function ptm_sendBinary(TS, dat, n)
     call ptm_getTunnelInfo(TS, c_send_bin, fd, fn, .true.)
     
     ptm_sendBinary = 0
-    open(unit=fd, file=fn, form="unformatted", &
+    open(unit=fd, file=fn, form="unformatted", status="OLD", &
          access="stream", action="write", iostat=ptm_sendBinary,  &
          convert='LITTLE_ENDIAN')
 
@@ -232,7 +276,7 @@ integer function ptm_recvBinary(TS, dat, n)
     call ptm_getTunnelInfo(TS, c_recv_bin, fd, fn, .true.)
 
     ptm_recvBinary = 0
-    open(unit=fd, file=fn, form="unformatted", &
+    open(unit=fd, file=fn, form="unformatted", status="OLD", &
          access="stream", action="read", iostat=ptm_recvBinary,  &
          convert='LITTLE_ENDIAN')
 

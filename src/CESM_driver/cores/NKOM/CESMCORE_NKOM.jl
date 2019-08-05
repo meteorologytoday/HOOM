@@ -48,6 +48,7 @@ module CESMCORE_NKOM
             (:radiation_scheme,              true, (:exponential, :step,),      nothing),
             (:daily_record,                  true, (Bool,),                     nothing),
             (:monthly_record,                true, (Bool,),                     nothing),
+            (:turn_off_frwflx,              false, (Bool,),                     false),
         ])
 
 
@@ -66,7 +67,7 @@ module CESMCORE_NKOM
 
             println("`read_restart` is on")
             checkDict!( configs, [
-                ("rpointer_file", true, (String,), nothing),
+                (:rpointer_file, true, (String,), nothing),
             ])
 
             if !isfile(configs[:rpointer_file])
@@ -117,7 +118,7 @@ module CESMCORE_NKOM
                 "SWFLX"  => in_flds.swflx,
                 "NSWFLX" => in_flds.nswflx,
                 "FRWFLX" => in_flds.frwflx,
-                "TFDIV"  => in_flds.qflx,
+                "QFLX"   => in_flds.qflx,
                 "MLD"    => in_flds.h_ML,
             )
 
@@ -126,11 +127,11 @@ module CESMCORE_NKOM
             x2o = Dict(
                 "SWFLX"  => in_flds.swflx,
                 "NSWFLX" => in_flds.nswflx,
-                "TAUX"  => in_flds.taux,
-                "TAUY"  => in_flds.tauy,
-                "IFRAC" => in_flds.ifrac,
+                "TAUX"   => in_flds.taux,
+                "TAUY"   => in_flds.tauy,
+                "IFRAC"  => in_flds.ifrac,
                 "FRWFLX" => in_flds.frwflx,
-                "TFDIV"  => in_flds.qflx,
+                "QFLX"   => in_flds.qflx,
             )
 
         end
@@ -142,6 +143,10 @@ module CESMCORE_NKOM
         
         recorders = Dict()
 
+
+
+
+
         for rec_key in [:daily_record, :monthly_record]
             if configs[rec_key]
                  recorder = RecordTool.Recorder(
@@ -150,13 +155,17 @@ module CESMCORE_NKOM
                         "Ny" => occ.Ny,
                         "Nz_bone" => occ.Nz_bone,
                     ), [
-                        ("T",     NKOM.toXYZ(occ.Ts, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("S",     NKOM.toXYZ(occ.Ss, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("T_ML",  occ.T_ML, ("Nx", "Ny",)),
-                        ("S_ML",  occ.S_ML, ("Nx", "Ny",)),
-                        ("h_ML",  occ.h_ML, ("Nx", "Ny")),
-                        ("weighted_fric_u",  occ.in_flds.weighted_fric_u, ("Nx", "Ny")),
-                        ("fric_u",  occ.in_flds.fric_u, ("Nx", "Ny")),
+                        ("T",       NKOM.toXYZ(occ.Ts, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("S",       NKOM.toXYZ(occ.Ss, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("T_ML",    occ.T_ML, ("Nx", "Ny",)),
+                        ("S_ML",    occ.S_ML, ("Nx", "Ny",)),
+                        ("h_ML",    occ.h_ML, ("Nx", "Ny")),
+                        ("h_MO",    occ.h_MO, ("Nx", "Ny")),
+                        ("nswflx",  occ.in_flds.nswflx, ("Nx", "Ny")),
+                        ("swflx",   occ.in_flds.swflx,  ("Nx", "Ny")),
+                        ("frwflx",  occ.in_flds.frwflx, ("Nx", "Ny")),
+                        ("fric_u",  occ.fric_u, ("Nx", "Ny")),
+
                     ],
                 )
 
@@ -183,11 +192,21 @@ module CESMCORE_NKOM
         t_cnt         :: Integer,
         t_flags       :: Dict,
         Δt            :: Float64,
-        substep       :: Integer,
         write_restart :: Bool,
     )
 
-        if MD.configs[:enable_short_term_archive] && substep == 1
+        # process input fields before record
+        in_flds = MD.occ.in_flds
+
+        in_flds.nswflx .*= -1.0
+        in_flds.swflx  .*= -1.0
+
+        if MD.configs[:turn_off_frwflx]
+            in_flds.frwflx .= 0.0
+        end
+
+
+        if MD.configs[:enable_short_term_archive]
 
             if MD.configs[:daily_record]
  
@@ -229,40 +248,20 @@ module CESMCORE_NKOM
 
         end
 
-        in_flds = MD.occ.in_flds
 
-        # Only process incoming data for the first time!! 
-        if substep == 1
-
-            in_flds.nswflx .*= -1.0
-            in_flds.swflx  .*= -1.0
-            #in_flds.nswflx  .*= 0.0
-            #in_flds.swflx  .=-1000.0
-            #if MD.configs[:MLD_scheme] == :prognostic
-            #in_flds.fric_u .= sqrt.(sqrt.((in_flds.taux).^2.0 .+ (in_flds.tauy).^2.0) / NKOM.ρ)
-            #in_flds.weighted_fric_u .*= (1.0 .- in_flds.ifrac)
-            #end
-
-        end
-       
         NKOM.run!(
             MD.occ;
+            substeps      = MD.configs[:substeps],
             use_qflx      = MD.configs[:Qflux_scheme] == :on,
             use_h_ML      = MD.configs[:MLD_scheme] == :datastream,
             Δt            = Δt,
-            diffusion_Δt  = Δt * MD.configs[:substeps],
-            relaxation_Δt = Δt * MD.configs[:substeps],
-            do_diffusion  = (MD.configs[:diffusion_scheme] == :on && substep == MD.configs[:substeps]),
-            do_relaxation = (MD.configs[:relaxation_scheme] == :on && substep == MD.configs[:substeps]),
+            do_diffusion  = MD.configs[:diffusion_scheme] == :on,
+            do_relaxation = MD.configs[:relaxation_scheme] == :on,
             do_convadjust = MD.configs[:convective_adjustment_scheme] == :on,
             rad_scheme    = MD.configs[:radiation_scheme],
-            copy_in_flds  = substep == 1,
         )
 
-        # Force workers to update master's profile
-        if substep == MD.configs[:substeps]
-            NKOM.sync!(MD.occ)
-        end
+        NKOM.sync!(MD.occ)
         
         if write_restart
             restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])

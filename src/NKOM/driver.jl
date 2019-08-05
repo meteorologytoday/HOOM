@@ -76,20 +76,16 @@ end
 
 function run!(
     occ    :: OceanColumnCollection;
-    copy_in_flds  :: Bool = false,
     kwargs... 
 )
 
     (occ.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(occ.id)))
 
     futures= []
-    
+
     @sync for (i, p) in enumerate(workers())
 
-        if copy_in_flds
-            @spawnat p copyfrom!(worker_occ.in_flds, master_sub_in_flds)
-        end
-
+        @spawnat p copyfrom!(worker_occ.in_flds, master_sub_in_flds)
         @spawnat p NKOM.stepOceanColumnCollection!(
             worker_occ;
             kwargs...
@@ -112,9 +108,12 @@ function syncToMaster(occ::OceanColumnCollection)
     master_occ.T_ML[rng2...] = occ.T_ML 
     master_occ.S_ML[rng2...] = occ.S_ML
     master_occ.h_ML[rng2...] = occ.h_ML
+    master_occ.h_MO[rng2...] = occ.h_MO
+    master_occ.fric_u[rng2...] = occ.fric_u
 
-    #master_occ.T_ML[rng2...] .+= 10.0 * rand()
-    #println( pointer_from_objref(master_occ.T_ML))
+    master_occ.qflx2atm[rng2...] = occ.qflx2atm
+
+
 end
 
 
