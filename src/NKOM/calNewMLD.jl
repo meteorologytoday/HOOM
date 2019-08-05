@@ -75,12 +75,12 @@ function calNewMLD(;
         # First min function restrict the maximum of entrainment speed
         # Second min function restrict the maximum of MLD
 
-        return min(h_ML + Δt * min(we, we_max), h_MO), isfinite(h_MO) ? h_MO : -1.0
+        return min(h_ML + Δt * min(we, we_max), h_MO), h_MO
     else
 
         # h becomes diagnostic.
         # Notice that if Δ < 0, then finite positive solution of h_MO exists
-        return h_MO, isfinite(h_MO ) ? h_MO : -1.0
+        return h_MO, h_MO
     end
 
 end
@@ -134,7 +134,6 @@ function solveMoninObuhkovLength_bisection(
     Δ, _ = calΔ_and_∂Δ∂h(h_max, a, b, c, λ, ζ, n; need_∂Δ∂h = false)
 
     if Δ > 0
-        println("Δ > 0")
         return h_max
     end
 
