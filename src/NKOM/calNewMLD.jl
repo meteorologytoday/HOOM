@@ -63,13 +63,10 @@ function calNewMLD(;
     a, λ = calΔCoefficients(fric_u, f, m)
     Δ, _ = calΔ_and_∂Δ∂h(h_ML, a, Bf, J0, λ, ζ, n; need_∂Δ∂h=false)
 
-
     h_MO = solveMoninObuhkovLength_bisection(h_max, a, Bf, J0, λ, ζ, n)
-
-    #h_MO = solveMoninObuhkovLength(h_init, a, Bf, J0, λ, ζ, n)
-    #if isinf(h_MO)
-    #    println("f = ", f, ", sinθ = ", f / (2 * NKOM.Ωe), "; lat: ", asin(f / (2 * NKOM.Ωe)) * 180/π)
-    #end
+    
+    # 2019/08/05 Newton method. Not a robust way
+    # h_MO = solveMoninObuhkovLength(h_max, a, Bf, J0, λ, ζ, n)
 
     if Δ >= 0
         k = getTKE(fric_u=fric_u)
@@ -122,7 +119,7 @@ end
 end
 
 # it is possible to have multisolution but we ignore this problem
-function solveMoninObukovLength_bisection(
+function solveMoninObuhkovLength_bisection(
     h_max  :: Float64,
     a      :: Float64,
     b      :: Float64,
@@ -137,11 +134,14 @@ function solveMoninObukovLength_bisection(
     Δ, _ = calΔ_and_∂Δ∂h(h_max, a, b, c, λ, ζ, n; need_∂Δ∂h = false)
 
     if Δ > 0
+        println("Δ > 0")
         return h_max
     end
 
     bot = 0.0
     top = h_max
+
+    local h
 
     for t = 1:max
 
@@ -156,7 +156,7 @@ function solveMoninObukovLength_bisection(
             return h
         end
         
-        if (rbnd - lbnd) < δh_max   
+        if (top - bot) < δh_max   
             return h
         end
     end

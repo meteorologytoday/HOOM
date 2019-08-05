@@ -60,19 +60,29 @@ t_flags = Dict()
 ocn_run_time = 0.0
 ocn_run_N    = 0
 
+overall_run_time = 0.0
+overall_run_N    = 0
+
+
+
 println("===== ", OMMODULE.name, " IS READY =====")
 
 beg_time = Base.time()
+end_time = Base.time()
 while true
 
-    global OMDATA, stage, t_cnt, output_filename
+    global OMDATA, stage, t_cnt, output_filename, end_time
 
-    end_time = Base.time()
+    new_end_time = Base.time()
+    exe_time = new_end_time - end_time
+    end_time = new_end_time
 
     println(format("# Current real time:      : {:s}", Dates.format(now(), "yyyy/mm/dd HH:MM:SS")))
-    println(format("# Execution time          : {:d} s", floor(end_time - beg_time)))
-    println(format("# Time Counter for RUN  : {:d}", t_cnt))
-    println(format("# Stage                 : {}", String(stage)))
+    println(format("# Time Counter for RUN    : {:d}", t_cnt))
+    println(format("# Total execution time    : {:d} s", floor(end_time - beg_time)))
+    println(format("# Average execution time  : {:.2f} s", floor(end_time - beg_time) / t_cnt))
+    println(format("# Last run execution time : {:.2f} s", exe_time))
+    println(format("# Stage                   : {}", String(stage)))
 
     msg = parseMsg( recvData!(PTI, nullbin, which=1) )
 
@@ -160,7 +170,7 @@ while true
         global ocn_run_time += cost
         global ocn_run_N += 1
 
-        println(format("*** It takes {:.2f} secs. (Avg: {:.2f} secs) ***", cost, ocn_run_time / ocn_run_N))
+        println(format("*** Ocean takes {:.2f} secs. (Avg: {:.2f} secs) ***", cost, ocn_run_time / ocn_run_N))
        
         copy_list_to!(send_data_list_shared, send_data_list)
         sendData(PTI, "OK", send_data_list)

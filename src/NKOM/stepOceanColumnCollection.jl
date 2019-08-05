@@ -70,7 +70,7 @@ function stepOceanColumnCollection!(
             # be some numerical error making Δb slightly negative
             # (the one I got is like -1e-15 ~ -1e-8). So I set a
             # tolarence δb = 3e-6 ( 0.001 K => 3e-6 m/s^2 ).
-            if Δb < 0.0 && -Δb <= 3e-6
+            if Δb < 0.0 #&& -Δb <= 3e-6
                 Δb = 0.0
             end
 
@@ -91,6 +91,7 @@ function stepOceanColumnCollection!(
                     f      = occ.fs[i, j],
                     Δt     = dt,
                     ζ      = occ.ζ,
+                    h_max  = occ.h_ML_max[i, j],
                     we_max = occ.we_max,
                 )
                 
