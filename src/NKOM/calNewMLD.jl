@@ -40,7 +40,7 @@ function calNewMLD(;
     ζ      :: Float64,    # decay scale length of shortwave penetration
     m::Float64 = 0.8,
     n::Float64 = 0.20,
-    h_init :: Float64 = 1000.0,
+    h_max  :: Float64,
     we_max :: Float64,
 )
 
@@ -63,10 +63,14 @@ function calNewMLD(;
     a, λ = calΔCoefficients(fric_u, f, m)
     Δ, _ = calΔ_and_∂Δ∂h(h_ML, a, Bf, J0, λ, ζ, n; need_∂Δ∂h=false)
 
-    h_MO = solveMoninObuhkovLength(h_init, a, Bf, J0, λ, ζ, n)
+
+    h_MO = solveMoninObuhkovLength_bisection(h_max, a, Bf, J0, λ, ζ, n)
+
+    #h_MO = solveMoninObuhkovLength(h_init, a, Bf, J0, λ, ζ, n)
     #if isinf(h_MO)
     #    println("f = ", f, ", sinθ = ", f / (2 * NKOM.Ωe), "; lat: ", asin(f / (2 * NKOM.Ωe)) * 180/π)
     #end
+
     if Δ >= 0
         k = getTKE(fric_u=fric_u)
         we = Δ / (h_ML * Δb + k)
@@ -115,6 +119,49 @@ end
 
 @inline function ∂S∂h(h::Float64, ζ::Float64)
     return 1 - exp(-h / ζ) * (1 + h / ζ)
+end
+
+# it is possible to have multisolution but we ignore this problem
+function solveMoninObukovLength_bisection(
+    h_max  :: Float64,
+    a      :: Float64,
+    b      :: Float64,
+    c      :: Float64,
+    λ      :: Float64,
+    ζ      :: Float64,
+    n      :: Float64;
+    δh_max :: Float64 = 0.01,  # absolute increment threshold = 1cm
+    max    :: Integer = 100,
+)
+
+    Δ, _ = calΔ_and_∂Δ∂h(h_max, a, b, c, λ, ζ, n; need_∂Δ∂h = false)
+
+    if Δ > 0
+        return h_max
+    end
+
+    bot = 0.0
+    top = h_max
+
+    for t = 1:max
+
+        h = (bot + top) / 2.0
+        Δ, _ = calΔ_and_∂Δ∂h(h, a, b, c, λ, ζ, n; need_∂Δ∂h = false)
+        
+        if Δ < 0
+            top = h
+        elseif Δ > 0
+            bot = h
+        else # Δ = 0 which is rare
+            return h
+        end
+        
+        if (rbnd - lbnd) < δh_max   
+            return h
+        end
+    end
+        
+    throw(ErrorException("Monin-Obuhkov length iteration reached max before δh gets below δh_max."))
 end
 
 
