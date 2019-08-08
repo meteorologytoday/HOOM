@@ -1,122 +1,180 @@
-# used by master
-mutable struct SubOCCInfo
-    sub_Nys    :: AbstractArray{Int64, 1}
-    beg_y_idxs :: AbstractArray{Int64, 1}
+mutable struct SubOcean
+    mission           :: Symbol
+    rng2              :: AbstractArray
+    rng3              :: AbstractArray
+    master_in_flds    :: InputFields
+    master_ocn        :: Ocean
+    worker_ocn        :: Ocean
 end
 
-function makeSubOCC(
-    occ :: OceanColumnCollection,
-    block_id   :: Integer,
-    beg_y_idx  :: Integer,
-    sub_Ny     :: Integer,
+function makeSubOcean(
+    master_ocn   :: Ocean,
+    mission      :: Symbol,
+    block_id     :: Integer,
+    beg_idx      :: Integer,
+    sub_N        :: Integer,
 )
 
-    global master_occ = occ
-    global rng2 = [Colon(), beg_y_idx:beg_y_idx+sub_Ny-1]
-    global rng3 = [Colon(), Colon(), beg_y_idx:beg_y_idx+sub_Ny-1]
-    global master_sub_in_flds = SubInputFields(occ.in_flds, rng2...)
-   
-    global worker_occ = OceanColumnCollection(
-        id             = block_id,
-        gridinfo_file  = nothing,
-        Nx             = occ.Nx,
-        Ny             = sub_Ny,
-        zs_bone        = occ.zs_bone,
-        Ts             = occ.Ts[rng3...],
-        Ss             = occ.Ss[rng3...],
-        K_T            = occ.K_T,
-        K_S            = occ.K_S,
-        T_ML           = occ.T_ML[rng2...],
-        S_ML           = occ.S_ML[rng2...],
-        h_ML           = occ.h_ML[rng2...],
-        h_ML_min       = occ.h_ML_min[rng2...],
-        h_ML_max       = occ.h_ML_max[rng2...],
-        we_max         = occ.we_max,
-        R              = occ.R,
-        ζ              = occ.ζ,
-        Ts_clim_relax_time = occ.Ts_clim_relax_time,
-        Ss_clim_relax_time = occ.Ss_clim_relax_time,
-        Ts_clim        = ( occ.Ts_clim != nothing ) ? occ.Ts_clim[rng3...] : nothing,
-        Ss_clim        = ( occ.Ss_clim != nothing ) ? occ.Ss_clim[rng3...] : nothing,
-        mask           = occ.mask[rng2...],
-        topo           = occ.topo[rng2...],
-        fs             = occ.fs[rng2...],
-        ϵs             = occ.ϵs[rng2...],
-        in_flds        = InputFields(:local, occ.Nx, sub_Ny),
-        arrange        = :zxy,
+    global rng2, rng3
+
+    if mission == :vt
+        rng2 = [Colon(), beg_idx:beg_idx+sub_N-1]
+        rng3 = [Colon(), Colon(), beg_idx:beg_idx+sub_N-1]
+        Ny = sub_N
+    elseif mission == :hz
+        rng2 = [Colon(), Colon()]
+        rng3 = [beg_idx:beg_idx+sub_N-1, Colon(), Colon()]
+        Ny = master_ocn.Ny
+    else
+        throw(ErrorException("[makeSubOcean] Unknown symbol for `kind`: ", string(kind)))
+    end
+
+    return SubOcean(
+        mission,
+        rng2,
+        rng3,
+        SubInputFields(master_ocn.in_flds, rng2...), 
+        master_ocn,
+        Ocean(
+            id             = block_id,
+            gridinfo_file  = nothing,
+            Nx             = master_ocn.Nx,
+            Ny             = Ny,
+            zs_bone        = master_ocn.zs_bone,
+            Ts             = master_ocn.Ts[rng3...],
+            Ss             = master_ocn.Ss[rng3...],
+            K_T            = master_ocn.K_T,
+            K_S            = master_ocn.K_S,
+            T_ML           = master_ocn.T_ML[rng2...],
+            S_ML           = master_ocn.S_ML[rng2...],
+            h_ML           = master_ocn.h_ML[rng2...],
+            h_ML_min       = master_ocn.h_ML_min[rng2...],
+            h_ML_max       = master_ocn.h_ML_max[rng2...],
+            we_max         = master_ocn.we_max,
+            R              = master_ocn.R,
+            ζ              = master_ocn.ζ,
+            Ts_clim_relax_time = master_ocn.Ts_clim_relax_time,
+            Ss_clim_relax_time = master_ocn.Ss_clim_relax_time,
+            Ts_clim        = ( master_ocn.Ts_clim != nothing ) ? master_ocn.Ts_clim[rng3...] : nothing,
+            Ss_clim        = ( master_ocn.Ss_clim != nothing ) ? master_ocn.Ss_clim[rng3...] : nothing,
+            mask           = master_ocn.mask[rng2...],
+            topo           = master_ocn.topo[rng2...],
+            fs             = master_ocn.fs[rng2...],
+            ϵs             = master_ocn.ϵs[rng2...],
+            in_flds        = InputFields(:local, master_ocn.Nx, Ny),
+            arrange        = :zxy,
+        )
     )
 
+end
+
+function syncToMaster(subocn::SubOcean)
+
+#    (subocn.woocc.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
+
+    master_ocn = subocn.master_ocn
+    worker_ocn = subocn.worker_ocn
+    
+    master_ocn.Ts[rng3...] = worker_ocn.Ts
+    master_ocn.Ss[rng3...] = worker_ocn.Ss
+
+    master_ocn.FLDO[rng2...] = worker_ocn.FLDO
+    master_ocn.T_ML[rng2...] = worker_ocn.T_ML 
+    master_ocn.S_ML[rng2...] = worker_ocn.S_ML
+    master_ocn.h_ML[rng2...] = worker_ocn.h_ML
+    master_ocn.h_MO[rng2...] = worker_ocn.h_MO
+    master_ocn.fric_u[rng2...] = worker_ocn.fric_u
+
+    master_ocn.qflx2atm[rng2...] = worker_ocn.qflx2atm
+
 
 end
 
-function init(
-    occ::OceanColumnCollection,
-)
+function syncFromMaster!(subocn::SubOcean)
+
+#    (subocn.woocc.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
+
+    master_ocn = subocn.master_ocn
+    worker_ocn = subocn.worker_ocn
+    
+    # View is to avoid array allocation
+    worker_ocn.Ts[:] = view( master_ocn.Ts, rng3...)
+    worker_ocn.Ss[:] = view( master_ocn.Ss, rng3...)
+    
+    worker_ocn.FLDO[:] = view( master_ocn.FLDO, rng2...)
+    worker_ocn.T_ML[:] = view( master_ocn.T_ML, rng2...)
+    worker_ocn.S_ML[:] = view( master_ocn.S_ML, rng2...)
+    worker_ocn.h_ML[:] = view( master_ocn.h_ML, rng2...)
+
+    copyfrom!(worker_ocn.in_flds, subocn.master_in_flds)
+end
+
+
+
+function init(ocn::Ocean)
 
     println("Number of workers: ", nworkers())
 
-    (occ.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(occ.id)))
+    (ocn.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(ocn.id)))
 
-    sub_Ny = ceil(Integer, occ.Nx / nworkers())
+
+    # Sub ocean cols
+    sub_Ny = ceil(Integer, ocn.Nx / nworkers())
     sub_Nys = [sub_Ny for block_id = 1:nworkers()]
-    sub_Nys[end] = occ.Ny - (nworkers()-1) * sub_Ny
-
+    sub_Nys[end] = ocn.Ny - (nworkers()-1) * sub_Ny
     beg_y_idxs = [sub_Ny * (block_id - 1) + 1 for block_id = 1:nworkers()]
 
-    global sub_occ_info = SubOCCInfo(sub_Nys, beg_y_idxs)
+    # Sub ocean lays
+    sub_Nz = ceil(Integer, ocn.Nz_bone / nworkers())
+    sub_Nzs = [sub_Nz for block_id = 1:nworkers()]
+    sub_Nzs[end] = ocn.Nz_bone - (nworkers()-1) * sub_Nz
+    beg_z_idxs = [sub_Nz * (block_id - 1) + 1 for block_id = 1:nworkers()]
 
     @sync for (i, p) in enumerate(workers())
         
         # We have P processors, N workers, N blocks
         # Block ids are numbered from 1 to N
-        @spawnat p makeSubOCC(occ, i, beg_y_idxs[i], sub_Nys[i])
+        @spawnat p let
+            global subocn_hz = makeSubOcean(ocn, :hz, i, beg_z_idxs[i], sub_Nzs[i])
+            global subocn_vt = makeSubOcean(ocn, :vt, i, beg_y_idxs[i], sub_Nys[i])
+        end
 
     end
 end
 
 function run!(
-    occ    :: OceanColumnCollection;
-    kwargs... 
+    ocn :: Ocean;
+    cfgs...
 )
 
-    (occ.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(occ.id)))
-
-    futures= []
+    (ocn.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(ocn.id)))
 
     @sync for (i, p) in enumerate(workers())
 
-        @spawnat p copyfrom!(worker_occ.in_flds, master_sub_in_flds)
-        @spawnat p NKOM.stepOceanColumnCollection!(
-            worker_occ;
-            kwargs...
-        )
+        @spawnat p let
 
+            syncFromMaster!(subocn_hz)
+            NKOM.stepOcean_hz!(subocn_hz.worker_ocn; cfgs...)
+            syncToMaster(subocn_hz)
+
+        end
+
+    end
+
+    @sync for (i, p) in enumerate(workers())
+
+        @spawnat p let
+
+            syncFromMaster!(subocn_vt)
+            NKOM.stepOcean_vt!(subocn_vt.worker_ocn; cfgs...)
+            syncToMaster(subocn_vt)
+
+        end
     end
 
 end
 
-function syncToMaster(occ::OceanColumnCollection)
-
-    global master_occ
-    
-    (occ.id != 0) || throw(ErrorException("`id` should not be 0 (master)."))
-
-    master_occ.Ts[rng3...] = occ.Ts
-    master_occ.Ss[rng3...] = occ.Ss
-
-    master_occ.FLDO[rng2...] = occ.FLDO
-    master_occ.T_ML[rng2...] = occ.T_ML 
-    master_occ.S_ML[rng2...] = occ.S_ML
-    master_occ.h_ML[rng2...] = occ.h_ML
-    master_occ.h_MO[rng2...] = occ.h_MO
-    master_occ.fric_u[rng2...] = occ.fric_u
-
-    master_occ.qflx2atm[rng2...] = occ.qflx2atm
-
-
-end
-
-
+#=
 function sync!(
     occ :: OceanColumnCollection;
 )
@@ -128,3 +186,8 @@ function sync!(
 
 
 end
+=#
+
+
+
+

@@ -1,34 +1,34 @@
 function OC_doNewtonianRelaxation_T!(
-    occ :: OceanColumnCollection,
+    ocn :: Ocean,
     i   :: Integer,
     j   :: Integer;
     Δt  :: Float64,
 )
 
     doNewtonianRelaxation!(
-        qs      = occ.Ts_vw[i, j],
-        qs_clim = occ.Ts_clim_vw[i, j],
-        FLDO    = occ.FLDO[i, j],
-        Nz      = occ.Nz[i, j],
-        τ       = occ.Ts_clim_relax_time,
+        qs      = ocn.cols.Ts[i, j],
+        qs_clim = ocn.cols.Ts_clim[i, j],
+        FLDO    = ocn.FLDO[i, j],
+        Nz      = ocn.Nz[i, j],
+        τ       = ocn.Ts_clim_relax_time,
         Δt      = Δt,
     )
 
 end
 
 function OC_doNewtonianRelaxation_S!(
-    occ :: OceanColumnCollection,
+    ocn :: Ocean,
     i   :: Integer,
     j   :: Integer;
     Δt  :: Float64,
 )
 
     doNewtonianRelaxation!(
-        qs      = occ.Ss_vw[i, j],
-        qs_clim = occ.Ss_clim_vw[i, j],
-        FLDO    = occ.FLDO[i, j],
-        Nz      = occ.Nz[i, j],
-        τ       = occ.Ss_clim_relax_time,
+        qs      = ocn.cols.Ss[i, j],
+        qs_clim = ocn.cols.Ss_clim[i, j],
+        FLDO    = ocn.FLDO[i, j],
+        Nz      = ocn.Nz[i, j],
+        τ       = ocn.Ss_clim_relax_time,
         Δt      = Δt,
     )
 

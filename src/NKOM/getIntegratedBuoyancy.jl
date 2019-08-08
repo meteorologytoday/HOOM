@@ -1,20 +1,16 @@
 function OC_getIntegratedTemperature(
-    occ      :: OceanColumnCollection,
+    ocn      :: Ocean,
     i        :: Integer,
     j        :: Integer;
-    target_z :: Float64 = NaN,
+    target_z :: Float64,
 )
 
-    if isnan(target_z)
-        target_z = occ.zs_vw[i, j][occ.Nz[i, j]+1]
-    end
-
     return getIntegratedQuantity(
-        zs       = occ.zs_vw[i, j],
-        qs       = occ.Ts_vw[i, j],
-        q_ML     = occ.T_ML[i, j],
-        h_ML     = occ.h_ML[i, j],
-        Nz       = occ.Nz[i, j],
+        zs       = ocn.cols.zs[i, j],
+        qs       = ocn.cols.Ts[i, j],
+        q_ML     = ocn.T_ML[i, j],
+        h_ML     = ocn.h_ML[i, j],
+        Nz       = ocn.Nz[i, j],
         target_z = target_z,
     )
 end
@@ -23,22 +19,18 @@ end
 
 
 function OC_getIntegratedSalinity(
-    occ      :: OceanColumnCollection,
+    ocn      :: Ocean,
     i        :: Integer,
     j        :: Integer;
-    target_z :: Float64 = NaN,
+    target_z :: Float64,
 )
 
-    if isnan(target_z)
-        target_z = occ.zs_vw[i, j][occ.Nz[i, j]+1]
-    end
-
     return getIntegratedQuantity(
-        zs       = occ.zs_vw[i, j],
-        qs       = occ.Ss_vw[i, j],
-        q_ML     = occ.S_ML[i, j],
-        h_ML     = occ.h_ML[i, j],
-        Nz       = occ.Nz[i, j],
+        zs       = ocn.cols.zs[i, j],
+        qs       = ocn.cols.Ss[i, j],
+        q_ML     = ocn.S_ML[i, j],
+        h_ML     = ocn.h_ML[i, j],
+        Nz       = ocn.Nz[i, j],
         target_z = target_z,
     )
 end
@@ -46,22 +38,18 @@ end
 
 
 function OC_getIntegratedBuoyancy(
-    occ      :: OceanColumnCollection,
+    ocn      :: Ocean,
     i        :: Integer,
     j        :: Integer;
-    target_z :: Float64 = NaN,
+    target_z :: Float64,
 )
 
-    if isnan(target_z)
-        target_z = occ.zs_vw[i, j][occ.Nz[i, j]+1]
-    end
-
     return getIntegratedQuantity(
-        zs       = occ.zs_vw[i, j],
-        qs       = occ.bs_vw[i, j],
-        q_ML     = occ.b_ML[i, j],
-        h_ML     = occ.h_ML[i, j],
-        Nz       = occ.Nz[i, j],
+        zs       = ocn.cols.zs[i, j],
+        qs       = ocn.cols.bs[i, j],
+        q_ML     = ocn.b_ML[i, j],
+        h_ML     = ocn.h_ML[i, j],
+        Nz       = ocn.Nz[i, j],
         target_z = target_z,
     )
 end

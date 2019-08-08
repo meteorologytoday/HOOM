@@ -1,18 +1,22 @@
-using Statistics
+#using Statistics
 
 function stepOcean_vt!(
-    ocn           :: Ocean;
-    substeps      :: Integer,
-    use_qflx      :: Bool,
-    use_h_ML      :: Bool,
-    Δt            :: Float64,
-    do_diffusion  :: Bool = true, 
-    do_relaxation :: Bool = true, 
-    do_convadjust :: Bool = true,
-    rad_scheme    :: Symbol,    # whether to absorb radiation totally at the surface layer or not
+    ocn   :: Ocean;
+    cfgs...
 )
 
+    # Unpacking
+    substeps      = cfgs[:substeps]
+    use_qflx      = cfgs[:use_qflx]
+    use_h_ML      = cfgs[:use_h_ML]
+    Δt            = cfgs[:Δt]
+    do_diffusion  = cfgs[:do_diffusion]
+    do_relaxation = cfgs[:do_relaxation]
+    do_convadjust = cfgs[:do_convadjust]
+    rad_scheme    = cfgs[:rad_scheme]
 
+
+    
     ifrac   = ocn.in_flds.ifrac
 
     taux    = ocn.in_flds.taux
@@ -35,7 +39,7 @@ function stepOcean_vt!(
             i = ocn.valid_idx[1, grid_idx]
             j = ocn.valid_idx[2, grid_idx]
 
-            zs = ocn.ocn_vt.zs_vw[i, j]
+            zs = ocn.cols.zs[i, j]
             Nz = ocn.Nz[i, j]
 
             fric_u[i, j] = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / NKOM.ρ)

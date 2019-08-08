@@ -1,21 +1,21 @@
 function OC_doConvectiveAdjustment!(
-        occ :: OceanColumnCollection,
+        ocn :: Ocean,
         i   :: Integer,
         j   :: Integer,
     )
 
-    if_adjust, occ.T_ML[i, j], occ.S_ML[i, j], occ.h_ML[i, j], occ.FLDO[i, j] = doConvectiveAdjustment!(
-        zs       = occ.zs_vw[i, j],
-        bs       = occ.bs_vw[i, j],
-        Ts       = occ.Ts_vw[i, j],
-        Ss       = occ.Ss_vw[i, j],
-        h_ML     = occ.h_ML[i, j],
-        b_ML     = occ.b_ML[i, j],
-        T_ML     = occ.T_ML[i, j],
-        S_ML     = occ.S_ML[i, j],
-        FLDO     = occ.FLDO[i, j],
-        Nz       = occ.Nz[i, j],
-        h_ML_max = occ.h_ML_max[i, j],
+    if_adjust, ocn.T_ML[i, j], ocn.S_ML[i, j], ocn.h_ML[i, j], ocn.FLDO[i, j] = doConvectiveAdjustment!(
+        zs       = ocn.cols.zs[i, j],
+        bs       = ocn.cols.bs[i, j],
+        Ts       = ocn.cols.Ts[i, j],
+        Ss       = ocn.cols.Ss[i, j],
+        h_ML     = ocn.h_ML[i, j],
+        b_ML     = ocn.b_ML[i, j],
+        T_ML     = ocn.T_ML[i, j],
+        S_ML     = ocn.S_ML[i, j],
+        FLDO     = ocn.FLDO[i, j],
+        Nz       = ocn.Nz[i, j],
+        h_ML_max = ocn.h_ML_max[i, j],
     )
 
     return if_adjust

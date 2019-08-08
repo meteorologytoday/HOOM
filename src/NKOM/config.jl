@@ -1,8 +1,8 @@
-mutable struct Config
+mutable struct Configs
+    Δt            :: Float64
     substeps      :: Integer
     use_qflx      :: Bool
     use_h_ML      :: Bool
-    Δt            :: Float64
     do_diffusion  :: Bool
     do_relaxation :: Bool
     do_convadjust :: Bool

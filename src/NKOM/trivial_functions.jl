@@ -72,20 +72,20 @@ end
 
 
 function updateFLDO!(
-        occ :: OceanColumnCollection,
+        ocn :: Ocean,
     )
-    for i=1:occ.Nx, j=1:occ.Ny
-        OC_updateFLDO!(occ, i, j)
+    for i=1:ocn.Nx, j=1:ocn.Ny
+        OC_updateFLDO!(ocn, i, j)
     end
 end
 
 
 function OC_updateFLDO!(
-        occ :: OceanColumnCollection,
+        ocn :: Ocean,
         i   :: Integer,
         j   :: Integer,
     )
-    occ.FLDO[i, j] = getFLDO(zs=occ.zs_vw[i, j], h_ML=occ.h_ML[i, j], Nz=occ.Nz[i, j])
+    ocn.FLDO[i, j] = getFLDO(zs=ocn.cols.zs[i, j], h_ML=ocn.h_ML[i, j], Nz=ocn.Nz[i, j])
 end
 
 """
@@ -133,22 +133,22 @@ function TS2b(T::Float64, S::Float64)
 end
 
 function OC_updateB!(
-    occ :: OceanColumnCollection,
+    ocn :: Ocean,
     i   :: Integer,
     j   :: Integer,
 )
 
-    occ.b_ML[i, j] = TS2b(occ.T_ML[i, j], occ.S_ML[i, j])
-    for k=1:occ.Nz[i, j]
-        occ.bs[k, i, j] = TS2b(occ.Ts[k, i, j], occ.Ss[k, i, j])
+    ocn.b_ML[i, j] = TS2b(ocn.T_ML[i, j], ocn.S_ML[i, j])
+    for k=1:ocn.Nz[i, j]
+        ocn.bs[k, i, j] = TS2b(ocn.Ts[k, i, j], ocn.Ss[k, i, j])
     end
 
 end
 
-function updateB!(occ::OceanColumnCollection)
+function updateB!(ocn::Ocean)
 
-    for i=1:occ.Nx, j=1:occ.Ny
-        OC_updateB!(occ, i, j)
+    for i=1:ocn.Nx, j=1:ocn.Ny
+        OC_updateB!(ocn, i, j)
     end
 
 end

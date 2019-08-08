@@ -97,34 +97,34 @@ end
 =#
 
 function OC_doDiffusion_EulerBackward!(
-    occ :: OceanColumnCollection,
+    ocn :: Ocean,
     i   :: Integer,
     j   :: Integer;
     Δt  :: Float64,
 )
     
-    occ.T_ML[i, j] = doDiffusion_BackwardEuler!(
-        zs   = occ.zs_vw[i, j],
-        qs   = occ.Ts_vw[i, j],
-        q_ML = occ.T_ML[i, j],
-        h_ML = occ.h_ML[i, j],
-        K    = occ.K_T,
-        FLDO = occ.FLDO[i, j],
-        Nz   = occ.Nz[i, j],
+    ocn.T_ML[i, j] = doDiffusion_BackwardEuler!(
+        zs   = ocn.cols.zs[i, j],
+        qs   = ocn.cols.Ts[i, j],
+        q_ML = ocn.T_ML[i, j],
+        h_ML = ocn.h_ML[i, j],
+        K    = ocn.K_T,
+        FLDO = ocn.FLDO[i, j],
+        Nz   = ocn.Nz[i, j],
         Δt   = Δt,
-        h_ML_min = occ.h_ML_min[i, j],
+        h_ML_min = ocn.h_ML_min[i, j],
     )
 
-    occ.S_ML[i, j] = doDiffusion_BackwardEuler!(
-        zs   = occ.zs_vw[i, j],
-        qs   = occ.Ss_vw[i, j],
-        q_ML = occ.S_ML[i, j],
-        h_ML = occ.h_ML[i, j],
-        K    = occ.K_S,
-        FLDO = occ.FLDO[i, j],
-        Nz   = occ.Nz[i, j],
+    ocn.S_ML[i, j] = doDiffusion_BackwardEuler!(
+        zs   = ocn.cols.zs[i, j],
+        qs   = ocn.cols.Ss[i, j],
+        q_ML = ocn.S_ML[i, j],
+        h_ML = ocn.h_ML[i, j],
+        K    = ocn.K_S,
+        FLDO = ocn.FLDO[i, j],
+        Nz   = ocn.Nz[i, j],
         Δt   = Δt,
-        h_ML_min = occ.h_ML_min[i, j],
+        h_ML_min = ocn.h_ML_min[i, j],
     )
 
 end

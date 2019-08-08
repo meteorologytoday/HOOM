@@ -1,8 +1,8 @@
 mutable struct Ocean
 
     id       :: Integer  # 1 = master, 2, ..., N = workers
-    arrange  :: Symbol
-
+    
+    gi       :: Union{DisplacedPoleCoordinate.GridInfo, Nothing}
     gi_file  :: Union{AbstractString, Nothing}
 
     Nx       :: Integer           # Number of columns in i direction
@@ -77,8 +77,8 @@ mutable struct Ocean
 
     in_flds :: InputFields
 
-    cols :: Union{Nothing, OceanColumns}
-    lays :: Union{Nothing, OceanLayers}
+    lays :: NamedTuple
+    cols :: NamedTuple
 
     function Ocean(;
         id       :: Integer = 0, 
@@ -541,9 +541,60 @@ mutable struct Ocean
         
         # ===== [END] check integrity =====
 
+        # ===== [BEGIN] Construct Views of Lays =====
+        lays = ((
+            hs = Array{SubArray}(undef, Nz_bone),
+            bs = Array{SubArray}(undef, Nz_bone),
+            Ts = Array{SubArray}(undef, Nz_bone),
+            Ss = Array{SubArray}(undef, Nz_bone),
+        ))
+ 
+        
+        for k=1:Nz_bone
+            lays.hs[k] = view(hs, k, :, :)
+            lays.bs[k] = view(_bs, k, :, :)
+            lays.Ts[k] = view(_Ts, k, :, :)
+            lays.Ss[k] = view(_Ss, k, :, :)
+        end
 
-        # ===== [BEGIN] Mask out values below topo =====
-        # ===== [END] Mask out values below topo =====
+        # ===== [END] Construct Views of Lays =====
+
+        # ===== [BEGIN] Construct Views of Cols =====
+        cols = ((
+            zs = Array{SubArray}(undef, Nx, Ny),
+            hs = Array{SubArray}(undef, Nx, Ny),
+            bs = Array{SubArray}(undef, Nx, Ny),
+            Ts = Array{SubArray}(undef, Nx, Ny),
+            Ss = Array{SubArray}(undef, Nx, Ny),
+            rad_decay_coes  = Array{SubArray}(undef, Nx, Ny),
+            rad_absorp_coes = Array{SubArray}(undef, Nx, Ny),
+            Ts_clim = (Ts_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
+            Ss_clim = (Ss_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
+        ))
+        
+        for i=1:Nx, j=1:Ny
+            cols.zs[i, j]              = view(zs,  :, i, j)
+            cols.hs[i, j]              = view(hs,  :, i, j)
+            cols.bs[i, j]              = view(_bs, :, i, j)
+            cols.Ts[i, j]              = view(_Ts, :, i, j)
+            cols.Ss[i, j]              = view(_Ss, :, i, j)
+            cols.rad_decay_coes[i, j]  = view(_rad_decay_coes,  :, i, j)
+            cols.rad_absorp_coes[i, j] = view(_rad_absorp_coes, :, i, j)
+        end
+
+        if Ts_clim != nothing
+            for i=1:Nx, j=1:Ny
+                cols.Ts_clim[i, j] = view(_Ts_clim, :, i, j)
+            end
+        end
+ 
+        if Ss_clim != nothing
+            for i=1:Nx, j=1:Ny
+                cols.Ss_clim[i, j] = view(_Ss_clim, :, i, j)
+            end
+        end
+     
+        # ===== [END] Construct Views of Cols =====
 
 
         ocn = new(
@@ -564,16 +615,10 @@ mutable struct Ocean
             Ts_clim_relax_time, Ss_clim_relax_time,
             _Ts_clim, _Ss_clim,
             Nx * Ny, hs, Δzs,
-            zs_vw, hs_vw, bs_vw, Ts_vw, Ss_vw, Ts_clim_vw, Ss_clim_vw,
-            rad_decay_coes_vw, rad_absorp_coes_vw,
             ( in_flds == nothing ) ? InputFields(datakind, Nx, Ny) : in_flds,
-            nothing,
-            nothing,
+            lays,
+            cols,
         )
-
-        
-        ocn.cols = OceanColumns(ocn)
-        ocn.lays = OceanLayers(ocn)
 
         updateB!(ocn)
         updateFLDO!(ocn)
@@ -587,99 +632,4 @@ mutable struct Ocean
 
 end
 
-mutable struct OceanColumns
 
-    zs              :: AbstractArray 
-    hs              :: AbstractArray
-    bs              :: AbstractArray
-    Ts              :: AbstractArray
-    Ss              :: AbstractArray
-    Ts_clim         :: Union{AbstractArray, Nothing}
-    Ss_clim         :: Union{AbstractArray, Nothing}
-    rad_decay_coes  :: AbstractArray
-    rad_absorp_coes :: AbstractArray
-
-    function OceanColumns(o :: Ocean)
-    
-        Nx, Ny = o.Nx, o.Ny
-
-        # ===== [BEGIN] Construct Views =====
-        zs = Array{SubArray}(undef, Nx, Ny)
-        hs = Array{SubArray}(undef, Nx, Ny)
-        bs = Array{SubArray}(undef, Nx, Ny)
-        Ts = Array{SubArray}(undef, Nx, Ny)
-        Ss = Array{SubArray}(undef, Nx, Ny)
-        rad_decay_coes  = Array{SubArray}(undef, Nx, Ny)
-        rad_absorp_coes = Array{SubArray}(undef, Nx, Ny)
-
-        for i=1:Nx, j=1:Ny
-            zs[i, j]              = view(o.zs,  :, i, j)
-            hs[i, j]              = view(o.hs,  :, i, j)
-            bs[i, j]              = view(o.bs, :, i, j)
-            Ts[i, j]              = view(o.Ts, :, i, j)
-            Ss[i, j]              = view(o.Ss, :, i, j)
-            rad_decay_coes[i, j]  = view(o.rad_decay_coes,  :, i, j)
-            rad_absorp_coes[i, j] = view(o.rad_absorp_coes, :, i, j)
-        end
-
-        Ts_clim = nothing
-        Ss_clim = nothing
-
-        if o.Ts_clim != nothing
-            Ts_clim = Array{SubArray}(undef, Nx, Ny)
-            for i=1:Nx, j=1:Ny
-                Ts_clim[i, j] = view(o.Ts_clim, :, i, j)
-            end
-        end
- 
-        if Ss_clim != nothing
-            Ss_clim_vw = Array{SubArray}(undef, Nx, Ny)
-            for i=1:Nx, j=1:Ny
-                Ss_clim_vw[i, j] = view(_Ss_clim, :, i, j)
-            end
-        end
- 
-        # ===== [END] Construct Views =====
-        return new(
-            o,
-            zs, hs, bs, Ts, Ss,
-            Ts_clim, Ss_clim,
-            rad_decay_coes, rad_absorp_coes,
-        )
-    end
-    
-end
-
-mutable struct OceanLayers
-
-    hs              :: AbstractArray
-    bs              :: AbstractArray
-    Ts              :: AbstractArray
-    Ss              :: AbstractArray
-
-    function OceanLayers(o :: Ocean)
-    
-        Nz_bone = o.Nz_bone
-
-        # ===== [BEGIN] Construct Views =====
-        hs = Array{SubArray}(undef, Nz_bone)
-        bs = Array{SubArray}(undef, Nz_bone)
-        Ts = Array{SubArray}(undef, Nz_bone)
-        Ss = Array{SubArray}(undef, Nz_bone)
-        
-        for k=1:Nz_bone
-            hs[k] = view(o.hs, k, :, :)
-            bs[k] = view(o.bs, k, :, :)
-            Ts[k] = view(o.Ts, k, :, :)
-            Ss[k] = view(o.Ss, k, :, :)
-        end
-
-        # ===== [END] Construct Views =====
-
-        return new(
-            o,
-            hs, bs, Ts, Ss,
-        )
-
-    end
-end

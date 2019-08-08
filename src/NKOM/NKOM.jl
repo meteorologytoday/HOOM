@@ -24,7 +24,7 @@ end
        
     @hinclude("../share/constants.jl")
     @hinclude("InputFields.jl")
-    @hinclude("OceanColumnCollection.jl")
+    @hinclude("Ocean.jl")
     @hinclude("trivial_functions.jl")
 
     @hinclude("calNewMLD.jl")
@@ -33,13 +33,12 @@ end
     @hinclude("getIntegratedBuoyancy.jl")
     @hinclude("doNewtonianRelaxation.jl")
     @hinclude("doShortwaveRadiation.jl")
-    @hinclude("stepOceanColumnCollection.jl")
-
+    @hinclude("stepOcean_hz.jl")
+    @hinclude("stepOcean_vt.jl")
 
     @hinclude("setOceanColumn.jl")
     @hinclude("takeSnapshot.jl")
     @hinclude("rearrange.jl")
-
 
     @hinclude("driver.jl")
 end
