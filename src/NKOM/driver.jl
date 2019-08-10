@@ -15,8 +15,6 @@ function makeSubOcean(
     sub_N        :: Integer,
 )
 
-    global rng2, rng3
-
     if mission == :vt
         rng2 = [Colon(), beg_idx:beg_idx+sub_N-1]
         rng3 = [Colon(), Colon(), beg_idx:beg_idx+sub_N-1]
@@ -28,6 +26,13 @@ function makeSubOcean(
     else
         throw(ErrorException("[makeSubOcean] Unknown symbol for `kind`: ", string(kind)))
     end
+
+    println(string(mission))
+    println(sub_N)
+    println(rng2)
+    println(rng3)
+    println(block_id)
+
 
     return SubOcean(
         mission,
@@ -74,7 +79,10 @@ function syncToMaster(subocn::SubOcean)
 
     master_ocn = subocn.master_ocn
     worker_ocn = subocn.worker_ocn
-    
+   
+    rng3 = subocn.rng3
+    rng2 = subocn.rng2
+ 
     master_ocn.Ts[rng3...] = worker_ocn.Ts
     master_ocn.Ss[rng3...] = worker_ocn.Ss
 
@@ -96,7 +104,10 @@ function syncFromMaster!(subocn::SubOcean)
 
     master_ocn = subocn.master_ocn
     worker_ocn = subocn.worker_ocn
-    
+ 
+    rng3 = subocn.rng3
+    rng2 = subocn.rng2
+   
     # View is to avoid array allocation
     worker_ocn.Ts[:] = view( master_ocn.Ts, rng3...)
     worker_ocn.Ss[:] = view( master_ocn.Ss, rng3...)
@@ -113,32 +124,50 @@ end
 
 function init(ocn::Ocean)
 
-    println("Number of workers: ", nworkers())
+    wkrs  = workers()
+
+    println("Number of all workers: ", length(wkrs))
 
     (ocn.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(ocn.id)))
 
-
-    # Sub ocean cols
-    sub_Ny = ceil(Integer, ocn.Nx / nworkers())
-    sub_Nys = [sub_Ny for block_id = 1:nworkers()]
-    sub_Nys[end] = ocn.Ny - (nworkers()-1) * sub_Ny
-    beg_y_idxs = [sub_Ny * (block_id - 1) + 1 for block_id = 1:nworkers()]
-
-    # Sub ocean lays
-    sub_Nz = ceil(Integer, ocn.Nz_bone / nworkers())
-    sub_Nzs = [sub_Nz for block_id = 1:nworkers()]
-    sub_Nzs[end] = ocn.Nz_bone - (nworkers()-1) * sub_Nz
-    beg_z_idxs = [sub_Nz * (block_id - 1) + 1 for block_id = 1:nworkers()]
-
-    @sync for (i, p) in enumerate(workers())
+    global wkrs_hz = (ocn.Nz_bone < nworkers()) ? [wkrs[end]] : wkrs
+    global wkrs_vt = wkrs
         
-        # We have P processors, N workers, N blocks
-        # Block ids are numbered from 1 to N
-        @spawnat p let
-            global subocn_hz = makeSubOcean(ocn, :hz, i, beg_z_idxs[i], sub_Nzs[i])
-            global subocn_vt = makeSubOcean(ocn, :vt, i, beg_y_idxs[i], sub_Nys[i])
+    nwkrs_hz = length(wkrs_hz)
+    nwkrs_vt = length(wkrs_vt)
+
+    @sync let
+
+        # Sub ocean cols
+        sub_Ny = ceil(Integer, ocn.Nx / nwkrs_vt)
+        sub_Nys = [sub_Ny for block_id = 1:nwkrs_vt]
+        sub_Nys[end] = ocn.Ny - (nwkrs_vt-1) * sub_Ny
+        beg_y_idxs = [sub_Ny * (block_id - 1) + 1 for block_id = 1:nwkrs_vt]
+
+
+
+        for (i, p) in enumerate(wkrs_vt)
+            # We have P processors, N workers, N blocks
+            # Block ids are numbered from 1 to N
+            @spawnat p let
+                global subocn_vt = makeSubOcean(ocn, :vt, i, beg_y_idxs[i], sub_Nys[i])
+            end
         end
 
+        # Sub ocean lays
+        sub_Nz = ceil(Integer, ocn.Nz_bone / nwkrs_hz)
+        sub_Nzs = [sub_Nz for block_id = 1:nwkrs_hz]
+        sub_Nzs[end] = ocn.Nz_bone - (nwkrs_hz-1) * sub_Nz
+        beg_z_idxs = [sub_Nz * (block_id - 1) + 1 for block_id = 1:nwkrs_hz]
+
+        for (i, p) in enumerate(wkrs_hz)
+            # We have P processors, N workers, N blocks
+            # Block ids are numbered from 1 to N
+            @spawnat p let
+                global subocn_hz = makeSubOcean(ocn, :hz, i, beg_z_idxs[i], sub_Nzs[i])
+            end
+
+        end
     end
 end
 
@@ -149,26 +178,21 @@ function run!(
 
     (ocn.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(ocn.id)))
 
-    @sync for (i, p) in enumerate(workers())
+    @sync for (i, p) in enumerate(wkrs_hz)
 
         @spawnat p let
-
             syncFromMaster!(subocn_hz)
             NKOM.stepOcean_hz!(subocn_hz.worker_ocn; cfgs...)
             syncToMaster(subocn_hz)
-
         end
-
     end
 
-    @sync for (i, p) in enumerate(workers())
+    @sync for (i, p) in enumerate(wkrs_vt)
 
         @spawnat p let
-
             syncFromMaster!(subocn_vt)
             NKOM.stepOcean_vt!(subocn_vt.worker_ocn; cfgs...)
             syncToMaster(subocn_vt)
-
         end
     end
 
