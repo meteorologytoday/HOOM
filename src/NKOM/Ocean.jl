@@ -1,6 +1,6 @@
 mutable struct Ocean
 
-    id       :: Integer  # 1 = master, 2, ..., N = workers
+    id       :: Integer  # 0 = master, 1, ..., N = workers
     
     gi       :: Union{DisplacedPoleCoordinate.GridInfo, Nothing}
     gi_file  :: Union{AbstractString, Nothing}
@@ -31,10 +31,6 @@ mutable struct Ocean
     h_MO     :: AbstractArray{Float64, 2}
     fric_u   :: AbstractArray{Float64, 2}
 
-    #τx       :: AbstractArray{Float64, 2}
-    #τy       :: AbstractArray{Float64, 2}
-    #u        :: AbstractArray{Float64, 3}
-    #v        :: AbstractArray{Float64, 3}
 
     bs       :: AbstractArray{Float64, 3}
     Ts       :: AbstractArray{Float64, 3}
@@ -45,6 +41,17 @@ mutable struct Ocean
     h_ML_min :: AbstractArray{Float64, 2}
     h_ML_max :: AbstractArray{Float64, 2}
     we_max   :: Float64
+
+
+    # Advection related variables
+    τx       :: AbstractArray{Float64, 2}
+    τy       :: AbstractArray{Float64, 2}
+    u        :: AbstractArray{Float64, 3}
+    v        :: AbstractArray{Float64, 3}
+    w        :: AbstractArray{Float64, 3}
+    div      :: AbstractArray{Float64, 3}
+    divTflx  :: AbstractArray{Float64, 3}
+    divSflx  :: AbstractArray{Float64, 3}
 
     # Radiation Scheme
     # The parameterization is referenced to Paulson and Simpson (1977).
@@ -86,8 +93,9 @@ mutable struct Ocean
     cols :: NamedTuple
 
     function Ocean(;
-        id       :: Integer = 0, 
-        gridinfo_file :: Union{AbstractString, Nothing},
+        id       :: Integer = 0,  
+        gridinfo_file :: AbstractString,
+        sub_yrng      :: Union{UnitRange, Nothing} = nothing,
         Nx       :: Integer,
         Ny       :: Integer,
         zs_bone  :: AbstractArray{Float64, 1},
@@ -374,17 +382,22 @@ mutable struct Ocean
 
         # ===== [BEG] GridInfo =====
 
-        if gridinfo_file != nothing
+        gridinfo = nothing
+
+        if id != 0
+            if sub_yrng == nothing
+                thorw(ErrorException("Init worker ocean,  sub_yrng must be provided."))
+            end
 
             mi = ModelMap.MapInfo{Float64}(gridinfo_file)
-            gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv; angle_unit=:deg)
 
-        else
-    
-            mi = nothing
-            gridinfo = nothing
-
+            gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, length(sub_yrng), mi.xc[:, sub_yrng], mi.yc[:, sub_yrng], mi.xv[:, :, sub_yrng], mi.yv[:, :, sub_yrng]; angle_unit=:deg)
+           
         end
+
+            #mi = ModelMap.MapInfo{Float64}(gridinfo_file)
+            #gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv; angle_unit=:deg)
+        #end
 
         # ===== [END] GridInfo =====
 
@@ -408,6 +421,19 @@ mutable struct Ocean
         end
 
         # ===== [END] fs and ϵs =====
+
+        # ===== [BEGIN] Advection variables =====
+
+        _τx      = zeros(Float64, Nx, Ny)
+        _τy      = zeros(Float64, Nx, Ny)
+        _u       = zeros(Float64, Nz_bone, Nx, Ny)
+        _v       = zeros(Float64, Nz_bone, Nx, Ny)
+        _w       = zeros(Float64, Nz_bone+1, Nx, Ny)
+        _div     = zeros(Float64, Nz_bone, Nx, Ny)
+        _divTflx = zeros(Float64, Nz_bone, Nx, Ny)
+        _divSflx = zeros(Float64, Nz_bone, Nx, Ny)
+
+        # ===== [END] Advection variables =====
 
         # ===== [BEGIN] Climatology =====
 
@@ -546,6 +572,9 @@ mutable struct Ocean
         
         # ===== [END] check integrity =====
 
+
+
+
         # ===== [BEGIN] Construct Views of Lays =====
         lays = ((
             hs = Array{SubArray}(undef, Nz_bone),
@@ -615,6 +644,9 @@ mutable struct Ocean
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,
+            _τx, _τy,
+            _u, _v, _w,
+            _div, _divTflx, _divSflx,
             R, ζ,
             _rad_decay_coes, _rad_absorp_coes,
             Ts_clim_relax_time, Ss_clim_relax_time,

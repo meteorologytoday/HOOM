@@ -91,7 +91,8 @@ function makeSubOcean(
         master_ocn,
         Ocean(
             id             = block_id,
-            gridinfo_file  = nothing,
+            gridinfo_file  = master_ocn.gi_file,
+            sub_yrng       = pull_fr_beg_y:pull_fr_end_y,
             Nx             = master_ocn.Nx,
             Ny             = sub_Ny,
             zs_bone        = master_ocn.zs_bone,
