@@ -1,24 +1,34 @@
+using Statistics
+
 function stepOcean_hz!(
     ocn  :: Ocean;
     cfgs...
 )
-    
+ 
+    # Pseudo code
+    # 1. assign velocity field
+    # 2. calculate temperature & salinity flux
+    # 3. calculate temperature & salinity flux divergence
+    # Gov eqn adv + diff: ∂T/∂t = - 1 / (ρ H1) ( ∇⋅(M1 T1) - (∇⋅M1) Tmid )
+   
     # Transform input wind stress vector first
-    DisplacedPoleCoordinate.project!(ocn.gi, ocn.in_flds.τx, ocn.in_flds.τy, ocn.τx, ocn.τy, direction=:Forward)
+    DisplacedPoleCoordinate.project!(ocn.gi, ocn.in_flds.taux, ocn.in_flds.tauy, ocn.τx, ocn.τy, direction=:Forward)
+
+
 
     for grid_idx in 1:size(ocn.valid_idx)[2]
 
         i = ocn.valid_idx[1, grid_idx]
         j = ocn.valid_idx[2, grid_idx]
 
-        ϵ = ocn.ϵs[i, j]
+        ϵ = 1e-6 #ocn.ϵs[i, j]
         f = ocn.fs[i, j]
 
         τx = ocn.τx[i, j]
         τy = ocn.τy[i, j]
 
         h_ML = ocn.h_ML[i, j]
-    
+        Nz   = ocn.Nz[i, j] 
         s2ρh = ρ * h_ML * (ϵ^2.0 + f^2.0)
 
         ek_u = (ϵ * τx + f * τy) / s2ρh
@@ -33,79 +43,53 @@ function stepOcean_hz!(
             ocn.u[1:FLDO-1, i, j] .= ek_u
             ocn.v[1:FLDO-1, i, j] .= ek_v
 
-            ocn.u[FLDO, i, j] = ek_u * (h_ML - )
-            ocn.u[FLDO+
-            
+            ocn.u[FLDO:Nz, i, j] .= 0.0
+            ocn.v[FLDO:Nz, i, j] .= 0.0
+        end
+        
+        #for k=1:Nz
+        #    ocn.uT[k, i, j] = ocn.u[k, i, j] * ocn.Ts[k, i, j]
+        #    ocn.vT[k, i, j] = ocn.v[k, i, j] * ocn.Ts[k, i, j]
+        #    ocn.uS[k, i, j] = ocn.u[k, i, j] * ocn.Ss[k, i, j]
+        #    ocn.vS[k, i, j] = ocn.v[k, i, j] * ocn.Ss[k, i, j]
+        #end
 
 
     end
         
-        # Pseudo code
-        # 1. assign velocity field
-        # 2. calculate temperature & salinity flux
-        # 3. calculate temperature & salinity flux divergence
-        # Gov eqn adv + diff: ∂T/∂t = - 1 / (ρ H1) ( ∇⋅(M1 T1) - (∇⋅M1) Tmid )
+    #println(sum(ocn.u[isfinite.(ocn.u)])) 
 
-    # Calculate ∇⋅v
-    DisplacedPoleCoordinate.divergence2!(ocn.gi, ocn.u, ocn.v, wksp.div; mask=ocn.mask)
-    
-    # Calculate ∇⋅(vT)
-    DisplacedPoleCoordinate.divergence2!(ocn.gi, ocn.uT, ocn.vT, wksp.divTF; mask=ocn.mask)
-    # Calculate ∇⋅(vS)
-    DisplacedPoleCoordinate.divergence2!(ocn.gi, ocn.uS, ocn.vS, wksp.divSF; mask=ocn.mask)
-    
-    # Calculate ∇²T, ∇²S
-    DisplacedPoleCoordinate.cal∇²!(occ.gi, ocn.lays.Ts[k], ocn.∇²T ; mask=ocn.mask)
 
-# DONE. Let vertical to the rest. 
-    
-    
 
-    # Calculate ( M1 T1 ), ( M2 T2 ) 
-    for i = 1:occ.Nx, j = 1:occ.Ny
+    for k=1:ocn.Nz_bone
+        # Calculate ∇⋅v
+        DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.u[k],  ocn.lays.v[k],  ocn.lays.div[k])
+        
+        # Calculate ∇⋅(vT)
+        DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.uT[k], ocn.lays.vT[k], ocn.lays.divTflx[k])
 
-        if occ.mask[i, j] == 0
-            continue
+        # Calculate ∇⋅(vS)
+        DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.uS[k], ocn.lays.vS[k], ocn.lays.divSflx[k])
+        
+        # Calculate ∇∇T, ∇∇S
+        DisplacedPoleCoordinate.∇∇!(ocn.gi, ocn.lays.Ts[k], ocn.lays.∇∇T[k])
+        DisplacedPoleCoordinate.∇∇!(ocn.gi, ocn.lays.Ss[k], ocn.lays.∇∇S[k])
+    end
+
+
+    for grid_idx in 1:size(ocn.valid_idx)[2]
+
+        i = ocn.valid_idx[1, grid_idx]
+        j = ocn.valid_idx[2, grid_idx]
+
+        Nz = ocn.Nz[i, j]
+        ocn.w[1, i, j] = 0.0
+        for k = 2:Nz+1
+            ocn.w[k, i, j] = ocn.w[k-1, i, j] + ocn.div[k-1, i, j]
         end
+    end
 
-        M1x = wksp.M1x[i, j]
-        M1y = wksp.M1y[i, j]
 
-        wksp.M1x_T1[i, j] =   M1x * occ.Ts[i, j, 1]
-        wksp.M1y_T1[i, j] =   M1y * occ.Ts[i, j, 1]
-        wksp.M1x_T2[i, j] = - M1x * occ.Ts[i, j, 2]
-        wksp.M1y_T2[i, j] = - M1y * occ.Ts[i, j, 2]
-
-        wksp.M1x_S1[i, j] =   M1x * occ.Ss[i, j, 1]
-        wksp.M1y_S1[i, j] =   M1y * occ.Ss[i, j, 1]
-        wksp.M1x_S2[i, j] = - M1x * occ.Ss[i, j, 2]
-        wksp.M1y_S2[i, j] = - M1y * occ.Ss[i, j, 2]
-
-    end 
-
-    # Calculate ∇⋅(M1 T1), ∇⋅(M2 T2), ∇⋅(M1 S1), ∇⋅(M2 S2)
-    DisplacedPoleCoordinate.divergence2!(occ.gi, wksp.M1x_T1, wksp.M1y_T1, wksp.div_M1T1; mask=occ.mask)
-    DisplacedPoleCoordinate.divergence2!(occ.gi, wksp.M1x_T2, wksp.M1y_T2, wksp.div_M1T2; mask=occ.mask)
-    DisplacedPoleCoordinate.divergence2!(occ.gi, wksp.M1x_S1, wksp.M1y_S1, wksp.div_M1S1; mask=occ.mask)
-    DisplacedPoleCoordinate.divergence2!(occ.gi, wksp.M1x_S2, wksp.M1y_S2, wksp.div_M1S2; mask=occ.mask)
+    # Now doing advection
     
-    # Calculate ∇²T1, ∇²T2
-    DisplacedPoleCoordinate.cal∇²!(occ.gi, view(occ.Ts, :, :, 1), wksp.∇²T1; mask=occ.mask)
-    DisplacedPoleCoordinate.cal∇²!(occ.gi, view(occ.Ts, :, :, 2), wksp.∇²T2; mask=occ.mask)
-
-
-    # Step forward temperature
-    for i = 1:occ.Nx, j = 1:occ.Ny
-
-        if occ.mask[i, j] == 0
-            continue
-        end
-
-        active_layer = ( wksp.div_M1[i, j] < 0 ) ? 1 : 2
-
-        Tmid = occ.Ts[i, j, active_layer]
-        occ.Ts[i, j, 1] += ( ( - (swflx[i, j] + nswflx[i, j]) / c_p - (wksp.div_M1T1[i, j] - wksp.div_M1[i, j] * Tmid)) / (ρ * occ.hs[1]) + occ.Kh_T * wksp.∇²T1[i, j] ) * Δt
-        occ.Ts[i, j, 2] += ( - (wksp.div_M1T2[i, j] + wksp.div_M1[i, j] * Tmid)  / (ρ * occ.hs[2]) + occ.Kh_T * wksp.∇²T2[i, j] ) * Δt
-
-
 end

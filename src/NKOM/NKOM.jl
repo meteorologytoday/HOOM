@@ -33,7 +33,7 @@ end
     @hinclude("getIntegratedBuoyancy.jl")
     @hinclude("doNewtonianRelaxation.jl")
     @hinclude("doShortwaveRadiation.jl")
-#    @hinclude("stepOcean_hz.jl")
+    @hinclude("stepOcean_hz.jl")
     @hinclude("stepOcean_vt.jl")
 
     @hinclude("setOceanColumn.jl")

@@ -35,7 +35,7 @@ function makeSubOcean(
         throw(ErrorException("sub_Ny <= 0. Please check your resolution and nblocks"))            
     end
 
-    pull_fr_beg_y = push_to_beg_y = sub_Ny * (block_id - 1) + 1
+    pull_fr_beg_y = push_to_beg_y = sub_Ny_wo_ghost * (block_id - 1) + 1
     pull_fr_end_y = push_to_end_y = pull_fr_beg_y + sub_Ny - 1
     
     push_fr_beg_y = 1
@@ -71,10 +71,17 @@ function makeSubOcean(
     push_fr_rng2 = [Colon(),          push_fr_beg_y:push_fr_end_y]
     push_fr_rng3 = [Colon(), Colon(), push_fr_beg_y:push_fr_end_y]
 
-    println(pull_fr_rng2)
-    println(push_to_rng2)
 
-    println(push_fr_rng2)
+    println("### rng2: ")
+    println("pull_fr_rng2: ", pull_fr_rng2)
+    println("push_to_rng2: ", push_to_rng2)
+    println("push_fr_rng2: ", push_fr_rng2)
+
+    println("### rng3: ")
+    println("pull_fr_rng3: ", pull_fr_rng3)
+    println("push_to_rng3: ", push_to_rng3)
+    println("push_fr_rng3: ", push_fr_rng3)
+
 
 
     if length(pull_fr_rng2[2]) != sub_Ny
@@ -143,20 +150,20 @@ function syncToMaster(subocn::SubOcean)
     m_rng3 = subocn.push_to_rng3
     m_rng2 = subocn.push_to_rng2
  
-    for fld in [:Ts, :Ss]
+    for fld in [:Ts, :Ss, :u, :v, :w, :div]
         getfield(master_ocn, fld)[m_rng3...] = view(getfield(worker_ocn, fld), w_rng3...)
     end
+#    master_ocn.u[m_rng3...] = worker_ocn.Ts[w_rng3...]
 
-    for fld in [:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm]
+    for fld in [:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy]
         getfield(master_ocn, fld)[m_rng2...] = view(getfield(worker_ocn, fld), w_rng2...)
     end
 
+    #println("worker: ", sum(worker_ocn.u[isfinite.(worker_ocn.u)])) 
+    #println("master: ", sum(master_ocn.u[isfinite.(master_ocn.u)])) 
 
-    println(typeof(master_ocn.fric_u))
-    println(sum(worker_ocn.fric_u))
 
 end
-using Statistics
 
 function syncFromMaster!(subocn::SubOcean)
 
@@ -215,10 +222,12 @@ function run!(
     @sync for (i, p) in enumerate(wkrs)
         @spawnat p let
             syncFromMaster!(subocn)
-            NKOM.stepOcean_vt!(subocn.worker_ocn; cfgs...)
+            NKOM.stepOcean_hz!(subocn.worker_ocn; cfgs...)
+#            NKOM.stepOcean_vt!(subocn.worker_ocn; cfgs...)
             syncToMaster(subocn)
         end
     end
+#    println("MASTER: ", sum(ocn.u[isfinite.(ocn.u)])) 
 
 end
 

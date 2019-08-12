@@ -49,9 +49,18 @@ mutable struct Ocean
     u        :: AbstractArray{Float64, 3}
     v        :: AbstractArray{Float64, 3}
     w        :: AbstractArray{Float64, 3}
+
+    uT       :: AbstractArray{Float64, 3}
+    vT       :: AbstractArray{Float64, 3}
+    uS       :: AbstractArray{Float64, 3}
+    vS       :: AbstractArray{Float64, 3}
+
     div      :: AbstractArray{Float64, 3}
     divTflx  :: AbstractArray{Float64, 3}
     divSflx  :: AbstractArray{Float64, 3}
+
+    ∇∇T      :: AbstractArray{Float64, 3}     
+    ∇∇S      :: AbstractArray{Float64, 3}     
 
     # Radiation Scheme
     # The parameterization is referenced to Paulson and Simpson (1977).
@@ -391,7 +400,7 @@ mutable struct Ocean
 
             mi = ModelMap.MapInfo{Float64}(gridinfo_file)
 
-            gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, length(sub_yrng), mi.xc[:, sub_yrng], mi.yc[:, sub_yrng], mi.xv[:, :, sub_yrng], mi.yv[:, :, sub_yrng]; angle_unit=:deg)
+            gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, length(sub_yrng), mi.xc[:, sub_yrng], mi.yc[:, sub_yrng], mi.xv[:, :, sub_yrng], mi.yv[:, :, sub_yrng]; angle_unit=:deg, mask=mi.mask[:, sub_yrng])
            
         end
 
@@ -424,15 +433,25 @@ mutable struct Ocean
 
         # ===== [BEGIN] Advection variables =====
 
-        _τx      = zeros(Float64, Nx, Ny)
-        _τy      = zeros(Float64, Nx, Ny)
-        _u       = zeros(Float64, Nz_bone, Nx, Ny)
-        _v       = zeros(Float64, Nz_bone, Nx, Ny)
-        _w       = zeros(Float64, Nz_bone+1, Nx, Ny)
-        _div     = zeros(Float64, Nz_bone, Nx, Ny)
-        _divTflx = zeros(Float64, Nz_bone, Nx, Ny)
-        _divSflx = zeros(Float64, Nz_bone, Nx, Ny)
+        _τx      = allocate(datakind, Float64, Nx, Ny)
+        _τy      = allocate(datakind, Float64, Nx, Ny)
+        _u       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _v       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _w       = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
 
+
+        _uT      = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _vT      = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _uS      = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _vS      = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+
+        _div     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _divTflx = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _divSflx = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+
+        _∇∇T     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _∇∇S     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+    
         # ===== [END] Advection variables =====
 
         # ===== [BEGIN] Climatology =====
@@ -577,18 +596,40 @@ mutable struct Ocean
 
         # ===== [BEGIN] Construct Views of Lays =====
         lays = ((
-            hs = Array{SubArray}(undef, Nz_bone),
-            bs = Array{SubArray}(undef, Nz_bone),
-            Ts = Array{SubArray}(undef, Nz_bone),
-            Ss = Array{SubArray}(undef, Nz_bone),
+            hs      = Array{SubArray}(undef, Nz_bone),
+            bs      = Array{SubArray}(undef, Nz_bone),
+            Ts      = Array{SubArray}(undef, Nz_bone),
+            Ss      = Array{SubArray}(undef, Nz_bone),
+            u       = Array{SubArray}(undef, Nz_bone),
+            v       = Array{SubArray}(undef, Nz_bone),
+            uT      = Array{SubArray}(undef, Nz_bone),
+            vT      = Array{SubArray}(undef, Nz_bone),
+            uS      = Array{SubArray}(undef, Nz_bone),
+            vS      = Array{SubArray}(undef, Nz_bone),
+            div     = Array{SubArray}(undef, Nz_bone),
+            divTflx = Array{SubArray}(undef, Nz_bone),
+            divSflx = Array{SubArray}(undef, Nz_bone),
+            ∇∇T     = Array{SubArray}(undef, Nz_bone),
+            ∇∇S     = Array{SubArray}(undef, Nz_bone),
         ))
  
         
         for k=1:Nz_bone
-            lays.hs[k] = view(hs, k, :, :)
-            lays.bs[k] = view(_bs, k, :, :)
-            lays.Ts[k] = view(_Ts, k, :, :)
-            lays.Ss[k] = view(_Ss, k, :, :)
+            lays.hs[k]      = view(hs, k, :, :)
+            lays.bs[k]      = view(_bs, k, :, :)
+            lays.Ts[k]      = view(_Ts, k, :, :)
+            lays.Ss[k]      = view(_Ss, k, :, :)
+            lays.u[k]       = view(_u, k, :, :)
+            lays.v[k]       = view(_v, k, :, :)
+            lays.uT[k]      = view(_uT, k, :, :)
+            lays.vT[k]      = view(_vT, k, :, :)
+            lays.uS[k]      = view(_uS, k, :, :)
+            lays.vS[k]      = view(_vS, k, :, :)
+            lays.div[k]     = view(_div, k, :, :)
+            lays.divTflx[k] = view(_divTflx, k, :, :)
+            lays.divSflx[k] = view(_divSflx, k, :, :)
+            lays.∇∇T[k]     = view(_∇∇T, k, :, :)
+            lays.∇∇S[k]     = view(_∇∇S, k, :, :)
         end
 
         # ===== [END] Construct Views of Lays =====
@@ -646,7 +687,9 @@ mutable struct Ocean
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,
             _u, _v, _w,
+            _uT, _vT, _uS, _vS,
             _div, _divTflx, _divSflx,
+            _∇∇T, _∇∇S,
             R, ζ,
             _rad_decay_coes, _rad_absorp_coes,
             Ts_clim_relax_time, Ss_clim_relax_time,

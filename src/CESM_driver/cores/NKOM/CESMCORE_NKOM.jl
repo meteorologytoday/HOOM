@@ -154,6 +154,7 @@ module CESMCORE_NKOM
                         "Nx" => ocn.Nx,
                         "Ny" => ocn.Ny,
                         "Nz_bone" => ocn.Nz_bone,
+                        "zs_bone" => length(ocn.zs_bone),
                     ), [
                         ("T",       NKOM.toXYZ(ocn.Ts, :zxy), ("Nx", "Ny", "Nz_bone")),
                         ("S",       NKOM.toXYZ(ocn.Ss, :zxy), ("Nx", "Ny", "Nz_bone")),
@@ -165,6 +166,12 @@ module CESMCORE_NKOM
                         ("swflx",   ocn.in_flds.swflx,  ("Nx", "Ny")),
                         ("frwflx",  ocn.in_flds.frwflx, ("Nx", "Ny")),
                         ("fric_u",  ocn.fric_u, ("Nx", "Ny")),
+                        ("taux",    ocn.τx, ("Nx", "Ny")),
+                        ("tauy",    ocn.τy, ("Nx", "Ny")),
+                        ("w",       NKOM.toXYZ(ocn.w, :zxy), ("Nx", "Ny", "zs_bone")),
+                        ("u",       NKOM.toXYZ(ocn.u, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("v",       NKOM.toXYZ(ocn.v, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("DIV",     NKOM.toXYZ(ocn.div, :zxy), ("Nx", "Ny", "Nz_bone")),
                     ],
                 )
 
