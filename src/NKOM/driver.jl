@@ -1,113 +1,173 @@
 mutable struct SubOcean
-    mission           :: Symbol
-    rng2              :: AbstractArray
-    rng3              :: AbstractArray
     master_in_flds    :: InputFields
     master_ocn        :: Ocean
     worker_ocn        :: Ocean
+    block_id          :: Integer
+
+    pull_fr_rng2      :: AbstractArray
+    pull_fr_rng3      :: AbstractArray
+
+    push_fr_rng2      :: AbstractArray
+    push_fr_rng3      :: AbstractArray
+    push_to_rng2      :: AbstractArray
+    push_to_rng3      :: AbstractArray
+
 end
 
 function makeSubOcean(
     master_ocn   :: Ocean,
-    mission      :: Symbol,
     block_id     :: Integer,
-    beg_idx      :: Integer,
-    sub_N        :: Integer,
+    nblocks      :: Integer,
 )
 
-    if mission == :vt
-        rng2 = [Colon(), beg_idx:beg_idx+sub_N-1]
-        rng3 = [Colon(), Colon(), beg_idx:beg_idx+sub_N-1]
-        Ny = sub_N
-    elseif mission == :hz
-        rng2 = [Colon(), Colon()]
-        rng3 = [beg_idx:beg_idx+sub_N-1, Colon(), Colon()]
-        Ny = master_ocn.Ny
+    touch_southpole = block_id == 1
+    touch_northpole = block_id == nblocks
+
+    sub_Ny_wo_ghost = ceil(Integer, master_ocn.Ny / nblocks)
+
+    if block_id != nblocks
+        sub_Ny = sub_Ny_wo_ghost
     else
-        throw(ErrorException("[makeSubOcean] Unknown symbol for `kind`: ", string(kind)))
+        sub_Ny = master_ocn.Ny - (nblocks-1) * sub_Ny_wo_ghost
     end
 
-    println(string(mission))
-    println(sub_N)
-    println(rng2)
-    println(rng3)
-    println(block_id)
+    if sub_Ny <= 0
+        throw(ErrorException("sub_Ny <= 0. Please check your resolution and nblocks"))            
+    end
+
+    pull_fr_beg_y = push_to_beg_y = sub_Ny * (block_id - 1) + 1
+    pull_fr_end_y = push_to_end_y = pull_fr_beg_y + sub_Ny - 1
+    
+    push_fr_beg_y = 1
+    push_fr_end_y = sub_Ny
+
+    if ! touch_southpole
+        # expand south boundary
+        pull_fr_beg_y -= 1
+        sub_Ny += 1
+    
+        # fix push from range.
+        # We want to skip the expanded latitude
+        push_fr_beg_y += 1
+        push_fr_end_y += 1
+    end
+
+    if ! touch_northpole
+        # expand north boundary
+        pull_fr_end_y += 1
+        sub_Ny += 1
+        
+        # No need to fix push from range.
+        # It is not affected.
+    end
+
+
+    pull_fr_rng2 = [Colon(),          pull_fr_beg_y:pull_fr_end_y]
+    pull_fr_rng3 = [Colon(), Colon(), pull_fr_beg_y:pull_fr_end_y]
+
+    push_to_rng2 = [Colon(),          push_to_beg_y:push_to_end_y]
+    push_to_rng3 = [Colon(), Colon(), push_to_beg_y:push_to_end_y]
+
+    push_fr_rng2 = [Colon(),          push_fr_beg_y:push_fr_end_y]
+    push_fr_rng3 = [Colon(), Colon(), push_fr_beg_y:push_fr_end_y]
+
+    println(pull_fr_rng2)
+    println(push_to_rng2)
+
+    println(push_fr_rng2)
+
+
+    if length(pull_fr_rng2[2]) != sub_Ny
+        throw(ErrorException("Pull from dimension does not match sub_Ny"))
+    end
+
+    if length(push_fr_rng2[2]) != length(push_to_rng2[2])
+        throw(ErrorException("Push from and push to dimensions do not match."))
+    end
 
 
     return SubOcean(
-        mission,
-        rng2,
-        rng3,
-        SubInputFields(master_ocn.in_flds, rng2...), 
+        SubInputFields(master_ocn.in_flds, pull_fr_rng2...), 
         master_ocn,
         Ocean(
             id             = block_id,
             gridinfo_file  = nothing,
             Nx             = master_ocn.Nx,
-            Ny             = Ny,
+            Ny             = sub_Ny,
             zs_bone        = master_ocn.zs_bone,
-            Ts             = master_ocn.Ts[rng3...],
-            Ss             = master_ocn.Ss[rng3...],
+            Ts             = master_ocn.Ts[pull_fr_rng3...],
+            Ss             = master_ocn.Ss[pull_fr_rng3...],
             K_T            = master_ocn.K_T,
             K_S            = master_ocn.K_S,
-            T_ML           = master_ocn.T_ML[rng2...],
-            S_ML           = master_ocn.S_ML[rng2...],
-            h_ML           = master_ocn.h_ML[rng2...],
-            h_ML_min       = master_ocn.h_ML_min[rng2...],
-            h_ML_max       = master_ocn.h_ML_max[rng2...],
+            T_ML           = master_ocn.T_ML[pull_fr_rng2...],
+            S_ML           = master_ocn.S_ML[pull_fr_rng2...],
+            h_ML           = master_ocn.h_ML[pull_fr_rng2...],
+            h_ML_min       = master_ocn.h_ML_min[pull_fr_rng2...],
+            h_ML_max       = master_ocn.h_ML_max[pull_fr_rng2...],
             we_max         = master_ocn.we_max,
             R              = master_ocn.R,
             ζ              = master_ocn.ζ,
             Ts_clim_relax_time = master_ocn.Ts_clim_relax_time,
             Ss_clim_relax_time = master_ocn.Ss_clim_relax_time,
-            Ts_clim        = ( master_ocn.Ts_clim != nothing ) ? master_ocn.Ts_clim[rng3...] : nothing,
-            Ss_clim        = ( master_ocn.Ss_clim != nothing ) ? master_ocn.Ss_clim[rng3...] : nothing,
-            mask           = master_ocn.mask[rng2...],
-            topo           = master_ocn.topo[rng2...],
-            fs             = master_ocn.fs[rng2...],
-            ϵs             = master_ocn.ϵs[rng2...],
-            in_flds        = InputFields(:local, master_ocn.Nx, Ny),
+            Ts_clim        = ( master_ocn.Ts_clim != nothing ) ? master_ocn.Ts_clim[pull_fr_rng3...] : nothing,
+            Ss_clim        = ( master_ocn.Ss_clim != nothing ) ? master_ocn.Ss_clim[pull_fr_rng3...] : nothing,
+            mask           = master_ocn.mask[pull_fr_rng2...],
+            topo           = master_ocn.topo[pull_fr_rng2...],
+            fs             = master_ocn.fs[pull_fr_rng2...],
+            ϵs             = master_ocn.ϵs[pull_fr_rng2...],
+            in_flds        = InputFields(:local, master_ocn.Nx, sub_Ny),
             arrange        = :zxy,
-        )
+        ),
+        block_id,
+        pull_fr_rng2,
+        pull_fr_rng3,
+        push_fr_rng2,
+        push_fr_rng3,
+        push_to_rng2,
+        push_to_rng3,
     )
 
 end
 
 function syncToMaster(subocn::SubOcean)
 
-#    (subocn.woocc.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
+    (subocn.worker_ocn.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
 
     master_ocn = subocn.master_ocn
     worker_ocn = subocn.worker_ocn
    
-    rng3 = subocn.rng3
-    rng2 = subocn.rng2
+    w_rng3 = subocn.push_fr_rng3
+    w_rng2 = subocn.push_fr_rng2
  
-    master_ocn.Ts[rng3...] = worker_ocn.Ts
-    master_ocn.Ss[rng3...] = worker_ocn.Ss
+    m_rng3 = subocn.push_to_rng3
+    m_rng2 = subocn.push_to_rng2
+ 
+    for fld in [:Ts, :Ss]
+        getfield(master_ocn, fld)[m_rng3...] = view(getfield(worker_ocn, fld), w_rng3...)
+    end
 
-    master_ocn.FLDO[rng2...] = worker_ocn.FLDO
-    master_ocn.T_ML[rng2...] = worker_ocn.T_ML 
-    master_ocn.S_ML[rng2...] = worker_ocn.S_ML
-    master_ocn.h_ML[rng2...] = worker_ocn.h_ML
-    master_ocn.h_MO[rng2...] = worker_ocn.h_MO
-    master_ocn.fric_u[rng2...] = worker_ocn.fric_u
+    for fld in [:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm]
+        getfield(master_ocn, fld)[m_rng2...] = view(getfield(worker_ocn, fld), w_rng2...)
+    end
 
-    master_ocn.qflx2atm[rng2...] = worker_ocn.qflx2atm
 
+    println(typeof(master_ocn.fric_u))
+    println(sum(worker_ocn.fric_u))
 
 end
+using Statistics
 
 function syncFromMaster!(subocn::SubOcean)
 
-#    (subocn.woocc.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
+    (subocn.worker_ocn.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
 
     master_ocn = subocn.master_ocn
     worker_ocn = subocn.worker_ocn
  
-    rng3 = subocn.rng3
-    rng2 = subocn.rng2
-   
+    #=
+    rng2 = subocn.pull_fr_rng2
+    rng3 = subocn.pull_fr_rng3
+ 
     # View is to avoid array allocation
     worker_ocn.Ts[:] = view( master_ocn.Ts, rng3...)
     worker_ocn.Ss[:] = view( master_ocn.Ss, rng3...)
@@ -116,6 +176,7 @@ function syncFromMaster!(subocn::SubOcean)
     worker_ocn.T_ML[:] = view( master_ocn.T_ML, rng2...)
     worker_ocn.S_ML[:] = view( master_ocn.S_ML, rng2...)
     worker_ocn.h_ML[:] = view( master_ocn.h_ML, rng2...)
+    =#
 
     copyfrom!(worker_ocn.in_flds, subocn.master_in_flds)
 end
@@ -124,50 +185,22 @@ end
 
 function init(ocn::Ocean)
 
-    wkrs  = workers()
+    global  wkrs  =  workers()
+    nwkrs = length(wkrs) 
 
     println("Number of all workers: ", length(wkrs))
 
     (ocn.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(ocn.id)))
 
-    global wkrs_hz = (ocn.Nz_bone < nworkers()) ? [wkrs[end]] : wkrs
-    global wkrs_vt = wkrs
-        
-    nwkrs_hz = length(wkrs_hz)
-    nwkrs_vt = length(wkrs_vt)
-
-    @sync let
-
-        # Sub ocean cols
-        sub_Ny = ceil(Integer, ocn.Nx / nwkrs_vt)
-        sub_Nys = [sub_Ny for block_id = 1:nwkrs_vt]
-        sub_Nys[end] = ocn.Ny - (nwkrs_vt-1) * sub_Ny
-        beg_y_idxs = [sub_Ny * (block_id - 1) + 1 for block_id = 1:nwkrs_vt]
 
 
-
-        for (i, p) in enumerate(wkrs_vt)
+    @sync for (i, p) in enumerate(wkrs)
             # We have P processors, N workers, N blocks
             # Block ids are numbered from 1 to N
             @spawnat p let
-                global subocn_vt = makeSubOcean(ocn, :vt, i, beg_y_idxs[i], sub_Nys[i])
-            end
-        end
-
-        # Sub ocean lays
-        sub_Nz = ceil(Integer, ocn.Nz_bone / nwkrs_hz)
-        sub_Nzs = [sub_Nz for block_id = 1:nwkrs_hz]
-        sub_Nzs[end] = ocn.Nz_bone - (nwkrs_hz-1) * sub_Nz
-        beg_z_idxs = [sub_Nz * (block_id - 1) + 1 for block_id = 1:nwkrs_hz]
-
-        for (i, p) in enumerate(wkrs_hz)
-            # We have P processors, N workers, N blocks
-            # Block ids are numbered from 1 to N
-            @spawnat p let
-                global subocn_hz = makeSubOcean(ocn, :hz, i, beg_z_idxs[i], sub_Nzs[i])
+                global subocn = makeSubOcean(ocn, i, nwkrs)
             end
 
-        end
     end
 end
 
@@ -178,21 +211,11 @@ function run!(
 
     (ocn.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(ocn.id)))
 
-    @sync for (i, p) in enumerate(wkrs_hz)
-
+    @sync for (i, p) in enumerate(wkrs)
         @spawnat p let
-            syncFromMaster!(subocn_hz)
-            NKOM.stepOcean_hz!(subocn_hz.worker_ocn; cfgs...)
-            syncToMaster(subocn_hz)
-        end
-    end
-
-    @sync for (i, p) in enumerate(wkrs_vt)
-
-        @spawnat p let
-            syncFromMaster!(subocn_vt)
-            NKOM.stepOcean_vt!(subocn_vt.worker_ocn; cfgs...)
-            syncToMaster(subocn_vt)
+            syncFromMaster!(subocn)
+            NKOM.stepOcean_vt!(subocn.worker_ocn; cfgs...)
+            syncToMaster(subocn)
         end
     end
 

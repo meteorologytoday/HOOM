@@ -47,6 +47,11 @@ function copyfrom!(
     src::InputFields,
 )
 
+    for fld in [:taux, :tauy, :nswflx, :swflx, :sumflx, :ifrac, :frwflx, :qflx, :h_ML]
+        getfield(dst, fld)[:] = getfield(src, fld)
+    end
+
+    #=
     dst.taux[:] = src.taux
     dst.tauy[:] = src.tauy
     dst.nswflx[:] = src.nswflx
@@ -56,6 +61,6 @@ function copyfrom!(
     dst.frwflx[:] = src.frwflx
     dst.qflx[:] = src.qflx
     dst.h_ML[:] = src.h_ML
-
+    =#
 end
 

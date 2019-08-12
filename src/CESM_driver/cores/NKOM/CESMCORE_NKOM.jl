@@ -165,7 +165,6 @@ module CESMCORE_NKOM
                         ("swflx",   ocn.in_flds.swflx,  ("Nx", "Ny")),
                         ("frwflx",  ocn.in_flds.frwflx, ("Nx", "Ny")),
                         ("fric_u",  ocn.fric_u, ("Nx", "Ny")),
-
                     ],
                 )
 

@@ -31,6 +31,11 @@ mutable struct Ocean
     h_MO     :: AbstractArray{Float64, 2}
     fric_u   :: AbstractArray{Float64, 2}
 
+    #τx       :: AbstractArray{Float64, 2}
+    #τy       :: AbstractArray{Float64, 2}
+    #u        :: AbstractArray{Float64, 3}
+    #v        :: AbstractArray{Float64, 3}
+
     bs       :: AbstractArray{Float64, 3}
     Ts       :: AbstractArray{Float64, 3}
     Ss       :: AbstractArray{Float64, 3}

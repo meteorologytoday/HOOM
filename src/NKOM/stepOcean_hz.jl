@@ -2,47 +2,65 @@ function stepOcean_hz!(
     ocn  :: Ocean;
     cfgs...
 )
+    
+    # Transform input wind stress vector first
+    DisplacedPoleCoordinate.project!(ocn.gi, ocn.in_flds.τx, ocn.in_flds.τy, ocn.τx, ocn.τy, direction=:Forward)
 
-    # Pseudo code
-    # 1. assign velocity field
-    # 2. calculate temperature & salinity flux
-    # 3. calculate temperature & salinity flux divergence
-    # 4. 
-
-
-    #=
     for grid_idx in 1:size(ocn.valid_idx)[2]
-
 
         i = ocn.valid_idx[1, grid_idx]
         j = ocn.valid_idx[2, grid_idx]
 
+        ϵ = ocn.ϵs[i, j]
+        f = ocn.fs[i, j]
 
-        ocn.T_ML[i, j] += 0.5
+        τx = ocn.τx[i, j]
+        τy = ocn.τy[i, j]
+
+        h_ML = ocn.h_ML[i, j]
+    
+        s2ρh = ρ * h_ML * (ϵ^2.0 + f^2.0)
+
+        ek_u = (ϵ * τx + f * τy) / s2ρh
+        ek_v = (ϵ * τy - f * τx) / s2ρh
+
+        FLDO = ocn.FLDO[i, j]
+
+        if FLDO == -1
+            ocn.u[:, i, j] .= ek_u
+            ocn.v[:, i, j] .= ek_v
+        else
+            ocn.u[1:FLDO-1, i, j] .= ek_u
+            ocn.v[1:FLDO-1, i, j] .= ek_v
+
+            ocn.u[FLDO, i, j] = ek_u * (h_ML - )
+            ocn.u[FLDO+
+            
 
 
     end
-    =#
-    # It is assumed here that buoyancy has already been updated.
+        
+        # Pseudo code
+        # 1. assign velocity field
+        # 2. calculate temperature & salinity flux
+        # 3. calculate temperature & salinity flux divergence
+        # Gov eqn adv + diff: ∂T/∂t = - 1 / (ρ H1) ( ∇⋅(M1 T1) - (∇⋅M1) Tmid )
 
-    # Pseudo code
-    # 1. Do heating
-    # 2. Do Ekman transport
-    # 3. Do horizontal diffusion
-    # 4. Do convective adjustment
-
-
-    # Gov Eqn: ∂T1/∂t = - Fsurf / (ρ0 cp H1) - 1 / (ρ H1) ( ∇⋅(M1 T1) - (∇⋅M1) Tmid )
-    # Gov Eqn: ∂T2/∂t =                      - 1 / (ρ H2) ( ∇⋅(M2 T2) + (∇⋅M1) Tmid )
-
-    wksp = occ.wksp
+    # Calculate ∇⋅v
+    DisplacedPoleCoordinate.divergence2!(ocn.gi, ocn.u, ocn.v, wksp.div; mask=ocn.mask)
     
-    DisplacedPoleCoordinate.project!(occ.gi, τx, τy, wksp.τx, wksp.τy, direction=:Forward)
-    calEkmanTransport!(occ, wksp.τx, wksp.τy, wksp.M1x, wksp.M1y, occ.fs, occ.ϵs)
+    # Calculate ∇⋅(vT)
+    DisplacedPoleCoordinate.divergence2!(ocn.gi, ocn.uT, ocn.vT, wksp.divTF; mask=ocn.mask)
+    # Calculate ∇⋅(vS)
+    DisplacedPoleCoordinate.divergence2!(ocn.gi, ocn.uS, ocn.vS, wksp.divSF; mask=ocn.mask)
     
-    # Calculate ∇⋅M1
-    DisplacedPoleCoordinate.divergence2!(occ.gi, wksp.M1x, wksp.M1y, wksp.div_M1; mask=occ.mask)
+    # Calculate ∇²T, ∇²S
+    DisplacedPoleCoordinate.cal∇²!(occ.gi, ocn.lays.Ts[k], ocn.∇²T ; mask=ocn.mask)
+
+# DONE. Let vertical to the rest. 
     
+    
+
     # Calculate ( M1 T1 ), ( M2 T2 ) 
     for i = 1:occ.Nx, j = 1:occ.Ny
 

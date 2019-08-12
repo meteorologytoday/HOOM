@@ -9,15 +9,15 @@ function _helperEkmanTransport(
     return (ϵ * τ_x + f * τ_y) / s, (ϵ * τ_y - f * τ_x) / s
 end
 
-function calEkmanTransport!(
+function calEkmanFlow!(
     τ_x :: AbstractArray{Float64, 2},
     τ_y :: AbstractArray{Float64, 2},
-    M_x :: AbstractArray{Float64, 2},
-    M_y :: AbstractArray{Float64, 2},
+    v_x :: AbstractArray{Float64, 2},
+    v_y :: AbstractArray{Float64, 2},
     f   :: AbstractArray{Float64, 2},
     ϵ   :: AbstractArray{Float64, 2},
+    h   :: AbstractFloat,
 )
-
     for i = 1:occ.Nx, j = 1:occ.Ny    
         M_x[i, j], M_y[i, j] = _helperEkmanTransport(
             τ_x[i, j],
@@ -26,7 +26,6 @@ function calEkmanTransport!(
             f[i, j],
         )
     end
- 
 end
 
 
