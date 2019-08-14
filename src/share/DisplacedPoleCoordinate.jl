@@ -331,4 +331,43 @@ function ∇∇!(
         
 end
 
+
+function hadv_upwind!(
+    gi    :: GridInfo,
+    hadvs :: AbstractArray{Float64, 2},
+    us    :: AbstractArray{Float64, 2},
+    vs    :: AbstractArray{Float64, 2},
+    qs    :: AbstractArray{Float64, 2},
+)
+
+    for i=1:gi.Nx, j=1:gi.Ny
+
+        if gi.mask[i, j] == 0.0
+            hadvs[i, j] = NaN
+            continue
+        end
+
+        i_w, i_e, j_s, j_n = getCyclicNeighbors(gi.Nx, gi.Ny, i, j)
+        
+        hadv = 0.0
+        u = us[i, j]
+        v = vs[i, j]
+
+        if u > 0 && gi.mask[i_w, j] != 0.0           # use point on the west
+            hadv += - u * ( qs[i, j] - qs[i_w, j] ) / gi.dx_w[i, j]
+        elseif u <= 0 && gi.mask[i_e, j] != 0.0      # use point on the east
+            hadv += - u * ( qs[i_e, j] - qs[i, j] ) / gi.dx_e[i, j]
+        end
+
+        if v > 0 && gi.mask[i, j_s] != 0.0           # use point on the south
+            hadv += - v * ( qs[i, j] - qs[i, j_s] ) / gi.dy_s[i, j]
+        elseif v <= 0 && gi.mask[i, j_n] != 0.0      # use point on the north
+            hadv += - v * ( qs[i, j_n] - qs[i, j] ) / gi.dy_n[i, j]
+        end
+
+        hadvs[i, j] = hadv
+    end
+
+end
+
 end
