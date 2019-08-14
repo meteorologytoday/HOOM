@@ -85,8 +85,6 @@ struct GridInfo
 
     dσ    :: AbstractArray{Float64, 2}
    
-    mask  :: AbstractArray{Float64, 2}        # For now any point next to sigular point should be skipped
-
     function GridInfo(
         R      :: Float64,
         Nx     :: Integer,
@@ -95,7 +93,6 @@ struct GridInfo
         c_lat  :: AbstractArray{Float64, 2},  # center latitude
         vs_lon :: AbstractArray{Float64, 3},  # vertices longitude (4, Nx, Ny)
         vs_lat :: AbstractArray{Float64, 3};  # vertices latitude  (4, Nx, Ny)
-        mask   :: Union{Nothing, AbstractArray{Float64, 2}} = nothing,
         angle_unit :: Symbol = :deg,
     )
    
@@ -142,16 +139,6 @@ struct GridInfo
 
         else
             throw(ErrorException("Unknown `angle_unit`: " * angle_unit))
-        end
-
-
-        # North and sounth boundaries are next to singular points
-        # Here we simply skip these points
-        if mask == nothing
-            mask = zeros(Float64, Nx, Ny)
-            mask .= 1.0
-            mask[:,   1] .= 0.0
-            mask[:, end] .= 0.0
         end
 
 
@@ -216,10 +203,6 @@ struct GridInfo
         
         for i = 1:Nx, j = 1:Ny
 
-            if mask[i, j] == 0.0 
-                continue
-            end
-
             i_w, i_e, j_s, j_n = getCyclicNeighbors(Nx, Ny, i, j)
 
             dx_w[i, j] = (dx_c[i_w, j] + dx_c[i,   j]) / 2.0
@@ -238,7 +221,6 @@ struct GridInfo
             dy_s, dy_c, dy_n,
             ds1, ds2, ds3, ds4,
             dσ,
-            mask,
         )
  
     end
@@ -278,6 +260,7 @@ function DIV!(
     vf_e :: AbstractArray{Float64, 2},
     vf_n :: AbstractArray{Float64, 2},
     div  :: AbstractArray{Float64, 2},
+    mask :: AbstractArray{Float64, 2},
 )
 
     for i=1:gi.Nx, j=1:gi.Ny
@@ -289,10 +272,10 @@ function DIV!(
 
         i_w, i_e, j_s, j_n = getCyclicNeighbors(gi.Nx, gi.Ny, i, j)
 
-        flux_e = (gi.mask[i_e, j  ] == 0.0) ? 0.0 : vf_e[i_e, j] * gi.ds2[i, j]
-        flux_w = (gi.mask[i_w, j  ] == 0.0) ? 0.0 : vf_e[i_w, j] * gi.ds4[i, j] 
-        flux_n = (gi.mask[i  , j_n] == 0.0) ? 0.0 : vf_n[i, j_n] * gi.ds3[i, j]
-        flux_s = (gi.mask[i  , j_s] == 0.0) ? 0.0 : vf_n[i, j_s] * gi.ds1[i, j]
+        flux_e = (mask[i_e, j  ] == 0.0) ? 0.0 : vf_e[i_e, j] * gi.ds2[i, j]
+        flux_w = (mask[i_w, j  ] == 0.0) ? 0.0 : vf_e[i_w, j] * gi.ds4[i, j] 
+        flux_n = (mask[i  , j_n] == 0.0) ? 0.0 : vf_n[i, j_n] * gi.ds3[i, j]
+        flux_s = (mask[i  , j_s] == 0.0) ? 0.0 : vf_n[i, j_s] * gi.ds1[i, j]
 
         div[i, j] =  (  flux_e - flux_w + flux_n - flux_s ) / gi.dσ[i, j]
 
@@ -306,12 +289,13 @@ function ∇∇!(
     gi   :: GridInfo,
     f    :: AbstractArray{Float64, 2},
     ∇∇f  :: AbstractArray{Float64, 2},
+    mask :: AbstractArray{Float64, 2},
 )
 
 
     for i=1:gi.Nx, j=1:gi.Ny
 
-        if gi.mask[i, j] == 0.0
+        if mask[i, j] == 0.0
             ∇∇f[i, j] = NaN
             continue
         end
@@ -320,10 +304,10 @@ function ∇∇!(
 
         f_c = f[i, j]
 
-        flux_e = (gi.mask[i_e, j  ] == 0.0) ? 0.0 : (f[i_e, j] - f_c) / gi.dx_e[i, j]
-        flux_w = (gi.mask[i_w, j  ] == 0.0) ? 0.0 : (f_c - f[i_w, j]) / gi.dx_w[i, j] 
-        flux_n = (gi.mask[i  , j_n] == 0.0) ? 0.0 : (f[i, j_n] - f_c) / gi.dy_n[i, j]
-        flux_s = (gi.mask[i  , j_s] == 0.0) ? 0.0 : (f_c - f[i, j_s]) / gi.dy_s[i, j]
+        flux_e = (mask[i_e, j  ] == 0.0) ? 0.0 : (f[i_e, j] - f_c) / gi.dx_e[i, j]
+        flux_w = (mask[i_w, j  ] == 0.0) ? 0.0 : (f_c - f[i_w, j]) / gi.dx_w[i, j] 
+        flux_n = (mask[i  , j_n] == 0.0) ? 0.0 : (f[i, j_n] - f_c) / gi.dy_n[i, j]
+        flux_s = (mask[i  , j_s] == 0.0) ? 0.0 : (f_c - f[i, j_s]) / gi.dy_s[i, j]
 
         ∇∇f[i, j] = ( flux_e - flux_w ) / gi.dx_c[i, j] + ( flux_n - flux_s ) / gi.dy_c[i, j]
 
@@ -331,18 +315,18 @@ function ∇∇!(
         
 end
 
-
 function hadv_upwind!(
     gi    :: GridInfo,
     hadvs :: AbstractArray{Float64, 2},
     us    :: AbstractArray{Float64, 2},
     vs    :: AbstractArray{Float64, 2},
     qs    :: AbstractArray{Float64, 2},
+    mask  :: AbstractArray{Float64, 2},
 )
 
     for i=1:gi.Nx, j=1:gi.Ny
 
-        if gi.mask[i, j] == 0.0
+        if mask[i, j] == 0.0
             hadvs[i, j] = NaN
             continue
         end
@@ -353,15 +337,15 @@ function hadv_upwind!(
         u = us[i, j]
         v = vs[i, j]
 
-        if u > 0 && gi.mask[i_w, j] != 0.0           # use point on the west
+        if u > 0 && mask[i_w, j] != 0.0           # use point on the west
             hadv += - u * ( qs[i, j] - qs[i_w, j] ) / gi.dx_w[i, j]
-        elseif u <= 0 && gi.mask[i_e, j] != 0.0      # use point on the east
+        elseif u <= 0 && mask[i_e, j] != 0.0      # use point on the east
             hadv += - u * ( qs[i_e, j] - qs[i, j] ) / gi.dx_e[i, j]
         end
 
-        if v > 0 && gi.mask[i, j_s] != 0.0           # use point on the south
+        if v > 0 && mask[i, j_s] != 0.0           # use point on the south
             hadv += - v * ( qs[i, j] - qs[i, j_s] ) / gi.dy_s[i, j]
-        elseif v <= 0 && gi.mask[i, j_n] != 0.0      # use point on the north
+        elseif v <= 0 && mask[i, j_n] != 0.0      # use point on the north
             hadv += - v * ( qs[i, j_n] - qs[i, j] ) / gi.dy_n[i, j]
         end
 
@@ -369,5 +353,6 @@ function hadv_upwind!(
     end
 
 end
+
 
 end

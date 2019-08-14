@@ -20,6 +20,7 @@ mutable struct Ocean
     fs       :: AbstractArray{Float64, 2}
     ϵs       :: AbstractArray{Float64, 2}
 
+    mask3    :: AbstractArray{Float64, 3}
     mask     :: AbstractArray{Float64, 2}
     mask_idx  :: Any
     valid_idx :: AbstractArray{Int64, 2}
@@ -50,14 +51,11 @@ mutable struct Ocean
     v        :: AbstractArray{Float64, 3}
     w        :: AbstractArray{Float64, 3}
 
-    uT       :: AbstractArray{Float64, 3}
-    vT       :: AbstractArray{Float64, 3}
-    uS       :: AbstractArray{Float64, 3}
-    vS       :: AbstractArray{Float64, 3}
-
     div      :: AbstractArray{Float64, 3}
-    divTflx  :: AbstractArray{Float64, 3}
-    divSflx  :: AbstractArray{Float64, 3}
+    T_hadvs  :: AbstractArray{Float64, 3}
+    T_vadvs  :: AbstractArray{Float64, 3}
+    S_hadvs  :: AbstractArray{Float64, 3}
+    S_vadvs  :: AbstractArray{Float64, 3}
 
     ∇∇T      :: AbstractArray{Float64, 3}     
     ∇∇S      :: AbstractArray{Float64, 3}     
@@ -400,7 +398,7 @@ mutable struct Ocean
 
             mi = ModelMap.MapInfo{Float64}(gridinfo_file)
 
-            gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, length(sub_yrng), mi.xc[:, sub_yrng], mi.yc[:, sub_yrng], mi.xv[:, :, sub_yrng], mi.yv[:, :, sub_yrng]; angle_unit=:deg, mask=mi.mask[:, sub_yrng])
+            gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, length(sub_yrng), mi.xc[:, sub_yrng], mi.yc[:, sub_yrng], mi.xv[:, :, sub_yrng], mi.yv[:, :, sub_yrng]; angle_unit=:deg)
            
         end
 
@@ -439,15 +437,11 @@ mutable struct Ocean
         _v       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _w       = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
 
-
-        _uT      = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _vT      = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _uS      = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _vS      = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-
         _div     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _divTflx = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _divSflx = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _T_hadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _T_vadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _S_hadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _S_vadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
 
         _∇∇T     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _∇∇S     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
@@ -506,18 +500,18 @@ mutable struct Ocean
 
         # ===== [BEGIN] Mask out data =====
 
-        mask3 = zeros(Int64, Nz_bone, Nx, Ny)
-        mask3 .= 1
+        _mask3 = allocate(:local, Float64, Nz_bone, Nx, Ny)
+        _mask3 .= 1.0
 
         # Clean up all variables
         for i=1:Nx, j=1:Ny
-            mask3[Nz[i, j] + 1:end, i, j] .= 0 
+            _mask3[Nz[i, j] + 1:end, i, j] .= 0.0
         end
 
-        println("sum of mask3: ", sum(mask3))
+        println("sum of _mask3: ", sum(_mask3))
 
-        mask3_lnd_idx = (mask3  .== 0)
-        mask2_lnd_idx = (_mask  .== 0)
+        mask3_lnd_idx = (_mask3  .== 0.0)
+        mask2_lnd_idx = (_mask  .== 0.0)
         
         for v in [_bs, _Ts, _Ss, _Ts_clim, _Ss_clim]
             if v == nothing
@@ -555,7 +549,7 @@ mutable struct Ocean
         
         # Check if there is any hole in climatology 
         
-        mask3_idx = (mask3 .== 1)
+        mask3_idx = (_mask3 .== 1)
         valid_grids = sum(mask3_idx)
         total_data  = Nx * Ny * Nz_bone
 
@@ -602,15 +596,12 @@ mutable struct Ocean
             Ss      = Array{SubArray}(undef, Nz_bone),
             u       = Array{SubArray}(undef, Nz_bone),
             v       = Array{SubArray}(undef, Nz_bone),
-            uT      = Array{SubArray}(undef, Nz_bone),
-            vT      = Array{SubArray}(undef, Nz_bone),
-            uS      = Array{SubArray}(undef, Nz_bone),
-            vS      = Array{SubArray}(undef, Nz_bone),
             div     = Array{SubArray}(undef, Nz_bone),
-            divTflx = Array{SubArray}(undef, Nz_bone),
-            divSflx = Array{SubArray}(undef, Nz_bone),
+            T_hadvs = Array{SubArray}(undef, Nz_bone),
+            S_hadvs = Array{SubArray}(undef, Nz_bone),
             ∇∇T     = Array{SubArray}(undef, Nz_bone),
             ∇∇S     = Array{SubArray}(undef, Nz_bone),
+            mask3   = Array{SubArray}(undef, Nz_bone),
         ))
  
         
@@ -621,26 +612,27 @@ mutable struct Ocean
             lays.Ss[k]      = view(_Ss, k, :, :)
             lays.u[k]       = view(_u, k, :, :)
             lays.v[k]       = view(_v, k, :, :)
-            lays.uT[k]      = view(_uT, k, :, :)
-            lays.vT[k]      = view(_vT, k, :, :)
-            lays.uS[k]      = view(_uS, k, :, :)
-            lays.vS[k]      = view(_vS, k, :, :)
             lays.div[k]     = view(_div, k, :, :)
-            lays.divTflx[k] = view(_divTflx, k, :, :)
-            lays.divSflx[k] = view(_divSflx, k, :, :)
+            lays.T_hadvs[k] = view(_T_hadvs, k, :, :)
+            lays.S_hadvs[k] = view(_S_hadvs, k, :, :)
             lays.∇∇T[k]     = view(_∇∇T, k, :, :)
             lays.∇∇S[k]     = view(_∇∇S, k, :, :)
+            lays.mask3[k]   = view(_mask3, k, :, :)
         end
 
         # ===== [END] Construct Views of Lays =====
 
         # ===== [BEGIN] Construct Views of Cols =====
         cols = ((
-            zs = Array{SubArray}(undef, Nx, Ny),
+            zs  = Array{SubArray}(undef, Nx, Ny),
+            Δzs = Array{SubArray}(undef, Nx, Ny),
             hs = Array{SubArray}(undef, Nx, Ny),
+            w  = Array{SubArray}(undef, Nx, Ny),
             bs = Array{SubArray}(undef, Nx, Ny),
             Ts = Array{SubArray}(undef, Nx, Ny),
             Ss = Array{SubArray}(undef, Nx, Ny),
+            T_vadvs = Array{SubArray}(undef, Nx, Ny),
+            S_vadvs = Array{SubArray}(undef, Nx, Ny),
             rad_decay_coes  = Array{SubArray}(undef, Nx, Ny),
             rad_absorp_coes = Array{SubArray}(undef, Nx, Ny),
             Ts_clim = (Ts_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
@@ -649,10 +641,14 @@ mutable struct Ocean
         
         for i=1:Nx, j=1:Ny
             cols.zs[i, j]              = view(zs,  :, i, j)
+            cols.Δzs[i, j]             = view(Δzs, :, i, j)
             cols.hs[i, j]              = view(hs,  :, i, j)
+            cols.w[i, j]               = view(_w,  :, i, j)
             cols.bs[i, j]              = view(_bs, :, i, j)
             cols.Ts[i, j]              = view(_Ts, :, i, j)
             cols.Ss[i, j]              = view(_Ss, :, i, j)
+            cols.T_vadvs[i, j]         = view(_T_vadvs, :, i, j)
+            cols.S_vadvs[i, j]         = view(_S_vadvs, :, i, j)
             cols.rad_decay_coes[i, j]  = view(_rad_decay_coes,  :, i, j)
             cols.rad_absorp_coes[i, j] = view(_rad_absorp_coes, :, i, j)
         end
@@ -680,15 +676,16 @@ mutable struct Ocean
             zs_bone, _topo, zs, Nz,
             K_T, K_S,
             _fs, _ϵs,
-            _mask, mask_idx, valid_idx,
+            _mask3, _mask, mask_idx, valid_idx,
             _b_ML, _T_ML, _S_ML, _h_ML, _h_MO, _fric_u,
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,
             _u, _v, _w,
-            _uT, _vT, _uS, _vS,
-            _div, _divTflx, _divSflx,
+            _div,
+            _T_hadvs, _T_vadvs,
+            _S_hadvs, _S_vadvs,
             _∇∇T, _∇∇S,
             R, ζ,
             _rad_decay_coes, _rad_absorp_coes,

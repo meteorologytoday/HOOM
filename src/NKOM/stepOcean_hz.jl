@@ -60,7 +60,7 @@ function stepOcean_hz!(
         
     # Calculate ∇⋅v
     for k=1:ocn.Nz_bone
-        DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.u[k],  ocn.lays.v[k],  ocn.lays.div[k])
+        DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.u[k],  ocn.lays.v[k],  ocn.lays.div[k], ocn.lays.mask3[k])
     end
 
     # Calculate w
@@ -81,50 +81,79 @@ function stepOcean_hz!(
 
     # ===== [BEGIN] Responsive part (substpes effective) =====
 
-    tmpflx = zeros(Float64, ocn.Nz_bone)
-    tmpqs  = zeros(Float64, ocn.Nz_bone)
-
     for substep = 1:substeps 
+
+        for k = 1:ocn.Nz_bone
+            DisplacedPoleCoordinate.hadv_upwind!(
+                ocn.gi,
+                ocn.lays.T_hadvs[k],
+                ocn.lays.u[k],
+                ocn.lays.v[k],
+                ocn.lays.Ts[k],
+                ocn.lays.mask3[k],
+            )
+
+            DisplacedPoleCoordinate.hadv_upwind!(
+                ocn.gi,
+                ocn.lays.S_hadvs[k],
+                ocn.lays.u[k],
+                ocn.lays.v[k],
+                ocn.lays.Ss[k],
+                ocn.lays.mask3[k],
+            )
+
+        end
 
         for grid_idx in 1:size(ocn.valid_idx)[2]
 
             i = ocn.valid_idx[1, grid_idx]
             j = ocn.valid_idx[2, grid_idx]
 
-            for k=1:Nz
-                ocn.uT[k, i, j] = ocn.u[k, i, j] * ocn.Ts[k, i, j]
-                ocn.vT[k, i, j] = ocn.v[k, i, j] * ocn.Ts[k, i, j]
-                ocn.uS[k, i, j] = ocn.u[k, i, j] * ocn.Ss[k, i, j]
-                ocn.vS[k, i, j] = ocn.v[k, i, j] * ocn.Ss[k, i, j]
+            vadv_upwind!(
+                ocn.cols.T_vadvs[i, j],
+                ocn.cols.w[i, j],
+                ocn.cols.Ts[i, j],
+                ocn.cols.Δzs[i, j],
+                ocn.Nz[i, j],
+            )
+
+            vadv_upwind!(
+                ocn.cols.S_vadvs[i, j],
+                ocn.cols.w[i, j],
+                ocn.cols.Ss[i, j],
+                ocn.cols.Δzs[i, j],
+                ocn.Nz[i, j],
+            )
+
+
+        end
+
+        for grid_idx in 1:size(ocn.valid_idx)[2]
+
+            i = ocn.valid_idx[1, grid_idx]
+            j = ocn.valid_idx[2, grid_idx]
+
+            for k = 1:ocn.Nz[i, j]
+                ocn.Ts[k, i, j] += dt * ( #= ocn.T_vadvs[k, i, j] ) + =# ocn.T_hadvs[k, i, j] )
+                ocn.Ss[k, i, j] += dt * ( #= ocn.S_vadvs[k, i, j] ) + =# ocn.S_hadvs[k, i, j] )
             end
 
         end
 
-        for k=1:ocn.Nz_bone
+
+
+        #for k=1:ocn.Nz_bone
             
             # Calculate ∇⋅(vT)
-            DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.uT[k], ocn.lays.vT[k], ocn.lays.divTflx[k])
+            #DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.uT[k], ocn.lays.vT[k], ocn.lays.divTflx[k])
 
             # Calculate ∇⋅(vS)
-            DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.uS[k], ocn.lays.vS[k], ocn.lays.divSflx[k])
+            #DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.uS[k], ocn.lays.vS[k], ocn.lays.divSflx[k])
             
             # Calculate ∇∇T, ∇∇S
-            DisplacedPoleCoordinate.∇∇!(ocn.gi, ocn.lays.Ts[k], ocn.lays.∇∇T[k])
-            DisplacedPoleCoordinate.∇∇!(ocn.gi, ocn.lays.Ss[k], ocn.lays.∇∇S[k])
-        end
-
-
-        # Vertical advection
-
-        for grid_idx in 1:size(ocn.valid_idx)[2]
-
-            i = ocn.valid_idx[1, grid_idx]
-            j = ocn.valid_idx[2, grid_idx]
-
-
-           
-
-        end
+            #DisplacedPoleCoordinate.∇∇!(ocn.gi, ocn.lays.Ts[k], ocn.lays.∇∇T[k])
+            #DisplacedPoleCoordinate.∇∇!(ocn.gi, ocn.lays.Ss[k], ocn.lays.∇∇S[k])
+        #end
 
 
     end
@@ -135,7 +164,7 @@ end
 
 
 function vadv_upwind!(
-    vadvs  :: AbstractArray{Float64, 1};
+    vadvs  :: AbstractArray{Float64, 1},
     ws     :: AbstractArray{Float64, 1},
     qs     :: AbstractArray{Float64, 1},
     Δzs    :: AbstractArray{Float64, 1},
@@ -301,3 +330,5 @@ function doZAdvection_MacCormack!(;
     
 end
 =#
+
+
