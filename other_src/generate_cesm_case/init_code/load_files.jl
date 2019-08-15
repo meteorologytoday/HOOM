@@ -53,7 +53,7 @@ function parse_commandline()
             help = "Unit of salinity. Valid string: PSU, SI"
             arg_type = String
             required = true
- 
+
     end
 
     return parse_args(ARGS, s)
@@ -115,4 +115,5 @@ end
 if parsed["S-unit"] == "SI"
     Ss_clim .*= 1000.0
 end
+
 

@@ -270,7 +270,7 @@ function run!(
         @spawnat p let
             syncFromMaster!(subocn)
             cleanQflx2atm!(subocn.worker_ocn)
-            stepOcean_prepare!(subocn.worker_ocn)
+            stepOcean_prepare!(subocn.worker_ocn; cfgs...)
         end
     end
 

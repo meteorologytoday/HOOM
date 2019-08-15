@@ -106,9 +106,21 @@ function getFLDO(;
         end
     end
 
-    # 
     return -1
-    #throw(ErrorException("h_ML cannot be equal or greather than -z[end]"))
+end
+
+function getLayerFromDepth(;
+    zs   :: AbstractArray{Float64,1},
+    z    :: Float64,
+    Nz   :: Integer,
+)
+    for i = 1:Nz
+        if z < (zs[1] - zs[i+1])  # I don't use equality in order to avoid Δb = 0 during some initialization
+            return i
+        end
+    end
+
+    return -1
 end
 
 function getWindStress(;

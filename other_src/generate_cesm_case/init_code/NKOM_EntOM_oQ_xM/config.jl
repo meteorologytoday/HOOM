@@ -5,4 +5,5 @@ merge!(overwrite_configs, Dict(
     :relaxation_scheme            => :on,
     :convective_adjustment_scheme => :on,
     :radiation_scheme             => :step,
+    :advection_scheme             => :static,
 ))

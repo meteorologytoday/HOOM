@@ -40,6 +40,7 @@ module CESMCORE_NKOM
 
         checkDict!(configs, [
             (:init_file,                    false, (nothing, String,),          nothing),
+            (:advection_scheme,              true, (:static, :ekman_all_in_ML, :ekman_simple_partition,),  nothing),
             (:MLD_scheme,                    true, (:prognostic, :datastream,), nothing),
             (:Qflux_scheme,                  true, (:on, :off,),                nothing),
             (:diffusion_scheme,              true, (:on, :off,),                nothing),
@@ -266,6 +267,7 @@ module CESMCORE_NKOM
             do_relaxation = MD.configs[:relaxation_scheme] == :on,
             do_convadjust = MD.configs[:convective_adjustment_scheme] == :on,
             rad_scheme    = MD.configs[:radiation_scheme],
+            adv_scheme    = MD.configs[:advection_scheme],
         )
 
         

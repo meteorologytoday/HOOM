@@ -1,42 +1,121 @@
 using Statistics
 
-function stepOcean_prepare!(ocn::Ocean)
+function stepOcean_prepare!(ocn::Ocean; cfgs...)
+
+    adv_scheme = cfgs[:adv_scheme]
+
+    if adv_scheme == :static
+        return
+    end
 
     # Transform input wind stress vector first
     DisplacedPoleCoordinate.project!(ocn.gi, ocn.in_flds.taux, ocn.in_flds.tauy, ocn.τx, ocn.τy, direction=:Forward)
 
-    for grid_idx in 1:size(ocn.valid_idx)[2]
+    if adv_scheme == :ekman_all_in_ML
 
-        i = ocn.valid_idx[1, grid_idx]
-        j = ocn.valid_idx[2, grid_idx]
 
-        ϵ = 1e-6 #ocn.ϵs[i, j]
-        f = ocn.fs[i, j]
+        @loop_hor ocn i j let
 
-        τx = ocn.τx[i, j]
-        τy = ocn.τy[i, j]
+            ϵ = ocn.ϵs[i, j]
+            f = ocn.fs[i, j]
 
-        h_ML = ocn.h_ML[i, j]
-        Nz   = ocn.Nz[i, j] 
-        s2ρh = ρ * h_ML * (ϵ^2.0 + f^2.0)
+            τx = ocn.τx[i, j]
+            τy = ocn.τy[i, j]
 
-        ek_u = (ϵ * τx + f * τy) / s2ρh
-        ek_v = (ϵ * τy - f * τx) / s2ρh
+            h_ML = ocn.h_ML[i, j]
+            Nz   = ocn.Nz[i, j] 
+            s2ρh = ρ * h_ML * (ϵ^2.0 + f^2.0)
 
-        FLDO = ocn.FLDO[i, j]
+            ek_u = (ϵ * τx + f * τy) / s2ρh
+            ek_v = (ϵ * τy - f * τx) / s2ρh
 
-        if FLDO == -1
-            ocn.u[:, i, j] .= ek_u
-            ocn.v[:, i, j] .= ek_v
-        else
-            ocn.u[1:FLDO-1, i, j] .= ek_u
-            ocn.v[1:FLDO-1, i, j] .= ek_v
+            FLDO = ocn.FLDO[i, j]
 
-            ocn.u[FLDO:Nz, i, j] .= 0.0
-            ocn.v[FLDO:Nz, i, j] .= 0.0
+            if FLDO == -1
+                ocn.u[:, i, j] .= ek_u
+                ocn.v[:, i, j] .= ek_v
+            else
+                ocn.u[1:FLDO-1, i, j] .= ek_u
+                ocn.v[1:FLDO-1, i, j] .= ek_v
+
+                ocn.u[FLDO:Nz, i, j] .= 0.0
+                ocn.v[FLDO:Nz, i, j] .= 0.0
+            end
+            
         end
-        
 
+    elseif adv_scheme == :ekman_simple_partition
+
+        @loop_hor ocn i j let
+
+            h_ML = ocn.h_ML[i, j]
+#            s̃ = ocn.ϵs[i, j] + ocn.fs[i, j] * im
+            s̃ = 1e-6 + ocn.fs[i, j] * im
+            H̃ = √(1e-2 / s̃)
+            H = abs(H̃)
+            p̃ = exp(- ocn.h_ML[i, j] * H̃)
+            
+            M̃ = (ocn.τx[i, j] + ocn.τy[i, j] * im) / (ρ * s̃)
+            M̃_DO = M̃ * p̃
+
+            ṽ_ML = (M̃ - M̃_DO) / h_ML
+
+            u_ML, v_ML = real(ṽ_ML), imag(ṽ_ML)
+
+            FLDO = ocn.FLDO[i, j]
+
+
+
+            if FLDO == -1
+            
+                ocn.u[:, i, j] .= u_ML
+                ocn.v[:, i, j] .= v_ML
+
+            else
+
+                ocn.u[:, i, j] .= 0.0
+                ocn.v[:, i, j] .= 0.0
+
+                if FLDO > 1
+                    ocn.u[1:FLDO-1, i, j] .= u_ML
+                    ocn.v[1:FLDO-1, i, j] .= v_ML
+                end
+
+                H *= 3
+                
+                eklayer = getLayerFromDepth(
+                    z  = - h_ML - H,
+                    zs = ocn.cols.zs[i, j],  
+                    Nz = ocn.Nz[i, j],
+                )
+            
+                ṽ_DO = (M̃ - M̃_DO) / H
+                u_DO, v_DO = real(ṽ_DO), imag(ṽ_DO)
+
+                Δh     = ocn.hs[FLDO, i, j]
+                Δh_top = h_ML + ocn.zs[FLDO, i, j]
+                Δh_bot = Δh - Δh_top
+
+                ocn.u[FLDO, i, j] = (Δh_top * u_ML + Δh_bot * u_DO) / Δh
+                ocn.v[FLDO, i, j] = (Δh_top * v_ML + Δh_bot * v_DO) / Δh
+
+                if FLDO != ocn.Nz[i, j]
+
+                    if eklayer == -1
+                        ocn.u[FLDO+1:end, i, j] .= u_DO
+                        ocn.v[FLDO+1:end, i, j] .= v_DO
+                    else
+                        ocn.u[FLDO+1:eklayer, i, j] .= u_DO
+                        ocn.v[FLDO+1:eklayer, i, j] .= v_DO
+                    end
+
+                end
+                
+
+
+            end
+            
+        end
 
     end
         
@@ -87,8 +166,15 @@ function stepOcean_Flow!(
     ocn  :: Ocean;
     cfgs...
 )
+    
+    adv_scheme = cfgs[:adv_scheme]
+    Δt         = cfgs[:Δt]
 
-    Δt = cfgs[:Δt]
+    if adv_scheme == :static
+        return
+    end
+
+
 
     # Pseudo code
     # 1. assign velocity field
