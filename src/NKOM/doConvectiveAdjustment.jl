@@ -4,7 +4,7 @@ function OC_doConvectiveAdjustment!(
         j   :: Integer,
     )
 
-    if_adjust, ocn.T_ML[i, j], ocn.S_ML[i, j], ocn.h_ML[i, j], ocn.FLDO[i, j] = doConvectiveAdjustment!(
+    if_adjust, ocn.b_ML[i, j], ocn.T_ML[i, j], ocn.S_ML[i, j], ocn.h_ML[i, j], ocn.FLDO[i, j] = doConvectiveAdjustment!(
         zs       = ocn.cols.zs[i, j],
         bs       = ocn.cols.bs[i, j],
         Ts       = ocn.cols.Ts[i, j],
@@ -48,7 +48,7 @@ function doConvectiveAdjustment!(;
     if_adjust = false
 
     if FLDO == -1
-        return if_adjust, T_ML, S_ML, h_ML, FLDO 
+        return if_adjust, b_ML, T_ML, S_ML, h_ML, FLDO 
     end
 
     # 1. Search from bottom to see if buoyancy is monotically increasing
@@ -59,6 +59,7 @@ function doConvectiveAdjustment!(;
     #    downward).
     # 5. Mix layers between X_bot ~ X_top.
 
+    new_b_ML = b_ML
     new_T_ML = T_ML
     new_S_ML = S_ML
     new_h_ML = h_ML
@@ -70,170 +71,184 @@ function doConvectiveAdjustment!(;
     bot_layer = 0
     b_peak = 0.0
 
+    ok = false
+
+    while !ok
+
+        ok = true
+
+        for i = Nz:-1:FLDO
 
 
-   for i = Nz:-1:FLDO
-
-
-        if stage == :reset
-            peak_layer = 0
-            top_layer = 0
-            bot_layer = 0
-            b_peak = 0.0
-            stage = :search_peak_layer
-        end
-
-        if stage == :search_peak_layer
-
-            Δb = bs[i] - ((i==FLDO) ? b_ML : bs[i-1])
-            #println("FLDO:", FLDO, "; i:", i, "; Δb:", Δb)
-            if Δb > 0.0
-                if_adjust = true
-                stage = :search_top_layer
-                peak_layer = i
-                b_peak = bs[peak_layer]
-            else
-                continue
+            if stage == :reset
+                peak_layer = 0
+                top_layer = 0
+                bot_layer = 0
+                b_peak = 0.0
+                stage = :search_peak_layer
             end
-        end
 
-        if stage == :search_top_layer
+            if stage == :search_peak_layer
 
-            #println(":search_top_layer")
-            if i == FLDO
-                top_layer = (b_ML > b_peak) ? FLDO : -1
-                stage = :search_bot_layer
-            elseif bs[i-1] > b_peak
-                top_layer = i
-                stage = :search_bot_layer
-            else
-                continue
-            end
-        end
+                Δb = bs[i] - ((i==FLDO) ? new_b_ML : bs[i-1])
+                #println("FLDO:", FLDO, "; i:", i, "; Δb:", Δb)
+                if Δb > 0.0
+                    if_adjust = true
+                    stage = :search_top_layer
+                    peak_layer = i
+                    b_peak = bs[peak_layer]
 
-        if stage == :search_bot_layer
-
-            #println(":search_bot_layer")
-
-            if peak_layer == Nz
-
-                bot_layer = peak_layer
-                stage = :start_adjustment
-
-            else
-                b_min = 0.0
-                if top_layer == -1
-                    b_min = min(b_ML, minimum(bs[FLDO:peak_layer]))
+                    ok = false
                 else
-                    b_min = minimum(bs[top_layer:peak_layer])
-                end 
+                    continue
+                end
+            end
 
-                bot_layer = peak_layer + 1
-                while true
-                    if bs[bot_layer] >= b_min
-                        if bot_layer == Nz
+            if stage == :search_top_layer
+
+                #println(":search_top_layer")
+                if i == FLDO
+                    top_layer = (new_b_ML > b_peak) ? FLDO : -1
+                    stage = :search_bot_layer
+                elseif bs[i-1] > b_peak
+                    top_layer = i
+                    stage = :search_bot_layer
+                else
+                    continue
+                end
+            end
+
+            if stage == :search_bot_layer
+
+                #println(":search_bot_layer")
+
+                if peak_layer == Nz
+
+                    bot_layer = peak_layer
+                    stage = :start_adjustment
+
+                else
+                    b_min = 0.0
+                    if top_layer == -1
+                        b_min = min(new_b_ML, minimum(bs[FLDO:peak_layer]))
+                    else
+                        b_min = minimum(bs[top_layer:peak_layer])
+                    end 
+
+                    bot_layer = peak_layer + 1
+                    while true
+                        if bs[bot_layer] >= b_min
+                            if bot_layer == Nz
+                                stage = :start_adjustment
+                                break
+                            else
+                                bot_layer += 1
+                            end
+                        else
                             stage = :start_adjustment
                             break
-                        else
-                            bot_layer += 1
                         end
-                    else
-                        stage = :start_adjustment
-                        break
                     end
-                end
-            end 
-        end
+                end 
+            end
 
 
-        if stage == :start_adjustment
-            #println(":start_adjustment")
+            if stage == :start_adjustment
+                #println(":start_adjustment")
 
-            
-            bot_z = zs[bot_layer+1]
-            #println(zs[bot_layer+1]," v.s.  ", -h_ML_max, "; bot_z: ", bot_z)
-            top_z = (top_layer == -1) ? 0.0 : (
-                 (top_layer == FLDO) ? -h_ML : zs[top_layer]
-            )
-            Δz = top_z - bot_z
-
-            mixed_T = (getIntegratedQuantity(
-                zs       =  zs,
-                qs       =  Ts,
-                q_ML     =  T_ML,
-                h_ML     =  h_ML,
-                Nz       =  Nz,
-                target_z =  bot_z
-            ) - getIntegratedQuantity(
-                zs       =  zs,
-                qs       =  Ts,
-                q_ML     =  T_ML,
-                h_ML     =  h_ML,
-                Nz       =  Nz,
-                target_z =  top_z
-            ))  / Δz
- 
-            mixed_S = (getIntegratedQuantity(
-                zs       =  zs,
-                qs       =  Ss,
-                q_ML     =  S_ML,
-                h_ML     =  h_ML,
-                Nz       =  Nz,
-                target_z =  bot_z
-            ) - getIntegratedQuantity(
-                zs       =  zs,
-                qs       =  Ss,
-                q_ML     =  S_ML,
-                h_ML     =  h_ML,
-                Nz       =  Nz,
-                target_z =  top_z
-            ))  / Δz
-           
-            if top_layer == -1  # Even the mixed layer is mixed
-
-                # 2019/08/04 Decide that convective adjustment does not change MLD.
-                # This makes ML dynamic less complicated
-
-                new_T_ML = mixed_T 
-                new_S_ML = mixed_S
                 
-                # update T, S profile but do not update h_ML and FLDO 
-                setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML= - bot_z, Nz=Nz)
+                bot_z = zs[bot_layer+1]
+                #println(zs[bot_layer+1]," v.s.  ", -h_ML_max, "; bot_z: ", bot_z)
+                top_z = (top_layer == -1) ? 0.0 : (
+                     (top_layer == FLDO) ? -h_ML : zs[top_layer]
+                )
+                Δz = top_z - bot_z
 
-                #= 
+                mixed_T = (getIntegratedQuantity(
+                    zs       =  zs,
+                    qs       =  Ts,
+                    q_ML     =  T_ML,
+                    h_ML     =  h_ML,
+                    Nz       =  Nz,
+                    target_z =  bot_z
+                ) - getIntegratedQuantity(
+                    zs       =  zs,
+                    qs       =  Ts,
+                    q_ML     =  T_ML,
+                    h_ML     =  h_ML,
+                    Nz       =  Nz,
+                    target_z =  top_z
+                ))  / Δz
+     
+                mixed_S = (getIntegratedQuantity(
+                    zs       =  zs,
+                    qs       =  Ss,
+                    q_ML     =  S_ML,
+                    h_ML     =  h_ML,
+                    Nz       =  Nz,
+                    target_z =  bot_z
+                ) - getIntegratedQuantity(
+                    zs       =  zs,
+                    qs       =  Ss,
+                    q_ML     =  S_ML,
+                    h_ML     =  h_ML,
+                    Nz       =  Nz,
+                    target_z =  top_z
+                ))  / Δz
+               
+                if top_layer == -1  # Even the mixed layer is mixed
 
-                new_T_ML = mixed_T
-                new_S_ML = mixed_S
-                new_h_ML = - bot_z
+                    # 2019/08/04 Decide that convective adjustment does not change MLD.
+                    # This makes ML dynamic less complicated
 
-                new_FLDO = setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML=new_h_ML, Nz=Nz)
-                
-                if new_h_ML > h_ML_max
+                    new_T_ML = mixed_T 
+                    new_S_ML = mixed_S
+                    
+                    # update T, S profile but do not update h_ML and FLDO 
+                    setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML= - bot_z, Nz=Nz)
 
-                    # modified on 2019/05/10
-                    new_h_ML = h_ML_max
+                    #= 
+
+                    new_T_ML = mixed_T
+                    new_S_ML = mixed_S
+                    new_h_ML = - bot_z
+
                     new_FLDO = setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML=new_h_ML, Nz=Nz)
+                    
+                    if new_h_ML > h_ML_max
 
-                    # original code before 2019/05/10
-                    # new_FLDO = getFLDO(zs=zs, h_ML=h_ML_max, Nz=Nz)   # original code
+                        # modified on 2019/05/10
+                        new_h_ML = h_ML_max
+                        new_FLDO = setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML=new_h_ML, Nz=Nz)
+
+                        # original code before 2019/05/10
+                        # new_FLDO = getFLDO(zs=zs, h_ML=h_ML_max, Nz=Nz)   # original code
+                    end
+                    =#
+
+                else
+                    Ts[top_layer:bot_layer] .= mixed_T
+                    Ss[top_layer:bot_layer] .= mixed_S
+                end 
+
+                # update buoyancy
+                new_b_ML = TS2b(new_T_ML, new_S_ML)
+                for k=1:Nz
+                    bs[k] = TS2b(Ts[k], Ss[k])
                 end
-                =#
 
-            else
-                Ts[top_layer:bot_layer] .= mixed_T
-                Ss[top_layer:bot_layer] .= mixed_S
-            end 
 
-            stage = :reset 
+                stage = :reset 
+            end
+
         end
 
     end
-
 #    if if_adjust
 #        println("ADJUST! ", h_ML, " => ", new_h_ML)
 #    end
 
-    return if_adjust, new_T_ML, new_S_ML, new_h_ML, new_FLDO
+    return if_adjust, new_b_ML, new_T_ML, new_S_ML, new_h_ML, new_FLDO
 end
 
            

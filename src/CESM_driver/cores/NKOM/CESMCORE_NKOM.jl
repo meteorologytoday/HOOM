@@ -172,6 +172,7 @@ module CESMCORE_NKOM
                         ("u",       NKOM.toXYZ(ocn.u, :zxy), ("Nx", "Ny", "Nz_bone")),
                         ("v",       NKOM.toXYZ(ocn.v, :zxy), ("Nx", "Ny", "Nz_bone")),
                         ("DIV",     NKOM.toXYZ(ocn.div, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("b",       NKOM.toXYZ(ocn.bs, :zxy), ("Nx", "Ny", "Nz_bone")),
                     ],
                 )
 

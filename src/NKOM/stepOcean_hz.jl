@@ -1,25 +1,7 @@
 using Statistics
 
-function stepOcean_hz!(
-    ocn  :: Ocean;
-    cfgs...
-)
+function stepOcean_prepare!(ocn::Ocean)
 
-    # Unpacking
-    substeps      = cfgs[:substeps]
-    Δt            = cfgs[:Δt]
-
-    dt = Δt / substeps
-
-
-    # Pseudo code
-    # 1. assign velocity field
-    # 2. calculate temperature & salinity flux
-    # 3. calculate temperature & salinity flux divergence
-    # Gov eqn adv + diff: ∂T/∂t = - 1 / (ρ H1) ( ∇⋅(M1 T1) - (∇⋅M1) Tmid )
-  
-    # ===== [BEGIN] Non responsive part (substeps non-effective ) =====
- 
     # Transform input wind stress vector first
     DisplacedPoleCoordinate.project!(ocn.gi, ocn.in_flds.taux, ocn.in_flds.tauy, ocn.τx, ocn.τy, direction=:Forward)
 
@@ -76,89 +58,133 @@ function stepOcean_hz!(
         end
     end
 
-    # ===== [END] Non responsive part =====
 
 
-    # ===== [BEGIN] Responsive part (substpes effective) =====
+    # Determine the temperature / salinity of FLDO layer
+    for grid_idx in 1:size(ocn.valid_idx)[2]
 
-    for substep = 1:substeps 
+        i = ocn.valid_idx[1, grid_idx]
+        j = ocn.valid_idx[2, grid_idx]
 
-        for k = 1:ocn.Nz_bone
-            DisplacedPoleCoordinate.hadv_upwind!(
-                ocn.gi,
-                ocn.lays.T_hadvs[k],
-                ocn.lays.u[k],
-                ocn.lays.v[k],
-                ocn.lays.Ts[k],
-                ocn.lays.mask3[k],
-            )
+        FLDO = ocn.FLDO[i, j]
 
-            DisplacedPoleCoordinate.hadv_upwind!(
-                ocn.gi,
-                ocn.lays.S_hadvs[k],
-                ocn.lays.u[k],
-                ocn.lays.v[k],
-                ocn.lays.Ss[k],
-                ocn.lays.mask3[k],
-            )
+        if FLDO != -1
+
+            Δh     = ocn.hs[FLDO, i, j]
+            Δh_top = ocn.h_ML[i, j] + ocn.zs[FLDO, i, j]
+            Δh_bot = Δh - Δh_top
+
+            ocn.Ts[FLDO, i, j] =  (Δh_top * ocn.T_ML[i, j] + Δh_bot * ocn.Ts[FLDO, i, j]) / Δh
+            ocn.Ss[FLDO, i, j] =  (Δh_top * ocn.S_ML[i, j] + Δh_bot * ocn.Ss[FLDO, i, j]) / Δh
 
         end
 
-        for grid_idx in 1:size(ocn.valid_idx)[2]
+    end
 
-            i = ocn.valid_idx[1, grid_idx]
-            j = ocn.valid_idx[2, grid_idx]
+end
 
-            vadv_upwind!(
-                ocn.cols.T_vadvs[i, j],
-                ocn.cols.w[i, j],
-                ocn.cols.Ts[i, j],
-                ocn.cols.Δzs[i, j],
-                ocn.Nz[i, j],
-            )
+function stepOcean_Flow!(
+    ocn  :: Ocean;
+    cfgs...
+)
 
-            vadv_upwind!(
-                ocn.cols.S_vadvs[i, j],
-                ocn.cols.w[i, j],
-                ocn.cols.Ss[i, j],
-                ocn.cols.Δzs[i, j],
-                ocn.Nz[i, j],
-            )
+    Δt = cfgs[:Δt]
 
+    # Pseudo code
+    # 1. assign velocity field
+    # 2. calculate temperature & salinity flux
+    # 3. calculate temperature & salinity flux divergence
+    # Gov eqn adv + diff: ∂T/∂t = - 1 / (ρ H1) ( ∇⋅(M1 T1) - (∇⋅M1) Tmid )
+  
+    for k = 1:ocn.Nz_bone
+        DisplacedPoleCoordinate.hadv_upwind!(
+            ocn.gi,
+            ocn.lays.T_hadvs[k],
+            ocn.lays.u[k],
+            ocn.lays.v[k],
+            ocn.lays.Ts[k],
+            ocn.lays.mask3[k],
+        )
 
-        end
+        DisplacedPoleCoordinate.hadv_upwind!(
+            ocn.gi,
+            ocn.lays.S_hadvs[k],
+            ocn.lays.u[k],
+            ocn.lays.v[k],
+            ocn.lays.Ss[k],
+            ocn.lays.mask3[k],
+        )
 
-        for grid_idx in 1:size(ocn.valid_idx)[2]
+    end
 
-            i = ocn.valid_idx[1, grid_idx]
-            j = ocn.valid_idx[2, grid_idx]
+    for grid_idx in 1:size(ocn.valid_idx)[2]
 
-            for k = 1:ocn.Nz[i, j]
-                ocn.Ts[k, i, j] += dt * ( #= ocn.T_vadvs[k, i, j] ) + =# ocn.T_hadvs[k, i, j] )
-                ocn.Ss[k, i, j] += dt * ( #= ocn.S_vadvs[k, i, j] ) + =# ocn.S_hadvs[k, i, j] )
-            end
+        i = ocn.valid_idx[1, grid_idx]
+        j = ocn.valid_idx[2, grid_idx]
 
-        end
+        vadv_upwind!(
+            ocn.cols.T_vadvs[i, j],
+            ocn.cols.w[i, j],
+            ocn.cols.Ts[i, j],
+            ocn.cols.Δzs[i, j],
+            ocn.Nz[i, j],
+        )
 
-
-
-        #for k=1:ocn.Nz_bone
-            
-            # Calculate ∇⋅(vT)
-            #DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.uT[k], ocn.lays.vT[k], ocn.lays.divTflx[k])
-
-            # Calculate ∇⋅(vS)
-            #DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.uS[k], ocn.lays.vS[k], ocn.lays.divSflx[k])
-            
-            # Calculate ∇∇T, ∇∇S
-            #DisplacedPoleCoordinate.∇∇!(ocn.gi, ocn.lays.Ts[k], ocn.lays.∇∇T[k])
-            #DisplacedPoleCoordinate.∇∇!(ocn.gi, ocn.lays.Ss[k], ocn.lays.∇∇S[k])
-        #end
+        vadv_upwind!(
+            ocn.cols.S_vadvs[i, j],
+            ocn.cols.w[i, j],
+            ocn.cols.Ss[i, j],
+            ocn.cols.Δzs[i, j],
+            ocn.Nz[i, j],
+        )
 
 
     end
 
-    
+    for grid_idx in 1:size(ocn.valid_idx)[2]
+
+        i = ocn.valid_idx[1, grid_idx]
+        j = ocn.valid_idx[2, grid_idx]
+
+        for k = 1:ocn.Nz[i, j]
+            ocn.Ts[k, i, j] += Δt * ( ocn.T_vadvs[k, i, j] + ocn.T_hadvs[k, i, j] )
+            ocn.Ss[k, i, j] += Δt * ( ocn.S_vadvs[k, i, j] + ocn.S_hadvs[k, i, j] )
+        end
+
+
+        zs   = ocn.cols.zs[i, j]
+        hs   = ocn.cols.hs[i, j]
+        h_ML = ocn.h_ML[i, j]
+        FLDO = ocn.FLDO[i, j]
+        Nz   = ocn.Nz[i, j]
+
+        # Remix top layers
+        ocn.T_ML[i, j] = remixML!(;
+            qs   = ocn.cols.Ts[i, j],
+            zs   = zs,
+            hs   = hs,
+            h_ML = h_ML,
+            FLDO = FLDO,
+            Nz   = Nz,
+        )
+
+
+        ocn.S_ML[i, j] = remixML!(;
+            qs   = ocn.cols.Ss[i, j],
+            zs   = zs,
+            hs   = hs,
+            h_ML = h_ML,
+            FLDO = FLDO,
+            Nz   = Nz,
+        )
+
+        OC_updateB!(ocn, i, j)
+        OC_doConvectiveAdjustment!(ocn, i, j)
+
+
+    end
+
+
 end
 
 

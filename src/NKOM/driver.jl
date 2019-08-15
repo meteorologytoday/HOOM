@@ -137,7 +137,10 @@ function makeSubOcean(
 
 end
 
-function syncToMaster(subocn::SubOcean)
+function syncToMaster!(subocn::SubOcean;
+        vars2 :: AbstractArray = [],
+        vars3 :: AbstractArray = [],
+)
 
     (subocn.worker_ocn.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
 
@@ -150,44 +153,84 @@ function syncToMaster(subocn::SubOcean)
     m_rng3 = subocn.push_to_rng3
     m_rng2 = subocn.push_to_rng2
  
-    for fld in [:Ts, :Ss, :u, :v, :w, :div]
-        getfield(master_ocn, fld)[m_rng3...] = view(getfield(worker_ocn, fld), w_rng3...)
-    end
-#    master_ocn.u[m_rng3...] = worker_ocn.Ts[w_rng3...]
-
-    for fld in [:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy]
-        getfield(master_ocn, fld)[m_rng2...] = view(getfield(worker_ocn, fld), w_rng2...)
+    for var in vars2
+        getfield(master_ocn, var)[m_rng2...] = view(getfield(worker_ocn, var), w_rng2...)
     end
 
-    #println("worker: ", sum(worker_ocn.u[isfinite.(worker_ocn.u)])) 
-    #println("master: ", sum(master_ocn.u[isfinite.(master_ocn.u)])) 
-
+    for var in vars3
+        getfield(master_ocn, var)[m_rng3...] = view(getfield(worker_ocn, var), w_rng3...)
+    end
 
 end
 
-function syncFromMaster!(subocn::SubOcean)
+function syncFromMaster!(
+    subocn::SubOcean
+)
 
     (subocn.worker_ocn.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
 
     master_ocn = subocn.master_ocn
     worker_ocn = subocn.worker_ocn
  
-    #=
-    rng2 = subocn.pull_fr_rng2
-    rng3 = subocn.pull_fr_rng3
- 
-    # View is to avoid array allocation
-    worker_ocn.Ts[:] = view( master_ocn.Ts, rng3...)
-    worker_ocn.Ss[:] = view( master_ocn.Ss, rng3...)
-    
-    worker_ocn.FLDO[:] = view( master_ocn.FLDO, rng2...)
-    worker_ocn.T_ML[:] = view( master_ocn.T_ML, rng2...)
-    worker_ocn.S_ML[:] = view( master_ocn.S_ML, rng2...)
-    worker_ocn.h_ML[:] = view( master_ocn.h_ML, rng2...)
-    =#
-
     copyfrom!(worker_ocn.in_flds, subocn.master_in_flds)
 end
+
+
+
+function syncBoundaryToMaster!(subocn::SubOcean;
+        vars2 :: AbstractArray = [],
+        vars3 :: AbstractArray = [],
+)
+
+    (subocn.worker_ocn.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
+
+    master_ocn = subocn.master_ocn
+    worker_ocn = subocn.worker_ocn
+  
+    w_rng3 = subocn.push_fr_rng3
+    w_rng2 = subocn.push_fr_rng2
+ 
+    m_rng3 = subocn.push_to_rng3
+    m_rng2 = subocn.push_to_rng2
+ 
+    for var in vars2
+        getfield(master_ocn, var)[:, m_rng2[2][1]]   = view(getfield(worker_ocn, var), :, w_rng2[2][1])
+        getfield(master_ocn, var)[:, m_rng2[2][end]] = view(getfield(worker_ocn, var), :, w_rng2[2][end])
+    end
+
+    for var in vars3
+        getfield(master_ocn, var)[:, :, m_rng3[3][1]]   = view(getfield(worker_ocn, var), :, :, w_rng3[3][1])
+        getfield(master_ocn, var)[:, :, m_rng3[3][end]] = view(getfield(worker_ocn, var), :, :, w_rng3[3][end])
+    end
+
+end
+
+function syncBoundaryFromMaster!(subocn::SubOcean;
+        vars2 :: AbstractArray = [],
+        vars3 :: AbstractArray = [],
+)
+
+    (subocn.worker_ocn.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
+
+    master_ocn = subocn.master_ocn
+    worker_ocn = subocn.worker_ocn
+  
+    m_rng3 = subocn.pull_fr_rng3
+    m_rng2 = subocn.pull_fr_rng2
+ 
+    for var in vars2
+        getfield(worker_ocn, var)[:,   1] = view(getfield(master_ocn, var), :, m_rng2[2][  1])
+        getfield(worker_ocn, var)[:, end] = view(getfield(master_ocn, var), :, m_rng2[2][end])
+    end
+
+    for var in vars3
+        getfield(worker_ocn, var)[:, :,   1] = view(getfield(master_ocn, var), :, :, m_rng3[3][  1])
+        getfield(worker_ocn, var)[:, :, end] = view(getfield(master_ocn, var), :, :, m_rng3[3][end])
+    end
+
+end
+
+
 
 
 
@@ -214,20 +257,48 @@ end
 
 function run!(
     ocn :: Ocean;
+    Δt  :: Float64,
+    substeps :: Integer,
     cfgs...
 )
 
     (ocn.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(ocn.id)))
 
+    dt = Δt / substeps
+
     @sync for (i, p) in enumerate(wkrs)
         @spawnat p let
             syncFromMaster!(subocn)
-            NKOM.stepOcean_hz!(subocn.worker_ocn; cfgs...)
-#            NKOM.stepOcean_vt!(subocn.worker_ocn; cfgs...)
-            syncToMaster(subocn)
+            cleanQflx2atm!(subocn.worker_ocn)
+            stepOcean_prepare!(subocn.worker_ocn)
         end
     end
-#    println("MASTER: ", sum(ocn.u[isfinite.(ocn.u)])) 
+
+
+    for substep = 1:substeps
+
+        @sync for (i, p) in enumerate(wkrs)
+            @spawnat p let
+                syncBoundaryFromMaster!(subocn; vars3 = [:Ts, :Ss])
+                stepOcean_Flow!(subocn.worker_ocn; Δt = dt, cfgs...)
+                stepOcean_MLDynamics!(subocn.worker_ocn; Δt = dt, cfgs...)
+                syncBoundaryToMaster!(subocn; vars3 = [:Ts, :Ss])
+            end
+        end
+
+    end
+
+    @sync for (i, p) in enumerate(wkrs)
+        @spawnat p let
+            stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
+            calQflx2atm!(subocn.worker_ocn; Δt=Δt)
+            syncToMaster!(
+                subocn;
+                vars2 = [:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy],
+                vars3 = [:Ts, :Ss, :u, :v, :w, :div, :bs],
+            )
+        end
+    end
 
 end
 
