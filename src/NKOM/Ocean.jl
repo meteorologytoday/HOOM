@@ -392,21 +392,18 @@ mutable struct Ocean
         # ===== [BEG] GridInfo =====
 
         gridinfo = nothing
+        mi = ModelMap.MapInfo{Float64}(gridinfo_file)
 
         if id != 0
             if sub_yrng == nothing
                 thorw(ErrorException("Init worker ocean,  sub_yrng must be provided."))
             end
 
-            mi = ModelMap.MapInfo{Float64}(gridinfo_file)
+
 
             gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, length(sub_yrng), mi.xc[:, sub_yrng], mi.yc[:, sub_yrng], mi.xv[:, :, sub_yrng], mi.yv[:, :, sub_yrng]; angle_unit=:deg)
            
         end
-
-            #mi = ModelMap.MapInfo{Float64}(gridinfo_file)
-            #gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv; angle_unit=:deg)
-        #end
 
         # ===== [END] GridInfo =====
 
