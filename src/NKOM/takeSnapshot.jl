@@ -30,6 +30,7 @@ function loadSnapshot(
             zs_bone  = nomissing(ds["zs_bone"][:], NaN);
             Ts       = toZXY( nomissing(ds["Ts"][:], NaN), :xyz),
             Ss       = toZXY( nomissing(ds["Ss"][:], NaN), :xyz),
+            K_v      = ds.attrib["K_v"],
             K_T      = ds.attrib["K_T"],
             K_S      = ds.attrib["K_S"],
             fs       = nomissing(ds["fs"][:], NaN),
@@ -67,6 +68,7 @@ function takeSnapshot(
     Dataset(filename, "a") do ds
  
         ds.attrib["gridinfo_file"] = ocn.gi_file
+        ds.attrib["K_v"] = ocn.K_v
         ds.attrib["K_T"] = ocn.K_T
         ds.attrib["K_S"] = ocn.K_S
 

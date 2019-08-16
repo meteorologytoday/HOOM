@@ -48,7 +48,7 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
 
             h_ML = ocn.h_ML[i, j]
             s̃ = ocn.ϵs[i, j] + ocn.fs[i, j] * im
-            H̃ = √(1e-2 / s̃)
+            H̃ = √(ocn.K_v / s̃)
             H = abs(H̃)
             p̃ = exp(- ocn.h_ML[i, j] * H̃)
             

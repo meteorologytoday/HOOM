@@ -161,7 +161,8 @@ function stepOcean_slowprocesses!(
 )
 
     Δt            = cfgs[:Δt]
-    do_diffusion  = cfgs[:do_diffusion]
+    do_v_diff     = cfgs[:do_vertical_diffusion]
+    do_h_diff     = cfgs[:do_horizontal_diffusion]
     do_relaxation = cfgs[:do_relaxation]
     do_convadjust = cfgs[:do_convadjust]
 
@@ -174,13 +175,13 @@ function stepOcean_slowprocesses!(
     end
     
     # Vertical diffusion
-    if do_diffusion
+    if do_v_diff
         @loop_hor ocn i j let
             OC_doDiffusion_EulerBackward!(ocn, i, j; Δt=Δt)
         end
     end
 
-    if do_relaxation || do_diffusion
+    if do_relaxation || do_v_diff || do_h_diff
 
         @loop_hor ocn i j let
             OC_updateB!(ocn, i, j)
