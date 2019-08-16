@@ -1,5 +1,3 @@
-
-
 function cleanQflx2atm!(ocn::Ocean)
 
     @loop_hor ocn i j let

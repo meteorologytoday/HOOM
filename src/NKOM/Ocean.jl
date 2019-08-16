@@ -14,6 +14,7 @@ mutable struct Ocean
     zs       :: AbstractArray{Float64, 3} # Actuall zs coordinate masked by topo
     Nz       :: AbstractArray{Int64, 2} # Number of layers that is active
 
+    K_v      :: Float64           # Diffusion coe of momentum. Used by ekman flow calculation
     K_T      :: Float64           # Diffusion coe of temperature
     K_S      :: Float64           # Diffusion coe of salinity
 
@@ -108,12 +109,13 @@ mutable struct Ocean
         zs_bone  :: AbstractArray{Float64, 1},
         Ts       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
         Ss       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
-        K_T      :: Float64,
-        K_S      :: Float64,
+        K_v      :: Float64 = 1e-2,
+        K_T      :: Float64 = 1e-5,
+        K_S      :: Float64 = 1e-5,
         T_ML     :: Union{AbstractArray{Float64, 2}, Float64},
         S_ML     :: Union{AbstractArray{Float64, 2}, Float64},
         h_ML     :: Union{AbstractArray{Float64, 2}, Float64, Nothing},
-        h_ML_min :: Union{AbstractArray{Float64, 2}, Float64},
+        h_ML_min :: Union{AbstractArray{Float64, 2}, Float64} = 10.0,
         h_ML_max :: Union{AbstractArray{Float64, 2}, Float64},
         we_max   :: Float64 =  1e-2,
         R        :: Float64 =  0.58,  # See Paulson and Simpson (1977) Type I clear water
@@ -125,7 +127,7 @@ mutable struct Ocean
         mask     :: Union{AbstractArray{Float64, 2}, Nothing},
         topo     :: Union{AbstractArray{Float64, 2}, Nothing},
         fs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
-        ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
+        ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = 1e-5,
         in_flds  :: Union{InputFields, Nothing} = nothing,
         arrange  :: Symbol = :zxy,
     )
@@ -674,7 +676,7 @@ mutable struct Ocean
             gridinfo_file,
             Nx, Ny, Nz_bone,
             zs_bone, _topo, zs, Nz,
-            K_T, K_S,
+            K_v, K_T, K_S,
             _fs, _ϵs,
             _mask3, _mask, mask_idx, valid_idx,
             _b_ML, _T_ML, _S_ML, _h_ML, _h_MO, _fric_u,

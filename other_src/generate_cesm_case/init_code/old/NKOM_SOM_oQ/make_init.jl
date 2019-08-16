@@ -15,21 +15,18 @@ h_ML = zeros(Nx, Ny)
 h_ML .= 1.0
 
 
-occ = NKOM.OceanColumnCollection(
+ocn = NKOM.Ocean(
     gridinfo_file = parsed["domain-file"],
     Nx       = Nx,
     Ny       = Ny,
     zs_bone  = zs,
     Ts       = Ts_clim,
     Ss       = Ss_clim,
-    K_T      = 1e-5,
-    K_S      = 1e-5,
     T_ML     = Ts_clim[:, :, 1],
     S_ML     = Ss_clim[:, :, 1],
     h_ML     = h_ML, 
-    h_ML_min = 1e-3,                 # cannot be 0 
-    h_ML_max = -zs[end],             # make it unrestricted
-    we_max   = 1e5,                  # ignored in this scheme
+    h_ML_min = 1e-3,            # cannot be 0 
+    h_ML_max = -zs[end],        # make it unrestricted
     mask     = mask,
     topo     = topo,
     Ts_clim_relax_time = 0.0,
@@ -39,6 +36,6 @@ occ = NKOM.OceanColumnCollection(
     arrange  = :xyz,
 )
 
-NKOM.takeSnapshot(occ, parsed["output-file"])
+NKOM.takeSnapshot(ocn, parsed["output-file"])
 
 
