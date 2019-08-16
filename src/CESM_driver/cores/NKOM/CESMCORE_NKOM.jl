@@ -160,6 +160,7 @@ module CESMCORE_NKOM
                     ), [
                         ("T",       NKOM.toXYZ(ocn.Ts, :zxy), ("Nx", "Ny", "Nz_bone")),
                         ("S",       NKOM.toXYZ(ocn.Ss, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("b",       NKOM.toXYZ(ocn.bs, :zxy), ("Nx", "Ny", "Nz_bone")),
                         ("T_ML",    ocn.T_ML, ("Nx", "Ny",)),
                         ("S_ML",    ocn.S_ML, ("Nx", "Ny",)),
                         ("h_ML",    ocn.h_ML, ("Nx", "Ny")),

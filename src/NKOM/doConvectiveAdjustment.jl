@@ -72,12 +72,13 @@ function doConvectiveAdjustment!(;
     b_peak = 0.0
 
     ok = false
+    last_top_layer = Nz
 
     while !ok
 
         ok = true
 
-        for i = Nz:-1:FLDO
+        for i = last_top_layer:-1:FLDO
 
 
             if stage == :reset
@@ -135,14 +136,18 @@ function doConvectiveAdjustment!(;
                         b_min = minimum(bs[top_layer:peak_layer])
                     end 
 
-                    bot_layer = peak_layer + 1
+                    
+                    # Need to note that bot_layer is allow to be the same as peak_layer
+                    # It is possible that this expansion of bot_layer don't stop and
+                    # create a iteration time dependent behavior.
+                    bot_layer = peak_layer
                     while true
-                        if bs[bot_layer] >= b_min
+                        if bs[bot_layer+1] >= b_min
+
+                            bot_layer += 1
                             if bot_layer == Nz
                                 stage = :start_adjustment
                                 break
-                            else
-                                bot_layer += 1
                             end
                         else
                             stage = :start_adjustment
@@ -237,6 +242,11 @@ function doConvectiveAdjustment!(;
                     bs[k] = TS2b(Ts[k], Ss[k])
                 end
 
+                if top_layer == -1   # Everything is done
+                    ok = true
+                else
+                    last_top_layer = top_layer
+                end
 
                 stage = :reset 
             end
@@ -244,9 +254,6 @@ function doConvectiveAdjustment!(;
         end
 
     end
-#    if if_adjust
-#        println("ADJUST! ", h_ML, " => ", new_h_ML)
-#    end
 
     return if_adjust, new_b_ML, new_T_ML, new_S_ML, new_h_ML, new_FLDO
 end

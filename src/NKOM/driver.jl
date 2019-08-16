@@ -194,12 +194,12 @@ function syncBoundaryToMaster!(subocn::SubOcean;
     m_rng2 = subocn.push_to_rng2
  
     for var in vars2
-        getfield(master_ocn, var)[:, m_rng2[2][1]]   = view(getfield(worker_ocn, var), :, w_rng2[2][1])
+        getfield(master_ocn, var)[:, m_rng2[2][  1]] = view(getfield(worker_ocn, var), :, w_rng2[2][  1])
         getfield(master_ocn, var)[:, m_rng2[2][end]] = view(getfield(worker_ocn, var), :, w_rng2[2][end])
     end
 
     for var in vars3
-        getfield(master_ocn, var)[:, :, m_rng3[3][1]]   = view(getfield(worker_ocn, var), :, :, w_rng3[3][1])
+        getfield(master_ocn, var)[:, :, m_rng3[3][  1]] = view(getfield(worker_ocn, var), :, :, w_rng3[3][  1])
         getfield(master_ocn, var)[:, :, m_rng3[3][end]] = view(getfield(worker_ocn, var), :, :, w_rng3[3][end])
     end
 
@@ -275,14 +275,17 @@ function run!(
     end
 
 
+    sync_vars2 = [:T_ML, :S_ML, :h_ML, :FLDO]
+    sync_vars3 = [:Ts,   :Ss]
+
     for substep = 1:substeps
 
         @sync for (i, p) in enumerate(wkrs)
             @spawnat p let
-                syncBoundaryFromMaster!(subocn; vars3 = [:Ts, :Ss])
+                syncBoundaryFromMaster!(subocn; vars3 = sync_vars3, vars2 = sync_vars2)
                 stepOcean_Flow!(subocn.worker_ocn; Δt = dt, cfgs...)
                 stepOcean_MLDynamics!(subocn.worker_ocn; Δt = dt, cfgs...)
-                syncBoundaryToMaster!(subocn; vars3 = [:Ts, :Ss])
+                syncBoundaryToMaster!(subocn; vars3 = sync_vars3, vars2 = sync_vars2)
             end
         end
 
@@ -295,7 +298,7 @@ function run!(
             syncToMaster!(
                 subocn;
                 vars2 = [:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy],
-                vars3 = [:Ts, :Ss, :u, :v, :w, :div, :bs],
+                vars3 = [:Ts, :Ss, :bs, :u, :v, :w, :div],
             )
         end
     end

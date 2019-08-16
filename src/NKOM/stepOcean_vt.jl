@@ -149,8 +149,7 @@ function stepOcean_MLDynamics!(
         if do_convadjust
             OC_doConvectiveAdjustment!(ocn, i, j;)
         end
-
-
+        
     end
 
 end
@@ -161,8 +160,8 @@ function stepOcean_slowprocesses!(
 )
 
     Δt            = cfgs[:Δt]
-    do_vert_diff     = cfgs[:do_vert_diff]
-    do_horz_diff     = cfgs[:do_horz_diff]
+    do_vert_diff  = cfgs[:do_vert_diff]
+    do_horz_diff  = cfgs[:do_horz_diff]
     do_relaxation = cfgs[:do_relaxation]
     do_convadjust = cfgs[:do_convadjust]
 
