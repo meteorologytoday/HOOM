@@ -10,6 +10,47 @@ function stepOcean_Flow!(
         return
     end
 
+    # Determine the temperature / salinity of FLDO layer
+    @loop_hor ocn i j let
+
+        FLDO = ocn.FLDO[i, j]
+
+        if FLDO != -1
+
+            Δh     = ocn.hs[FLDO, i, j]
+            Δh_top = ocn.h_ML[i, j] + ocn.zs[FLDO, i, j]
+            Δh_bot = Δh - Δh_top
+
+            #=
+            if any(ocn.Ts[1:FLDO-1, i, j] .!= ocn.T_ML[i, j])
+                println("(i, j ) = (", i, ", ", j, ")")
+                println("FLDO: ", FLDO)
+                println("T_ML: ", ocn.T_ML[i, j])
+                println("h_ML: ", ocn.h_ML[i, j])
+                println("nswflx: ", ocn.in_flds.nswflx[i, j])
+                println("swflx: ", ocn.in_flds.swflx[i, j])
+                println("topo: ", ocn.topo[i, j])
+
+                println("Ts: ", ocn.Ts[1:FLDO, i, j])
+                
+                throw(ErrorException("T_ML Ts inconsisitent"))
+            end
+            if (i, j) == (80, 50)
+                println("Δh     = ", Δh)
+                println("Δh_top = ", Δh_top)
+                println("Δh_bot = ", Δh_bot)
+                println("FLDO   = ", FLDO)
+                println("T_ML   = ", ocn.T_ML[i, j])
+                println("Ts[FLDO, i, j] = ", ocn.Ts[FLDO, i, j])
+            end 
+            =#
+
+            ocn.Ts[FLDO, i, j] =  (Δh_top * ocn.T_ML[i, j] + Δh_bot * ocn.Ts[FLDO, i, j]) / Δh
+            ocn.Ss[FLDO, i, j] =  (Δh_top * ocn.S_ML[i, j] + Δh_bot * ocn.Ss[FLDO, i, j]) / Δh
+
+        end
+
+    end
 
 
     # Pseudo code
@@ -57,18 +98,26 @@ function stepOcean_Flow!(
             ocn.Nz[i, j],
         )
 
-
         for k = 1:ocn.Nz[i, j]
             ocn.Ts[k, i, j] += Δt * ( ocn.T_vadvs[k, i, j] + ocn.T_hadvs[k, i, j] )
             ocn.Ss[k, i, j] += Δt * ( ocn.S_vadvs[k, i, j] + ocn.S_hadvs[k, i, j] )
         end
-
 
         zs   = ocn.cols.zs[i, j]
         hs   = ocn.cols.hs[i, j]
         h_ML = ocn.h_ML[i, j]
         FLDO = ocn.FLDO[i, j]
         Nz   = ocn.Nz[i, j]
+
+
+        #=
+        if (i, j) == (80, 50)
+            println("#BEFORE")
+            println(ocn.cols.Ts[i,j][1:10])
+            println(ocn.T_ML[i,j])
+        end
+
+        =#
 
         # Remix top layers
         ocn.T_ML[i, j] = remixML!(;
@@ -79,6 +128,14 @@ function stepOcean_Flow!(
             FLDO = FLDO,
             Nz   = Nz,
         )
+        
+        #=
+        if (i, j) == (80, 50)
+            println("#AFTER")
+            println(ocn.cols.Ts[i,j][1:10])
+            println(ocn.T_ML[i,j])
+        end
+        =#
 
 
         ocn.S_ML[i, j] = remixML!(;
@@ -89,7 +146,6 @@ function stepOcean_Flow!(
             FLDO = FLDO,
             Nz   = Nz,
         )
-
         OC_updateB!(ocn, i, j)
         OC_doConvectiveAdjustment!(ocn, i, j)
 

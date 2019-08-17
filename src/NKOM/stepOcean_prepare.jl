@@ -143,25 +143,6 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
         end
     end
 
-
-
-    # Determine the temperature / salinity of FLDO layer
-    @loop_hor ocn i j let
-
-        FLDO = ocn.FLDO[i, j]
-
-        if FLDO != -1
-
-            Δh     = ocn.hs[FLDO, i, j]
-            Δh_top = ocn.h_ML[i, j] + ocn.zs[FLDO, i, j]
-            Δh_bot = Δh - Δh_top
-
-            ocn.Ts[FLDO, i, j] =  (Δh_top * ocn.T_ML[i, j] + Δh_bot * ocn.Ts[FLDO, i, j]) / Δh
-            ocn.Ss[FLDO, i, j] =  (Δh_top * ocn.S_ML[i, j] + Δh_bot * ocn.Ss[FLDO, i, j]) / Δh
-
-        end
-
-    end
-
+    
 end
 

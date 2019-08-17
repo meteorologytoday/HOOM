@@ -134,6 +134,7 @@ function stepOcean_MLDynamics!(
             h_ML=new_h_ML,
         )
 
+
         # Shortwave radiation
         if rad_scheme == :exponential
             FLDO = ocn.FLDO[i, j]
@@ -141,7 +142,9 @@ function stepOcean_MLDynamics!(
             ocn.Ts[1:((FLDO == -1) ? Nz : FLDO-1 ), i, j] .= ocn.T_ML[i, j]
             OC_doShortwaveRadiation!(ocn, i, j; Tswflx=(1.0 - ocn.R) * surf_Tswflx, Δt=Δt)
         elseif rad_scheme == :step
+            FLDO = ocn.FLDO[i, j]
             ocn.T_ML[i, j] += - surf_Tswflx * Δt / new_h_ML
+            ocn.Ts[1:((FLDO == -1) ? Nz : FLDO-1 ), i, j] .= ocn.T_ML[i, j]
         end
 
         OC_updateB!(ocn, i, j)
@@ -149,7 +152,7 @@ function stepOcean_MLDynamics!(
         if do_convadjust
             OC_doConvectiveAdjustment!(ocn, i, j;)
         end
-        
+            
     end
 
 end
@@ -165,6 +168,7 @@ function stepOcean_slowprocesses!(
     do_relaxation = cfgs[:do_relaxation]
     do_convadjust = cfgs[:do_convadjust]
 
+    return
     # Climatology relaxation
     if do_relaxation
         @loop_hor ocn i j let

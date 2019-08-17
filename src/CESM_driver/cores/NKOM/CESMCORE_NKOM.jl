@@ -114,29 +114,17 @@ module CESMCORE_NKOM
         # calculated accroding to Niiler and Kraus dynamics.
         #
 
-        if configs[:MLD_scheme] == :datastream
+        x2o = Dict(
+            "SWFLX"  => in_flds.swflx,
+            "NSWFLX" => in_flds.nswflx,
+            "TAUX"   => in_flds.taux,
+            "TAUY"   => in_flds.tauy,
+            "IFRAC"  => in_flds.ifrac,
+            "FRWFLX" => in_flds.frwflx,
+            "QFLX"   => in_flds.qflx,
+            "MLD"    => in_flds.h_ML,
+        )
 
-            x2o = Dict(
-                "SWFLX"  => in_flds.swflx,
-                "NSWFLX" => in_flds.nswflx,
-                "FRWFLX" => in_flds.frwflx,
-                "QFLX"   => in_flds.qflx,
-                "MLD"    => in_flds.h_ML,
-            )
-
-        elseif configs[:MLD_scheme] == :prognostic
-
-            x2o = Dict(
-                "SWFLX"  => in_flds.swflx,
-                "NSWFLX" => in_flds.nswflx,
-                "TAUX"   => in_flds.taux,
-                "TAUY"   => in_flds.tauy,
-                "IFRAC"  => in_flds.ifrac,
-                "FRWFLX" => in_flds.frwflx,
-                "QFLX"   => in_flds.qflx,
-            )
-
-        end
 
         o2x = Dict(
             "SST"      => ocn.T_ML,
@@ -208,6 +196,11 @@ module CESMCORE_NKOM
 
         in_flds.nswflx .*= -1.0
         in_flds.swflx  .*= -1.0
+        #in_flds.nswflx .=    50.0
+        #in_flds.swflx  .= -1000.0
+        #in_flds.taux .= 0.0
+        #in_flds.tauy .= 0.0
+
 
         if MD.configs[:turn_off_frwflx]
             in_flds.frwflx .= 0.0
