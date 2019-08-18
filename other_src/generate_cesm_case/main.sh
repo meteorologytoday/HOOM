@@ -26,11 +26,12 @@ lopts=(
     machine
     project-code
     model
-    init-config
+    flow-scheme
     ocn-ncpu
     ocn-branch
     qflux-file
     single-job
+    relaxation-time
 )
 
 source $wk_dir/getopt_helper.sh
@@ -78,7 +79,7 @@ $wk_dir/make_init.sh                            \
 
 
 echo "Making initial files for a specific model"
-casename=${label}_${resolution}_${model}_${init_config}
+casename=${label}_${resolution}_${model}_${flow_scheme}_${relaxation_time}
 init_file=$init_files_dir/init_${casename}.nc
 
 $wk_dir/make_init_each_model.sh                 \
@@ -93,7 +94,8 @@ $wk_dir/make_init_each_model.sh                 \
     --S-unit=$S_unit                            \
     --forcing-file=$qflux_file                  \
     --model=$model                              \
-    --init-config=$init_config
+    --flow-scheme=$flow_scheme                  \
+    --relaxation-time=$relaxation_time
 
 
 echo "Generate cesm sugar scripts..."
@@ -112,7 +114,6 @@ $wk_dir/make_cesm_sugar_script.sh           \
     --cesm-env=$cesm_env                    \
     --user-namelist-dir=$user_namelist_dir  \
     --model=$model                          \
-    --init-config=$init_config              \
     --ocn-ncpu=$ocn_ncpu                    \
     --qflux-file=$qflux_file                \
     --ocn-branch=$ocn_branch                \

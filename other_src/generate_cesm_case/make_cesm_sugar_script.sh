@@ -18,7 +18,7 @@ lopts=(
     cesm-env
     user-namelist-dir
     model
-    init-config
+    flow-scheme
     ocn-ncpu
     qflux-file
     ocn-branch
@@ -27,8 +27,11 @@ lopts=(
 
 source $wk_dir/getopt_helper.sh
 
-if [ ! -z "$casename" ]; then
-    export casename="${label}_${resolution}_${model}_${init_config}"
+
+
+if [ -z "$casename" ]; then
+    echo "ERROR: --casename not provided."
+    exit 1;
 fi
 
 script_file=$code_output_dir/makecase_$casename.sh
@@ -150,8 +153,7 @@ end
 XEOFX
 
 cat << XEOFX >> config.jl
-#  $wk_dir/config_specific/config_${model}.jl
-$( cat $wk_dir/init_code/${model}_${init_config}/config.jl )
+$( cat $wk_dir/init_code/${model}_${flow_scheme}/config.jl )
 XEOFX
 
 

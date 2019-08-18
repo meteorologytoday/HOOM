@@ -54,6 +54,11 @@ function parse_commandline()
             arg_type = String
             required = true
 
+        "--relaxation-time"
+            help = "Relaxation time of climatology."
+            arg_type = Float64
+
+
     end
 
     return parse_args(ARGS, s)

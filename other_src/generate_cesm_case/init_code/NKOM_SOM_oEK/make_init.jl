@@ -17,10 +17,10 @@ ocn = NKOM.Ocean(
     h_ML_max = 1e5,             # make it unrestricted
     mask     = mask,
     topo     = topo,
-    Ts_clim_relax_time = 0.0,
-    Ts_clim            = nothing,
-    Ss_clim_relax_time = 0.0,
-    Ss_clim            = nothing,
+    Ts_clim_relax_time = parsed["relaxation-time"],
+    Ts_clim            = copy(Ts_clim),
+    Ss_clim_relax_time = parsed["relaxation-time"],
+    Ss_clim            = copy(Ss_clim),
     arrange  = :xyz,
 )
 
