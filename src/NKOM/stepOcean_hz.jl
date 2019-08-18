@@ -98,9 +98,17 @@ function stepOcean_Flow!(
             ocn.Nz[i, j],
         )
 
-        for k = 1:ocn.Nz[i, j]
-            ocn.Ts[k, i, j] += Δt * ( ocn.T_vadvs[k, i, j] + ocn.T_hadvs[k, i, j] )
-            ocn.Ss[k, i, j] += Δt * ( ocn.S_vadvs[k, i, j] + ocn.S_hadvs[k, i, j] )
+        Nz = ocn.Nz[i, j]
+
+        if Nz > 1
+            
+            # Here I choose not to update the bottom layer.
+
+            for k = 1:ocn.Nz[i, j]
+                ocn.Ts[k, i, j] += Δt * ( ocn.T_vadvs[k, i, j] + ocn.T_hadvs[k, i, j] )
+                ocn.Ss[k, i, j] += Δt * ( ocn.S_vadvs[k, i, j] + ocn.S_hadvs[k, i, j] )
+            end
+        
         end
 
         zs   = ocn.cols.zs[i, j]
