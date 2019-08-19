@@ -1,3 +1,21 @@
+function calWeightedQuantity(;
+    top     :: Float64,
+    bot     :: Float64,
+    split_z :: Float64,
+    zs      :: AbstractArray{Float64, 1},
+    hs      :: AbstractArray{Float64, 1},
+    layer   :: Integer,
+)
+
+    Δh     = ocn.hs[layer, i, j]
+    Δh_top = ocn.zs[layer, i, j] - split_z
+    Δh_bot = Δh - Δh_top
+
+    return ( Δh_top * top + Δh_bot * bot ) / Δh
+
+end
+
+
 function stepOcean_prepare!(ocn::Ocean; cfgs...)
 
     adv_scheme = cfgs[:adv_scheme]
@@ -50,80 +68,83 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
             s̃ = ocn.ϵs[i, j] + ocn.fs[i, j] * im
             H̃ = √(ocn.K_v / s̃)
             H = abs(H̃)
-            p̃ = exp(- ocn.h_ML[i, j] * H̃)
             
             M̃ = (ocn.τx[i, j] + ocn.τy[i, j] * im) / (ρ * s̃)
-            M̃_DO = M̃ * p̃
 
-            ṽ_ML = (M̃ - M̃_DO) / h_ML
+            depth_rf = 500.0
 
-            u_ML, v_ML = real(ṽ_ML), imag(ṽ_ML)
+            H_ek = max(h_ML, 2*H)
+            H_rf = max(depth_rf - H_ek, 100.0 )
 
-            FLDO = ocn.FLDO[i, j]
+            ṽ_ek =   M̃ / H_ek
+            ṽ_rf = - M̃ / H_rf
 
-            if FLDO == -1
+
+            u_ek, v_ek = real(ṽ_ek), imag(ṽ_ek)
+            u_rf, v_rf = real(ṽ_rf), imag(ṽ_rf)
+
+
+            bot_lay_ek = getLayerFromDepth(
+                z  = - H_ek,
+                zs = ocn.cols.zs[i, j],  
+                Nz = ocn.Nz[i, j],
+            )
+
+            bot_lay_rf = getLayerFromDepth(
+                z  = - H_ek - H_rf,
+                zs = ocn.cols.zs[i, j],  
+                Nz = ocn.Nz[i, j],
+            )
+
+            if bot_lay_ek == -1
             
-                ocn.u[:, i, j] .= u_ML
-                ocn.v[:, i, j] .= v_ML
+                ocn.u[:, i, j] .= u_ek
+                ocn.v[:, i, j] .= v_ek
 
             else
 
-                ocn.u[:, i, j] .= 0.0
-                ocn.v[:, i, j] .= 0.0
+                ocn.u[1:bot_lay_ek, i, j] .= u_ek
+                ocn.v[1:bot_lay_ek, i, j] .= v_ek
 
-                if FLDO > 1
-                    ocn.u[1:FLDO-1, i, j] .= u_ML
-                    ocn.v[1:FLDO-1, i, j] .= v_ML
-                end
+                # Mix the top of RF layer
+                Δh     = ocn.hs[bot_lay_ek, i, j]
+                Δh_top = H_ek + ocn.zs[bot_lay_ek, i, j]
+                Δh_bot = Δh - Δh_top
 
-                H *= 3
-                
-                eklayer = getLayerFromDepth(
-                    z  = - h_ML - H,
-                    zs = ocn.cols.zs[i, j],  
-                    Nz = ocn.Nz[i, j],
-                )
-            
-                ṽ_DO = (M̃ - M̃_DO) / H
+                ocn.u[bot_lay_ek, i, j] = (Δh_top * u_ek + Δh_bot * u_rf) / Δh
+                ocn.v[bot_lay_ek, i, j] = (Δh_top * v_ek + Δh_bot * v_rf) / Δh
 
-                if abs(ṽ_DO) > abs(ṽ_ML)
-                    # this means the bottome boundary condition is
-                    # not realistic. So just set ṽ_DO = 0.0
-                    ṽ_DO = 0.0
-                    #println("Ekman b.c. break at bottom of (",i,",",j,"). Set flow to zero.")
-                end
+                if bot_lay_ek < ocn.Nz[i, j] && bot_lay_ek < bot_lay_rf
 
-                u_DO, v_DO = real(ṽ_DO), imag(ṽ_DO)
-
-                Δh     = ocn.hs[FLDO, i, j]
-                Δh_top = h_ML + ocn.zs[FLDO, i, j]
-
-                if eklayer == FLDO
-                    # H is too thin that it lies entirely in the same layer
-                    Δh_bot = H
-                else
-                    Δh_bot = Δh - Δh_top
-                end
-
-                ocn.u[FLDO, i, j] = (Δh_top * u_ML + Δh_bot * u_DO) / Δh
-                ocn.v[FLDO, i, j] = (Δh_top * v_ML + Δh_bot * v_DO) / Δh
-
-                if FLDO != ocn.Nz[i, j]
-
-                    if eklayer == -1
-                        ocn.u[FLDO+1:end, i, j] .= u_DO
-                        ocn.v[FLDO+1:end, i, j] .= v_DO
+                    if bot_lay_rf == -1
+                       ocn.u[bot_lay_ek+1:end, i, j] .= u_rf
+                       ocn.v[bot_lay_ek+1:end, i, j] .= v_rf
                     else
-                        ocn.u[FLDO+1:eklayer, i, j] .= u_DO
-                        ocn.v[FLDO+1:eklayer, i, j] .= v_DO
+                       ocn.u[bot_lay_ek+1:bot_lay_rf, i, j] .= u_rf
+                       ocn.v[bot_lay_ek+1:bot_lay_rf, i, j] .= v_rf
+
+                        # Mix the bottom of RF layer
+                        Δh     = ocn.hs[bot_lay_rf, i, j]
+                        Δh_top = H_ek + H_rf + ocn.zs[bot_lay_rf, i, j]
+                        Δh_bot = Δh - Δh_top
+
+                        ocn.u[bot_lay_rf, i, j] = Δh_top * u_rf / Δh
+                        ocn.v[bot_lay_rf, i, j] = Δh_top * v_rf / Δh
+
                     end
-
                 end
-                
-
 
             end
-            
+
+#=            if (i, j) == (67, 57)
+                println("M̃ = ", M̃)
+                println("H_ek = ", H_ek)
+                println("H_rf = ", H_rf)
+                println("h_ML = ", h_ML)
+                println("ṽ_ek = ", ṽ_ek)
+                println("ṽ_rf = ", ṽ_rf)
+            end
+  =#      
         end
 
     end

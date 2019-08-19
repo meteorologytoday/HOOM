@@ -115,7 +115,7 @@ function getLayerFromDepth(;
     Nz   :: Integer,
 )
     for i = 1:Nz
-        if z < (zs[1] - zs[i+1])  # I don't use equality in order to avoid Δb = 0 during some initialization
+        if zs[i+1] < z < zs[i]  # I don't use equality in order to avoid Δb = 0 during some initialization
             return i
         end
     end
