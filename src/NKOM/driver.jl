@@ -298,7 +298,7 @@ function run!(
             syncToMaster!(
                 subocn;
                 vars2 = [:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy],
-                vars3 = [:Ts, :Ss, :bs, :u, :v, :w, :div],
+                vars3 = [:Ts, :Ss, :bs, :u, :v, :w, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs],
             )
         end
     end

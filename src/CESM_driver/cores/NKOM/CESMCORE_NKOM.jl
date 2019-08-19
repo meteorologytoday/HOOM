@@ -152,7 +152,7 @@ module CESMCORE_NKOM
                         ("T_ML",    ocn.T_ML, ("Nx", "Ny",)),
                         ("S_ML",    ocn.S_ML, ("Nx", "Ny",)),
                         ("h_ML",    ocn.h_ML, ("Nx", "Ny")),
-                        ("h_MO",    ocn.h_MO, ("Nx", "Ny")),
+                        #("h_MO",    ocn.h_MO, ("Nx", "Ny")),
                         ("nswflx",  ocn.in_flds.nswflx, ("Nx", "Ny")),
                         ("swflx",   ocn.in_flds.swflx,  ("Nx", "Ny")),
                         #("frwflx",  ocn.in_flds.frwflx, ("Nx", "Ny")),
