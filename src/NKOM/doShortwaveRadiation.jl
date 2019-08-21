@@ -1,22 +1,22 @@
 function OC_doShortwaveRadiation!(
-    occ    :: OceanColumnCollection,
+    ocn    :: Ocean,
     i      :: Integer,
     j      :: Integer;
     Tswflx :: Float64,
     Δt     :: Float64,
 )
-    occ.T_ML[i, j] = doShortwaveRadiation!(
+    ocn.T_ML[i, j] = doShortwaveRadiation!(
         Tswflx = Tswflx,
-        Ts   = occ.Ts_vw[i, j],
-        zs   = occ.zs_vw[i, j],
-        hs   = occ.hs_vw[i, j],
-        rad_decay_coes  = occ.rad_decay_coes_vw[i, j],
-        rad_absorp_coes = occ.rad_absorp_coes_vw[i, j],
-        T_ML = occ.T_ML[i, j],
-        h_ML = occ.h_ML[i, j],
-        Nz   = occ.Nz[i, j],
-        FLDO = occ.FLDO[i, j],
-        ζ    = occ.ζ,
+        Ts   = ocn.cols.Ts[i, j],
+        zs   = ocn.cols.zs[i, j],
+        hs   = ocn.cols.hs[i, j],
+        rad_decay_coes  = ocn.cols.rad_decay_coes[i, j],
+        rad_absorp_coes = ocn.cols.rad_absorp_coes[i, j],
+        T_ML = ocn.T_ML[i, j],
+        h_ML = ocn.h_ML[i, j],
+        Nz   = ocn.Nz[i, j],
+        FLDO = ocn.FLDO[i, j],
+        ζ    = ocn.ζ,
         Δt   = Δt,
     )
 

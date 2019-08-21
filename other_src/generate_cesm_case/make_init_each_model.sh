@@ -17,14 +17,15 @@ lopts=(
     T-unit
     S-unit
     model
-    init-config
+    flow-scheme
+    relaxation-time
     forcing-file
 )
 
 source $wk_dir/getopt_helper.sh
 
-gen_code="$wk_dir/init_code/${model}_${init_config}/make_init.jl"
-printf "[%s] => [%s] : [%s]\n" $model $init_config $gen_code
+gen_code="$wk_dir/init_code/${model}_${flow_scheme}/make_init.jl"
+printf "[%s] => [%s] : [%s]\n" $model $flow_scheme $relaxation_time $gen_code
 
 if [ ! -f $output_file ]; then
 
@@ -37,6 +38,7 @@ if [ ! -f $output_file ]; then
         --zdomain-file=$zdomain_file                \
         --T-unit=$T_unit                            \
         --S-unit=$S_unit                            \
-        --forcing-file=$forcing_file
+        --forcing-file=$forcing_file                \
+        --relaxation-time=$((86400 * 365 * $relaxation_time))
 
 fi

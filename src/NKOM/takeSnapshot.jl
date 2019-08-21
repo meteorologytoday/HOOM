@@ -2,7 +2,7 @@ function loadSnapshot(
     filename::AbstractString;
     gridinfo_file::Union{AbstractString, Nothing} = nothing,
 )
-    local occ
+    local ocn
 
     Dataset(filename, "r") do ds
 
@@ -22,7 +22,7 @@ function loadSnapshot(
             Ss_clim = toZXY(nomissing(ds["Ss_clim"][:], NaN), :xyz)
         end
 
-        occ = OceanColumnCollection(
+        ocn = Ocean(
             id       = 0,
             gridinfo_file = (gridinfo_file == nothing) ? ds.attrib["gridinfo_file"] : gridinfo_file,
             Nx       = ds.dim["Nx"],
@@ -30,6 +30,7 @@ function loadSnapshot(
             zs_bone  = nomissing(ds["zs_bone"][:], NaN);
             Ts       = toZXY( nomissing(ds["Ts"][:], NaN), :xyz),
             Ss       = toZXY( nomissing(ds["Ss"][:], NaN), :xyz),
+            K_v      = ds.attrib["K_v"],
             K_T      = ds.attrib["K_T"],
             K_S      = ds.attrib["K_S"],
             fs       = nomissing(ds["fs"][:], NaN),
@@ -53,78 +54,79 @@ function loadSnapshot(
 
     end
 
-    return occ 
+    return ocn 
 end
 
 
 function takeSnapshot(
-    occ::OceanColumnCollection,
+    ocn::Ocean,
     filename::AbstractString;
     missing_value::Float64=1e20
 )
-    _createNCFile(occ, filename, missing_value)
+    _createNCFile(ocn, filename, missing_value)
 
     Dataset(filename, "a") do ds
  
-        ds.attrib["gridinfo_file"] = occ.gi_file
-        ds.attrib["K_T"] = occ.K_T
-        ds.attrib["K_S"] = occ.K_S
+        ds.attrib["gridinfo_file"] = ocn.gi_file
+        ds.attrib["K_v"] = ocn.K_v
+        ds.attrib["K_T"] = ocn.K_T
+        ds.attrib["K_S"] = ocn.K_S
 
-        ds.attrib["we_max"] = occ.we_max
-        ds.attrib["R"]    = occ.R
-        ds.attrib["zeta"] = occ.ζ
+        ds.attrib["we_max"] = ocn.we_max
+        ds.attrib["R"]    = ocn.R
+        ds.attrib["zeta"] = ocn.ζ
 
-        if occ.Ts_clim_relax_time != nothing
-            ds.attrib["Ts_clim_relax_time"] = occ.Ts_clim_relax_time
+        if ocn.Ts_clim_relax_time != nothing
+            ds.attrib["Ts_clim_relax_time"] = ocn.Ts_clim_relax_time
         end
  
-        if occ.Ss_clim_relax_time != nothing
-            ds.attrib["Ss_clim_relax_time"] = occ.Ss_clim_relax_time
+        if ocn.Ss_clim_relax_time != nothing
+            ds.attrib["Ss_clim_relax_time"] = ocn.Ss_clim_relax_time
         end
        
-        _write2NCFile(ds, "zs_bone", ("NP_zs_bone",), occ.zs_bone, missing_value)
+        _write2NCFile(ds, "zs_bone", ("NP_zs_bone",), ocn.zs_bone, missing_value)
 
-        _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz_bone"), toXYZ(occ.Ts, :zxy), missing_value)
-        _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz_bone"), toXYZ(occ.Ss, :zxy), missing_value)
-        _write2NCFile(ds, "bs", ("Nx", "Ny", "Nz_bone"), toXYZ(occ.bs, :zxy), missing_value)
-        _write2NCFile(ds, "T_ML", ("Nx", "Ny",), occ.T_ML, missing_value)
-        _write2NCFile(ds, "S_ML", ("Nx", "Ny",), occ.S_ML, missing_value)
-        _write2NCFile(ds, "h_ML", ("Nx", "Ny",), occ.h_ML, missing_value)
+        _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz_bone"), toXYZ(ocn.Ts, :zxy), missing_value)
+        _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz_bone"), toXYZ(ocn.Ss, :zxy), missing_value)
+        _write2NCFile(ds, "bs", ("Nx", "Ny", "Nz_bone"), toXYZ(ocn.bs, :zxy), missing_value)
+        _write2NCFile(ds, "T_ML", ("Nx", "Ny",), ocn.T_ML, missing_value)
+        _write2NCFile(ds, "S_ML", ("Nx", "Ny",), ocn.S_ML, missing_value)
+        _write2NCFile(ds, "h_ML", ("Nx", "Ny",), ocn.h_ML, missing_value)
         
-        _write2NCFile(ds, "h_ML_min", ("Nx", "Ny",), occ.h_ML_min, missing_value)
-        _write2NCFile(ds, "h_ML_max", ("Nx", "Ny",), occ.h_ML_max, missing_value)
+        _write2NCFile(ds, "h_ML_min", ("Nx", "Ny",), ocn.h_ML_min, missing_value)
+        _write2NCFile(ds, "h_ML_max", ("Nx", "Ny",), ocn.h_ML_max, missing_value)
 
-        if occ.Ts_clim != nothing
-            _write2NCFile(ds, "Ts_clim", ("Nx", "Ny", "Nz_bone"), toXYZ(occ.Ts_clim, :zxy), missing_value)
+        if ocn.Ts_clim != nothing
+            _write2NCFile(ds, "Ts_clim", ("Nx", "Ny", "Nz_bone"), toXYZ(ocn.Ts_clim, :zxy), missing_value)
         end
 
-        if occ.Ss_clim != nothing
-            _write2NCFile(ds, "Ss_clim", ("Nx", "Ny", "Nz_bone"), toXYZ(occ.Ss_clim, :zxy), missing_value)
+        if ocn.Ss_clim != nothing
+            _write2NCFile(ds, "Ss_clim", ("Nx", "Ny", "Nz_bone"), toXYZ(ocn.Ss_clim, :zxy), missing_value)
         end
 
-        _write2NCFile(ds, "mask", ("Nx", "Ny",), occ.mask, missing_value)
-        _write2NCFile(ds, "topo", ("Nx", "Ny",), occ.topo, missing_value)
+        _write2NCFile(ds, "mask", ("Nx", "Ny",), ocn.mask, missing_value)
+        _write2NCFile(ds, "topo", ("Nx", "Ny",), ocn.topo, missing_value)
 
-        _write2NCFile(ds, "fs", ("Nx", "Ny"), occ.fs, missing_value)
-        _write2NCFile(ds, "epsilons", ("Nx", "Ny"), occ.ϵs, missing_value)
+        _write2NCFile(ds, "fs", ("Nx", "Ny"), ocn.fs, missing_value)
+        _write2NCFile(ds, "epsilons", ("Nx", "Ny"), ocn.ϵs, missing_value)
 
     end
 
 end
 
 function _createNCFile(
-    occ::OceanColumnCollection,
+    ocn::Ocean,
     filename::AbstractString,
     missing_value::Float64,
 )
 
     Dataset(filename, "c") do ds
 
-        defDim(ds, "N_ocs", occ.N_ocs)
-        defDim(ds, "Nx", occ.Nx)
-        defDim(ds, "Ny", occ.Ny)
-        defDim(ds, "Nz_bone", occ.Nz_bone)
-        defDim(ds, "NP_zs_bone",   length(occ.zs_bone))
+        defDim(ds, "N_ocs", ocn.N_ocs)
+        defDim(ds, "Nx", ocn.Nx)
+        defDim(ds, "Ny", ocn.Ny)
+        defDim(ds, "Nz_bone", ocn.Nz_bone)
+        defDim(ds, "NP_zs_bone",   length(ocn.zs_bone))
         defDim(ds, "time",   Inf)
         
         ds.attrib["_FillValue"] = missing_value

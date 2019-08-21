@@ -18,7 +18,7 @@ module CESMCORE_NKOM
     mutable struct NKOM_DATA
         casename    :: AbstractString
         map         :: NetCDFIO.MapInfo
-        occ         :: NKOM.OceanColumnCollection
+        ocn         :: NKOM.Ocean
 
         x2o         :: Dict
         o2x         :: Dict
@@ -40,9 +40,11 @@ module CESMCORE_NKOM
 
         checkDict!(configs, [
             (:init_file,                    false, (nothing, String,),          nothing),
+            (:advection_scheme,              true, (:static, :ekman_all_in_ML, :ekman_simple_partition,),  nothing),
             (:MLD_scheme,                    true, (:prognostic, :datastream,), nothing),
             (:Qflux_scheme,                  true, (:on, :off,),                nothing),
-            (:diffusion_scheme,              true, (:on, :off,),                nothing),
+            (:vertical_diffusion_scheme,     true, (:on, :off,),                nothing),
+            (:horizontal_diffusion_scheme,   true, (:on, :off,),                nothing),
             (:relaxation_scheme,             true, (:on, :off,),                nothing),
             (:convective_adjustment_scheme,  true, (:on, :off,),                nothing),
             (:radiation_scheme,              true, (:exponential, :step,),      nothing),
@@ -90,7 +92,7 @@ module CESMCORE_NKOM
         if typeof(init_file) <: AbstractString
 
             println("Initial ocean with profile: ", init_file)
-            occ = NKOM.loadSnapshot(init_file)
+            ocn = NKOM.loadSnapshot(init_file)
         
         else
 
@@ -99,9 +101,9 @@ module CESMCORE_NKOM
         end
 
         println("Initializing parallization...")
-        NKOM.init(occ)
+        NKOM.init(ocn)
 
-        in_flds = occ.in_flds
+        in_flds = ocn.in_flds
 
         #
         # If it is "datastream", entrainment speed w_e would be 
@@ -112,33 +114,21 @@ module CESMCORE_NKOM
         # calculated accroding to Niiler and Kraus dynamics.
         #
 
-        if configs[:MLD_scheme] == :datastream
+        x2o = Dict(
+            "SWFLX"  => in_flds.swflx,
+            "NSWFLX" => in_flds.nswflx,
+            "TAUX"   => in_flds.taux,
+            "TAUY"   => in_flds.tauy,
+            "IFRAC"  => in_flds.ifrac,
+            "FRWFLX" => in_flds.frwflx,
+            "QFLX"   => in_flds.qflx,
+            "MLD"    => in_flds.h_ML,
+        )
 
-            x2o = Dict(
-                "SWFLX"  => in_flds.swflx,
-                "NSWFLX" => in_flds.nswflx,
-                "FRWFLX" => in_flds.frwflx,
-                "QFLX"   => in_flds.qflx,
-                "MLD"    => in_flds.h_ML,
-            )
-
-        elseif configs[:MLD_scheme] == :prognostic
-
-            x2o = Dict(
-                "SWFLX"  => in_flds.swflx,
-                "NSWFLX" => in_flds.nswflx,
-                "TAUX"   => in_flds.taux,
-                "TAUY"   => in_flds.tauy,
-                "IFRAC"  => in_flds.ifrac,
-                "FRWFLX" => in_flds.frwflx,
-                "QFLX"   => in_flds.qflx,
-            )
-
-        end
 
         o2x = Dict(
-            "SST"      => occ.T_ML,
-            "QFLX2ATM" => occ.qflx2atm,
+            "SST"      => ocn.T_ML,
+            "QFLX2ATM" => ocn.qflx2atm,
         )
         
         recorders = Dict()
@@ -151,21 +141,27 @@ module CESMCORE_NKOM
             if configs[rec_key]
                  recorder = RecordTool.Recorder(
                     Dict(
-                        "Nx" => occ.Nx,
-                        "Ny" => occ.Ny,
-                        "Nz_bone" => occ.Nz_bone,
+                        "Nx" => ocn.Nx,
+                        "Ny" => ocn.Ny,
+                        "Nz_bone" => ocn.Nz_bone,
+                        "zs_bone" => length(ocn.zs_bone),
                     ), [
-                        ("T",       NKOM.toXYZ(occ.Ts, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("S",       NKOM.toXYZ(occ.Ss, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("T_ML",    occ.T_ML, ("Nx", "Ny",)),
-                        ("S_ML",    occ.S_ML, ("Nx", "Ny",)),
-                        ("h_ML",    occ.h_ML, ("Nx", "Ny")),
-                        ("h_MO",    occ.h_MO, ("Nx", "Ny")),
-                        ("nswflx",  occ.in_flds.nswflx, ("Nx", "Ny")),
-                        ("swflx",   occ.in_flds.swflx,  ("Nx", "Ny")),
-                        ("frwflx",  occ.in_flds.frwflx, ("Nx", "Ny")),
-                        ("fric_u",  occ.fric_u, ("Nx", "Ny")),
-
+                        ("T",       NKOM.toXYZ(ocn.Ts, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("S",       NKOM.toXYZ(ocn.Ss, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("b",       NKOM.toXYZ(ocn.bs, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("T_ML",    ocn.T_ML, ("Nx", "Ny",)),
+                        ("S_ML",    ocn.S_ML, ("Nx", "Ny",)),
+                        ("h_ML",    ocn.h_ML, ("Nx", "Ny")),
+                        #("h_MO",    ocn.h_MO, ("Nx", "Ny")),
+                        ("nswflx",  ocn.in_flds.nswflx, ("Nx", "Ny")),
+                        ("swflx",   ocn.in_flds.swflx,  ("Nx", "Ny")),
+                        #("frwflx",  ocn.in_flds.frwflx, ("Nx", "Ny")),
+                        #("fric_u",  ocn.fric_u, ("Nx", "Ny")),
+                        #("taux",    ocn.τx, ("Nx", "Ny")),
+                        #("tauy",    ocn.τy, ("Nx", "Ny")),
+                        ("w",       NKOM.toXYZ(ocn.w, :zxy), ("Nx", "Ny", "zs_bone")),
+                        ("u",       NKOM.toXYZ(ocn.u, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("v",       NKOM.toXYZ(ocn.v, :zxy), ("Nx", "Ny", "Nz_bone")),
                     ],
                 )
 
@@ -177,7 +173,7 @@ module CESMCORE_NKOM
         return NKOM_DATA(
             casename,
             map,
-            occ,
+            ocn,
             x2o,
             o2x,
             configs,
@@ -196,10 +192,15 @@ module CESMCORE_NKOM
     )
 
         # process input fields before record
-        in_flds = MD.occ.in_flds
+        in_flds = MD.ocn.in_flds
 
         in_flds.nswflx .*= -1.0
         in_flds.swflx  .*= -1.0
+        #in_flds.nswflx .=    50.0
+        #in_flds.swflx  .= -1000.0
+        #in_flds.taux .= 0.0
+        #in_flds.tauy .= 0.0
+
 
         if MD.configs[:turn_off_frwflx]
             in_flds.frwflx .= 0.0
@@ -250,22 +251,23 @@ module CESMCORE_NKOM
 
 
         NKOM.run!(
-            MD.occ;
+            MD.ocn;
             substeps      = MD.configs[:substeps],
             use_qflx      = MD.configs[:Qflux_scheme] == :on,
             use_h_ML      = MD.configs[:MLD_scheme] == :datastream,
             Δt            = Δt,
-            do_diffusion  = MD.configs[:diffusion_scheme] == :on,
+            do_vert_diff  = MD.configs[:vertical_diffusion_scheme] == :on,
+            do_horz_diff  = MD.configs[:horizontal_diffusion_scheme] == :on,
             do_relaxation = MD.configs[:relaxation_scheme] == :on,
             do_convadjust = MD.configs[:convective_adjustment_scheme] == :on,
             rad_scheme    = MD.configs[:radiation_scheme],
+            adv_scheme    = MD.configs[:advection_scheme],
         )
 
-        NKOM.sync!(MD.occ)
         
         if write_restart
             restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
-            NKOM.takeSnapshot(MD.occ, restart_file)
+            NKOM.takeSnapshot(MD.ocn, restart_file)
              
             open(MD.configs[:rpointer_file], "w") do file
                 write(file, restart_file)

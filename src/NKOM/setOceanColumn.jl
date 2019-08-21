@@ -29,7 +29,7 @@ end
 
 
 function OC_setMixedLayer!(
-    occ  :: OceanColumnCollection,
+    ocn  :: Ocean,
     i    :: Integer,
     j    :: Integer;
     T_ML :: Float64,
@@ -37,14 +37,14 @@ function OC_setMixedLayer!(
     h_ML :: Float64,
 )
 
-    occ.h_ML[i, j] = h_ML
-    occ.T_ML[i, j] = T_ML
-    occ.S_ML[i, j] = S_ML
-    occ.FLDO[i, j] = setMixedLayer!(
-        Ts   = occ.Ts_vw[i, j],
-        Ss   = occ.Ss_vw[i, j],
-        zs   = occ.zs_vw[i, j],
-        Nz   = occ.Nz[i, j],
+    ocn.h_ML[i, j] = h_ML
+    ocn.T_ML[i, j] = T_ML
+    ocn.S_ML[i, j] = S_ML
+    ocn.FLDO[i, j] = setMixedLayer!(
+        Ts   = ocn.cols.Ts[i, j],
+        Ss   = ocn.cols.Ss[i, j],
+        zs   = ocn.cols.zs[i, j],
+        Nz   = ocn.Nz[i, j],
         T_ML = T_ML,
         S_ML = S_ML,
         h_ML = h_ML,
@@ -54,7 +54,7 @@ end
 
 
 function OC_setBuoyancy!(
-    occ  :: OceanColumnCollection,
+    ocn  :: Ocean,
     i    :: Integer,
     j    :: Integer;
     bs   :: AbstractArray{Float64,1},
@@ -62,8 +62,8 @@ function OC_setBuoyancy!(
     h_ML :: Float64,
 )
 
-    occ.bs[i, j, :] = bs
-    OC_setMixedLayer!(occ, i, j; b_ML=b_ML, h_ML=h_ML)
+    ocn.bs[i, j, :] = bs
+    OC_setMixedLayer!(ocn, i, j; b_ML=b_ML, h_ML=h_ML)
 
 end
 

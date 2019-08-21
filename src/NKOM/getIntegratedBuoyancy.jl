@@ -1,20 +1,69 @@
-function OC_getIntegratedTemperature(
-    occ      :: OceanColumnCollection,
-    i        :: Integer,
-    j        :: Integer;
-    target_z :: Float64 = NaN,
+
+function remixML!(;
+    qs   :: AbstractArray{Float64, 1},
+    zs   :: AbstractArray{Float64, 1},
+    hs   :: AbstractArray{Float64, 1},
+    h_ML :: Float64,
+    FLDO :: Integer,
+    Nz   :: Integer,
 )
 
-    if isnan(target_z)
-        target_z = occ.zs_vw[i, j][occ.Nz[i, j]+1]
+    # no need to remix if h_ML is shallower than the first layer
+    if FLDO == 1
+        return qs[1]
     end
 
+    int_layer = 0
+    new_q_ML = 0.0
+
+    if FLDO == -1
+        int_layer = Nz
+    else
+        int_layer = FLDO - 1
+        new_q_ML += ( h_ML + zs[FLDO] ) * qs[FLDO]
+    end
+
+    for k = 1:int_layer
+        new_q_ML += hs[k] * qs[k]
+    end 
+    #=
+    if go
+        println("hs: ", hs)
+        println("h_ML: ", h_ML)
+        println("FLDO: ", FLDO)
+        println("qs[1:FLDO]: ", qs[1:FLDO])
+        println("zs[FLDO]: ", zs[FLDO])
+        println("int_layer: ", int_layer)
+        
+    end
+
+=#
+
+    new_q_ML /= h_ML
+
+    qs[1:int_layer] .= new_q_ML
+    return new_q_ML
+
+#    qs[1:int_layer] .= qs[1]
+    return qs[1]
+
+end
+
+
+
+function OC_getIntegratedTemperature(
+    ocn      :: Ocean,
+    i        :: Integer,
+    j        :: Integer;
+    target_z :: Float64,
+)
+
     return getIntegratedQuantity(
-        zs       = occ.zs_vw[i, j],
-        qs       = occ.Ts_vw[i, j],
-        q_ML     = occ.T_ML[i, j],
-        h_ML     = occ.h_ML[i, j],
-        Nz       = occ.Nz[i, j],
+        zs       = ocn.cols.zs[i, j],
+        qs       = ocn.cols.Ts[i, j],
+        q_ML     = ocn.T_ML[i, j],
+        h_ML     = ocn.h_ML[i, j],
+        Nz       = ocn.Nz[i, j],
         target_z = target_z,
     )
 end
@@ -23,22 +72,18 @@ end
 
 
 function OC_getIntegratedSalinity(
-    occ      :: OceanColumnCollection,
+    ocn      :: Ocean,
     i        :: Integer,
     j        :: Integer;
-    target_z :: Float64 = NaN,
+    target_z :: Float64,
 )
 
-    if isnan(target_z)
-        target_z = occ.zs_vw[i, j][occ.Nz[i, j]+1]
-    end
-
     return getIntegratedQuantity(
-        zs       = occ.zs_vw[i, j],
-        qs       = occ.Ss_vw[i, j],
-        q_ML     = occ.S_ML[i, j],
-        h_ML     = occ.h_ML[i, j],
-        Nz       = occ.Nz[i, j],
+        zs       = ocn.cols.zs[i, j],
+        qs       = ocn.cols.Ss[i, j],
+        q_ML     = ocn.S_ML[i, j],
+        h_ML     = ocn.h_ML[i, j],
+        Nz       = ocn.Nz[i, j],
         target_z = target_z,
     )
 end
@@ -46,22 +91,18 @@ end
 
 
 function OC_getIntegratedBuoyancy(
-    occ      :: OceanColumnCollection,
+    ocn      :: Ocean,
     i        :: Integer,
     j        :: Integer;
-    target_z :: Float64 = NaN,
+    target_z :: Float64,
 )
 
-    if isnan(target_z)
-        target_z = occ.zs_vw[i, j][occ.Nz[i, j]+1]
-    end
-
     return getIntegratedQuantity(
-        zs       = occ.zs_vw[i, j],
-        qs       = occ.bs_vw[i, j],
-        q_ML     = occ.b_ML[i, j],
-        h_ML     = occ.h_ML[i, j],
-        Nz       = occ.Nz[i, j],
+        zs       = ocn.cols.zs[i, j],
+        qs       = ocn.cols.bs[i, j],
+        q_ML     = ocn.b_ML[i, j],
+        h_ML     = ocn.h_ML[i, j],
+        Nz       = ocn.Nz[i, j],
         target_z = target_z,
     )
 end
