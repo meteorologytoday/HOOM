@@ -28,11 +28,6 @@ function parse_commandline()
             help = "Variable names list. They should by dimension 2 (x, y) or 3 (x, y, z) with or without record (time) dimension. Ex: --vars=Ts,Ss,MLD"
             arg_type = String
 
-        "--copy-vars"
-            help = "Variable names list."
-            arg_type = String
-
-
         "--x-dim"
             help = "Variable name of x-dimension."
             arg_type = String
@@ -77,5 +72,4 @@ CoordTrans.convertFile(
     ydim = parsed["y-dim"],
     zdim = parsed["z-dim"],
     tdim = parsed["t-dim"],
-    copy_varnames = (parsed["copy-vars"] == nothing) ? (:,) : split(parsed["copy-vars"], ",") ,
 )
