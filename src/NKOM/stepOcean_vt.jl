@@ -168,7 +168,6 @@ function stepOcean_slowprocesses!(
     do_relaxation = cfgs[:do_relaxation]
     do_convadjust = cfgs[:do_convadjust]
 
-    return
     # Climatology relaxation
     if do_relaxation
         @loop_hor ocn i j let
