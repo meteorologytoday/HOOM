@@ -166,8 +166,6 @@ module CESMCORE_NKOM
                         ("T_vadvs", NKOM.toXYZ(ocn.T_vadvs, :zxy), ("Nx", "Ny", "Nz_bone")),
                         ("S_hadvs", NKOM.toXYZ(ocn.S_hadvs, :zxy), ("Nx", "Ny", "Nz_bone")),
                         ("S_vadvs", NKOM.toXYZ(ocn.S_vadvs, :zxy), ("Nx", "Ny", "Nz_bone")),
-              
-                        vars3 = [:Ts, :Ss, :bs, :u, :v, :w, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs],
                     ],
                 )
 
