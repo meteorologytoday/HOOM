@@ -162,4 +162,3 @@ function getIntegratedQuantity(;
     end
 
 end
-

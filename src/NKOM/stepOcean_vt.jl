@@ -56,16 +56,6 @@ function stepOcean_MLDynamics!(
         
         old_FLDO = ocn.FLDO[i, j]
         old_h_ML = ocn.h_ML[i, j]
-        Δb = (old_FLDO != -1) ? ocn.b_ML[i, j] - ocn.bs[old_FLDO, i, j] : 0.0
-
-
-        # After convective adjustment, there still might
-        # be some numerical error making Δb slightly negative
-        # (the one I got is like -1e-15 ~ -1e-8). So I set a
-        # tolarence δb = 3e-6 ( 0.001 K => 3e-6 m/s^2 ).
-        if Δb < 0.0 #&& -Δb <= 3e-6
-            Δb = 0.0
-        end
 
         new_h_ML = old_h_ML
 
@@ -74,7 +64,23 @@ function stepOcean_MLDynamics!(
             new_h_ML = ocn.in_flds.h_ML[i, j]
 
         else        # h_ML is prognostic
-             
+ 
+            avg_D = min(30.0,  ocn.h_ML_max[i, j] - old_h_ML)
+
+            Δb = ( (avg_D > 0.0) ? ocn.b_ML[i, j] - (
+                  OC_getIntegratedBuoyancy(ocn, i, j; target_z = - old_h_ML - avg_D)
+                - OC_getIntegratedBuoyancy(ocn, i, j; target_z = - old_h_ML)
+            ) / avg_D
+            : 0.0 )
+
+            # After convective adjustment, there still might
+            # be some numerical error making Δb slightly negative
+            # (the one I got is like -1e-15 ~ -1e-8). So I set a
+            # tolarence δb = 3e-6 ( 0.001 K => 3e-6 m/s^2 ).
+            if -3e-6 < Δb < 0.0
+                Δb = 0.0
+            end
+
             new_h_ML, ocn.h_MO[i, j] = calNewMLD(;
                 h_ML   = old_h_ML,
                 Bf     = surf_bflx + surf_Jflx * ocn.R,
