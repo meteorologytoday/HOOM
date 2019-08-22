@@ -39,6 +39,10 @@ function parse_commandline()
             arg_type = String
             default = "xc"
 
+        "--no-mask"
+            help = "If all values are needed set this option on."
+            action = :store_true
+
         "--s-mask-varname"
             help = "Variable name of mask in source file."
             arg_type = String
@@ -46,9 +50,8 @@ function parse_commandline()
 
         "--s-mask-value"
             help = "Mask value representing wanted grids in source file."
-            arg_type = String
-            required = true
-
+            arg_type = Float64
+            default = 1.0
 
         "--d-lat-varname"
             help = "Variable name of latitude in destination file."
@@ -67,9 +70,8 @@ function parse_commandline()
 
         "--d-mask-value"
             help = "Mask value representing wanted grids in destination file."
-            arg_type = String
-            required = true
-
+            arg_type = Float64
+            default = 1.0
 
 
     end
@@ -90,13 +92,20 @@ Dataset(parsed["s-file"], "r") do ds
 
         dims = size(ds[parsed["s-lon-varname"]]) |> collect
 
-        s_mask = replace(reshape(ds[parsed["s-mask-varname"]][:], :), missing=>NaN)
+        if parsed["no-mask"]
+            
+            s_mask = zeros(Float64, reduce(*, dims) )
+            s_mask .= 1.0            
+            
+        else
+            s_mask = replace(reshape(ds[parsed["s-mask-varname"]][:], :), missing=>NaN)
 
-        wanted   = ( s_mask .== parse(Float64, parsed["s-mask-value"]) )
-        unwanted = ( s_mask .!= parse(Float64, parsed["s-mask-value"]) )
+            wanted   = ( s_mask .== parsed["s-mask-value"])
+            unwanted = ( s_mask .!= parsed["s-mask-value"])
 
-        s_mask[wanted] .= 1.0
-        s_mask[unwanted] .= 0.0
+            s_mask[wanted] .= 1.0
+            s_mask[unwanted] .= 0.0
+        end 
 
         s_lon  = replace(reshape(ds[parsed["s-lon-varname"]][:], :), missing=>NaN)
         s_lat  = replace(reshape(ds[parsed["s-lat-varname"]][:], :), missing=>NaN)
@@ -117,14 +126,21 @@ Dataset(parsed["d-file"], "r") do ds
 
         dims = size(ds[parsed["d-lon-varname"]]) |> collect
 
+        if parsed["no-mask"]
+            
+            d_mask = zeros(Float64, reduce(*, dims) )
+            d_mask .= 1.0            
+            
+        else
 
-        d_mask = replace(reshape(ds[parsed["d-mask-varname"]][:], :), missing=>NaN)
+            d_mask = replace(reshape(ds[parsed["d-mask-varname"]][:], :), missing=>NaN)
 
-        wanted   = ( d_mask .== parse(Float64, parsed["d-mask-value"]) )
-        unwanted = ( d_mask .!= parse(Float64, parsed["d-mask-value"]) )
+            wanted   = ( d_mask .== parsed["d-mask-value"])
+            unwanted = ( d_mask .!= parsed["d-mask-value"])
 
-        d_mask[wanted] .= 1.0
-        d_mask[unwanted] .= 0.0
+            d_mask[wanted] .= 1.0
+            d_mask[unwanted] .= 0.0
+        end
 
         d_lon  = replace(reshape(ds[parsed["d-lon-varname"]][:], :), missing=>NaN)
         d_lat  = replace(reshape(ds[parsed["d-lat-varname"]][:], :), missing=>NaN)

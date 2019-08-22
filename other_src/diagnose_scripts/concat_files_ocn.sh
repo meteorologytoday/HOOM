@@ -6,11 +6,11 @@ if [ -f $ocn_concat ]; then
 
 else
 
-    echo "Concat ocn files of $res_casename"
+    echo "Concat ocn files of $full_casename"
     cd $ocn_hist_dir
 
     eval "$(cat <<EOF
-    ncrcat -O $res_casename.ocn.h.monthly.{$beg_year..$end_year}.nc $ocn_concat
+    ncrcat -O $full_casename.ocn.h.monthly.{$beg_year..$end_year}.nc $ocn_concat
 EOF
     )"
 

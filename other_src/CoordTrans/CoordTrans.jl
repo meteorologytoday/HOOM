@@ -296,7 +296,6 @@ using Distributed
         out_filename  :: AbstractString,
         wgt_filename  :: AbstractString;
         varnames      :: Union{Nothing, Array} = nothing,
-        copy_varnames :: Union{Tuple, Array} = (:,),
         xydim         :: AbstractString = "grid",
         xdim          :: AbstractString = "lon",
         ydim          :: AbstractString = "lat",

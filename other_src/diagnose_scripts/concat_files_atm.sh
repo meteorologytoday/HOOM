@@ -6,12 +6,12 @@ if [ -f $atm_concat ]; then
 
 else
 
-    echo "Concat atm files of $res_casename"
+    echo "Concat atm files of $full_casename"
 
     # atm variables
     cd $atm_hist_dir 
     eval "$(cat <<EOF
-    ncrcat -O -v ilev,PSL,V,TREFHT,VQ,VZ,VT,PRECC,PRECL,FSNT,FSNS,FLNT,FLNS,SHFLX,LHFLX,PSL $res_casename.cam.h0.{$beg_year..$end_year}-{01..12}.nc $atm_concat
+    ncrcat -O -v ilev,PSL,V,TREFHT,VQ,VZ,VT,PRECC,PRECL,FSNT,FSNS,FLNT,FLNS,SHFLX,LHFLX,PSL $full_casename.cam.h0.{$beg_year..$end_year}-{01..12}.nc $atm_concat
 
 EOF
     )"
