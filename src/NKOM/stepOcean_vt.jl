@@ -65,10 +65,11 @@ function stepOcean_MLDynamics!(
 
         else        # h_ML is prognostic
  
-            avg_D = min(30.0,  ocn.h_ML_max[i, j] - old_h_ML)
+            target_z = max( - old_h_ML - 30.0,  - ocn.h_ML_max[i, j])
+            avg_D = - old_h_ML - target_z
 
             Δb = ( (avg_D > 0.0) ? ocn.b_ML[i, j] - (
-                  OC_getIntegratedBuoyancy(ocn, i, j; target_z = - old_h_ML - avg_D)
+                  OC_getIntegratedBuoyancy(ocn, i, j; target_z =   target_z)
                 - OC_getIntegratedBuoyancy(ocn, i, j; target_z = - old_h_ML)
             ) / avg_D
             : 0.0 )
