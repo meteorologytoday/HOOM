@@ -162,6 +162,10 @@ module CESMCORE_NKOM
                         ("w",       NKOM.toXYZ(ocn.w, :zxy), ("Nx", "Ny", "zs_bone")),
                         ("u",       NKOM.toXYZ(ocn.u, :zxy), ("Nx", "Ny", "Nz_bone")),
                         ("v",       NKOM.toXYZ(ocn.v, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("T_hadvs", NKOM.toXYZ(ocn.T_hadvs, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("T_vadvs", NKOM.toXYZ(ocn.T_vadvs, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("S_hadvs", NKOM.toXYZ(ocn.S_hadvs, :zxy), ("Nx", "Ny", "Nz_bone")),
+                        ("S_vadvs", NKOM.toXYZ(ocn.S_vadvs, :zxy), ("Nx", "Ny", "Nz_bone")),
                     ],
                 )
 
