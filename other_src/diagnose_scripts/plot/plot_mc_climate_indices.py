@@ -15,6 +15,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--input-dir')
 parser.add_argument('--output-dir')
 parser.add_argument('--res')
+parser.add_argument('--label')
 parser.add_argument('--casenames')
 parser.add_argument('--data-file')
 parser.add_argument('--varname')
@@ -23,6 +24,8 @@ parser.add_argument('--logy_max', type=float, default=3)
 parser.add_argument('--logy_min', type=float, default=-3)
 parser.add_argument('--ylabel', default="")
 parser.add_argument('--colors')
+parser.add_argument('--linestyles')
+parser.add_argument('--t-offset', type=float, default=0.0)
 
 args = parser.parse_args()
 
@@ -43,7 +46,7 @@ for i in range(len(casenames)):
 
     try:
 
-        f = Nio.open_file("%s/%s_%s/%s" % (args.input_dir, args.res, casenames[i], args.data_file), "r")
+        f = Nio.open_file("%s/%s_%s_%s/%s" % (args.input_dir, args.label, args.res, casenames[i], args.data_file), "r")
 
     except Exception as e:
     
@@ -52,7 +55,7 @@ for i in range(len(casenames)):
         continue
     
     
-    new_casenames.append([casenames[i], colors[i]])
+    new_casenames.append([casenames[i], colors[i], linestlyes[i]])
 
     ts = f.variables[args.varname][:]
 
@@ -71,7 +74,7 @@ casenames = new_casenames
 
 N = len(tss[0])
 freq = np.fft.rfftfreq(N, d=1.0/12.0)
-time = np.arange(N) / 12
+time = np.arange(N) / 12 + args.t_offset
 nyears = N / 12.0
 period = 1.0 / freq
 
@@ -83,8 +86,8 @@ ax[0].set_title("%s (%d years)" % (args.varname, nyears, ))
 ax[0].set_xlabel("Time [years]")
 ax[0].set_ylabel(args.ylabel)
 ax[0].grid()
-for i in range(len(casenames)): 
-    ax[0].plot(time, tss[i], linewidth=2, label=casenames[i][0], color=casenames[i][1])
+for i, (casename, color, linestyle) in enumerate(casenames): 
+    ax[0].plot(time, tss[i], linewidth=2, label=casename, color=color, linestyle=linestyle)
 
 ax[0].legend()
 
