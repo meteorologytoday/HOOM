@@ -29,9 +29,8 @@ def mavg(y, span):
 parser = argparse.ArgumentParser()
 parser.add_argument('--input-dir')
 parser.add_argument('--output-dir')
-parser.add_argument('--res')
-parser.add_argument('--label')
 parser.add_argument('--casenames')
+parser.add_argument('--legends')
 parser.add_argument('--data-file')
 parser.add_argument('--varname')
 parser.add_argument('--mavg', type=int, default=1)
@@ -47,6 +46,7 @@ args = parser.parse_args()
 pprint(args)
 
 casenames = args.casenames.split(",")
+legends   = args.legends.split(",")
 colors = args.colors.split(",")
 linestyles = args.linestyles.split(",")
 
@@ -61,7 +61,7 @@ for i in range(len(casenames)):
 
     try:
 
-        f = Nio.open_file("%s/%s_%s_%s/%s" % (args.input_dir, args.label, args.res, casenames[i], args.data_file), "r")
+        f = Nio.open_file("%s/%s/%s" % (args.input_dir, casenames[i], args.data_file), "r")
 
     except Exception as e:
     
@@ -70,7 +70,7 @@ for i in range(len(casenames)):
         continue
     
     
-    new_casenames.append([casenames[i], colors[i], linestyles[i]])
+    new_casenames.append([casenames[i], legends[i], colors[i], linestyles[i]])
     ts = mavg(f.variables[args.varname][:] / args.yscale, args.mavg)
 
     tss.append(ts)
@@ -90,12 +90,12 @@ ax.set_title("%s (%d years) %s" % (args.varname, nyears, args.extra_title))
 ax.set_xlabel("Time [years]")
 ax.set_ylabel(args.ylabel)
 ax.grid()
-for i, (casename, color, linestyle) in enumerate(casenames): 
-    ax.plot(time, tss[i], linewidth=2, label=casename, color=color, linestyle=linestyle)
+for i, (casename, legend, color, linestyle) in enumerate(casenames): 
+    ax.plot(time, tss[i], linewidth=2, label=legend, color=color, linestyle=linestyle)
 
 ax.legend()
 ax.grid()
 
-fig.savefig("%s/%s_mc_timeseries_%s.png" % (args.output_dir, args.res, args.varname), dpi=200)
+fig.savefig("%s/mc_timeseries_%s.png" % (args.output_dir, args.varname), dpi=200)
 
 #plt.show()

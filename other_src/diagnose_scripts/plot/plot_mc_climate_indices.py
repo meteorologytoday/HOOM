@@ -14,9 +14,8 @@ def SpectralVariance(y):
 parser = argparse.ArgumentParser()
 parser.add_argument('--input-dir')
 parser.add_argument('--output-dir')
-parser.add_argument('--res')
-parser.add_argument('--label')
 parser.add_argument('--casenames')
+parser.add_argument('--legends')
 parser.add_argument('--data-file')
 parser.add_argument('--varname')
 parser.add_argument('--normalize', default="yes")
@@ -32,6 +31,7 @@ args = parser.parse_args()
 pprint(args)
 
 casenames = args.casenames.split(",")
+legends   = args.legends.split(",")
 colors    = args.colors.split(",")
 
 print("Going to compare these models:")
@@ -46,7 +46,7 @@ for i in range(len(casenames)):
 
     try:
 
-        f = Nio.open_file("%s/%s_%s_%s/%s" % (args.input_dir, args.label, args.res, casenames[i], args.data_file), "r")
+        f = Nio.open_file("%s/%s/%s" % (args.input_dir, casenames[i], args.data_file), "r")
 
     except Exception as e:
     
@@ -55,7 +55,7 @@ for i in range(len(casenames)):
         continue
     
     
-    new_casenames.append([casenames[i], colors[i], linestlyes[i]])
+    new_casenames.append([casenames[i], legends[i], colors[i], linestlyes[i]])
 
     ts = f.variables[args.varname][:]
 
@@ -86,8 +86,8 @@ ax[0].set_title("%s (%d years)" % (args.varname, nyears, ))
 ax[0].set_xlabel("Time [years]")
 ax[0].set_ylabel(args.ylabel)
 ax[0].grid()
-for i, (casename, color, linestyle) in enumerate(casenames): 
-    ax[0].plot(time, tss[i], linewidth=2, label=casename, color=color, linestyle=linestyle)
+for i, (casename, legends, color, linestyle) in enumerate(casenames): 
+    ax[0].plot(time, tss[i], linewidth=2, label=legend, color=color, linestyle=linestyle)
 
 ax[0].legend()
 
@@ -96,8 +96,8 @@ ax[1].set_xlabel("Period [years]")
 ax[1].set_ylabel("Intensity  $| \\hat{c}(\\omega) |^2$")
 ax[1].grid()
 
-for i in range(len(casenames)): 
-    ax[1].loglog(period[1:], sps[i][1:], linewidth=2, label=casenames[i][0], color=casenames[i][1])
+for i, (casename, legends, color, linestyle) in enumerate(casenames): 
+    ax[1].loglog(period[1:], sps[i][1:], linewidth=2, label=legend, color=color, linestyle=linestyle)
 
 ax[1].legend()
 
@@ -112,8 +112,8 @@ ax[2].set_xlabel("Period [years]")
 ax[2].set_ylabel("Intensity  $| \\hat{c}(\\omega) |^2$")
 ax[2].grid()
 
-for i in range(len(casenames)): 
-    ax[2].plot(np.log(period[1:]), sps[i][1:], linewidth=2, label=casenames[i][0], color=casenames[i][1])
+for i, (casename, legends, color, linestyle) in enumerate(casenames): 
+    ax[2].plot(np.log(period[1:]), sps[i][1:], linewidth=2, label=legend, color=color, linestyle=linestyle)
 
 ax[2].legend()
 
@@ -123,6 +123,6 @@ ax[2].set_xticklabels([("%.1f" if v<1 else "%d") % (v,) for v in marked_periods]
 #ax[2].set_ylim([10**args.logy_min, 10**args.logy_max])
 
 
-fig.savefig("%s/%s_mc_climate_indices_%s.png" % (args.output_dir, args.res, args.varname), dpi=200)
+fig.savefig("%s/mc_climate_indices_%s.png" % (args.output_dir, args.varname), dpi=200)
 
 #plt.show()

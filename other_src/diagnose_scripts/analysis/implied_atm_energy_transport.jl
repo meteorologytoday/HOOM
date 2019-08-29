@@ -39,7 +39,17 @@ function parse_commandline()
             help = "Domain file."
             arg_type = String
             required = true
-      
+ 
+        "--beg-year"
+            help = "Year of begin."
+            arg_type = Int64
+            required = true
+
+        "--end-year"
+            help = "Year of end."
+            arg_type = Int64
+            required = true
+
     end
 
     return parse_args(ARGS, s)
@@ -59,10 +69,14 @@ Dataset(parsed["domain-file"], "r") do ds
 end
 
 Dataset(parsed["data-file"], "r") do ds
+ 
+    beg_t = (parsed["beg-year"] - 1) * 12 + 1
+    end_t = (parsed["end-year"] - 1) * 12 + 12
+    rng = (:,:,beg_t:end_t) 
     
-    global FFLX_TOA = ( - mean(ds["FSNT"][:], dims=(1, ))  + mean(ds["FLNT"][:],  dims=(1, )) )[1, :, :]
-    global FFLX_SFC = ( - mean(ds["FSNS"][:], dims=(1, ))  + mean(ds["FLNS"][:],  dims=(1, )) )[1, :, :]
-    global HFLX_SFC = (   mean(ds["SHFLX"][:], dims=(1, )) + mean(ds["LHFLX"][:], dims=(1, )) )[1, :, :]
+    global FFLX_TOA = ( - mean(ds["FSNT"][rng...], dims=(1, ))  + mean(ds["FLNT"][rng...],  dims=(1, )) )[1, :, :]
+    global FFLX_SFC = ( - mean(ds["FSNS"][rng...], dims=(1, ))  + mean(ds["FLNS"][rng...],  dims=(1, )) )[1, :, :]
+    global HFLX_SFC = (   mean(ds["SHFLX"][rng...], dims=(1, )) + mean(ds["LHFLX"][rng...], dims=(1, )) )[1, :, :]
 
     global (Ny, Nt) = size(FFLX_TOA)
 

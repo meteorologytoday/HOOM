@@ -8,10 +8,11 @@ def SpectralVariance(y, d=1.0):
     return abs(c)**2.0, np.fft.rfftfreq(len(y), d=d)
  
 parser = argparse.ArgumentParser()
-parser.add_argument('--data-file-PDO', dest='data_file_PDO')
-parser.add_argument('--data-file-AO', dest='data_file_AO')
-parser.add_argument('--output-dir', dest='output_dir')
-parser.add_argument('--casename', dest='casename')
+parser.add_argument('--data-file-PDO')
+parser.add_argument('--data-file-AO')
+parser.add_argument('--output-dir')
+parser.add_argument('--casename')
+parser.add_argument('--legend')
 
 args = parser.parse_args()
 

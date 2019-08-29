@@ -28,6 +28,17 @@ function parse_commandline()
             arg_type = String
             required = true
  
+        "--beg-year"
+            help = "Year of begin."
+            arg_type = Int64
+            required = true
+
+        "--end-year"
+            help = "Year of end."
+            arg_type = Int64
+            required = true
+
+ 
     end
 
     return parse_args(ARGS, s)
@@ -40,10 +51,14 @@ Dataset(parsed["data-file"], "r") do ds
 
     dims = size(ds[parsed["SST"]])
 
+    beg_t = (parsed["beg-year"] - 1) * 12 + 1
+    end_t = (parsed["end-year"] - 1) * 12 + 12
+
+
     if length(dims) == 3 # 2D + time
-        rng = (:,) 
+        rng = (:,:,beg_t:end_t) 
     elseif length(dims) == 4 # 2D + time
-        rng = (:,:,1,:) 
+        rng = (:,:,1,beg_t:end_t) 
     else
         ErrorException("Unknown dimension") |> throw
     end

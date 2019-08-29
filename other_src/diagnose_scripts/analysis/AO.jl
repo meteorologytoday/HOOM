@@ -28,7 +28,8 @@ function parse_commandline()
             help = "Domain file."
             arg_type = String
             required = true
-      
+
+     
     end
 
     return parse_args(ARGS, s)

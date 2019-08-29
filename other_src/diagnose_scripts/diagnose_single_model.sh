@@ -1,8 +1,6 @@
 #!/bin/bash
 
 lopts=(
-    label
-    res
     casename
     sim-data-dir
     concat-data-dir
@@ -70,7 +68,7 @@ export script_plot_dir=$script_root_dir/plot
 echo "Phase 0: Define variables"
 
 export casename=$casename
-export full_casename=${label}_${res}_${casename}
+export full_casename=${casename}
 
 # directories
 export concat_dir=$concat_data_dir/$full_casename
@@ -142,26 +140,34 @@ echo "Doing case: ${res}_${casename}"
 
 if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
     echo "Diagnose atm..."
+
+    # Need to specify --beg-year --end-year
     julia $script_analysis_dir/atm_anomalies.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
     julia $script_analysis_dir/atm_temperature.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year
     julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
     julia $script_analysis_dir/atm_precip.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year
-    julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5 --beg-year=$diag_beg_year --end-year=$diag_end_year
+
+    # Downstream data. No need to specify --beg-year --end-year
+    julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5
 fi
 
 if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
 
     echo "Diagnose ocn..."
+    
+    # Need to specify --beg-year --end-year
     julia $script_analysis_dir/SST_correlation.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --SST=T_ML --beg-year=$diag_beg_year --end-year=$diag_end_year
-    #julia $script_analysis_dir/PDO.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain --EOF-file-PDO=$PDO_file
-    julia $script_analysis_dir/PDO.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg --beg-year=$diag_beg_year --end-year=$diag_end_year
-    julia $script_analysis_dir/EN34.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain --beg-year=$diag_beg_year --end-year=$diag_end_year
 
+
+    # Downstream data. No need to specify --beg-year --end-year
+    julia $script_analysis_dir/PDO.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg
+    julia $script_analysis_dir/EN34.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain
 fi
 
 if [ -f flag_diag_all ] || [ -f flag_diag_ice ] ; then
 
     echo "Diagnose ice..."
+    # Need to specify --beg-year --end-year
     julia $script_analysis_dir/ice.jl --data-file=$ice_concat_rg --domain-file=$atm_domain --output-file=$ice_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
 fi
