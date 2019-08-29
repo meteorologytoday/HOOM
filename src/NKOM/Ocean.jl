@@ -130,6 +130,7 @@ mutable struct Ocean
         ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = 1e-5,
         in_flds  :: Union{InputFields, Nothing} = nothing,
         arrange  :: Symbol = :zxy,
+        do_convective_adjustment :: Bool = false,
     )
 
         # Determine whether data should be local or shared (parallelization)
@@ -699,8 +700,10 @@ mutable struct Ocean
         updateB!(ocn)
         updateFLDO!(ocn)
 
-        for i=1:Nx, j=1:Ny
-            OC_doConvectiveAdjustment!(ocn, i, j)
+        if do_convective_adjustment
+            for i=1:Nx, j=1:Ny
+                OC_doConvectiveAdjustment!(ocn, i, j)
+            end
         end
 
         return ocn

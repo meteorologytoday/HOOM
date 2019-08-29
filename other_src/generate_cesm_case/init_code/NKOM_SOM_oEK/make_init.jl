@@ -22,6 +22,7 @@ ocn = NKOM.Ocean(
     Ss_clim_relax_time = parsed["relaxation-time"],
     Ss_clim            = copy(Ss_clim),
     arrange  = :xyz,
+    do_convective_adjustment = true,
 )
 
 NKOM.takeSnapshot(ocn, parsed["output-file"])

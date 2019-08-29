@@ -362,6 +362,8 @@ using Distributed
             varnames = keys(ds_in)
         end
 
+        println("Defined dimensions: ", keys(ds_out.dim))
+
         # Converting variables
         for varname in varnames
 

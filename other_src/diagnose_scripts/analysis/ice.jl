@@ -26,7 +26,19 @@ function parse_commandline()
             help = "Output file."
             arg_type = String
             required = true
-     
+ 
+        "--beg-year"
+            help = "Year of begin."
+            arg_type = Int64
+            required = true
+
+        "--end-year"
+            help = "Year of end."
+            arg_type = Int64
+            required = true
+
+
+    
     end
 
     return parse_args(ARGS, s)
@@ -39,8 +51,13 @@ output_file = parsed["output-file"]
 
 Dataset(parsed["data-file"], "r") do ds
 
-    global hi    = replace(ds["hi"][:], missing=>NaN)
-    global aice  = replace(ds["aice"][:], missing=>NaN) / 100.0
+    beg_t = (parsed["beg-year"] - 1) * 12 + 1
+    end_t = (parsed["end-year"] - 1) * 12 + 12
+
+    rng = (:,:,beg_t:end_t) 
+
+    global hi    = replace(ds["hi"][rng...], missing=>NaN)
+    global aice  = replace(ds["aice"][rng...], missing=>NaN) / 100.0
 
     global (Nx, Ny, Nt) = size(hi)
     

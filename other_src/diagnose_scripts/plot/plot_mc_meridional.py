@@ -9,6 +9,7 @@ from pprint import pprint
 parser = argparse.ArgumentParser()
 parser.add_argument('--input-dir')
 parser.add_argument('--output-dir')
+parser.add_argument('--label')
 parser.add_argument('--res')
 parser.add_argument('--casenames')
 parser.add_argument('--data-file')
@@ -18,13 +19,15 @@ parser.add_argument('--yscale', type=float, default=1.0)
 parser.add_argument('--ylabel', default="")
 parser.add_argument('--extra-title', default="")
 parser.add_argument('--colors')
+parser.add_argument('--linestyles', type=str)
 
 args = parser.parse_args()
 
 pprint(args)
 
-casenames = args.casenames.split(",")
-colors    = args.colors.split(",")
+casenames  = args.casenames.split(",")
+colors     = args.colors.split(",")
+linestyles = args.linestyles.split(",")
 
 print("Going to compare these models:")
 pprint(casenames)
@@ -35,7 +38,7 @@ for i in range(len(casenames)):
 
     try:
 
-        f = Nio.open_file("%s/%s_%s/%s" % (args.input_dir, args.res, casenames[i], args.data_file), "r")
+        f = Nio.open_file("%s/%s_%s_%s/%s" % (args.input_dir, args.label, args.res, casenames[i], args.data_file), "r")
 
     except Exception as e:
     
@@ -44,7 +47,7 @@ for i in range(len(casenames)):
         continue
     
     
-    new_casenames.append([casenames[i], colors[i]])
+    new_casenames.append([casenames[i], colors[i], linestlyes[i]])
     datas.append(f.variables[args.varname][:] / args.yscale)
     
     f.close()
@@ -61,8 +64,8 @@ ax.set_title("%s%s" % (args.varname, args.extra_title))
 ax.set_xlabel("Latitude [deg]")
 ax.set_ylabel(args.ylabel)
 
-for i, (casename, color) in enumerate(casenames): 
-    ax.plot(lat, datas[i], linewidth=2, label=casename, color=color)
+for i, (casename, color, linestyle) in enumerate(casenames): 
+    ax.plot(lat, datas[i], linewidth=2, label=casename, color=color, linestlye=linestyle)
 
 ax.legend()
 ax.grid(True)

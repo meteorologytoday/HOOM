@@ -7,11 +7,11 @@ if [ -f $ice_concat ]; then
 else
 
     echo "Concat ice files of $full_casename"
-
     # ice variables
-    cd $ice_hist_dir 
+    cd $ice_hist_dir
+ 
     eval "$(cat <<EOF
-    ncrcat -O -v aice,hi $full_casename.cice.h.{$beg_year..$end_year}-{01..12}.nc $ice_concat
+    ncrcat -O -v aice,hi $full_casename.cice.h.{$concat_beg_year..$concat_end_year}-{01..12}.nc $ice_concat
 
 EOF
     )"

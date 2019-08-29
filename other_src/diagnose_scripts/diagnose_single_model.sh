@@ -5,13 +5,16 @@ lopts=(
     res
     casename
     sim-data-dir
+    concat-data-dir
     diag-data-dir
-    graph-dir
+    graph-data-dir
     atm-domain
     ocn-domain
     ice-domain
-    beg-year
-    end-year
+    concat-beg-year
+    concat-end-year
+    diag-beg-year
+    diag-end-year
     PDO-file
     AO-file
 )
@@ -41,9 +44,14 @@ for lopt in "${lopts[@]}"; do
     eval "echo \"- $llopt=\$$llopt\""
 done
 
-export beg_year=$(printf "%04d" $beg_year)
-export end_year=$(printf "%04d" $end_year)
-export year_stamp=$(printf "%s-%s" $beg_year $end_year)
+export concat_beg_year=$(printf "%04d" $concat_beg_year)
+export concat_end_year=$(printf "%04d" $concat_end_year)
+
+export diag_beg_year=$(printf "%04d" $diag_beg_year)
+export diag_end_year=$(printf "%04d" $diag_end_year)
+
+export concat_year_stamp=$(printf "%s-%s" $concat_beg_year $concat_end_year)
+export diag_year_stamp=$(printf "%s-%s" $diag_beg_year $diag_end_year)
 
 export atm_domain=domain.lnd.fv4x5_gx3v7.091218.nc
 export ocn_domain=domain.ocn.gx3v7.120323.nc
@@ -58,35 +66,28 @@ export script_analysis_dir=$script_root_dir/analysis
 export script_coordtrans_dir=$script_root_dir/../CoordTrans
 export script_plot_dir=$script_root_dir/plot
 
-for dir_path in $graph_dir $diag_data_dir ; do
-
-    echo "Checking path: $dir_path"
-    mkdir -p $dir_path
-
-done
 
 echo "Phase 0: Define variables"
-
-if [[ $casename =~ SSM_NK ]]; then
-    export Nz=Nz_bone
-else
-    export Nz=Nz
-fi
 
 export casename=$casename
 export full_casename=${label}_${res}_${casename}
 
 # directories
+export concat_dir=$concat_data_dir/$full_casename
 export diag_dir=$diag_data_dir/$full_casename
+export graph_dir=$graph_data_dir/$full_casename
 export sim_dir=$sim_data_dir/$full_casename
 export atm_hist_dir=$sim_dir/atm/hist
 export ocn_hist_dir=$sim_dir/ocn/hist
 export ice_hist_dir=$sim_dir/ice/hist
 
 # filenames
-export atm_concat=$diag_dir/atm_concat.nc
-export ocn_concat=$diag_dir/ocn_concat.nc
-export ice_concat=$diag_dir/ice_concat.nc
+export atm_concat=$concat_dir/atm_concat.nc
+export ocn_concat=$concat_dir/ocn_concat.nc
+export ice_concat=$concat_dir/ice_concat.nc
+
+export ice_concat_rg=$concat_dir/ice_concat_rg.nc
+export ocn_concat_rg=$concat_dir/ocn_concat_rg.nc
 
 export atm_analysis1=$diag_dir/atm_analysis1.nc
 export atm_analysis2=$diag_dir/atm_analysis2.nc
@@ -94,15 +95,21 @@ export atm_analysis3=$diag_dir/atm_analysis3_energy.nc
 export atm_analysis4=$diag_dir/atm_analysis4_precip.nc
 export atm_analysis5=$diag_dir/atm_analysis5_AO.nc
 
-export ocn_concat_rg=$diag_dir/ocn_concat_rg.nc
+
 
 export ocn_analysis1_rg=$diag_dir/ocn_anomalies1_rg.nc
 export ocn_analysis2_rg=$diag_dir/ocn_analysis2_rg_PDO.nc
 export ocn_mstat_rg=$diag_dir/ocn_mstat_rg.nc
 
-export ice_concat_rg=$diag_dir/ice_concat_rg.nc
+
 export ice_analysis1=$diag_dir/ice_trends.nc
 
+for dir_path in $graph_dir $diag_dir $concat_dir ; do
+
+    echo "Checking path: $dir_path"
+    mkdir -p $dir_path
+
+done
 
 
 echo "Phase 1: Generateing weight data, concat and transform data"
@@ -135,27 +142,27 @@ echo "Doing case: ${res}_${casename}"
 
 if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
     echo "Diagnose atm..."
-    julia $script_analysis_dir/atm_anomalies.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis1
-    julia $script_analysis_dir/atm_temperature.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2
-    julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3
-    julia $script_analysis_dir/atm_precip.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis4
-    julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5
+    julia $script_analysis_dir/atm_anomalies.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    julia $script_analysis_dir/atm_temperature.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    julia $script_analysis_dir/atm_precip.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5 --beg-year=$diag_beg_year --end-year=$diag_end_year
 fi
 
 if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
 
     echo "Diagnose ocn..."
-    julia $script_analysis_dir/SST_correlation.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --SST=T
+    julia $script_analysis_dir/SST_correlation.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --SST=T_ML --beg-year=$diag_beg_year --end-year=$diag_end_year
     #julia $script_analysis_dir/PDO.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain --EOF-file-PDO=$PDO_file
-    julia $script_analysis_dir/PDO.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg
-    julia $script_analysis_dir/EN34.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain 
+    julia $script_analysis_dir/PDO.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg --beg-year=$diag_beg_year --end-year=$diag_end_year
+    julia $script_analysis_dir/EN34.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain --beg-year=$diag_beg_year --end-year=$diag_end_year
 
 fi
 
 if [ -f flag_diag_all ] || [ -f flag_diag_ice ] ; then
 
     echo "Diagnose ice..."
-    julia $script_analysis_dir/ice.jl --data-file=$ice_concat_rg --domain-file=$atm_domain --output-file=$ice_analysis1
+    julia $script_analysis_dir/ice.jl --data-file=$ice_concat_rg --domain-file=$atm_domain --output-file=$ice_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
 fi
 
