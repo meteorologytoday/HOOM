@@ -27,7 +27,18 @@ function parse_commandline()
             help = "Output file."
             arg_type = String
             required = true
-     
+ 
+        "--beg-year"
+            help = "Year of begin."
+            arg_type = Int64
+            required = true
+
+        "--end-year"
+            help = "Year of end."
+            arg_type = Int64
+            required = true
+
+    
     end
 
     return parse_args(ARGS, s)
@@ -40,7 +51,11 @@ output_file = parsed["output-file"]
 
 Dataset(parsed["data-file"], "r") do ds
 
-    global total_precip = replace(ds["PRECC"][:] + ds["PRECL"][:], missing=>NaN)
+    beg_t = (parsed["beg-year"] - 1) * 12 + 1
+    end_t = (parsed["end-year"] - 1) * 12 + 12
+    rng = (:,:,beg_t:end_t) 
+ 
+    global total_precip = replace(ds["PRECC"][rng...] + ds["PRECL"][rng...], missing=>NaN)
     global (Nx, Ny, Nt) = size(total_precip)
     
     if mod(Nt, 12) != 0

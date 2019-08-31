@@ -26,7 +26,18 @@ function parse_commandline()
             help = "Output atm temperature file."
             arg_type = String
             required = true
-      
+
+        "--beg-year"
+            help = "Year of begin."
+            arg_type = Int64
+            required = true
+
+        "--end-year"
+            help = "Year of end."
+            arg_type = Int64
+            required = true
+
+
     end
 
     return parse_args(ARGS, s)
@@ -39,7 +50,11 @@ output_file = parsed["output-file"]
 
 Dataset(parsed["data-file"], "r") do ds
 
-    global TREFHT  = replace(ds["TREFHT"][:], missing=>NaN)
+    beg_t = (parsed["beg-year"] - 1) * 12 + 1
+    end_t = (parsed["end-year"] - 1) * 12 + 12
+    rng = (:,:,beg_t:end_t) 
+ 
+    global TREFHT  = replace(ds["TREFHT"][rng...], missing=>NaN)
     global (Nx, Ny, Nt) = size(TREFHT)
     global nyears = Int64(Nt / 12)
     
@@ -101,7 +116,28 @@ for t=1:Nt
     TREFHT_OCN[t] = sum(w_OCN .*  T) / sum_w_OCN
  
 end
-println(sum(isnan.(TREFHT_OCN)))
+
+
+# Meridional distribution
+
+TREFHT_ZM     = zeros(Float64, Ny)
+TREFHT_ZVAR   = zeros(Float64, Ny)
+
+TREFHT_ZMM    = zeros(Float64, Ny, 12)
+TREFHT_ZMVAR  = zeros(Float64, Ny, 12)
+
+for j=1:Ny
+
+    d = mean(view(TREFHT, :, j, :), dims=1)[1, :]
+
+    TREFHT_ZM[j]   = mean(d)
+    TREFHT_ZVAR[j] = std(d)
+   
+    d_wrap = reshape(d, 12, :)
+    TREFHT_ZMM[j, :]   = mean( d_wrap, dims=2 )[:, 1]
+    TREFHT_ZMVAR[j, :] = std(  d_wrap, dims=2 )[:, 1]
+
+end
 
 
 Dataset(output_file, "c") do ds
@@ -118,6 +154,10 @@ Dataset(output_file, "c") do ds
         ("TREFHT_GLB", TREFHT_GLB,   ("time",), Dict()),
         ("TREFHT_LND", TREFHT_LND,   ("time",), Dict()),
         ("TREFHT_OCN", TREFHT_OCN,   ("time",), Dict()),
+        ("TREFHT_ZM",    TREFHT_ZM,    ("Ny",), Dict()),
+        ("TREFHT_ZVAR",  TREFHT_ZVAR,  ("Ny",), Dict()),
+        ("TREFHT_ZMM",   TREFHT_ZMM,   ("Ny", "months"), Dict()),
+        ("TREFHT_ZMVAR", TREFHT_ZMVAR, ("Ny", "months"), Dict()),
     ]
 
         println("Doing var: ", varname)

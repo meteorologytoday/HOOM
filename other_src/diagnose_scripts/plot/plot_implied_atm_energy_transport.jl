@@ -90,6 +90,6 @@ for i in range(len(casenames)):
 ax.legend()
 ax.grid()
 
-fig.savefig("%s/%s_mc_timeseries_%s.png" % (args.output_dir, args.res, args.varname), dpi=200)
+fig.savefig("%s/%s_%s_mc_timeseries_%s.png" % (args.output_dir, args.label, args.res, args.varname), dpi=200)
 
 #plt.show()
