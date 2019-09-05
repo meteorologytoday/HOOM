@@ -13,10 +13,12 @@ parser.add_argument('--casenames')
 parser.add_argument('--legends')
 parser.add_argument('--data-file')
 parser.add_argument('--domain-file')
+parser.add_argument('--indexing', default=":")
 parser.add_argument('--varname')
 parser.add_argument('--yscale', type=float, default=1.0)
 parser.add_argument('--ylabel', default="")
 parser.add_argument('--extra-title', default="")
+parser.add_argument('--extra-filename', default="")
 parser.add_argument('--colors')
 parser.add_argument('--linestyles', type=str)
 parser.add_argument('--y-offset', type=float, default=0.0)
@@ -29,6 +31,19 @@ casenames  = args.casenames.split(",")
 legends    = args.legends.split(",")
 colors     = args.colors.split(",")
 linestyles = args.linestyles.split(",")
+indexing   = args.indexing.split(",")
+
+indices = []
+print("Constructing indexing")
+for i, content in enumerate(indexing):
+    if content == ":":
+        indices.append(slice(None))
+    else:
+        indices.append(int(content))
+
+indices = tuple(indices)
+print("Indices: ", indices)    
+    
 
 print("Going to compare these models:")
 pprint(casenames)
@@ -49,7 +64,9 @@ for i in range(len(casenames)):
     
     
     new_casenames.append([casenames[i], legends[i], colors[i], linestyles[i]])
-    datas.append((f.variables[args.varname][:] - args.y_offset) / args.yscale)
+    datas.append((f.variables[args.varname][indices] - args.y_offset) / args.yscale)
+
+
     
     f.close()
 
@@ -71,6 +88,6 @@ for i, (casename, legend, color, linestyle) in enumerate(casenames):
 ax.legend()
 ax.grid(True)
 
-fig.savefig("%s/mc_meridional_%s.png" % (args.output_dir, args.varname), dpi=200)
+fig.savefig("%s/mc_meridional_%s%s.png" % (args.output_dir, args.varname, args.extra_filename), dpi=200)
 
 #plt.show()

@@ -97,6 +97,7 @@ export atm_analysis5=$diag_dir/atm_analysis5_AO.nc
 
 export ocn_analysis1_rg=$diag_dir/ocn_anomalies1_rg.nc
 export ocn_analysis2_rg=$diag_dir/ocn_analysis2_rg_PDO.nc
+export ocn_analysis3_rg=$diag_dir/ocn_analysis3_rg_MLD.nc
 export ocn_mstat_rg=$diag_dir/ocn_mstat_rg.nc
 
 
@@ -156,12 +157,13 @@ if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
     echo "Diagnose ocn..."
     
     # Need to specify --beg-year --end-year
-    julia $script_analysis_dir/SST_correlation.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --SST=T_ML --beg-year=$diag_beg_year --end-year=$diag_end_year
+    #julia $script_analysis_dir/SST_correlation.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --SST=T_ML --beg-year=$diag_beg_year --end-year=$diag_end_year
 
+    julia $script_analysis_dir/zonal_mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis3_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=h_ML
 
     # Downstream data. No need to specify --beg-year --end-year
-    julia $script_analysis_dir/PDO.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg
-    julia $script_analysis_dir/EN34.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain
+    #julia $script_analysis_dir/PDO.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg
+    #julia $script_analysis_dir/EN34.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain
 fi
 
 if [ -f flag_diag_all ] || [ -f flag_diag_ice ] ; then

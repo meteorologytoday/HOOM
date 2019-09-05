@@ -52,9 +52,12 @@ t_offset=$(( $t_offset - 1 ))
 
 if [ -f flag_plot_mc ]; then
     echo "folder: $script_plot_dir"
+
+    echo <<H
     python3 $script_plot_dir/plot_mc_climate_indices.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ocn_concat_rg.nc --varname=PDO --colors="$colors" --linestyles="$linestyles" --t-offset=$t_offset --legends=$legends
     python3 $script_plot_dir/plot_mc_climate_indices.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis5_AO.nc --varname=AO --colors="$colors" --linestyles="$linestyles"  --t-offset=$t_offset --legends=$legends
     python3 $script_plot_dir/plot_mc_climate_indices.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ocn_concat_rg.nc --varname=EN34 --colors="$colors" --linestyles="$linestyles"  --t-offset=$t_offset --legends=$legends
+
 
     python3 $script_plot_dir/plot_mc_timeseries.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis2.nc --varname=TREFHT_GLB --ylabel="Temperature [K]" --mavg=12 --extra-title="Yearly average" --colors="$colors" --linestyles="$linestyles" --t-offset=$t_offset --legends=$legends
     python3 $script_plot_dir/plot_mc_timeseries.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis2.nc --varname=TREFHT_LND --ylabel="Temperature [K]" --mavg=12 --extra-title="Yearly average" --colors="$colors" --linestyles="$linestyles" --t-offset=$t_offset --legends=$legends
@@ -68,4 +71,11 @@ if [ -f flag_plot_mc ]; then
 
     python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis2.nc --varname=TREFHT_ZM --ylabel="Temperature [ \$ \\mathrm{K} \$ ]" --yscale="1" --y-offset="273.15" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends
     python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis2.nc --varname=TREFHT_ZVAR --ylabel="Temperature [ \$ \\mathrm{K} \$ ]" --yscale="1" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends
+fi
+H
+
+    for m in $(seq 1..12); do
+        indexing=$( printf "%d,0,:" $(( m - 1 )) )
+        python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ocn_analysis3_rg_MLD.nc --varname=h_ML_MM --ylabel="Mixed-layer Depth [ \$ \\mathrm{m} \$ ]" --yscale="1" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends --indexing="0,0,:" --extra-title=" Month $m" --extra-filename="$('%02d' $m)"
+    done
 fi
