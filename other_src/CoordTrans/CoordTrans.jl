@@ -383,14 +383,16 @@ using Distributed
             cf_var = ds_in[varname]
             cf_var_dimnames = dimnames(cf_var)
 
-            s_data = replace(cf_var[:], missing=>NaN)
-            s_data_dims = size(s_data)
+            # Cannot read data yet. Some data are really large
+            #s_data = replace(cf_var[:], missing=>NaN)
+
+            s_data_dims = size(cf_var)
             s_data_dims_len = length(s_data_dims)
 
             d1 = reduce(*, s_data_dims[1:dim_len])
             d2 = (s_data_dims_len > dim_len) ? reduce(*, s_data_dims[dim_len+1:end]) : 1
            
-            s_data = reshape(s_data, d1, d2)
+            #s_data = reshape(s_data, d1, d2)
 
             attrib = Dict()
             for (k,v) in cf_var.attrib
@@ -405,8 +407,8 @@ using Distributed
             println(cf_var_dimnames)
             v = defVar(ds_out, varname, Float64, cf_var_dimnames, attrib=attrib)
             
-            for k = 1:size(s_data)[2]
-                convertData!(wi, view(s_data, :, k), d_data_tmp)
+            for k = 1:d2
+                convertData!(wi, replace(cf_var[]view(s_data, :, k), d_data_tmp)
         
 
                 # Construct writing shape
