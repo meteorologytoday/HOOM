@@ -24,6 +24,9 @@ function stepOcean_MLDynamics!(
     frwflx  = ocn.in_flds.frwflx
     qflx    = ocn.in_flds.qflx
 
+    #println(swflx, ";", nswflx)
+
+
     # It is assumed here that buoyancy has already been updated.
     @loop_hor ocn i j let
 

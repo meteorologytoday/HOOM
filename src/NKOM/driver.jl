@@ -72,6 +72,7 @@ function makeSubOcean(
     push_fr_rng3 = [Colon(), Colon(), push_fr_beg_y:push_fr_end_y]
 
 
+    #=
     println("### rng2: ")
     println("pull_fr_rng2: ", pull_fr_rng2)
     println("push_to_rng2: ", push_to_rng2)
@@ -81,7 +82,7 @@ function makeSubOcean(
     println("pull_fr_rng3: ", pull_fr_rng3)
     println("push_to_rng3: ", push_to_rng3)
     println("push_fr_rng3: ", push_fr_rng3)
-
+    =#
 
 
     if length(pull_fr_rng2[2]) != sub_Ny

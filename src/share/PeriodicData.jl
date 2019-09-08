@@ -1,6 +1,6 @@
 module PeriodicDataToolbox
     using NCDatasets
-
+    using SparseArrays
     mutable struct Bundle
         interpolate_mtx :: AbstractArray{Float64, 2}
 
@@ -11,11 +11,6 @@ module PeriodicDataToolbox
 
         fine_data       :: Dict
         coarse_data     :: Dict
-
-
-
-
-
     end
 
 
