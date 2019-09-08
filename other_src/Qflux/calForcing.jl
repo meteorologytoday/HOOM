@@ -14,12 +14,14 @@ sum(dom) == 365 || throw(ErrorException("Sum of dom is not 365"))
 
 println("Δts = ", Δts)
 
-in_SST  = "transformed_b.e11.B1850C5CN.f45_g37.005.pop.h.SST.100001-109912.nc"
-in_SHF  = "transformed_b.e11.B1850C5CN.f45_g37.005.pop.h.SHF.100001-109912.nc"
-in_TAUX = "transformed_b.e11.B1850C5CN.f45_g37.005.pop.h.TAUX.100001-109912.nc"
-in_TAUY = "transformed_b.e11.B1850C5CN.f45_g37.005.pop.h.TAUY.100001-109912.nc"
-in_HMXL = "transformed_b.e11.B1850C5CN.f45_g37.005.pop.h.HMXL.100001-109912.nc"
-in_TEMP = "transformed_b.e11.B1850C5CN.f45_g37.005.pop.h.TEMP.100001-109912.nc"
+in_SST  = "lowres_SST.nc"
+in_SHF  = "lowres_SHF.nc" 
+in_TAUX = "lowres_TAUX.nc"
+in_TAUY = "lowres_TAUY.nc"
+in_HMXL = "lowres_HMXL.nc"
+in_TEMP = "lowres_TEMP.nc"
+
+in_zcoord = "b.e11.B1850C5CN.f45_g37.005.pop.h.TEMP.100001-109912.nc"
 
 out_file = "forcing.gx3v7.nc"
 
@@ -78,15 +80,13 @@ Dataset(in_TAUY, "r") do ds
 end
 
 
-Dataset(in_TEMP, "r") do ds
+Dataset(in_zcoord, "r") do ds
     z_top = - replace(ds["z_w_top"][:], missing=>NaN) / 100.0
     z_bot = - replace(ds["z_w_bot"][:], missing=>NaN) / 100.0
     
     global zs = [z_top..., z_bot[end]]
     global hs = z_top - z_bot
     global Nz = length(zs) - 1
-
-
 
 end
 

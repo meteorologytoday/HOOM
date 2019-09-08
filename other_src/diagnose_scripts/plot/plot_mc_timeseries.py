@@ -40,6 +40,7 @@ parser.add_argument('--extra-title', default="")
 parser.add_argument('--colors')
 parser.add_argument('--linestyles', type=str)
 parser.add_argument('--t-offset', type=float, default=0.0)
+parser.add_argument('--indexing', default=":")
 
 args = parser.parse_args()
 
@@ -50,6 +51,17 @@ legends   = args.legends.split(",")
 colors = args.colors.split(",")
 linestyles = args.linestyles.split(",")
 
+indices = []
+print("Constructing indexing")
+for i, content in enumerate(indexing):
+    if content == ":":
+        indices.append(slice(None))
+    else:
+        indices.append(int(content))
+
+indices = tuple(indices)
+print("Indices: ", indices)    
+ 
 print("Going to compare these models:")
 pprint(casenames)
 
@@ -71,7 +83,7 @@ for i in range(len(casenames)):
     
     
     new_casenames.append([casenames[i], legends[i], colors[i], linestyles[i]])
-    ts = mavg(f.variables[args.varname][:] / args.yscale, args.mavg)
+    ts = mavg(f.variables[args.varname][indices] / args.yscale, args.mavg)
 
     tss.append(ts)
     

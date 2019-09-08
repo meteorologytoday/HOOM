@@ -408,10 +408,8 @@ using Distributed
             v = defVar(ds_out, varname, Float64, cf_var_dimnames, attrib=attrib)
             
             for k = 1:d2
-                convertData!(wi, replace(cf_var[]view(s_data, :, k), d_data_tmp)
-        
 
-                # Construct writing shape
+                # Construct reading / writing shape
                 idx = Array{Any}(undef, 0)
                 for i=1:dim_len
                     push!(idx, :)
@@ -426,6 +424,9 @@ using Distributed
                     push!(idx, tidx)
                 end
                 #println(idx)
+
+
+                convertData!(wi, reshape( replace( cf_var[idx...], missing=>NaN ), d1 ), d_data_tmp)
                 v[idx...] = reshape(d_data_tmp, wi.d_dims[1], wi.d_dims[2])
             end
         end
