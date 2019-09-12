@@ -181,9 +181,9 @@ struct GridInfo
             true_east[:]   = [ - sin(λc)          ,   cos(λc)          ,   0.0     ]
             true_upward[:] = [   cos(θc) * cos(λc),   cos(θc) * sin(λc),   sin(θc) ]
 
-            grid_north -= (grid_north ⋅ true_upward) * true_upward
+            #grid_north -= (grid_north ⋅ true_upward) * true_upward
 
-            cos_α = (grid_north ⋅ true_north) / norm(grid_north) / norm(true_north)
+            cos_α = (grid_north ⋅ true_north) / norm(grid_north) #/ norm(true_north)
             cos_β = (grid_north ⋅ true_east)  / norm(grid_north)
 
             if abs(cos_α) > 1.0 && abs(cos_α - 1 < 1e-3)
@@ -272,10 +272,13 @@ function DIV!(
 
         i_w, i_e, j_s, j_n = getCyclicNeighbors(gi.Nx, gi.Ny, i, j)
 
-        flux_e = (mask[i_e, j  ] == 0.0) ? 0.0 : vf_e[i_e, j] * gi.ds2[i, j]
-        flux_w = (mask[i_w, j  ] == 0.0) ? 0.0 : vf_e[i_w, j] * gi.ds4[i, j] 
-        flux_n = (mask[i  , j_n] == 0.0) ? 0.0 : vf_n[i, j_n] * gi.ds3[i, j]
-        flux_s = (mask[i  , j_s] == 0.0) ? 0.0 : vf_n[i, j_s] * gi.ds1[i, j]
+        vf_e_c = vf_e[i, j]
+        vf_n_c = vf_n[i, j]
+
+        flux_e = (mask[i_e, j  ] == 0.0) ? 0.0 : ( vf_e[i_e, j] + vf_e_c ) / 2.0 * gi.ds2[i, j]
+        flux_w = (mask[i_w, j  ] == 0.0) ? 0.0 : ( vf_e[i_w, j] + vf_e_c ) / 2.0 * gi.ds4[i, j] 
+        flux_n = (mask[i  , j_n] == 0.0) ? 0.0 : ( vf_n[i, j_n] + vf_n_c ) / 2.0 * gi.ds3[i, j]
+        flux_s = (mask[i  , j_s] == 0.0) ? 0.0 : ( vf_n[i, j_s] + vf_n_c ) / 2.0 * gi.ds1[i, j]
 
         div[i, j] =  (  flux_e - flux_w + flux_n - flux_s ) / gi.dσ[i, j]
 
