@@ -359,7 +359,21 @@ using Distributed
         end
 
         if varnames == nothing
-            varnames = keys(ds_in)
+
+            varnames = Array{Any}(undef, 0)
+
+            for varname in keys(ds_in)
+                println("varname:", varname, "; Dimnames: ", dimnames(ds_in[varname]))
+                if dim_len == 1
+                    if dimnames(ds_in[varname])[1] == xydim
+                        push!(varnames, varname)
+                    end
+                elseif dim_len == 2
+                    if dimnames(ds_in[varname])[1:2] == (xdim, ydim,)
+                        push!(varnames, varname)
+                    end
+                end
+            end
         end
 
         println("Defined dimensions: ", keys(ds_out.dim))

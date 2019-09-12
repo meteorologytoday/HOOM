@@ -1,5 +1,6 @@
 include("../../src/share/DisplacedPoleCoordinate.jl")
 include("../../src/share/MapInfo.jl")
+include("../../src/share/constants.jl")
 
 using Formatting
 using NCDatasets
@@ -20,8 +21,8 @@ in_TAUX = "lowres_TAUX.nc"
 in_TAUY = "lowres_TAUY.nc"
 in_HMXL = "lowres_HMXL.nc"
 in_TEMP = "lowres_TEMP.nc"
-
-in_zcoord = "b.e11.B1850C5CN.f45_g37.005.pop.h.TEMP.100001-109912.nc"
+in_zcoord = "b.e11.B1850C5CN.f09_g16.005.pop.h.TEMP.100001-109912.nc"
+gridinfo_file = "domain.ocn.gx3v7.120323.nc"
 
 out_file = "forcing.gx3v7.nc"
 
@@ -57,6 +58,8 @@ Dataset(in_SST, "r") do ds
     global Nx, Ny, Nt = size(SST)
 
     (Nt%12 == 0) || throw(ErrorException("Time is not multiple of 12"))
+
+    Nt=60
 
     global nyears = Int(Nt / 12)
 
@@ -102,6 +105,21 @@ function getTd(z, i, j, temp, bot_temp)
     return ( isfinite(T) ) ? T : bot_temp[i, j]
 end
 
+function getdTdz(z, i, j, temp)
+
+    zidx = findZInd(z)
+
+    local dTdz
+    if zidx == 1
+        dTdz = (temp[i, j, zidx] - temp[i, j, zidx+1]) / ((hs[zidx] + hs[zidx+1]) / 2.0)
+    else
+        dTdz = (temp[i, j, zidx-1] - temp[i, j, zidx+1]) / (0.5*hs[zidx-1] + hs[zidx] + 0.5*hs[zidx+1])
+    end
+    
+    return ( isfinite(dTdz) ) ? dTdz : 0.0
+end
+
+
 function integrate(zb, zt, zs, Ts)
     ( zb > zt ) && throw(ErrorException("zb > zt error. zb = " * string(zb) * ", zt = " * string(zt)))
 
@@ -127,10 +145,15 @@ end
 mi = ModelMap.MapInfo{Float64}(gridinfo_file)
 gi = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv; angle_unit=:deg)
 
+ϵs = mi.xc * 0.0 .+ 1e-5
+fs = 2 * Ωe * cos.(mi.yc * π/180.0)
+
+K_v = 1e-2
+
 Qs = zeros(Float64, Nx, Ny, 12)
 
 
-dTdts = zeros(Float64, Nx, Ny, 12)
+hdTdts = zeros(Float64, Nx, Ny, 12)
 Fs    = zeros(Float64, Nx, Ny, 12)
 Ents  = zeros(Float64, Nx, Ny, 12)
 Qs    = zeros(Float64, Nx, Ny, 12)
@@ -140,9 +163,12 @@ EKs   = zeros(Float64, Nx, Ny, 12)
 τx = zeros(Float64, Nx, Ny)
 τy = zeros(Float64, Nx, Ny)
 
-u      = zeros(Float64, Nx, Ny)
-v      = zeros(Float64, Nx, Ny)
-DIV    = zeros(Float64, Nx, Ny)
+u       = zeros(Float64, Nx, Ny)
+v       = zeros(Float64, Nx, Ny)
+T       = zeros(Float64, Nx, Ny)
+T_hadvs = zeros(Float64, Nx, Ny)
+T_vadvs = zeros(Float64, Nx, Ny)
+DIV     = zeros(Float64, Nx, Ny)
 
 uT     = zeros(Float64, Nx, Ny)
 vT     = zeros(Float64, Nx, Ny)
@@ -151,7 +177,9 @@ DIV_UT = zeros(Float64, Nx, Ny)
 wT_bot = zeros(Float64, Nx, Ny)
 
 
-for t = 13:length(T) - 12
+for t = 13:Nt - 12
+
+    print(format("\rProgress: {:d}", t))
 
     global TEMP, BOT_TEMP
 
@@ -161,6 +189,7 @@ for t = 13:length(T) - 12
     # Loading Temperature profile
     TEMP_0, BOT_TEMP_0 = getTEMPProfile(t  )
     TEMP_1, BOT_TEMP_1 = getTEMPProfile(t+1)
+    TEMP_half = (TEMP_0 + TEMP_1) / 2.0
 
     # Transform input wind stress vector first
     
@@ -172,39 +201,60 @@ for t = 13:length(T) - 12
         direction=:Forward,
     )
 
+#    τx = (view(TAUX, :, :, t) + view(TAUX, :, :, t+1))/2.0
+#    τy = (view(TAUY, :, :, t) + view(TAUY, :, :, t+1))/2.0
+
+
     # Calculate Ekman flow
     for i=1:Nx, j=1:Ny
         isnan(SST[i, j, 1]) && continue
 
         h = (HMXL[i, j, t] + HMXL[i, j, t+1] ) / 2.0
         s̃ = ϵs[i, j] + fs[i, j] * im
-        H̃ = √(ocn.K_v / s̃)
+        H̃ = √(K_v / s̃)
         H = abs(H̃)
+        H_ek = max(h, 2*H)
         
         M̃ = (τx[i, j] + τy[i, j] * im) / (ρ * s̃)
         ṽ_ek =   M̃ / H_ek
         u_ek, v_ek = real(ṽ_ek), imag(ṽ_ek)
 
-        SST_mean = (SST[i, j, t] + SST[i, j, t+1])/2.0
+
 
         u[i, j] = u_ek
         v[i, j] = v_ek
+        T[i, j] = (SST[i, j, t] + SST[i, j, t+1])/2.0
 
-        uT[i, j] = u_ek * SST_mean
-        vT[i, j] = v_ek * SST_mean
+        #uT[i, j] = u_ek * SST_mean
+        #vT[i, j] = v_ek * SST_mean
 
     end
    
-    DisplacedPoleCoordinate.DIV!(gi, u, v,  DIV, gi.mask)
-    DisplacedPoleCoordinate.DIV!(gi, uT, vT,  DIV_UT, gi.mask)
+    DisplacedPoleCoordinate.hadv_upwind!(
+        gi,
+        T_hadvs,
+        u,
+        v,
+        T,
+        mi.mask,
+    )
 
+    DisplacedPoleCoordinate.DIV!(gi, u,  v,   DIV,    mi.mask)
+    #DisplacedPoleCoordinate.DIV!(gi, uT, vT,  DIV_UT, mi.mask)
+    #=
     for i=1:Nx, j=1:Ny
         isnan(SST[i, j, 1]) && continue
         
         h_mean   = (HMXL[i, j, t] + HMXL[i, j, t+1] ) / 2.0
-        Td_mean = ( getTd(-h[i, j, t+1], i, j, TEMP_1, BOT_TEMP_1) +  getTd(-h[i, j, t], i, j, TEMP_0, BOT_TEMP_0) ) / 2.0
+        Td_mean = ( getTd(-HMXL[i, j, t+1], i, j, TEMP_1, BOT_TEMP_1) +  getTd(-HMXL[i, j, t], i, j, TEMP_0, BOT_TEMP_0) ) / 2.0
         wT_bot[i, j] =  h_mean * DIV[i, j] * Td_mean
+
+        if (i,j) == (70,55)
+            println("h_mean: ", h_mean, "; ", DIV[i, j], "; Td:", Td_mean)
+            println("DIV UT: ", DIV_UT[i, j])
+        end
     end
+    =#
 
     # Calculate each term
     for i=1:Nx, j=1:Ny
@@ -212,51 +262,60 @@ for t = 13:length(T) - 12
         isnan(SST[i, j, 1]) && continue
 
         # Temperature change
-        dTdts[i, j, m] += (T_next[t] - T[t]) * (h[t] + h_next[t]) / 2.0 / Δts[m]
+        hdTdts[i, j, m] += (SST[i, j, t+1] - SST[i, j, t]) * (HMXL[i, j, t] + HMXL[i, j, t+1]) / 2.0 / Δts[m]
 
         # Sensible/Solar heat flux
-        Fs[i, j, m] += (F[i, j, t] + F[i, j, t+1]) / 2.0
+        Fs[i, j, m] += (SHF[i, j, t] + SHF[i, j, t+1]) / 2.0
     
         # Entrainment
-        Δh = h[i, j, t+1] - h[i, j, t]
+        Δh = HMXL[i, j, t+1] - HMXL[i, j, t]
 
         if Δh > 0.0
             Ents[i, j, m] += - ρ * c_p * (
-                (SST[i, j, t+1] - getTd(-h[i, j, t+1], i, j, TEMP_1, BOT_TEMP_1))
-              + (SST[i, j, t  ] - getTd(-h[i, j, t  ], i, j, TEMP_0, BOT_TEMP_0))
+                (SST[i, j, t+1] - getTd(-HMXL[i, j, t+1], i, j, TEMP_1, BOT_TEMP_1))
+              + (SST[i, j, t  ] - getTd(-HMXL[i, j, t  ], i, j, TEMP_0, BOT_TEMP_0))
             ) * Δh  / 2.0 / Δts[m]
 
         end
 
         # Ekman advection
-        EKs[i, j, m] += - DIV_UT[i, j] - wT_bot[i, j]
+        #EKs[i, j, m] += - ρ * c_p * ( DIV_UT[i, j] )# + wT_bot[i, j] )
+        h_mean = (HMXL[i, j, t] + HMXL[i, j, t+1]) / 2.0
+        T_vadvs[i, j] = - DIV[i, j] * h_mean * getdTdz(-h_mean, i, j, TEMP_half)
+        EKs[i, j, m] += ρ * c_p * (T_hadvs[i, j] + T_vadvs[i, j])
 
     end
 
 end
+    
+#for i=1:Nx, j=1:Ny, m=1:12
+#    Fs[i, j, m] /= (nyears - 2.0)
+#end
 
-for var in [dTds, Fs, Ents, EKs]
+for var in [hdTdts, Ents, EKs, Fs]
 
-    # remember we discarded the first and last year
-    var /= (nyears - 2.0)
+    for i=1:Nx, j=1:Ny, m=1:12
+        # remember we discarded the first and last year
+        var[i, j, m] /= (nyears - 2.0)
+    end
 
 end
     
-Qs = ρ * c_p dTdts - Fs - Ents - EKs
+Qs = ρ * c_p * hdTdts - Fs - Ents - EKs
 
 
 for i=1:Nx, j=1:Ny
 
     if isnan(SST[i, j, 1])
         
-        for var in (Qs, dTds, Fs, Ents, EKs)
+        for var in (Qs, hdTdts, Fs, Ents, EKs)
             # remember we discarded the first and last year
             var[i, j, :] .= NaN
         end
  
     else 
 
-        for var in (Qs, dTds, Fs, Ents, EKs)
+        for var in (Qs, hdTdts, Fs, Ents, EKs)
             var = view(var, i, j, :)
             var[:] = (var + circshift(var, 1) ) / 2.0
         
@@ -278,7 +337,7 @@ for i=1:Nx, j=1:Ny
         continue
     end 
     
-    hs[i, j, :] = mean(reshape(h, 12, :), dims=2)[:, 1]
+    hs[i, j, :] = mean(reshape(view(HMXL, i, j, :), 12, :), dims=2)[:, 1]
 
 end
 
@@ -292,7 +351,7 @@ Dataset(out_file, "c") do ds
 
     for o in (
         [
-            "h", h, ("Nx", "Ny", "time"), Dict(
+            "h", hs, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Mixed-layer Depth",
             "units"=>"m",
             )
@@ -301,8 +360,31 @@ Dataset(out_file, "c") do ds
             "long_name"=>"Q-flux",
             "units"=>"W / m^2",
             )
-        ],
+        ], [
+            "Fs", Fs, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"SHF flux",
+            "units"=>"W / m^2",
+            )
+        ], [
+            "Ents", Ents, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Entrainment flux",
+            "units"=>"W / m^2",
+            )
 
+        ], [
+            "EKs", EKs, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Ekman flux",
+            "units"=>"W / m^2",
+            )
+
+        ], [
+            "hdTdts", hdTdts * ρ * c_p, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Ekman flux",
+            "units"=>"W / m^2",
+            )
+
+
+        ],
     )
         varname, vardata, vardims, varatts = o
         println("Writing ", varname, " with size: ", size(vardata), " ; dim: ", vardims)
