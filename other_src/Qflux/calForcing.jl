@@ -195,8 +195,6 @@ mi = ModelMap.MapInfo{Float64}(gridinfo_file)
 gi = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv; angle_unit=:deg)
 
 
-ent_thickness = 10.0
-
 ϵs = mi.xc * 0.0 .+ 1e-5
 fs = 2 * Ωe * sin.(mi.yc * π/180.0)
 
@@ -327,8 +325,8 @@ for t = 13:Nt - 12
 
     # Calculate each term
     #@distributed for idx in CartesianIndices((1:Nx, 1:Ny))
-        i = idx[1]
-        j = idx[2]
+#        i = idx[1]
+#        j = idx[2]
 
 
     for i=1:Nx, j=1:Ny
@@ -363,9 +361,14 @@ for t = 13:Nt - 12
               + (SST[i, j, t  ] - getTd(-HMXL[i, j, t  ]-ent_thickness, i, j, TEMP_0, BOT_TEMP_0))
             ) * Δh  / 2.0 / Δts[m] / h_mean
 =#
+#            tmp_Ents = - (
+#                (SST[i, j, t] - getTd(-HMXL[i, j, t+1], i, j, TEMP_0, BOT_TEMP_0))
+#            ) * Δh  / Δts[m] / h_mean
+
             tmp_Ents = - (
-                (SST[i, j, t] - getTd(-HMXL[i, j, t+1], i, j, TEMP_0, BOT_TEMP_0))
-            ) * Δh  / Δts[m] / h_mean
+                integrate(-HMXL[i, j, t+1], -HMXL[i, j, t], zs, SST[i, j, t] .- TEMP_0[i, j, :])
+            )  / Δts[m] / h_mean
+
 
             Ents[i, j, m] += tmp_Ents
             var_Ents[i, j, m] += tmp_Ents^2.0
@@ -388,8 +391,7 @@ for t = 13:Nt - 12
 
         #EKs[i, j, m] += ρ * c_p * (tmp_T_hadvs[i, j] + tmp_T_vadvs) * h_mean / h_mean
 
-
-        tmp_Qs = tmp_dTdts - ( tmp_Fs + tmp_Ents + (tmp_T_hadvs[i, j] + tmp_T_vadvs))
+        tmp_Qs = - ( tmp_dTdts - ( tmp_Fs + tmp_Ents + (tmp_T_hadvs[i, j] + tmp_T_vadvs)) )
         Qs[i, j, m]     += tmp_Qs
         var_Qs[i, j, m] += tmp_Qs^2.0
 
@@ -403,7 +405,7 @@ for t = 13:Nt - 12
         # calculate OLD qflux
         h_mean = mean(HMXL[i, j, :]) 
         
-        tmp_Qs_OLD = (SST[i, j, t+1] - SST[i, j, t]) / Δts[m] - (SHF[i, j, t] + SHF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p
+        tmp_Qs_OLD = - ( (SST[i, j, t+1] - SST[i, j, t]) / Δts[m] - (SHF[i, j, t] + SHF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p )
         Qs_OLD[i, j, m]     += tmp_Qs_OLD
         var_Qs_OLD[i, j, m] += tmp_Qs_OLD^2.0
 

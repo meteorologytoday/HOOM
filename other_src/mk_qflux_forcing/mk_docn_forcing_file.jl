@@ -32,6 +32,12 @@ function parse_commandline()
             arg_type = String
             required = true
 
+        "--time"
+            help = "Whether the 12 data points are the beginning of the month or the middle of the month."
+            arg_type = String
+            required = true
+
+
 
     end
 
@@ -57,15 +63,24 @@ Dataset(parsed["input-file"], "r") do ds
     global h     = ds[parsed["MLD-varname"]][:] |> nomissing
 end 
 
+println(size(qflux))
 
 dom = convert(Array{Float64}, [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31])
 time = zeros(Float64, 12)
 
-time[1] = dom[1] / 2.0
-for t=2:12
-    time[t] = time[t-1] + (dom[t-1] + dom[t]) / 2.0
+if parsed["time"] == "begin"
+    time[1] = 0.0
+    for t=2:12
+        time[t] = time[t-1] + dom[t-1]
+    end
+elseif parsed["time"] == "mid"
+    time[1] = dom[1] / 2.0
+    for t=2:12
+        time[t] = time[t-1] + (dom[t-1] + dom[t]) / 2.0
+    end
+else
+    throw(ErrorException("Unknown keyword of `time`: " * parsed["time"]))
 end
-
 println("time: ", time)
 
 
@@ -106,7 +121,7 @@ Dataset(parsed["output-file"], "c") do ds
             "long_name" => "latitude of grid cell center",
         )),
 
-        ("qdp", - qflux, ("ni", "nj", "time"), Dict(   # Notice the minus sign here.
+        ("qdp", qflux, ("ni", "nj", "time"), Dict(  
             "units"     => "W/m^2",
             "long_name" => "ocean heat flux convergence",
         )),

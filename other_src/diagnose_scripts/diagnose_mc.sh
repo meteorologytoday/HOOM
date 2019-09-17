@@ -71,11 +71,11 @@ if [ -f flag_plot_mc ]; then
 
     python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis2.nc --varname=TREFHT_ZM --ylabel="Temperature [ \$ \\mathrm{K} \$ ]" --yscale="1" --y-offset="273.15" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends
     python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis2.nc --varname=TREFHT_ZVAR --ylabel="Temperature [ \$ \\mathrm{K} \$ ]" --yscale="1" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends
-fi
+
 H
 
-    for m in $(seq 1..12); do
+    for m in $( seq 1 12 ); do
         indexing=$( printf "%d,0,:" $(( m - 1 )) )
-        python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ocn_analysis3_rg_MLD.nc --varname=h_ML_MM --ylabel="Mixed-layer Depth [ \$ \\mathrm{m} \$ ]" --yscale="1" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends --indexing="0,0,:" --extra-title=" Month $m" --extra-filename="$('%02d' $m)"
+        python3 $script_plot_dir/plot_mc_meridional_mean_std.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ocn_analysis3_rg_MLD.nc --varname-mean=h_ML_ZONAL_MEAN --varname-var=h_ML_ZONAL_MAVAR --ylabel="Mixed-layer Depth [ \$ \\mathrm{m} \$ ]" --yscale="1" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends --indexing="$(( $m - 1 )),0,:" --extra-title=" Month $m" --extra-filename="$(printf '%02d' $m)" --display-varname="Mixed-Layer Depth"
     done
 fi

@@ -81,6 +81,7 @@ export ice_hist_dir=$sim_dir/ice/hist
 
 # filenames
 export atm_concat=$concat_dir/atm_concat.nc
+export atm_prec=$concat_dir/atm_prec.nc
 export ocn_concat=$concat_dir/ocn_concat.nc
 export ice_concat=$concat_dir/ice_concat.nc
 
@@ -146,10 +147,19 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
     julia $script_analysis_dir/atm_anomalies.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
     julia $script_analysis_dir/atm_temperature.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year
     julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
-    julia $script_analysis_dir/atm_precip.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year
+
+
+    julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_prec --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PREC_TOTAL
+   
+    echo "Doing averaging over time and lon" 
+    #ncwa -O -a month $atm_analysis4 ${atm_analysis4}
+    #ncwa -O -a Nx $atm_analysis4 ${atm_analysis4}
+
+
+    #julia $script_analysis_dir/atm_precip.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
     # Downstream data. No need to specify --beg-year --end-year
-    julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5
+    #julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5
 fi
 
 if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
@@ -159,8 +169,10 @@ if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
     # Need to specify --beg-year --end-year
     #julia $script_analysis_dir/SST_correlation.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --SST=T_ML --beg-year=$diag_beg_year --end-year=$diag_end_year
 
-    julia $script_analysis_dir/zonal_mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis3_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=h_ML
 
+
+    julia $script_analysis_dir/mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis3_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=h_ML
+    
     # Downstream data. No need to specify --beg-year --end-year
     #julia $script_analysis_dir/PDO.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg
     #julia $script_analysis_dir/EN34.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain
