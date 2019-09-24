@@ -298,7 +298,7 @@ function run!(
             calQflx2atm!(subocn.worker_ocn; Δt=Δt)
             syncToMaster!(
                 subocn;
-                vars2 = [:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy],
+                vars2 = [:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :T_Ent, :S_Ent],
                 vars3 = [:Ts, :Ss, :bs, :u, :v, :w, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs],
             )
         end

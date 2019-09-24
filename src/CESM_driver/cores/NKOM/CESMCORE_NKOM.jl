@@ -48,9 +48,9 @@ module CESMCORE_NKOM
             (:relaxation_scheme,             true, (:on, :off,),                nothing),
             (:convective_adjustment_scheme,  true, (:on, :off,),                nothing),
             (:radiation_scheme,              true, (:exponential, :step,),      nothing),
-            (:daily_record,                  true, (Bool,),                     nothing),
-            (:monthly_record,                true, (Bool,),                     nothing),
-            (:turn_off_frwflx,              false, (Bool,),                     false),
+            (:daily_record,                  true, (Array,),                         []),
+            (:monthly_record,                true, (Array,),                         []),
+            (:turn_off_frwflx,              false, (Bool,),                       false),
         ])
 
 
@@ -111,7 +111,7 @@ module CESMCORE_NKOM
         # to calculate w_e.
         #
         # If it is "prognostic", entrainment speed w_e would be
-        # calculated accroding to Niiler and Kraus dynamics.
+        # calculated accroding to Niiler-Kraus dynamics.
         #
 
         x2o = Dict(
@@ -133,45 +133,54 @@ module CESMCORE_NKOM
         
         recorders = Dict()
 
-
-
+        complete_variable_list = Dict(
+            "T"       => ( NKOM.toXYZ(ocn.Ts, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "S"       => ( NKOM.toXYZ(ocn.Ss, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "b"       => ( NKOM.toXYZ(ocn.bs, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "T_ML"    => ( ocn.T_ML,                 ("Nx", "Ny") ),
+            "S_ML"    => ( ocn.S_ML,                 ("Nx", "Ny") ),
+            "T_Ent"   => ( ocn.T_Ent,                ("Nx", "Ny") ),
+            "S_Ent"   => ( ocn.S_Ent,                ("Nx", "Ny") ),
+            "h_ML"    => ( ocn.h_ML,                 ("Nx", "Ny") ),
+            "h_MO"    => ( ocn.h_MO,                 ("Nx", "Ny") ),
+            "nswflx"  => ( ocn.in_flds.nswflx,       ("Nx", "Ny") ),
+            "swflx"   => ( ocn.in_flds.swflx,        ("Nx", "Ny") ),
+            "frwflx"  => ( ocn.in_flds.frwflx,       ("Nx", "Ny") ),
+            "fric_u"  => ( ocn.fric_u,               ("Nx", "Ny") ),
+            "taux"    => ( ocn.τx,                   ("Nx", "Ny") ),
+            "tauy"    => ( ocn.τy,                   ("Nx", "Ny") ),
+            "w"       => ( NKOM.toXYZ(ocn.w, :zxy),  ("Nx", "Ny", "zs_bone") ),
+            "u"       => ( NKOM.toXYZ(ocn.u, :zxy),  ("Nx", "Ny", "Nz_bone") ),
+            "v"       => ( NKOM.toXYZ(ocn.v, :zxy),  ("Nx", "Ny", "Nz_bone") ),
+            "T_hadvs" => ( NKOM.toXYZ(ocn.T_hadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "T_vadvs" => ( NKOM.toXYZ(ocn.T_vadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "S_hadvs" => ( NKOM.toXYZ(ocn.S_hadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "S_vadvs" => ( NKOM.toXYZ(ocn.S_vadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
+        )
 
 
         for rec_key in [:daily_record, :monthly_record]
-            if configs[rec_key]
-                 recorder = RecordTool.Recorder(
-                    Dict(
-                        "Nx" => ocn.Nx,
-                        "Ny" => ocn.Ny,
-                        "Nz_bone" => ocn.Nz_bone,
-                        "zs_bone" => length(ocn.zs_bone),
-                    ), [
-                        ("T",       NKOM.toXYZ(ocn.Ts, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("S",       NKOM.toXYZ(ocn.Ss, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("b",       NKOM.toXYZ(ocn.bs, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("T_ML",    ocn.T_ML, ("Nx", "Ny",)),
-                        ("S_ML",    ocn.S_ML, ("Nx", "Ny",)),
-                        ("h_ML",    ocn.h_ML, ("Nx", "Ny")),
-                        #("h_MO",    ocn.h_MO, ("Nx", "Ny")),
-                        ("nswflx",  ocn.in_flds.nswflx, ("Nx", "Ny")),
-                        ("swflx",   ocn.in_flds.swflx,  ("Nx", "Ny")),
-                        #("frwflx",  ocn.in_flds.frwflx, ("Nx", "Ny")),
-                        #("fric_u",  ocn.fric_u, ("Nx", "Ny")),
-                        #("taux",    ocn.τx, ("Nx", "Ny")),
-                        #("tauy",    ocn.τy, ("Nx", "Ny")),
-                        ("w",       NKOM.toXYZ(ocn.w, :zxy), ("Nx", "Ny", "zs_bone")),
-                        ("u",       NKOM.toXYZ(ocn.u, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("v",       NKOM.toXYZ(ocn.v, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("T_hadvs", NKOM.toXYZ(ocn.T_hadvs, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("T_vadvs", NKOM.toXYZ(ocn.T_vadvs, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("S_hadvs", NKOM.toXYZ(ocn.S_hadvs, :zxy), ("Nx", "Ny", "Nz_bone")),
-                        ("S_vadvs", NKOM.toXYZ(ocn.S_vadvs, :zxy), ("Nx", "Ny", "Nz_bone")),
-                    ],
-                )
 
-                recorders[rec_key] = recorder
-               
+            var_list = []
+
+            # Load variables information as a list
+            for varname in configs[rec_key]
+                if haskey(complete_variable_list, varname)
+                    push!(var_list, keys(varname, complete_variable_list[varname]) )
+                else
+                    throw(ErrorException("Unknown varname in " * string(rec_key) * ": " * varname))
+                end
             end
+
+            recorders[rec_key] = RecordTool.Recorder(
+                Dict(
+                    "Nx" => ocn.Nx,
+                    "Ny" => ocn.Ny,
+                    "Nz_bone" => ocn.Nz_bone,
+                    "zs_bone" => length(ocn.zs_bone),
+                ), var_list
+            )
+               
         end
 
         return NKOM_DATA(
@@ -200,10 +209,6 @@ module CESMCORE_NKOM
 
         in_flds.nswflx .*= -1.0
         in_flds.swflx  .*= -1.0
-        #in_flds.nswflx .=    50.0
-        #in_flds.swflx  .= -1000.0
-        #in_flds.taux .= 0.0
-        #in_flds.tauy .= 0.0
 
 
         if MD.configs[:turn_off_frwflx]
