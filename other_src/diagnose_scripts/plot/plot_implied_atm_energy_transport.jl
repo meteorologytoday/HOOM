@@ -2,7 +2,7 @@ import matplotlib as mplt
 mplt.use('Agg')
 
 import matplotlib.pyplot as plt
-import Nio, sys, argparse
+import sys, argparse
 import numpy as np
 from scipy import signal
 from pprint import pprint

@@ -1,8 +1,10 @@
 import matplotlib as mplt
 mplt.use('Agg')
 
+
+from netCDF4 import Dataset
 import matplotlib.pyplot as plt
-import Nio, sys, argparse
+import sys, argparse
 import numpy as np
 from scipy import signal
 from pprint import pprint
@@ -53,7 +55,7 @@ linestyles = args.linestyles.split(",")
 
 indices = []
 print("Constructing indexing")
-for i, content in enumerate(indexing):
+for i, content in enumerate(args.indexing):
     if content == ":":
         indices.append(slice(None))
     else:
@@ -73,7 +75,7 @@ for i in range(len(casenames)):
 
     try:
 
-        f = Nio.open_file("%s/%s/%s" % (args.input_dir, casenames[i], args.data_file), "r")
+        f = Dataset("%s/%s/%s" % (args.input_dir, casenames[i], args.data_file), "r")
 
     except Exception as e:
     

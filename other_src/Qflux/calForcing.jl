@@ -7,6 +7,7 @@ using NCDatasets
 using Statistics
 using SharedArrays
 
+ent_thickness = 10.0
 ρ    = 1026.0  # kg / m^3
 c_p  = 3996.0  # J / kg / K
 
@@ -17,16 +18,7 @@ sum(dom) == 365 || throw(ErrorException("Sum of dom is not 365"))
 
 println("Δts = ", Δts)
 
-in_SST  = "lowres_SST.nc"
-in_SHF  = "lowres_SHF.nc" 
-in_TAUX = "lowres_TAUX.nc"
-in_TAUY = "lowres_TAUY.nc"
-in_HMXL = "lowres_HMXL.nc"
-in_TEMP = "lowres_TEMP.nc"
-
-
-
-
+in_SSH  = "b.e11.B1850C5CN.f09_g16.005.pop.h.SSH.100001-109912.nc"
 in_SST  = "b.e11.B1850C5CN.f09_g16.005.pop.h.SST.100001-109912.nc"
 in_SHF  = "b.e11.B1850C5CN.f09_g16.005.pop.h.SHF.100001-109912.nc" 
 in_TAUX = "b.e11.B1850C5CN.f09_g16.005.pop.h.TAUX.100001-109912.nc"
@@ -79,7 +71,7 @@ Dataset(in_SST, "r") do ds
     global Nx, Ny, Nt = size(SST)
 
     (Nt%12 == 0) || throw(ErrorException("Time is not multiple of 12"))
-    #Nt=36
+    Nt=48
 
     global nyears = Int(Nt / 12)
 
@@ -109,6 +101,11 @@ end
 Dataset(in_MELTH_F, "r") do ds
     global MELTH_F = replace(ds["MELTH_F"][:], missing=>NaN)
 end
+
+Dataset(in_SSH, "r") do ds
+    global SSH = replace(ds["SSH"][:], missing=>NaN) / 100.0
+end
+
 
 
 SEAICE_HFLX = QFLUX + MELTH_F
@@ -200,24 +197,43 @@ fs = 2 * Ωe * sin.(mi.yc * π/180.0)
 
 K_v = 1e-2
 
-Qs_energy      = SharedArray{Float64}(Nx, Ny, 12)
-var_Qs_energy  = SharedArray{Float64}(Nx, Ny, 12)
 
-Qs_energy_OLD      = SharedArray{Float64}(Nx, Ny, 12)
-var_Qs_energy_OLD  = SharedArray{Float64}(Nx, Ny, 12)
+Q1s             = SharedArray{Float64}(Nx, Ny, 12)
+var_Q1s         = SharedArray{Float64}(Nx, Ny, 12)
+Q1s_energy      = SharedArray{Float64}(Nx, Ny, 12)
+var_Q1s_energy  = SharedArray{Float64}(Nx, Ny, 12)
 
-Qs_OLD      = SharedArray{Float64}(Nx, Ny, 12)
-var_Qs_OLD  = SharedArray{Float64}(Nx, Ny, 12)
+Q2s                 = SharedArray{Float64}(Nx, Ny, 12)
+var_Q2s             = SharedArray{Float64}(Nx, Ny, 12)
+Q2s_energy          = SharedArray{Float64}(Nx, Ny, 12)
+var_Q2s_energy      = SharedArray{Float64}(Nx, Ny, 12)
+
+Q3s                 = SharedArray{Float64}(Nx, Ny, 12)
+var_Q3s             = SharedArray{Float64}(Nx, Ny, 12)
+Q3s_energy          = SharedArray{Float64}(Nx, Ny, 12)
+var_Q3s_energy      = SharedArray{Float64}(Nx, Ny, 12)
+
+Q4s                 = SharedArray{Float64}(Nx, Ny, 12)
+var_Q4s             = SharedArray{Float64}(Nx, Ny, 12)
+Q4s_energy          = SharedArray{Float64}(Nx, Ny, 12)
+var_Q4s_energy      = SharedArray{Float64}(Nx, Ny, 12)
+
+Q5s                 = SharedArray{Float64}(Nx, Ny, 12)
+var_Q5s             = SharedArray{Float64}(Nx, Ny, 12)
+Q5s_energy          = SharedArray{Float64}(Nx, Ny, 12)
+var_Q5s_energy      = SharedArray{Float64}(Nx, Ny, 12)
 
 
 
-dTdts = SharedArray{Float64}(Nx, Ny, 12)
-Fs    = SharedArray{Float64}(Nx, Ny, 12)
-Ents  = SharedArray{Float64}(Nx, Ny, 12)
-Qs    = SharedArray{Float64}(Nx, Ny, 12)
-hs    = SharedArray{Float64}(Nx, Ny, 12) 
-#EKs   = SharedArray{Float64}(Nx, Ny, 12) 
+
+
+
+dTdts    = SharedArray{Float64}(Nx, Ny, 12)
+Fs       = SharedArray{Float64}(Nx, Ny, 12)
+Ents     = SharedArray{Float64}(Nx, Ny, 12)
+hs       = SharedArray{Float64}(Nx, Ny, 12) 
 sea_ices = SharedArray{Float64}(Nx, Ny, 12) 
+diffs    = SharedArray{Float64}(Nx, Ny, 12) 
 
 T_hadvs = SharedArray{Float64}(Nx, Ny, 12)
 T_vadvs = SharedArray{Float64}(Nx, Ny, 12)
@@ -225,16 +241,22 @@ DIVs = SharedArray{Float64}(Nx, Ny, 12)
 us = SharedArray{Float64}(Nx, Ny, 12)
 vs = SharedArray{Float64}(Nx, Ny, 12)
 
+ugs = SharedArray{Float64}(Nx, Ny, 12)
+vgs = SharedArray{Float64}(Nx, Ny, 12)
+T_gadvs = SharedArray{Float64}(Nx, Ny, 12)
+
+
 var_dTdts = SharedArray{Float64}(Nx, Ny, 12)
 var_Fs    = SharedArray{Float64}(Nx, Ny, 12)
 var_Ents  = SharedArray{Float64}(Nx, Ny, 12)
-var_Qs    = SharedArray{Float64}(Nx, Ny, 12)
 var_hs    = SharedArray{Float64}(Nx, Ny, 12) 
-#var_EKs   = SharedArray{Float64}(Nx, Ny, 12) 
 var_sea_ices = SharedArray{Float64}(Nx, Ny, 12) 
+var_diff    = SharedArray{Float64}(Nx, Ny, 12) 
 
 var_T_hadvs = SharedArray{Float64}(Nx, Ny, 12)
 var_T_vadvs = SharedArray{Float64}(Nx, Ny, 12)
+var_T_gadvs = SharedArray{Float64}(Nx, Ny, 12)
+
 
 
 
@@ -248,7 +270,14 @@ T           = SharedArray{Float64}(Nx, Ny)
 tmp_DIV     = SharedArray{Float64}(Nx, Ny)
 tmp_T_hadvs = SharedArray{Float64}(Nx, Ny)
 
+ug          = SharedArray{Float64}(Nx, Ny)
+vg          = SharedArray{Float64}(Nx, Ny)
+tmp_T_gadvs = SharedArray{Float64}(Nx, Ny)
+
 wT_bot = SharedArray{Float64}(Nx, Ny)
+
+tmp_u_dis   = SharedArray{Float64}(Nx, Ny)
+tmp_v_dis   = SharedArray{Float64}(Nx, Ny)
 
 # MLD
 for i=1:Nx, j=1:Ny
@@ -291,7 +320,11 @@ for t = 13:Nt - 12
     τx = (view(TAUX, :, :, t) + view(TAUX, :, :, t+1))/2.0
     τy = (view(TAUY, :, :, t) + view(TAUY, :, :, t+1))/2.0
 
-
+    for i=1:Nx, j=1:Ny
+        isnan(SST[i, j, 1]) && continue
+        T[i, j] = (SST[i, j, t] + SST[i, j, t+1])/2.0
+    end
+ 
     # Calculate Ekman flow
     for i=1:Nx, j=1:Ny
         isnan(SST[i, j, 1]) && continue
@@ -306,22 +339,73 @@ for t = 13:Nt - 12
         ṽ_ek =   M̃ / (ρ * H_ek)
         u_ek, v_ek = real(ṽ_ek), imag(ṽ_ek)
 
-        u[i, j] = u_ek
-        v[i, j] = v_ek
-        T[i, j] = (SST[i, j, t] + SST[i, j, t+1])/2.0
-
+        tmp_u_dis[i, j] = u_ek
+        tmp_v_dis[i, j] = v_ek
     end
    
     DisplacedPoleCoordinate.hadv_upwind!(
         gi,
         tmp_T_hadvs,
-        u,
-        v,
+        tmp_u_dis,
+        tmp_v_dis,
         T,
         mi.mask,
     )
+ 
+    DisplacedPoleCoordinate.DIV!(
+        gi,
+        tmp_u_dis,
+        tmp_v_dis,
+        tmp_DIV,
+        mi.mask,
+    )
 
-    DisplacedPoleCoordinate.DIV!(gi, u,  v, tmp_DIV, mi.mask)
+    DisplacedPoleCoordinate.project!(
+        gi,
+        tmp_u_dis,
+        tmp_v_dis,
+        u,
+        v,
+        direction = :Backward,
+    )
+
+   
+    # Calculate geostrophic flow
+    DisplacedPoleCoordinate.GRAD!(
+        gi,
+        (SSH[:, :, t] + SSH[:, :, t+1]) / 2.0,
+        tmp_u_dis,
+        tmp_v_dis,
+        mi.mask,
+    )
+
+    for i=1:Nx, j=1:Ny
+        isnan(SST[i, j, 1]) && continue
+
+        s̃ = ϵs[i, j] + fs[i, j] * im
+        ṽ = - g * (tmp_u_dis[i, j] + tmp_v_dis[i, j] * im) / s̃
+        tmp_u_dis[i, j], tmp_v_dis[i, j] = real(ṽ), imag(ṽ)
+    end
+ 
+    DisplacedPoleCoordinate.hadv_upwind!(
+        gi,
+        tmp_T_gadvs,
+        tmp_u_dis,
+        tmp_v_dis,
+        T,
+        mi.mask,
+    )
+ 
+    DisplacedPoleCoordinate.project!(
+        gi,
+        tmp_u_dis,
+        tmp_v_dis,
+        ug,
+        vg,
+        direction = :Backward,
+    )
+
+
 
     # Calculate each term
     #@distributed for idx in CartesianIndices((1:Nx, 1:Ny))
@@ -377,7 +461,10 @@ for t = 13:Nt - 12
         end
 
         # Ekman advection
-        tmp_T_vadvs = - tmp_DIV[i, j] * getdTdz(-h_mean, i, j, TEMP_half) * 10.0
+        tmp_T_vadvs = - tmp_DIV[i, j] * (
+                (SST[i, j, t+1] - getTd(-HMXL[i, j, t+1]-ent_thickness, i, j, TEMP_1, BOT_TEMP_1))
+              + (SST[i, j, t  ] - getTd(-HMXL[i, j, t  ]-ent_thickness, i, j, TEMP_0, BOT_TEMP_0))
+        ) / 2.0
 
         T_hadvs[i, j, m] += tmp_T_hadvs[i ,j]
         T_vadvs[i, j, m] += tmp_T_vadvs
@@ -389,30 +476,68 @@ for t = 13:Nt - 12
         us[i, j, m] += u[i, j]
         vs[i, j, m] += v[i, j]
 
+        # Geostrophic advection
+        T_gadvs[i, j, m] += tmp_T_gadvs[i ,j]
+        var_T_gadvs[i, j, m] += tmp_T_gadvs[i, j]^2.0
+
+        ugs[i, j, m] += ug[i, j]
+        vgs[i, j, m] += vg[i, j]
+
+
         #EKs[i, j, m] += ρ * c_p * (tmp_T_hadvs[i, j] + tmp_T_vadvs) * h_mean / h_mean
 
-        tmp_Qs = - ( tmp_dTdts - ( tmp_Fs + tmp_Ents + (tmp_T_hadvs[i, j] + tmp_T_vadvs)) )
-        Qs[i, j, m]     += tmp_Qs
-        var_Qs[i, j, m] += tmp_Qs^2.0
+        tmp_Q4s = - ( tmp_dTdts - ( tmp_Fs + tmp_Ents + (tmp_T_hadvs[i, j] + tmp_T_vadvs)) )
+        Q4s[i, j, m]     += tmp_Q4s
+        var_Q4s[i, j, m] += tmp_Q4s^2.0
 
-        tmp_Qs_energy = tmp_Qs * h_mean * ρ * c_p
-        Qs_energy[i, j, m] += tmp_Qs_energy
-        var_Qs_energy[i, j, m] += tmp_Qs_energy^2.0
-
-
+        tmp_Q4s_energy = tmp_Q4s * h_mean * ρ * c_p
+        Q4s_energy[i, j, m] += tmp_Q4s_energy
+        var_Q4s_energy[i, j, m] += tmp_Q4s_energy^2.0
 
 
-        # calculate OLD qflux
+        tmp_Q5s = - ( tmp_dTdts - ( tmp_Fs + tmp_Ents + (tmp_T_hadvs[i, j] + tmp_T_vadvs + tmp_T_gadvs[i, j])) )
+        Q5s[i, j, m]     += tmp_Q5s
+        var_Q5s[i, j, m] += tmp_Q5s^2.0
+
+        tmp_Q5s_energy = tmp_Q5s * h_mean * ρ * c_p
+        Q5s_energy[i, j, m] += tmp_Q5s_energy
+        var_Q5s_energy[i, j, m] += tmp_Q5s_energy^2.0
+
+
+        # Q2
+        tmp_Q2s = - ( tmp_dTdts - ( tmp_Fs + tmp_Ents ) )
+        Q2s[i, j, m]     += tmp_Q2s
+        var_Q2s[i, j, m] += tmp_Q2s^2.0
+
+        tmp_Q2s_energy = tmp_Q2s * h_mean * ρ * c_p
+        Q2s_energy[i, j, m] += tmp_Q2s_energy
+        var_Q2s_energy[i, j, m] += tmp_Q2s_energy^2.0
+
+
+
+
+        # calculate Q1, Q3 qflux
         h_mean = mean(HMXL[i, j, :]) 
+        tmp_dTdts = (SST[i, j, t+1] - SST[i, j, t]) / Δts[m]
+        tmp_Fs    = (SHF[i, j, t] + SHF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p 
         
-        tmp_Qs_OLD = - ( (SST[i, j, t+1] - SST[i, j, t]) / Δts[m] - (SHF[i, j, t] + SHF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p )
-        Qs_OLD[i, j, m]     += tmp_Qs_OLD
-        var_Qs_OLD[i, j, m] += tmp_Qs_OLD^2.0
+        tmp_Q1s = - ( tmp_dTdts - tmp_Fs )
+        Q1s[i, j, m]     += tmp_Q1s
+        var_Q1s[i, j, m] += tmp_Q1s^2.0
 
 
-        tmp_Qs_energy_OLD = tmp_Qs_OLD * h_mean * ρ * c_p
-        Qs_energy_OLD[i, j, m] += tmp_Qs_energy_OLD
-        var_Qs_energy_OLD[i, j, m] += tmp_Qs_energy_OLD^2.0
+        tmp_Q1s_energy = tmp_Q1s * h_mean * ρ * c_p
+        Q1s_energy[i, j, m] += tmp_Q1s_energy
+        var_Q1s_energy[i, j, m] += tmp_Q1s_energy^2.0
+
+
+        tmp_Q3s = - ( tmp_dTdts - ( tmp_Fs + (tmp_T_hadvs[i, j] + tmp_T_vadvs)) )
+        Q3s[i, j, m]     += tmp_Q3s
+        var_Q3s[i, j, m] += tmp_Q3s^2.0
+
+        tmp_Q3s_energy = tmp_Q3s * h_mean * ρ * c_p
+        Q3s_energy[i, j, m] += tmp_Q3s_energy
+        var_Q3s_energy[i, j, m] += tmp_Q3s_energy^2.0
 
 
     end
@@ -424,25 +549,42 @@ needed_vars = (
     Ents,
     Fs,
     sea_ices,
+    diffs,
     T_hadvs,
     T_vadvs,
+    T_gadvs,
     var_dTdts,
     var_Ents,
     var_Fs,
     var_sea_ices,
+    var_diffs,
     var_T_hadvs,
     var_T_vadvs,
+    var_T_gadvs,
     DIVs,
     us,
     vs,
-    Qs,
-    var_Qs,
-    Qs_energy,
-    var_Qs_energy,
-    Qs_energy_OLD,
-    var_Qs_energy_OLD,
-    Qs_OLD,
-    var_Qs_OLD,
+    Q1s,
+    var_Q1s,
+    Q1s_energy,
+    var_Q1s_energy,
+    Q2s,
+    var_Q2s,
+    Q2s_energy,
+    var_Q2s_energy,
+    Q3s,
+    var_Q3s,
+    Q3s_energy,
+    var_Q3s_energy,
+    Q4s,
+    var_Q4s,
+    Q4s_energy,
+    var_Q4s_energy,
+    Q5s,
+    var_Q5s,
+    Q5s_energy,
+    var_Q5s_energy,
+
 )
  
 for var in needed_vars
@@ -459,10 +601,18 @@ var_sea_ices-= sea_ices.^2.0
 var_Ents    -= Ents.^2.0
 var_T_hadvs -= T_hadvs.^2.0
 var_T_vadvs -= T_vadvs.^2.0
-var_Qs      -= Qs.^2.0
-var_Qs_OLD  -= Qs_OLD.^2.0
-var_Qs_energy -= Qs_energy.^2.0
-var_Qs_energy_OLD -= Qs_energy_OLD.^2.0
+
+var_Q1s        -= Q1s.^2.0
+var_Q2s        -= Q2s.^2.0
+var_Q3s        -= Q3s.^2.0
+var_Q4s        -= Q4s.^2.0
+var_Q5s        -= Q5s.^2.0
+
+var_Q1s_energy -= Q1s_energy.^2.0
+var_Q2s_energy -= Q2s_energy.^2.0
+var_Q3s_energy -= Q3s_energy.^2.0
+var_Q4s_energy -= Q4s_energy.^2.0
+var_Q5s_energy -= Q5s_energy.^2.0
 
 
 
@@ -502,45 +652,116 @@ Dataset(out_file, "c") do ds
 
     for o in (
         [
-            "h", hs, ("Nx", "Ny", "time"), Dict(
+            "h_ML_variate", hs, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Mixed-layer Depth",
             "units"=>"m",
             )
         ], [
-            "qflux_energy_OLD", Qs_energy_OLD, ("Nx", "Ny", "time"), Dict(
+            "h_ML_fixed", repeat(mean(hs, dims=(3,))[:,:,1], outer=(1,1,12)), ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Mixed-layer Depth",
+            "units"=>"m",
+            )
+        ], [
+            "Q1s", Q1s, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Qflux in energy flux form",
             "units"=>"W / m^2",
             )
         ], [
-            "var_qflux_energy_OLD", var_Qs_energy_OLD, ("Nx", "Ny", "time"), Dict(
+            "var_Q1s", var_Q1s, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Variance of qflux_energy",
             "units"=>"(W / m^2)^2",
             )
         ], [
-            "qflux_energy", Qs_energy, ("Nx", "Ny", "time"), Dict(
+            "Q1s_energy", Q1s_energy, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Qflux in energy flux form",
             "units"=>"W / m^2",
             )
         ], [
-            "var_qflux_energy", var_Qs_energy, ("Nx", "Ny", "time"), Dict(
+            "var_Q1s_energy", var_Q1s_energy, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Variance of qflux_energy",
             "units"=>"(W / m^2)^2",
             )
         ], [
-            "qflux_OLD", Qs_OLD, ("Nx", "Ny", "time"), Dict(
+            "Q2s", Q2s, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Qflux in energy flux form",
             "units"=>"W / m^2",
             )
         ], [
-            "var_qflux_OLD", var_Qs_OLD, ("Nx", "Ny", "time"), Dict(
+            "var_Q2s", var_Q2s, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Variance of qflux_energy",
             "units"=>"(W / m^2)^2",
             )
         ], [
-            "qflux", Qs, ("Nx", "Ny", "time"), Dict(
+            "Q2s_energy", Q2s_energy, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Qflux in energy flux form",
+            "units"=>"W / m^2",
+            )
+        ], [
+            "var_Q2s_energy", var_Q2s_energy, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Variance of qflux_energy",
+            "units"=>"(W / m^2)^2",
+            )
+        ], [
+            "Q3s", Q3s, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Qflux in energy flux form",
+            "units"=>"W / m^2",
+            )
+        ], [
+            "var_Q3s", var_Q3s, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Variance of qflux_energy",
+            "units"=>"(W / m^2)^2",
+            )
+        ], [
+            "Q3s_energy", Q3s_energy, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Qflux in energy flux form",
+            "units"=>"W / m^2",
+            )
+        ], [
+            "var_Q3s_energy", var_Q3s_energy, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Variance of qflux_energy",
+            "units"=>"(W / m^2)^2",
+            )
+        ], [
+            "Q4s", Q4s, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Q-flux",
             "units"=>"K / s",
             )
+        ], [
+            "var_Q4s", var_Q4s, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Q-flux",
+            "units"=>"K / s",
+            )
+        ], [
+            "Q4s_energy", Q4s_energy, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Qflux in energy flux form",
+            "units"=>"W / m^2",
+            )
+        ], [
+            "var_Q4s_energy", var_Q4s_energy, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Variance of qflux_energy",
+            "units"=>"(W / m^2)^2",
+            )
+        ], [
+            "Q5s", Q5s, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Q-flux",
+            "units"=>"K / s",
+            )
+        ], [
+            "var_Q5s", var_Q5s, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Q-flux",
+            "units"=>"K / s",
+            )
+        ], [
+            "Q5s_energy", Q5s_energy, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Qflux in energy flux form",
+            "units"=>"W / m^2",
+            )
+        ], [
+            "var_Q5s_energy", var_Q5s_energy, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Variance of qflux_energy",
+            "units"=>"(W / m^2)^2",
+            )
+
         ], [
             "Fs", Fs, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"SHF flux",
@@ -562,10 +783,9 @@ Dataset(out_file, "c") do ds
             "long_name"=>"Ekman flux",
             "units"=>"K / s",
             )
-
         ], [
-            "var_qflux", var_Qs, ("Nx", "Ny", "time"), Dict(
-            "long_name"=>"Q-flux",
+            "T_gadvs", T_gadvs, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Ekman flux",
             "units"=>"K / s",
             )
         ], [
@@ -586,6 +806,11 @@ Dataset(out_file, "c") do ds
             )
         ], [
             "var_T_vadvs", var_T_vadvs, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Ekman flux",
+            "units"=>"K / s",
+            )
+        ], [
+            "var_T_gadvs", var_T_gadvs, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Ekman flux",
             "units"=>"K / s",
             )
@@ -615,6 +840,17 @@ Dataset(out_file, "c") do ds
             "long_name"=>"Ekman flux",
             "units"=>"m / s",
             )
+        ], [
+            "ugs", ugs, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Ekman flux",
+            "units"=>"m / s",
+            )
+        ], [
+            "vgs", vgs, ("Nx", "Ny", "time"), Dict(
+            "long_name"=>"Ekman flux",
+            "units"=>"m / s",
+            )
+
 
         ], [
             "dTdts", dTdts, ("Nx", "Ny", "time"), Dict(

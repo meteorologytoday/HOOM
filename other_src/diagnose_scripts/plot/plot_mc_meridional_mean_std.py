@@ -25,6 +25,8 @@ parser.add_argument('--extra-filename', default="")
 parser.add_argument('--colors')
 parser.add_argument('--linestyles', type=str)
 parser.add_argument('--y-offset', type=float, default=0.0)
+parser.add_argument('--y-range-mean', type=str, default="")
+parser.add_argument('--y-range-std', type=str, default="")
 
 args = parser.parse_args()
 
@@ -47,6 +49,13 @@ for i, content in enumerate(indexing):
 indices = tuple(indices)
 print("Indices: ", indices)    
     
+if args.y_range_mean != "":
+    args.y_range_mean = [float(n) for n in args.y_range_mean.split(",")]
+
+if args.y_range_std != "":
+    args.y_range_std = [float(n) for n in args.y_range_std.split(",")]
+
+
 
 print("Going to compare these models:")
 pprint(casenames)
@@ -72,8 +81,6 @@ for i in range(len(casenames)):
     new_casenames.append([casenames[i], legends[i], colors[i], linestyles[i]])
     mean_datas.append((f.variables[args.varname_mean][indices] - args.y_offset) / args.yscale)
     std_datas.append(np.sqrt(f.variables[args.varname_var][indices]) / args.yscale)
-
-
     
     f.close()
 
@@ -83,10 +90,11 @@ f = Dataset(args.domain_file, "r")
 lat = f.variables["yc"][:, 1]
 f.close()
 
-fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
+fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(16, 12), sharex=True)
 
 ax1.set_title("Mean of %s%s" % (args.display_varname, args.extra_title))
 ax2.set_xlabel("Latitude [deg]")
+ax2.set_xticks([-90, -60, -30, 0, 30, 60, 90])
 
 ax1.set_ylabel(args.ylabel)
 ax2.set_ylabel(args.ylabel)
@@ -99,6 +107,13 @@ ax1.legend()
 
 ax1.grid(True)
 ax2.grid(True)
+
+if args.y_range_mean != "":
+    ax1.set_ylim(args.y_range_mean)
+
+if args.y_range_std != "":
+    ax2.set_ylim(args.y_range_std)
+
 
 fig.savefig("%s/mc_meridional_mean_std_%s_%s%s.png" % (args.output_dir, args.varname_mean, args.varname_var, args.extra_filename), dpi=200)
 

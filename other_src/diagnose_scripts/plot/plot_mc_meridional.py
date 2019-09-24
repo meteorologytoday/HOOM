@@ -2,7 +2,8 @@ import matplotlib as mplt
 mplt.use('Agg')
 
 import matplotlib.pyplot as plt
-import Nio, sys, argparse
+import sys, argparse
+from netCDF4 import Dataset
 import numpy as np
 from pprint import pprint
 
@@ -54,7 +55,7 @@ for i in range(len(casenames)):
 
     try:
 
-        f = Nio.open_file("%s/%s/%s" % (args.input_dir, casenames[i], args.data_file), "r")
+        f = Dataset("%s/%s/%s" % (args.input_dir, casenames[i], args.data_file), "r")
 
     except Exception as e:
     
@@ -72,7 +73,7 @@ for i in range(len(casenames)):
 
 casenames = new_casenames
 
-f = Nio.open_file(args.domain_file, "r")
+f = Dataset(args.domain_file, "r")
 lat = f.variables["yc"][:, 1]
 f.close()
 

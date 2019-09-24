@@ -90,15 +90,19 @@ export ocn_concat_rg=$concat_dir/ocn_concat_rg.nc
 
 export atm_analysis1=$diag_dir/atm_analysis1.nc
 export atm_analysis2=$diag_dir/atm_analysis2.nc
+export atm_analysis2a=$diag_dir/atm_analysis2a.nc
 export atm_analysis3=$diag_dir/atm_analysis3_energy.nc
 export atm_analysis4=$diag_dir/atm_analysis4_precip.nc
+export atm_analysis4a=$diag_dir/atm_analysis4a_precip.nc
 export atm_analysis5=$diag_dir/atm_analysis5_AO.nc
+
 
 
 
 export ocn_analysis1_rg=$diag_dir/ocn_anomalies1_rg.nc
 export ocn_analysis2_rg=$diag_dir/ocn_analysis2_rg_PDO.nc
 export ocn_analysis3_rg=$diag_dir/ocn_analysis3_rg_MLD.nc
+export ocn_analysis3a_rg=$diag_dir/ocn_analysis3a_rg_MLD.nc
 export ocn_mstat_rg=$diag_dir/ocn_mstat_rg.nc
 
 
@@ -145,15 +149,20 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
 
     # Need to specify --beg-year --end-year
     julia $script_analysis_dir/atm_anomalies.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
-    julia $script_analysis_dir/atm_temperature.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year
+
+
+    julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=TREFHT
+   
+    ncwa -O -a months,Nx $atm_analysis2 $atm_analysis2a
+
+
+    #julia $script_analysis_dir/atm_temperature.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year
     julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
 
     julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_prec --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PREC_TOTAL
    
-    echo "Doing averaging over time and lon" 
-    #ncwa -O -a month $atm_analysis4 ${atm_analysis4}
-    #ncwa -O -a Nx $atm_analysis4 ${atm_analysis4}
+    ncwa -O -a months,Nx $atm_analysis4 $atm_analysis4a
 
 
     #julia $script_analysis_dir/atm_precip.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year
@@ -172,6 +181,7 @@ if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
 
 
     julia $script_analysis_dir/mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis3_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=h_ML
+    ncwa -O -a months,Nx $ocn_analysis3_rg $ocn_analysis3a_rg
     
     # Downstream data. No need to specify --beg-year --end-year
     #julia $script_analysis_dir/PDO.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg
