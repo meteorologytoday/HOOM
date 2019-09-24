@@ -1,8 +1,10 @@
 import matplotlib as mplt
 mplt.use('Agg')
 
+
+from netCDF4 import Dataset
 import matplotlib.pyplot as plt
-import Nio, sys, argparse
+import sys, argparse
 import numpy as np
 from scipy import signal
 from pprint import pprint
@@ -40,6 +42,7 @@ parser.add_argument('--extra-title', default="")
 parser.add_argument('--colors')
 parser.add_argument('--linestyles', type=str)
 parser.add_argument('--t-offset', type=float, default=0.0)
+parser.add_argument('--indexing', default=":")
 
 args = parser.parse_args()
 
@@ -50,6 +53,17 @@ legends   = args.legends.split(",")
 colors = args.colors.split(",")
 linestyles = args.linestyles.split(",")
 
+indices = []
+print("Constructing indexing")
+for i, content in enumerate(args.indexing):
+    if content == ":":
+        indices.append(slice(None))
+    else:
+        indices.append(int(content))
+
+indices = tuple(indices)
+print("Indices: ", indices)    
+ 
 print("Going to compare these models:")
 pprint(casenames)
 
@@ -61,7 +75,7 @@ for i in range(len(casenames)):
 
     try:
 
-        f = Nio.open_file("%s/%s/%s" % (args.input_dir, casenames[i], args.data_file), "r")
+        f = Dataset("%s/%s/%s" % (args.input_dir, casenames[i], args.data_file), "r")
 
     except Exception as e:
     
@@ -71,7 +85,7 @@ for i in range(len(casenames)):
     
     
     new_casenames.append([casenames[i], legends[i], colors[i], linestyles[i]])
-    ts = mavg(f.variables[args.varname][:] / args.yscale, args.mavg)
+    ts = mavg(f.variables[args.varname][indices] / args.yscale, args.mavg)
 
     tss.append(ts)
     

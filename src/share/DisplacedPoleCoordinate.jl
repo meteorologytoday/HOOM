@@ -254,6 +254,64 @@ function project!(
 
 end
 
+function GRAD!(
+    gi     :: GridInfo,
+    scalar :: AbstractArray{Float64, 2},
+    vf_e   :: AbstractArray{Float64, 2},
+    vf_n   :: AbstractArray{Float64, 2},
+    mask   :: AbstractArray{Float64, 2},
+)
+
+    for i=1:gi.Nx, j=1:gi.Ny
+
+        if mask[i, j] == 0.0
+            vf_e[i, j] = NaN
+            vf_n[i, j] = NaN
+            continue
+        end
+
+        i_w, i_e, j_s, j_n = getCyclicNeighbors(gi.Nx, gi.Ny, i, j)
+
+        s_c = scalar[i, j]
+        
+        if mask[i_e, j] != 0
+            if mask[i_w, j] != 0
+                # i_e = 1, i_w = 1 (Both side derivative)
+                vf_e[i, j] = ( scalar[i_e, j] - scalar[i_w, j] ) / (2.0 * gi.dx_c[i, j])
+            else
+                # i_e = 1, i_w = 0 (East side derivative)
+                vf_e[i, j] = ( scalar[i_e, j] - s_c ) / gi.dx_c[i, j]
+            end
+        elseif mask[i_w, j] != 0
+                # i_e = 0, i_w = 1 (West side derivative)
+                vf_e[i, j] = ( s_c - scalar[i_w, j] ) / gi.dx_c[i, j]
+        else
+                # i_e = 0, i_w = 0 (0 derivative)
+                vf_e[i, j] = 0.0
+        end
+
+        if mask[i, j_n] != 0
+            if mask[i, j_s] != 0
+                # j_n = 1, j_s = 1 (Both side derivative)
+                vf_n[i, j] = ( scalar[i, j_n] - scalar[i, j_s] ) / (2.0 * gi.dy_c[i, j])
+            else
+                # j_n = 1, j_s = 0 (North side derivative)
+                vf_n[i, j] = ( scalar[i, j_n] - s_c ) / gi.dy_c[i, j]
+            end
+        elseif mask[i, j_s] != 0
+                # j_n = 0, j_s = 1 (South side derivative)
+                vf_n[i, j] = ( s_c - scalar[i, j_s] ) / gi.dy_c[i, j]
+        else
+                # j_n = 0, j_s = 0 (0 derivative)
+                vf_n[i, j] = 0.0
+        end
+
+    end
+        
+end
+
+
+
 
 function DIV!(
     gi   :: GridInfo,

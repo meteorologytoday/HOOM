@@ -359,7 +359,21 @@ using Distributed
         end
 
         if varnames == nothing
-            varnames = keys(ds_in)
+
+            varnames = Array{Any}(undef, 0)
+
+            for varname in keys(ds_in)
+                println("varname:", varname, "; Dimnames: ", dimnames(ds_in[varname]))
+                if dim_len == 1
+                    if dimnames(ds_in[varname])[1] == xydim
+                        push!(varnames, varname)
+                    end
+                elseif dim_len == 2
+                    if dimnames(ds_in[varname])[1:2] == (xdim, ydim,)
+                        push!(varnames, varname)
+                    end
+                end
+            end
         end
 
         println("Defined dimensions: ", keys(ds_out.dim))
@@ -383,14 +397,16 @@ using Distributed
             cf_var = ds_in[varname]
             cf_var_dimnames = dimnames(cf_var)
 
-            s_data = replace(cf_var[:], missing=>NaN)
-            s_data_dims = size(s_data)
+            # Cannot read data yet. Some data are really large
+            #s_data = replace(cf_var[:], missing=>NaN)
+
+            s_data_dims = size(cf_var)
             s_data_dims_len = length(s_data_dims)
 
             d1 = reduce(*, s_data_dims[1:dim_len])
             d2 = (s_data_dims_len > dim_len) ? reduce(*, s_data_dims[dim_len+1:end]) : 1
            
-            s_data = reshape(s_data, d1, d2)
+            #s_data = reshape(s_data, d1, d2)
 
             attrib = Dict()
             for (k,v) in cf_var.attrib
@@ -405,11 +421,9 @@ using Distributed
             println(cf_var_dimnames)
             v = defVar(ds_out, varname, Float64, cf_var_dimnames, attrib=attrib)
             
-            for k = 1:size(s_data)[2]
-                convertData!(wi, view(s_data, :, k), d_data_tmp)
-        
+            for k = 1:d2
 
-                # Construct writing shape
+                # Construct reading / writing shape
                 idx = Array{Any}(undef, 0)
                 for i=1:dim_len
                     push!(idx, :)
@@ -424,6 +438,9 @@ using Distributed
                     push!(idx, tidx)
                 end
                 #println(idx)
+
+
+                convertData!(wi, reshape( replace( cf_var[idx...], missing=>NaN ), d1 ), d_data_tmp)
                 v[idx...] = reshape(d_data_tmp, wi.d_dims[1], wi.d_dims[2])
             end
         end
