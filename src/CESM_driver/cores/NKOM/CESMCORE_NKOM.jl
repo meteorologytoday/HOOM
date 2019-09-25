@@ -42,14 +42,14 @@ module CESMCORE_NKOM
             (:init_file,                    false, (nothing, String,),          nothing),
             (:advection_scheme,              true, (:static, :ekman_all_in_ML, :ekman_simple_partition,),  nothing),
             (:MLD_scheme,                    true, (:prognostic, :datastream,), nothing),
-            (:Qflux_scheme,                  true, (:on, :off,),                nothing),
+            (:Qflux_scheme,                  true, (:energy_flux, :temperature_flux, :none),                nothing),
             (:vertical_diffusion_scheme,     true, (:on, :off,),                nothing),
             (:horizontal_diffusion_scheme,   true, (:on, :off,),                nothing),
             (:relaxation_scheme,             true, (:on, :off,),                nothing),
             (:convective_adjustment_scheme,  true, (:on, :off,),                nothing),
             (:radiation_scheme,              true, (:exponential, :step,),      nothing),
-            (:daily_record,                  true, (Array,),                         []),
-            (:monthly_record,                true, (Array,),                         []),
+            (:daily_record,                  true, (AbstractArray,),                 []),
+            (:monthly_record,                true, (AbstractArray,),                 []),
             (:turn_off_frwflx,              false, (Bool,),                       false),
         ])
 
@@ -139,8 +139,8 @@ module CESMCORE_NKOM
             "b"       => ( NKOM.toXYZ(ocn.bs, :zxy), ("Nx", "Ny", "Nz_bone") ),
             "T_ML"    => ( ocn.T_ML,                 ("Nx", "Ny") ),
             "S_ML"    => ( ocn.S_ML,                 ("Nx", "Ny") ),
-            "T_Ent"   => ( ocn.T_Ent,                ("Nx", "Ny") ),
-            "S_Ent"   => ( ocn.S_Ent,                ("Nx", "Ny") ),
+            "dTdt_ent"=> ( ocn.dTdt_ent,             ("Nx", "Ny") ),
+            "dSdt_ent"=> ( ocn.dSdt_ent,             ("Nx", "Ny") ),
             "h_ML"    => ( ocn.h_ML,                 ("Nx", "Ny") ),
             "h_MO"    => ( ocn.h_MO,                 ("Nx", "Ny") ),
             "nswflx"  => ( ocn.in_flds.nswflx,       ("Nx", "Ny") ),
@@ -160,13 +160,18 @@ module CESMCORE_NKOM
 
 
         for rec_key in [:daily_record, :monthly_record]
+    
+            println("# For record key: " * string(rec_key))
 
             var_list = []
-
+            
             # Load variables information as a list
             for varname in configs[rec_key]
+
+                println(format("Request output variable: {:s}", varname))
                 if haskey(complete_variable_list, varname)
-                    push!(var_list, keys(varname, complete_variable_list[varname]) )
+                    println(format("Using varaible: {:s}", varname))
+                    push!(var_list, ( varname, complete_variable_list[varname]... ) )
                 else
                     throw(ErrorException("Unknown varname in " * string(rec_key) * ": " * varname))
                 end
@@ -210,7 +215,6 @@ module CESMCORE_NKOM
         in_flds.nswflx .*= -1.0
         in_flds.swflx  .*= -1.0
 
-
         if MD.configs[:turn_off_frwflx]
             in_flds.frwflx .= 0.0
         end
@@ -218,7 +222,7 @@ module CESMCORE_NKOM
 
         if MD.configs[:enable_short_term_archive]
 
-            if MD.configs[:daily_record]
+            if length(MD.configs[:daily_record]) != 0
  
                 RecordTool.record!(
                     MD.recorders[:daily_record];
@@ -237,7 +241,7 @@ module CESMCORE_NKOM
 
             end
             
-            if MD.configs[:monthly_record]
+            if length(MD.configs[:monthly_record]) != 0
 
                 RecordTool.record!(
                     MD.recorders[:monthly_record];
@@ -262,7 +266,6 @@ module CESMCORE_NKOM
         NKOM.run!(
             MD.ocn;
             substeps      = MD.configs[:substeps],
-            use_qflx      = MD.configs[:Qflux_scheme] == :on,
             use_h_ML      = MD.configs[:MLD_scheme] == :datastream,
             Δt            = Δt,
             do_vert_diff  = MD.configs[:vertical_diffusion_scheme] == :on,
@@ -271,6 +274,7 @@ module CESMCORE_NKOM
             do_convadjust = MD.configs[:convective_adjustment_scheme] == :on,
             rad_scheme    = MD.configs[:radiation_scheme],
             adv_scheme    = MD.configs[:advection_scheme],
+            qflx_scheme   = MD.configs[:Qflux_scheme],
         )
 
         

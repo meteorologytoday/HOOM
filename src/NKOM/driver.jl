@@ -139,8 +139,8 @@ function makeSubOcean(
 end
 
 function syncToMaster!(subocn::SubOcean;
-        vars2 :: AbstractArray = [],
-        vars3 :: AbstractArray = [],
+        vars2 :: Tuple = (),
+        vars3 :: Tuple = (),
 )
 
     (subocn.worker_ocn.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
@@ -179,8 +179,8 @@ end
 
 
 function syncBoundaryToMaster!(subocn::SubOcean;
-        vars2 :: AbstractArray = [],
-        vars3 :: AbstractArray = [],
+        vars2 :: Tuple = (),
+        vars3 :: Tuple = (),
 )
 
     (subocn.worker_ocn.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
@@ -207,8 +207,8 @@ function syncBoundaryToMaster!(subocn::SubOcean;
 end
 
 function syncBoundaryFromMaster!(subocn::SubOcean;
-        vars2 :: AbstractArray = [],
-        vars3 :: AbstractArray = [],
+        vars2 :: Tuple = (),
+        vars3 :: Tuple = (),
 )
 
     (subocn.worker_ocn.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
@@ -276,17 +276,24 @@ function run!(
     end
 
 
-    sync_vars2 = [:T_ML, :S_ML, :h_ML, :FLDO]
-    sync_vars3 = [:Ts,   :Ss]
+    sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
+    sync_bnd_vars3 = (:Ts,   :Ss)
+
+    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :dTdt_ent, :dSdt_ent)
+    sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
+
+    #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
+    #accumulative_vars3 = (:T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
 
     for substep = 1:substeps
 
         @sync for (i, p) in enumerate(wkrs)
             @spawnat p let
-                syncBoundaryFromMaster!(subocn; vars3 = sync_vars3, vars2 = sync_vars2)
+                syncBoundaryFromMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
                 stepOcean_Flow!(subocn.worker_ocn; Δt = dt, cfgs...)
                 stepOcean_MLDynamics!(subocn.worker_ocn; Δt = dt, cfgs...)
-                syncBoundaryToMaster!(subocn; vars3 = sync_vars3, vars2 = sync_vars2)
+                syncBoundaryToMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
+                accumulate!(subocn.worker_ocn)
             end
         end
 
@@ -296,30 +303,14 @@ function run!(
         @spawnat p let
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
             calQflx2atm!(subocn.worker_ocn; Δt=Δt)
+            avg_accumulate!(subocn.worker_ocn; count=substeps)
             syncToMaster!(
                 subocn;
-                vars2 = [:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :T_Ent, :S_Ent],
-                vars3 = [:Ts, :Ss, :bs, :u, :v, :w, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs],
+                vars2 = sync_to_master_vars2,
+                vars3 = sync_to_master_vars3,
             )
         end
     end
 
 end
-
-#=
-function sync!(
-    occ :: OceanColumnCollection;
-)
-    (occ.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(occ.id)))
-
-    @sync for (i, p) in enumerate(workers())
-        @spawnat p NKOM.syncToMaster(worker_occ)
-    end
-
-
-end
-=#
-
-
-
 

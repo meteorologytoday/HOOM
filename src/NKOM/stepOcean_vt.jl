@@ -6,11 +6,12 @@ function stepOcean_MLDynamics!(
 )
 
     # Unpacking
-    use_qflx      = cfgs[:use_qflx]
+    qflx_scheme   = cfgs[:qflx_scheme]
     use_h_ML      = cfgs[:use_h_ML]
     Δt            = cfgs[:Δt]
     do_convadjust = cfgs[:do_convadjust]
     rad_scheme    = cfgs[:rad_scheme]
+
 
     
     ifrac   = ocn.in_flds.ifrac
@@ -51,7 +52,8 @@ function stepOcean_MLDynamics!(
         #       conservation of buoyancy in water column
 
 
-        surf_Tnswflx = ( nswflx[i, j] + ( ( use_qflx ) ? qflx[i, j] : 0.0 )) / (ρ*c_p) 
+        #surf_Tnswflx = ( nswflx[i, j] + ( ( use_qflx ) ? qflx[i, j] : 0.0 )) / (ρ*c_p) 
+        surf_Tnswflx = nswflx[i, j] / (ρ*c_p) 
         surf_Tswflx  = swflx[i, j] / (ρ*c_p)
         surf_Jflx    = g * α * surf_Tswflx
         surf_Sflx    = - frwflx[i, j] * ocn.S_ML[i, j]
@@ -59,6 +61,8 @@ function stepOcean_MLDynamics!(
         
         old_FLDO = ocn.FLDO[i, j]
         old_h_ML = ocn.h_ML[i, j]
+        old_T_ML = ocn.T_ML[i, j]
+        old_S_ML = ocn.S_ML[i, j]
 
         new_h_ML = old_h_ML
 
@@ -110,6 +114,7 @@ function stepOcean_MLDynamics!(
 
         # If new_h_ML < old_h_ML, then the FLDO layer should get extra T or S due to mixing
 
+
         if new_h_ML < old_h_ML
 
             new_FLDO = getFLDO(zs=zs, h_ML=new_h_ML, Nz=Nz)
@@ -133,20 +138,40 @@ function stepOcean_MLDynamics!(
             end
         end
 
-        
+        if_entrainment = new_h_ML > old_h_ML
 
+        # Calculate the effect of entrainment on SSS
+        new_int_S_ML = OC_getIntegratedSalinity(   ocn, i, j; target_z = -new_h_ML)
+        new_S_ML = new_int_S_ML / new_h_ML
+        ocn.dSdt_ent[i, j] = (if_entrainment) ? (new_S_ML - old_S_ML) / Δt : 0.0
 
-        # Shortwave radiation is not included yet
-        new_S_ML = max( (OC_getIntegratedSalinity(   ocn, i, j; target_z = -new_h_ML) - surf_Sflx * Δt)    / new_h_ML, 0.0)
-        new_T_ML =      (OC_getIntegratedTemperature(ocn, i, j; target_z = -new_h_ML) - surf_Tnswflx * Δt) / new_h_ML
+        # Add in external surface flux effect on SSS
+        new_S_ML = max( (new_int_S_ML - surf_Sflx * Δt) / new_h_ML, 0.0)
 
+        # Calculate the effect of entrainment on SST
+        new_int_T_ML = OC_getIntegratedTemperature(ocn, i, j; target_z = -new_h_ML)
+        new_T_ML = new_int_T_ML / new_h_ML
+        ocn.dTdt_ent[i, j] = (if_entrainment) ? (new_T_ML - old_T_ML) / Δt : 0.0
+
+        # Add in external surface flux effect on SST. Shortwave radiation is not included yet
+        new_T_ML = (new_int_T_ML - surf_Tnswflx * Δt) / new_h_ML
+
+        # Q-flux 
+        if qflx_scheme == :energy_flux
+
+            new_T_ML -= qflx[i, j] * Δt / (ρ * c_p * new_h_ML)
+
+        elseif qflx_scheme == :temperature_flux
+            new_T_ML -= qflx[i, j] * Δt
+        end
+
+        # Update mixed-layer
         OC_setMixedLayer!(
             ocn, i, j;
             T_ML=new_T_ML,
             S_ML=new_S_ML,
             h_ML=new_h_ML,
         )
-
 
         # Shortwave radiation
         if rad_scheme == :exponential

@@ -35,7 +35,9 @@ end
        
     @hinclude("../share/constants.jl")
     @hinclude("InputFields.jl")
+    @hinclude("AccumulativeVariables.jl")
     @hinclude("Ocean.jl")
+
     @hinclude("qflx2atm.jl")
     @hinclude("trivial_functions.jl")
 
@@ -55,7 +57,11 @@ end
     @hinclude("takeSnapshot.jl")
     @hinclude("rearrange.jl")
 
+    @hinclude("accumulate.jl")
     @hinclude("driver.jl")
+
+
+
 end
 
 

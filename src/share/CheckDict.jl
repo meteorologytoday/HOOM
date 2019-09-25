@@ -37,7 +37,8 @@ function checkDict!(
             pass = false
             for valid_vt in valid_vts
 
-                if typeof(valid_vt) == DataType 
+                if typeof(valid_vt) <: Union{DataType, UnionAll}
+
                     if typeof(d[key]) <: valid_vt
                         pass = true
                     end

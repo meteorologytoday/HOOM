@@ -32,9 +32,8 @@ mutable struct Ocean
     h_ML     :: AbstractArray{Float64, 2}
     h_MO     :: AbstractArray{Float64, 2}
     fric_u   :: AbstractArray{Float64, 2}
-    T_Ent    :: AbstractArray{Float64, 2}
-    S_Ent    :: AbstractArray{Float64, 2}
-
+    dTdt_ent    :: AbstractArray{Float64, 2}
+    dSdt_ent    :: AbstractArray{Float64, 2}
 
     bs       :: AbstractArray{Float64, 3}
     Ts       :: AbstractArray{Float64, 3}
@@ -101,6 +100,9 @@ mutable struct Ocean
 
     lays :: NamedTuple
     cols :: NamedTuple
+
+    # Accumulative variables
+    acc_vars :: Union{AccumulativeVariables, Nothing}
 
     function Ocean(;
         id       :: Integer = 0,  
@@ -307,8 +309,8 @@ mutable struct Ocean
         _h_ML     = allocate(datakind, Float64, Nx, Ny)
         _h_MO     = allocate(datakind, Float64, Nx, Ny)
         _fric_u   = allocate(datakind, Float64, Nx, Ny)
-        _T_Ent    = allocate(datakind, Float64, Nx, Ny)
-        _S_Ent    = allocate(datakind, Float64, Nx, Ny)
+        _dTdt_ent    = allocate(datakind, Float64, Nx, Ny)
+        _dSdt_ent    = allocate(datakind, Float64, Nx, Ny)
 
         _bs       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _Ts       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
@@ -681,7 +683,7 @@ mutable struct Ocean
             K_v, K_T, K_S,
             _fs, _ϵs,
             _mask3, _mask, mask_idx, valid_idx,
-            _b_ML, _T_ML, _S_ML, _h_ML, _h_MO, _fric_u, _T_Ent, _S_Ent,
+            _b_ML, _T_ML, _S_ML, _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,
@@ -699,6 +701,7 @@ mutable struct Ocean
             ( in_flds == nothing ) ? InputFields(datakind, Nx, Ny) : in_flds,
             lays,
             cols,
+            ( id == 0 ) ? nothing : AccumulativeVariables(Nx, Ny, Nz_bone),
         )
 
         updateB!(ocn)
