@@ -30,6 +30,7 @@ lopts=(
     ocn-ncpu
     ocn-branch
     qflux-file
+    seaice-file
     single-job
     relaxation-time
 )
@@ -116,6 +117,7 @@ $wk_dir/make_cesm_sugar_script.sh           \
     --model=$model                          \
     --ocn-ncpu=$ocn_ncpu                    \
     --qflux-file=$qflux_file                \
+    --seaice-file=$seaice_file              \
     --ocn-branch=$ocn_branch                \
     --single-job=$single_job
 

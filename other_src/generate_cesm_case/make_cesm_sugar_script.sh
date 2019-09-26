@@ -21,6 +21,7 @@ lopts=(
     flow-scheme
     ocn-ncpu
     qflux-file
+    seaice-file
     ocn-branch
     single-job
 )
@@ -50,6 +51,7 @@ compset=$compset
 user_namelist_dir=$user_namelist_dir
 init_file=$init_file
 qflux_file="$qflux_file"
+seaice_file="$seaice_file"
 
 walltime="${walltime}"
 single_job="${single_job}"
@@ -125,7 +127,19 @@ if [ ! -z "\$qflux_file" ]; then
 
     cat << XEOFX > user_docn.streams.txt.som
     $( echo "$( cat $wk_dir/docn_stream.txt )" )
+
 XEOFX
+
+if [ ! -z "\$seaice_file" ]; then
+
+    FORCING_DIR=\$( dirname \$qflux_file )
+    FORCING_FILENAME=\$( basename \$qflux_file )
+
+    cat << XEOFX > user_dice.streams.txt.copyall
+    $( echo "$( cat $wk_dir/dice_stream.txt )" )
+
+XEOFX
+
 
 fi
 
