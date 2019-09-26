@@ -132,8 +132,8 @@ XEOFX
 
 if [ ! -z "\$seaice_file" ]; then
 
-    FORCING_DIR=\$( dirname \$qflux_file )
-    FORCING_FILENAME=\$( basename \$qflux_file )
+    FORCING_DIR=\$( dirname \$seaice_file )
+    FORCING_FILENAME=\$( basename \$seaice_file )
 
     cat << XEOFX > user_dice.streams.txt.copyall
     $( echo "$( cat $wk_dir/dice_stream.txt )" )
@@ -155,8 +155,8 @@ global overwrite_configs = Dict(
     :long_term_archive_dir      => "\${dout_s_root}/ocn/hist",
     :enable_short_term_archive  => true,
     :enable_long_term_archive   => true,
-    :daily_record               => false,
-    :monthly_record             => true,
+    :daily_record              => [],
+    :monthly_record            => ["T", "S", "b", "T_ML", "S_ML", "dTdt_ent", "dSdt_ent", "h_ML", "nswflx", "swflx", "frwflx", "fric_u", "taux", "tauy", "w", "u", "v", "T_hadvs", "T_vadvs", "S_hadvs", "S_vadvs"],
     :yearly_snapshot            => true,
     :short_term_archive_list    => "SSM_short_term_archive_list.txt",
     :substeps                   => 8,
