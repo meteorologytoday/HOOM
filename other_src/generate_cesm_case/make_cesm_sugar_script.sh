@@ -130,6 +130,8 @@ if [ ! -z "\$qflux_file" ]; then
 
 XEOFX
 
+fi
+
 if [ ! -z "\$seaice_file" ]; then
 
     FORCING_DIR=\$( dirname \$seaice_file )
@@ -139,7 +141,6 @@ if [ ! -z "\$seaice_file" ]; then
     $( echo "$( cat $wk_dir/dice_stream.txt )" )
 
 XEOFX
-
 
 fi
 
