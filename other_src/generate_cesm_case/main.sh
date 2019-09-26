@@ -4,6 +4,7 @@ export wk_dir=$( dirname $0 )
 #echo "wk_dir: $wk_dir"
 
 lopts=(
+    casename
     code-output-dir
     init-files-dir
     label
@@ -80,7 +81,11 @@ $wk_dir/make_init.sh                            \
 
 
 echo "Making initial files for a specific model"
-casename=${label}_${resolution}_${model}_${flow_scheme}_${relaxation_time}
+
+if [ -z "$casename" ]; then
+    casename=${label}_${resolution}_${model}_${flow_scheme}_${relaxation_time}
+fi
+
 init_file=$init_files_dir/init_${casename}.nc
 
 $wk_dir/make_init_each_model.sh                 \
