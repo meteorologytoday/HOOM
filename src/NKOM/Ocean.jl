@@ -29,6 +29,8 @@ mutable struct Ocean
     b_ML     :: AbstractArray{Float64, 2}
     T_ML     :: AbstractArray{Float64, 2}
     S_ML     :: AbstractArray{Float64, 2}
+    ΔT       :: AbstractArray{Float64, 2}
+    ΔS       :: AbstractArray{Float64, 2}
     h_ML     :: AbstractArray{Float64, 2}
     h_MO     :: AbstractArray{Float64, 2}
     fric_u   :: AbstractArray{Float64, 2}
@@ -306,6 +308,8 @@ mutable struct Ocean
         _b_ML     = allocate(datakind, Float64, Nx, Ny)
         _T_ML     = allocate(datakind, Float64, Nx, Ny)
         _S_ML     = allocate(datakind, Float64, Nx, Ny)
+        _ΔT       = allocate(datakind, Float64, Nx, Ny)
+        _ΔS       = allocate(datakind, Float64, Nx, Ny)
         _h_ML     = allocate(datakind, Float64, Nx, Ny)
         _h_MO     = allocate(datakind, Float64, Nx, Ny)
         _fric_u   = allocate(datakind, Float64, Nx, Ny)
@@ -683,7 +687,8 @@ mutable struct Ocean
             K_v, K_T, K_S,
             _fs, _ϵs,
             _mask3, _mask, mask_idx, valid_idx,
-            _b_ML, _T_ML, _S_ML, _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
+            _b_ML, _T_ML, _S_ML, _ΔT, _ΔS,
+            _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,

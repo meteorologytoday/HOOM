@@ -1,3 +1,55 @@
+function remixMLKeepDiff!(;
+    qs   :: AbstractArray{Float64, 1},
+    zs   :: AbstractArray{Float64, 1},
+    hs   :: AbstractArray{Float64, 1},
+    h_ML :: Float64,
+    FLDO :: Integer,
+    Nz   :: Integer,
+    Δq   :: Float64,
+)
+
+    # no need to remix if h_ML is shallower than the first layer
+    if FLDO == 1
+        return qs[1]
+    end
+
+    int_layer = 0
+    new_q_ML = 0.0
+
+    if FLDO == -1
+        int_layer = Nz
+    else
+        int_layer = FLDO - 1
+        new_q_ML += ( h_ML + zs[FLDO] ) * qs[FLDO]
+    end
+
+    for k = 1:int_layer
+        new_q_ML += hs[k] * qs[k]
+    end 
+    #=
+    if go
+        println("hs: ", hs)
+        println("h_ML: ", h_ML)
+        println("FLDO: ", FLDO)
+        println("qs[1:FLDO]: ", qs[1:FLDO])
+        println("zs[FLDO]: ", zs[FLDO])
+        println("int_layer: ", int_layer)
+        
+    end
+
+=#
+
+    new_q_ML /= h_ML
+
+    qs[1:int_layer] .= new_q_ML
+    return new_q_ML
+
+#    qs[1:int_layer] .= qs[1]
+    return qs[1]
+
+end
+
+
 
 function remixML!(;
     qs   :: AbstractArray{Float64, 1},

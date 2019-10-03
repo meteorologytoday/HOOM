@@ -48,6 +48,9 @@ function stepOcean_Flow!(
             ocn.Ts[FLDO, i, j] =  (Δh_top * ocn.T_ML[i, j] + Δh_bot * ocn.Ts[FLDO, i, j]) / Δh
             ocn.Ss[FLDO, i, j] =  (Δh_top * ocn.S_ML[i, j] + Δh_bot * ocn.Ss[FLDO, i, j]) / Δh
 
+            ocn.ΔT[i, j] = ocn.T_ML[i, j] - ocn.Ts[FLDO, i, j]
+            ocn.ΔS[i, j] = ocn.S_ML[i, j] - ocn.Ss[FLDO, i, j]
+
         end
 
     end
@@ -128,6 +131,7 @@ function stepOcean_Flow!(
         =#
 
         # Remix top layers
+        #=
         ocn.T_ML[i, j] = remixML!(;
             qs   = ocn.cols.Ts[i, j],
             zs   = zs,
@@ -136,15 +140,6 @@ function stepOcean_Flow!(
             FLDO = FLDO,
             Nz   = Nz,
         )
-        
-        #=
-        if (i, j) == (80, 50)
-            println("#AFTER")
-            println(ocn.cols.Ts[i,j][1:10])
-            println(ocn.T_ML[i,j])
-        end
-        =#
-
 
         ocn.S_ML[i, j] = remixML!(;
             qs   = ocn.cols.Ss[i, j],
@@ -154,6 +149,35 @@ function stepOcean_Flow!(
             FLDO = FLDO,
             Nz   = Nz,
         )
+        =#
+
+        ocn.T_ML[i, j] = remixMLKeepDiff!(;
+            qs   = ocn.cols.Ts[i, j],
+            zs   = zs,
+            hs   = hs,
+            h_ML = h_ML,
+            FLDO = FLDO,
+            Nz   = Nz,
+            Δq   = ocn.ΔT[i, j],
+        )
+ 
+        ocn.S_ML[i, j] = remixMLKeepDiff!(;
+            qs   = ocn.cols.Ss[i, j],
+            zs   = zs,
+            hs   = hs,
+            h_ML = h_ML,
+            FLDO = FLDO,
+            Nz   = Nz,
+            Δq   = ocn.ΔS[i, j],
+        )
+       
+        #=
+        if (i, j) == (80, 50)
+            println("#AFTER")
+            println(ocn.cols.Ts[i,j][1:10])
+            println(ocn.T_ML[i,j])
+        end
+        =#
         OC_updateB!(ocn, i, j)
         OC_doConvectiveAdjustment!(ocn, i, j)
 
