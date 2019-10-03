@@ -14,38 +14,30 @@ function remixMLKeepDiff!(;
     end
 
     int_layer = 0
+    integral = 0.0
     new_q_ML = 0.0
 
     if FLDO == -1
-        int_layer = Nz
+
+        for k = 1:Nz
+            integral += hs[k] * qs[k]
+        end 
+        new_q_ML = integral / h_ML
+        qs[1:Nz] .= new_q_ML
+
     else
-        int_layer = FLDO - 1
-        new_q_ML += ( h_ML + zs[FLDO] ) * qs[FLDO]
+
+        for k = 1:FLDO
+            integral += hs[k] * qs[k]
+        end 
+        new_q_ML = (integral - Δq * (h_ML + zs[FLDO+1])) / ( - zs[FLDO+1] )
+        qs[1:FLDO] .= new_q_ML
+        qs[FLDO]    = new_q_ML - Δq
+
+
     end
 
-    for k = 1:int_layer
-        new_q_ML += hs[k] * qs[k]
-    end 
-    #=
-    if go
-        println("hs: ", hs)
-        println("h_ML: ", h_ML)
-        println("FLDO: ", FLDO)
-        println("qs[1:FLDO]: ", qs[1:FLDO])
-        println("zs[FLDO]: ", zs[FLDO])
-        println("int_layer: ", int_layer)
-        
-    end
-
-=#
-
-    new_q_ML /= h_ML
-
-    qs[1:int_layer] .= new_q_ML
     return new_q_ML
-
-#    qs[1:int_layer] .= qs[1]
-    return qs[1]
 
 end
 
