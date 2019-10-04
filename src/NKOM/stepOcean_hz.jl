@@ -18,7 +18,7 @@ function stepOcean_Flow!(
         ocn.ΔT[i, j] = mixFLDO!(
             qs   = ocn.cols.Ts[i, j],
             zs   = ocn.cols.zs[i, j],
-            hs   = ocn.cols.hs,
+            hs   = ocn.cols.hs[i, j],
             q_ML = ocn.T_ML[i, j],
             h_ML = ocn.h_ML[i, j],
             FLDO = FLDO,
@@ -27,7 +27,7 @@ function stepOcean_Flow!(
         ocn.ΔS[i, j] = mixFLDO!(
             qs   = ocn.cols.Ss[i, j],
             zs   = ocn.cols.zs[i, j],
-            hs   = ocn.cols.hs,
+            hs   = ocn.cols.hs[i, j],
             q_ML = ocn.S_ML[i, j],
             h_ML = ocn.h_ML[i, j],
             FLDO = FLDO,
@@ -132,7 +132,7 @@ function stepOcean_Flow!(
         )
         =#
 
-        ocn.T_ML[i, j] = remixMLKeepDiff!(;
+        ocn.T_ML[i, j] = unmixFLDOKeepDiff!(;
             qs   = ocn.cols.Ts[i, j],
             zs   = zs,
             hs   = hs,
@@ -142,7 +142,7 @@ function stepOcean_Flow!(
             Δq   = ocn.ΔT[i, j],
         )
  
-        ocn.S_ML[i, j] = remixMLKeepDiff!(;
+        ocn.S_ML[i, j] = unmixFLDOKeepDiff!(;
             qs   = ocn.cols.Ss[i, j],
             zs   = zs,
             hs   = hs,
