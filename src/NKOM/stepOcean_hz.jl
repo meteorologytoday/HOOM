@@ -15,43 +15,24 @@ function stepOcean_Flow!(
 
         FLDO = ocn.FLDO[i, j]
 
-        if FLDO != -1
+        ocn.ΔT[i, j] = mixFLDO!(
+            qs   = ocn.cols.Ts[i, j],
+            zs   = ocn.cols.zs[i, j],
+            hs   = ocn.cols.hs,
+            q_ML = ocn.T_ML[i, j],
+            h_ML = ocn.h_ML[i, j],
+            FLDO = FLDO,
+        )
 
-            Δh     = ocn.hs[FLDO, i, j]
-            Δh_top = ocn.h_ML[i, j] + ocn.zs[FLDO, i, j]
-            Δh_bot = Δh - Δh_top
+        ocn.ΔS[i, j] = mixFLDO!(
+            qs   = ocn.cols.Ss[i, j],
+            zs   = ocn.cols.zs[i, j],
+            hs   = ocn.cols.hs,
+            q_ML = ocn.S_ML[i, j],
+            h_ML = ocn.h_ML[i, j],
+            FLDO = FLDO,
+        )
 
-            #=
-            if any(ocn.Ts[1:FLDO-1, i, j] .!= ocn.T_ML[i, j])
-                println("(i, j ) = (", i, ", ", j, ")")
-                println("FLDO: ", FLDO)
-                println("T_ML: ", ocn.T_ML[i, j])
-                println("h_ML: ", ocn.h_ML[i, j])
-                println("nswflx: ", ocn.in_flds.nswflx[i, j])
-                println("swflx: ", ocn.in_flds.swflx[i, j])
-                println("topo: ", ocn.topo[i, j])
-
-                println("Ts: ", ocn.Ts[1:FLDO, i, j])
-                
-                throw(ErrorException("T_ML Ts inconsisitent"))
-            end
-            if (i, j) == (80, 50)
-                println("Δh     = ", Δh)
-                println("Δh_top = ", Δh_top)
-                println("Δh_bot = ", Δh_bot)
-                println("FLDO   = ", FLDO)
-                println("T_ML   = ", ocn.T_ML[i, j])
-                println("Ts[FLDO, i, j] = ", ocn.Ts[FLDO, i, j])
-            end 
-            =#
-
-            ocn.Ts[FLDO, i, j] =  (Δh_top * ocn.T_ML[i, j] + Δh_bot * ocn.Ts[FLDO, i, j]) / Δh
-            ocn.Ss[FLDO, i, j] =  (Δh_top * ocn.S_ML[i, j] + Δh_bot * ocn.Ss[FLDO, i, j]) / Δh
-
-            ocn.ΔT[i, j] = ocn.T_ML[i, j] - ocn.Ts[FLDO, i, j]
-            ocn.ΔS[i, j] = ocn.S_ML[i, j] - ocn.Ss[FLDO, i, j]
-
-        end
 
     end
 
