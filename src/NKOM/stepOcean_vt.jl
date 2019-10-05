@@ -89,6 +89,12 @@ function stepOcean_MLDynamics!(
                 Δb = 0.0
             end
 
+            if Δb < 0.0
+                FLDO = ocn.FLDO[i, j]
+                println(format("({:d},{:d}) Averge sense Δb={:f}", i, j, Δb))
+                println(format("({:d},{:d}) Jump sense Δb={:f}", i, j, (FLDO != -1) ? ocn.b_ML[i, j] - ocn.bs[FLDO, i, j] : 999 ))
+            end
+
             new_h_ML, ocn.h_MO[i, j] = calNewMLD(;
                 h_ML   = old_h_ML,
                 Bf     = surf_bflx + surf_Jflx * ocn.R,
@@ -173,12 +179,20 @@ function stepOcean_MLDynamics!(
             h_ML=new_h_ML,
         )
 
+#            if ocn.FLDO[i, j] > 1 && ocn.T_ML[i, j] != ocn.Ts[1, i, j] 
+#                println(format("UPDATE ML ERROR: ({},{}) has T_ML={:f} but Ts[1]={:f}", i, j, ocn.T_ML[i,j], ocn.Ts[1,i,j]))
+#            end
+
         # Shortwave radiation
         if rad_scheme == :exponential
             FLDO = ocn.FLDO[i, j]
             ocn.T_ML[i, j] += - ocn.R * surf_Tswflx * Δt / new_h_ML
             ocn.Ts[1:((FLDO == -1) ? Nz : FLDO-1 ), i, j] .= ocn.T_ML[i, j]
             OC_doShortwaveRadiation!(ocn, i, j; Tswflx=(1.0 - ocn.R) * surf_Tswflx, Δt=Δt)
+
+#            if ocn.FLDO[i, j] > 1 && ocn.T_ML[i, j] != ocn.Ts[1, i, j] 
+#                println(format("RADIATION ERROR: ({},{}) has T_ML={:f} but Ts[1]={:f}", i, j, ocn.T_ML[i,j], ocn.Ts[1,i,j]))
+#            end
         elseif rad_scheme == :step
             FLDO = ocn.FLDO[i, j]
             ocn.T_ML[i, j] += - surf_Tswflx * Δt / new_h_ML
@@ -189,8 +203,15 @@ function stepOcean_MLDynamics!(
 
         if do_convadjust
             OC_doConvectiveAdjustment!(ocn, i, j;)
+
+#            if FLDO > 1 && ocn.T_ML[i, j] != ocn.Ts[1, i, j] 
+#                println(format("CONV ERROR: ({},{}) has T_ML={:f} but Ts[1]={:f}", i, j, ocn.T_ML[i,j], ocn.Ts[1,i,j]))
+#            end
+
+
         end
-            
+
+
     end
 
 end

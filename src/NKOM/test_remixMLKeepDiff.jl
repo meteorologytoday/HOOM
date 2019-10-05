@@ -5,17 +5,20 @@ using .NKOM
 
 zs = - collect(Float64, range(0.0, stop=1000.0, length=11))
 zs = [0.0, -100, -150, -222, -300, -407, -550, -600, -666.0, -700, -750]
-Nz = 10
+zs = [0.0, -10, -20, -30, -40, -50, -60, -70.0]
+Nz = 7
+
+qs = zeros(Float64, length(zs)-1)
+qs[:] = [277.334, 277.349, 277.349, 277.349, 277.349, 277.346, 277.345]
 
 Δhs = zs[1:end-1] - zs[2:end]
 
-h_ML = 170.0
-old_q_ML = 40.0
+h_ML = 16.072753
+old_q_ML = qs[1]
 
 
 FLDO = NKOM.getFLDO(zs=zs, h_ML=h_ML, Nz=Nz)
 
-qs = zeros(Float64, length(zs)-1)
 
 if FLDO != -1
     qs[1:FLDO-1] .= old_q_ML

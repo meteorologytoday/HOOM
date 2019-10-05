@@ -172,14 +172,14 @@ function doConvectiveAdjustment!(;
                 mixed_T = (getIntegratedQuantity(
                     zs       =  zs,
                     qs       =  Ts,
-                    q_ML     =  T_ML,
+                    q_ML     =  new_T_ML,
                     h_ML     =  h_ML,
                     Nz       =  Nz,
                     target_z =  bot_z
                 ) - getIntegratedQuantity(
                     zs       =  zs,
                     qs       =  Ts,
-                    q_ML     =  T_ML,
+                    q_ML     =  new_T_ML,
                     h_ML     =  h_ML,
                     Nz       =  Nz,
                     target_z =  top_z
@@ -188,14 +188,14 @@ function doConvectiveAdjustment!(;
                 mixed_S = (getIntegratedQuantity(
                     zs       =  zs,
                     qs       =  Ss,
-                    q_ML     =  S_ML,
+                    q_ML     =  new_S_ML,
                     h_ML     =  h_ML,
                     Nz       =  Nz,
                     target_z =  bot_z
                 ) - getIntegratedQuantity(
                     zs       =  zs,
                     qs       =  Ss,
-                    q_ML     =  S_ML,
+                    q_ML     =  new_S_ML,
                     h_ML     =  h_ML,
                     Nz       =  Nz,
                     target_z =  top_z
@@ -230,6 +230,11 @@ function doConvectiveAdjustment!(;
                         # new_FLDO = getFLDO(zs=zs, h_ML=h_ML_max, Nz=Nz)   # original code
                     end
                     =#
+
+                    #if FLDO > 1 && new_T_ML != Ts[1]
+                    #    println("ERROR ERROR!!! top_layer=", top_layer)
+                    #end
+
 
                 else
                     Ts[top_layer:bot_layer] .= mixed_T
