@@ -52,6 +52,12 @@ function doShortwaveRadiation!(;
     rad_decay_coes_ML = exp(-h_ML/ζ)
     T_ML += - Tswflx * (1.0 - rad_decay_coes_ML) * Δt / h_ML
     
+    if FLDO > 1        
+        Ts[1:FLDO-1] .= T_ML
+    elseif FLDO == -1
+        Ts[1:Nz] .= T_ML
+    end
+    
     # ===== [END] Mixed layer =====
 
     # ===== [BEGIN] FLDO layer =====

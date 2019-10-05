@@ -97,14 +97,43 @@ fi
 cd \$casename
 
 
-setXML "env_run.xml" "\${env_run[@]}"
-setXML "env_mach_pes.xml" "\${env_mach_pes[@]}"
-
-if [ -n "\$qflux_file" ]; then
+if [ ! -z "\$qflux_file" ]; then
 
     echo "Qflux file nonempty. Now setting user-defined qflux."
     setXML "env_run.xml" "DOCN_SOM_FILENAME" "\$qflux_file"
-  
+ 
+    FORCING_DIR=\$( dirname \$qflux_file )
+    FORCING_FILENAME=\$( basename \$qflux_file )
+
+    cat << XEOFX > user_docn.streams.txt.som
+    $( echo "$( cat $wk_dir/docn_stream.txt )" )
+
+XEOFX
+ 
+fi
+
+if [ ! -z "\$seaice_file" ]; then
+
+    seaice_setting=(
+        SSTICE_DATA_FILENAME "\$seaice_file"
+        SSTICE_GRID_FILENAME "\$seaice_file"
+        SSTICE_YEAR_ALIGN 1
+        SSTICE_YEAR_START 1
+        SSTICE_YEAR_END 1
+    )
+
+    setXML "env_run.xml" "\${seaice_setting[@]}"
+
+fi
+
+setXML "env_run.xml" "\${env_run[@]}"
+setXML "env_mach_pes.xml" "\${env_mach_pes[@]}"
+
+
+
+# copy user namelist
+if [ "\$user_namelist_dir" != "" ]; then
+    cp \$user_namelist_dir/user_nl_* .
 fi
 
 
@@ -115,33 +144,6 @@ getXML "\${env_vars[@]}"
 
 nodes=\$(( \$totalpes / \$max_tasks_per_node ))
 
-# copy user namelist
-if [ "\$user_namelist_dir" != "" ]; then
-    cp \$user_namelist_dir/user_nl_* .
-fi
-
-if [ ! -z "\$qflux_file" ]; then
-
-    FORCING_DIR=\$( dirname \$qflux_file )
-    FORCING_FILENAME=\$( basename \$qflux_file )
-
-    cat << XEOFX > user_docn.streams.txt.som
-    $( echo "$( cat $wk_dir/docn_stream.txt )" )
-
-XEOFX
-
-if [ ! -z "\$seaice_file" ]; then
-
-    FORCING_DIR=\$( dirname \$qflux_file )
-    FORCING_FILENAME=\$( basename \$qflux_file )
-
-    cat << XEOFX > user_dice.streams.txt.copyall
-    $( echo "$( cat $wk_dir/dice_stream.txt )" )
-
-XEOFX
-
-
-fi
 
 cat << XEOFX > config.jl
 
@@ -155,8 +157,8 @@ global overwrite_configs = Dict(
     :long_term_archive_dir      => "\${dout_s_root}/ocn/hist",
     :enable_short_term_archive  => true,
     :enable_long_term_archive   => true,
-    :daily_record               => false,
-    :monthly_record             => true,
+    :daily_record              => [],
+    :monthly_record            => ["T", "S", "b", "T_ML", "S_ML", "dTdt_ent", "dSdt_ent", "h_ML", "nswflx", "swflx", "frwflx", "fric_u", "taux", "tauy", "w", "u", "v", "T_hadvs", "T_vadvs", "S_hadvs", "S_vadvs"],
     :yearly_snapshot            => true,
     :short_term_archive_list    => "SSM_short_term_archive_list.txt",
     :substeps                   => 8,

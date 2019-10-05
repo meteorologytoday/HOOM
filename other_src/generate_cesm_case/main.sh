@@ -4,6 +4,7 @@ export wk_dir=$( dirname $0 )
 #echo "wk_dir: $wk_dir"
 
 lopts=(
+    casename
     code-output-dir
     init-files-dir
     label
@@ -45,6 +46,12 @@ is an inevitable pivot that cannot be overcome for now.
 
 EOF
 
+echo "Checking user name list directory"
+if [ ! -z "$user_namelist_dir" ] && [ ! -d "$user_namelist_dir" ]; then
+    echo "ERROR: --user-namelist-dir $user_namelist_dir dose not exist. "
+    exit 1
+fi
+
 echo "Making directories..."
 mkdir -p $code_output_dir
 mkdir -p $init_files_dir
@@ -80,7 +87,11 @@ $wk_dir/make_init.sh                            \
 
 
 echo "Making initial files for a specific model"
-casename=${label}_${resolution}_${model}_${flow_scheme}_${relaxation_time}
+
+if [ -z "$casename" ]; then
+    casename=${label}_${resolution}_${model}_${flow_scheme}_${relaxation_time}
+fi
+
 init_file=$init_files_dir/init_${casename}.nc
 
 $wk_dir/make_init_each_model.sh                 \
