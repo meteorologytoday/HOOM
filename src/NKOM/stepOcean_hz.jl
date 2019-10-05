@@ -13,15 +13,13 @@ function stepOcean_Flow!(
     # Determine the temperature / salinity of FLDO layer
     @loop_hor ocn i j let
 
-        FLDO = ocn.FLDO[i, j]
-
         ocn.ΔT[i, j] = mixFLDO!(
             qs   = ocn.cols.Ts[i, j],
             zs   = ocn.cols.zs[i, j],
             hs   = ocn.cols.hs[i, j],
             q_ML = ocn.T_ML[i, j],
             h_ML = ocn.h_ML[i, j],
-            FLDO = FLDO,
+            FLDO = ocn.FLDO[i, j],
         )
 
         ocn.ΔS[i, j] = mixFLDO!(
@@ -30,13 +28,66 @@ function stepOcean_Flow!(
             hs   = ocn.cols.hs[i, j],
             q_ML = ocn.S_ML[i, j],
             h_ML = ocn.h_ML[i, j],
-            FLDO = FLDO,
+            FLDO = ocn.FLDO[i, j],
         )
+
+        ΔT_old = ocn.ΔT[i, j]
+        ΔS_old = ocn.ΔS[i, j]
+        Δb_old = g * ( α * ΔT_old - β * ΔS_old )
+
+        zs   = ocn.cols.zs[i, j]
+        hs   = ocn.cols.hs[i, j]
+        h_ML = ocn.h_ML[i, j]
+        FLDO = ocn.FLDO[i, j]
+        Nz   = ocn.Nz[i, j]
+
+
+        ocn.T_ML[i, j] = unmixFLDOKeepDiff!(;
+            qs   = ocn.cols.Ts[i, j],
+            zs   = zs,
+            hs   = hs,
+            h_ML = h_ML,
+            FLDO = FLDO,
+            Nz   = Nz,
+            Δq   = ocn.ΔT[i, j],
+        )
+ 
+        ocn.S_ML[i, j] = unmixFLDOKeepDiff!(;
+            qs   = ocn.cols.Ss[i, j],
+            zs   = zs,
+            hs   = hs,
+            h_ML = h_ML,
+            FLDO = FLDO,
+            Nz   = Nz,
+            Δq   = ocn.ΔS[i, j],
+        )
+      
+        if FLDO != -1
+ 
+            ΔT_new = ocn.T_ML[i, j] - ocn.Ts[FLDO, i, j]
+            ΔS_new = ocn.S_ML[i, j] - ocn.Ss[FLDO, i, j]
+            Δb_new = g * ( α * ΔT_new - β * ΔS_new )
+
+            if Δb_new < -3e-6
+                println(format("({:d}, {:d}) ΔT_old={:f}, ΔS_old={:f}, ΔT_new={:f}, ΔS_new={:f}, Δb_old={:f}, Δb_new={:f}. FLDO={:d}, h_ML={:f}, Nz={:d}", i, j, ΔT_old, ΔS_old, ΔT_new, ΔS_new, Δb_old, Δb_new, FLDO, h_ML, Nz))
+            end
+        
+        end
+ 
+        #=
+        if (i, j) == (80, 50)
+            println("#AFTER")
+            println(ocn.cols.Ts[i,j][1:10])
+            println(ocn.T_ML[i,j])
+        end
+        =#
+        OC_updateB!(ocn, i, j)
+        OC_doConvectiveAdjustment!(ocn, i, j)
 
 
     end
 
-
+    return
     # Pseudo code
     # 1. assign velocity field
     # 2. calculate temperature & salinity flux

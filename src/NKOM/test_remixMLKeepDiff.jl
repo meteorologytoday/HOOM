@@ -9,7 +9,7 @@ Nz = 10
 
 Δhs = zs[1:end-1] - zs[2:end]
 
-h_ML = 750.0
+h_ML = 170.0
 old_q_ML = 40.0
 
 
