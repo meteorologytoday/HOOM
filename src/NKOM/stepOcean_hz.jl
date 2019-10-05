@@ -82,7 +82,7 @@ function stepOcean_Flow!(
         end
         =#
         OC_updateB!(ocn, i, j)
-        OC_doConvectiveAdjustment!(ocn, i, j)
+        #OC_doConvectiveAdjustment!(ocn, i, j)
 
 
     end
