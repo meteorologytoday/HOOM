@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -f $atm_concat ]; then
+if [ -f $atm_concat ] && [ ! -f flag_concat_atm ]; then
 
     echo "$atm_concat already exists. Skip."
 
@@ -11,7 +11,7 @@ else
 
     # atm variables
     eval "$(cat <<EOF
-    ncrcat -O -v ilev,PSL,V,TREFHT,PRECC,PRECL,FSNT,FSNS,FLNT,FLNS,SHFLX,LHFLX,PSL $full_casename.cam.h0.{$concat_beg_year..$concat_end_year}-{01..12}.nc $atm_concat
+    ncrcat -O -v ilev,PSL,V,TREFHT,PRECC,PRECL,FSNT,FSNS,FLNT,FLNS,SHFLX,LHFLX,PSL,ICEFRAC $full_casename.cam.h0.{$concat_beg_year..$concat_end_year}-{01..12}.nc $atm_concat
     ncap2 -O -s "PREC_TOTAL=PRECC+PRECL;" $atm_concat $atm_prec
 EOF
     )"

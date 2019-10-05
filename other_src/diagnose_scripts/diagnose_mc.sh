@@ -83,9 +83,21 @@ H
     # PRECIP    
     python3 $script_plot_dir/plot_mc_meridional_mean_std.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis4a_precip.nc --varname-mean=PREC_TOTAL_ZONAL_MEAN --varname-var=PREC_TOTAL_ZONAL_MAVAR --ylabel="Precipitation [ \$ \\mathrm{mm} / year \$ ]" --yscale="3.171e-11" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends --indexing="0,:" --extra-title=" Annual mean" --extra-filename="annual_mean" --display-varname="Precipitation" --y-range-mean="0,4000" --y-range-std="0,1500"
 
+    # ICEFRAC
+    python3 $script_plot_dir/plot_mc_meridional_mean_std.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis6a_icefrac.nc --varname-mean=ICEFRAC_ZONAL_MEAN --varname-var=ICEFRAC_ZONAL_MAVAR --ylabel="Concentration [ \$ \\% \$ ]" --yscale="1e-2" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends --indexing="0,:" --extra-title=" Annual mean" --extra-filename="annual_mean" --display-varname="Sea-ice Fraction" --y-range-mean="0,100" --y-range-std="0,50"
+
+
+
     for m in $( seq 1 12 ); do
         indexing=$( printf "%d,0,:" $(( m - 1 )) )
+
+        # TREFHT
         python3 $script_plot_dir/plot_mc_meridional_mean_std.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ocn_analysis3_rg_MLD.nc --varname-mean=h_ML_ZONAL_MEAN --varname-var=h_ML_ZONAL_MAVAR --ylabel="Mixed-layer Depth [ \$ \\mathrm{m} \$ ]" --yscale="1" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends --indexing="$(( $m - 1 )),0,:" --extra-title=" Month $m" --extra-filename="$(printf '%02d' $m)" --display-varname="Mixed-Layer Depth" --y-range-mean="0,800" --y-range-std="0,300"
+
+        # PRECIP
         python3 $script_plot_dir/plot_mc_meridional_mean_std.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis4_precip.nc --varname-mean=PREC_TOTAL_ZONAL_MEAN --varname-var=PREC_TOTAL_ZONAL_MAVAR --ylabel="Precipitation [ \$ \\mathrm{mm} / year \$ ]" --yscale="3.171e-11" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends --indexing="$(( $m - 1 )),0,:" --extra-title=" Month $m" --extra-filename="$(printf '%02d' $m)" --display-varname="Precipitation" --y-range-mean="0,5000" --y-range-std="0,2000"
+        
+        # ICEFRAC
+        python3 $script_plot_dir/plot_mc_meridional_mean_std.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis6_icefrac.nc --varname-mean=ICEFRAC_ZONAL_MEAN --varname-var=ICEFRAC_ZONAL_MAVAR --ylabel="Concentration [ \$ \\% \$ ]" --yscale="1e-2" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles"  --legends=$legends --indexing="$(( $m - 1)),0,:" --extra-title=" Month $m" --extra-filename="$(printf '%02d' $m)" --display-varname="Sea-ice Fraction" --y-range-mean="0,100" --y-range-std="0,50"
     done
 fi

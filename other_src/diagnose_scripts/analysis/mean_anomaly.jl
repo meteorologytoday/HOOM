@@ -69,15 +69,13 @@ Dataset(parsed["data-file"], "r") do ds
     var = ds[parsed["varname"]]
     dims = size(var)
 
-    beg_t = (parsed["beg-year"] - 1) * 12 + 1
-    end_t = (parsed["end-year"] - 1) * 12 + 12
+    global beg_t = (parsed["beg-year"] - 1) * 12 + 1
+    global end_t = (parsed["end-year"] - 1) * 12 + 12
 
 
     if length(dims) == 3 # 2D + time
-        rng = (:,:,beg_t:end_t) 
         z_exists = false
     elseif length(dims) == 4 # 3D + time
-        rng = (:,:,:,beg_t:end_t) 
         z_exists = true
     else
         ErrorException("Unknown dimension") |> throw
@@ -85,12 +83,18 @@ Dataset(parsed["data-file"], "r") do ds
 
 
 
+
     if z_exists
-        global (Nx, Ny, Nz, Nt) = size(var)
+        global (Nx, Ny, Nz, _ ) = size(var)
     else
-        global (Nx, Ny, Nt) = size(var)
+        global (Nx, Ny, _ ) = size(var)
         Nz = 1
-    end 
+    end
+
+    global Nt = end_t - beg_t + 1
+    
+    #println("Selected Range: ", rng)
+    #println("Nt: ", Nt)
 
     
     if mod(Nt, 12) != 0
@@ -115,7 +119,7 @@ data_MAVAR = zeros(Float64, Nx, Ny, Nz, 12)
 x = collect(Float64, 1:Nt)
 ds = Dataset(parsed["data-file"], "r")
 for k=1:Nz
-    rng = ( z_exists ) ? (:, :, k, :) : (:, :, :)
+    rng = ( z_exists ) ? (:, :, k, beg_t:end_t) : (:, :, beg_t:end_t)
     global data  = replace(ds[parsed["varname"]][rng...], missing=>NaN)
 
     for i=1:Nx, j=1:Ny
@@ -135,6 +139,7 @@ for k=1:Nz
     end     
 end
 
+close(ds)
 
 
 Dataset(output_file, "c") do ds

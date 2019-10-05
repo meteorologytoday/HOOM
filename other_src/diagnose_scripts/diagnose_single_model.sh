@@ -95,6 +95,8 @@ export atm_analysis3=$diag_dir/atm_analysis3_energy.nc
 export atm_analysis4=$diag_dir/atm_analysis4_precip.nc
 export atm_analysis4a=$diag_dir/atm_analysis4a_precip.nc
 export atm_analysis5=$diag_dir/atm_analysis5_AO.nc
+export atm_analysis6=$diag_dir/atm_analysis6_icefrac.nc
+export atm_analysis6a=$diag_dir/atm_analysis6a_icefrac.nc
 
 
 
@@ -150,25 +152,28 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
     # Need to specify --beg-year --end-year
     julia $script_analysis_dir/atm_anomalies.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
-
+    # Surface temperature (TREFHT) monthly mean and anomaly
     julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=TREFHT
-   
     ncwa -O -a months,Nx $atm_analysis2 $atm_analysis2a
 
 
-    #julia $script_analysis_dir/atm_temperature.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    julia $script_analysis_dir/atm_temperature.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year
     julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
 
+    # Total precipitation
     julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_prec --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PREC_TOTAL
-   
     ncwa -O -a months,Nx $atm_analysis4 $atm_analysis4a
 
+    # Sea-ice monthly mean and anomaly
+    julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis6 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=ICEFRAC
+    ncwa -O -a months,Nx $atm_analysis6 $atm_analysis6a
 
     #julia $script_analysis_dir/atm_precip.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
     # Downstream data. No need to specify --beg-year --end-year
-    #julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5
+#    julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5
+
 fi
 
 if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
@@ -193,6 +198,7 @@ if [ -f flag_diag_all ] || [ -f flag_diag_ice ] ; then
     echo "Diagnose ice..."
     # Need to specify --beg-year --end-year
     julia $script_analysis_dir/ice.jl --data-file=$ice_concat_rg --domain-file=$atm_domain --output-file=$ice_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
+
 
 fi
 

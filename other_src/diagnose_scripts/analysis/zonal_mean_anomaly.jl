@@ -77,6 +77,9 @@ Dataset(parsed["data-file"], "r") do ds
         ErrorException("Unknown dimension") |> throw
     end
 
+
+    println("Selected Range: ", rng)
+
     global data  = replace(ds[parsed["varname"]][rng...], missing=>NaN)
 
     if z_exists

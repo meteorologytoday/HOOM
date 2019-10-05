@@ -64,6 +64,8 @@ new_casenames = []
 mean_datas = []
 std_datas = []
 for i in range(len(casenames)):
+    
+    print("Loading casename: %s" % (casenames[i],))
 
     try:
 
@@ -76,7 +78,7 @@ for i in range(len(casenames)):
 
         continue
     
-    
+
     print("Dimension:", f.variables[args.varname_var])
     new_casenames.append([casenames[i], legends[i], colors[i], linestyles[i]])
     mean_datas.append((f.variables[args.varname_mean][indices] - args.y_offset) / args.yscale)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-if [ -f $ice_concat ]; then
+if [ -f $ice_concat ] && [ ! -f flag_concat_ice ]; then
 
     echo "$ice_concat already exists. Skip."
 
