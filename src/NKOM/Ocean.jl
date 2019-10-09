@@ -510,7 +510,7 @@ mutable struct Ocean
 
         # ===== [BEGIN] Mask out data =====
 
-        _mask3 = allocate(:local, Float64, Nz_bone, Nx, Ny)
+        _mask3 = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _mask3 .= 1.0
 
         # Clean up all variables
@@ -518,7 +518,7 @@ mutable struct Ocean
             _mask3[Nz[i, j] + 1:end, i, j] .= 0.0
         end
 
-        println("sum of _mask3: ", sum(_mask3))
+        #println("sum of _mask3: ", sum(_mask3))
 
         mask3_lnd_idx = (_mask3  .== 0.0)
         mask2_lnd_idx = (_mask  .== 0.0)
@@ -563,9 +563,9 @@ mutable struct Ocean
         valid_grids = sum(mask3_idx)
         total_data  = Nx * Ny * Nz_bone
 
-        println("Total  data count: ", total_data)
-        println("Valid  data count: ", valid_grids)
-        println("Masked data count: ", total_data - valid_grids)
+        #println("Total  data count: ", total_data)
+        #println("Valid  data count: ", valid_grids)
+        #println("Masked data count: ", total_data - valid_grids)
         
         if sum(isfinite.(_Ss)) != valid_grids
             throw(ErrorException("Salinity data has holes"))
