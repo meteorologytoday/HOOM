@@ -27,10 +27,13 @@ mkdir -p $output_dir
 mkdir -p $tmp_dir
 
 # First generate correct transformed  coordinate files
+if [ "$old_domain_file" == "$new_domain_file" ]; then
+    wgt_file="X"
+else
+    wgt_file=$( basename $old_domain_file ".nc" )_$( basename $new_domain_file ".nc" ).nc
+fi
 
-wgt_file=$( basename $old_domain_file ".nc" )_$( basename $new_domain_file ".nc" ).nc
-
-if [ ! -f "$wgt_file" ]; then
+if [ "$wgt_file" != "X" ] && [ ! -f "$wgt_file" ]; then
     echo "Weight file \"$wgt_file\" does not exist, I am going to generate one..."
     julia -p 4  $script_coordtrans_dir/generate_weight.jl --s-file=$old_domain_file --d-file=$new_domain_file --w-file=$wgt_file --s-mask-value=1.0 --d-mask-value=1.0
 fi
@@ -58,7 +61,12 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
         ncks -O -4 $tmp1 $tmp1
 
         # Horizontal resolution
-        julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp1 --d-file=$tmp2 --w-file=$wgt_file --vars=$varname --x-dim=Nx --y-dim=Ny --z-dim=Nz
+        if [ "$wgt_file" != "X" ]; then
+            julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp1 --d-file=$tmp2 --w-file=$wgt_file --vars=$varname --x-dim=Nx --y-dim=Ny --z-dim=Nz
+        else
+            mv $tmp1 $tmp2
+        fi
+
         julia $script_coordtrans_dir/convert_z.jl $tmp2 $new_data_file $varname
         
 #        rm -f $tmp1 $tmp2
@@ -73,9 +81,13 @@ if [ ! -f $output_topo_file ]; then
     ncks -O -3 ${topo_file[0]} $tmp
     ncrename -d ni,Nx -d nj,Ny $tmp 
     ncks -O -4 $tmp $tmp
-    
-    julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp --d-file=$output_topo_file --w-file=$wgt_file --vars=depth --x-dim=Nx --y-dim=Ny 
+ 
 
+    if [ "$wgt_file" != "X" ]; then
+        julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp --d-file=$output_topo_file --w-file=$wgt_file --vars=depth --x-dim=Nx --y-dim=Ny 
+    else
+        mv $tmp $output_topo_file
+    fi
 fi
 
 # Make z-coordinate file
