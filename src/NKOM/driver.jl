@@ -20,6 +20,8 @@ function makeSubOcean(
     nblocks      :: Integer,
 )
 
+    println(format("{:03d} Entering makeSubOcean.", block_id))
+
     touch_southpole = block_id == 1
     touch_northpole = block_id == nblocks
 
