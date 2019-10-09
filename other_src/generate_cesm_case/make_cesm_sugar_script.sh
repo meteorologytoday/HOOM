@@ -142,8 +142,7 @@ fi
 
 getXML "\${env_vars[@]}"
 
-nodes=\$(( \$totalpes / \$max_tasks_per_node ))
-
+nodes=\$( python -c "from math import ceil; print ceil(float(\${totalpes}) / float(\${max_tasks_per_node}) )" )
 
 cat << XEOFX > config.jl
 
