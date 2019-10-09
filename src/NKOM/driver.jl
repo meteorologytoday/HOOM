@@ -20,6 +20,8 @@ function makeSubOcean(
     nblocks      :: Integer,
 )
 
+    println(format("{:03d} Entering makeSubOcean.", block_id))
+
     touch_southpole = block_id == 1
     touch_northpole = block_id == nblocks
 
@@ -72,12 +74,11 @@ function makeSubOcean(
     push_fr_rng3 = [Colon(), Colon(), push_fr_beg_y:push_fr_end_y]
 
 
-    #=
-    println("### rng2: ")
     println("pull_fr_rng2: ", pull_fr_rng2)
     println("push_to_rng2: ", push_to_rng2)
     println("push_fr_rng2: ", push_fr_rng2)
 
+    #=
     println("### rng3: ")
     println("pull_fr_rng3: ", pull_fr_rng3)
     println("push_to_rng3: ", push_to_rng3)
@@ -244,7 +245,11 @@ function init(ocn::Ocean)
 
     (ocn.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(ocn.id)))
 
+    tmp_cols = ocn.cols
+    tmp_lays = ocn.lays
 
+    ocn.cols = nothing
+    ocn.lays = nothing
 
     @sync for (i, p) in enumerate(wkrs)
             # We have P processors, N workers, N blocks
@@ -254,6 +259,10 @@ function init(ocn::Ocean)
             end
 
     end
+
+    ocn.cols = ocn.cols
+    ocn.lays = ocn.lays
+
 end
 
 function run!(
