@@ -245,18 +245,24 @@ function init(ocn::Ocean)
 
     (ocn.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(ocn.id)))
 
+    tmp_cols = ocn.cols
+    tmp_lays = ocn.lays
 
+    ocn.cols = nothing
+    ocn.lays = nothing
 
     @sync for (i, p) in enumerate(wkrs)
             # We have P processors, N workers, N blocks
             # Block ids are numbered from 1 to N
             @spawnat p let
-                sleep(rand())
-                println("I am executed...")
-#                global subocn = makeSubOcean(ocn, i, nwkrs)
+                global subocn = makeSubOcean(ocn, i, nwkrs)
             end
 
     end
+
+    ocn.cols = ocn.cols
+    ocn.lays = ocn.lays
+
 end
 
 function run!(

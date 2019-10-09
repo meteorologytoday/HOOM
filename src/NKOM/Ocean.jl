@@ -100,8 +100,8 @@ mutable struct Ocean
 
     in_flds :: InputFields
 
-    lays :: NamedTuple
-    cols :: NamedTuple
+    lays :: Union{Nothing, NamedTuple}
+    cols :: Union{Nothing, NamedTuple}
 
     # Accumulative variables
     acc_vars :: Union{AccumulativeVariables, Nothing}
@@ -595,85 +595,90 @@ mutable struct Ocean
         
         # ===== [END] check integrity =====
 
+        cols = nothing
+        lays = nothing
 
+#        if id != 0
 
-
-        # ===== [BEGIN] Construct Views of Lays =====
-        lays = ((
-            hs      = Array{SubArray}(undef, Nz_bone),
-            bs      = Array{SubArray}(undef, Nz_bone),
-            Ts      = Array{SubArray}(undef, Nz_bone),
-            Ss      = Array{SubArray}(undef, Nz_bone),
-            u       = Array{SubArray}(undef, Nz_bone),
-            v       = Array{SubArray}(undef, Nz_bone),
-            div     = Array{SubArray}(undef, Nz_bone),
-            T_hadvs = Array{SubArray}(undef, Nz_bone),
-            S_hadvs = Array{SubArray}(undef, Nz_bone),
-            ∇∇T     = Array{SubArray}(undef, Nz_bone),
-            ∇∇S     = Array{SubArray}(undef, Nz_bone),
-            mask3   = Array{SubArray}(undef, Nz_bone),
-        ))
- 
-        
-        for k=1:Nz_bone
-            lays.hs[k]      = view(hs, k, :, :)
-            lays.bs[k]      = view(_bs, k, :, :)
-            lays.Ts[k]      = view(_Ts, k, :, :)
-            lays.Ss[k]      = view(_Ss, k, :, :)
-            lays.u[k]       = view(_u, k, :, :)
-            lays.v[k]       = view(_v, k, :, :)
-            lays.div[k]     = view(_div, k, :, :)
-            lays.T_hadvs[k] = view(_T_hadvs, k, :, :)
-            lays.S_hadvs[k] = view(_S_hadvs, k, :, :)
-            lays.∇∇T[k]     = view(_∇∇T, k, :, :)
-            lays.∇∇S[k]     = view(_∇∇S, k, :, :)
-            lays.mask3[k]   = view(_mask3, k, :, :)
-        end
-
-        # ===== [END] Construct Views of Lays =====
-
-        # ===== [BEGIN] Construct Views of Cols =====
-        cols = ((
-            zs  = Array{SubArray}(undef, Nx, Ny),
-            Δzs = Array{SubArray}(undef, Nx, Ny),
-            hs = Array{SubArray}(undef, Nx, Ny),
-            w  = Array{SubArray}(undef, Nx, Ny),
-            bs = Array{SubArray}(undef, Nx, Ny),
-            Ts = Array{SubArray}(undef, Nx, Ny),
-            Ss = Array{SubArray}(undef, Nx, Ny),
-            T_vadvs = Array{SubArray}(undef, Nx, Ny),
-            S_vadvs = Array{SubArray}(undef, Nx, Ny),
-            rad_decay_coes  = Array{SubArray}(undef, Nx, Ny),
-            rad_absorp_coes = Array{SubArray}(undef, Nx, Ny),
-            Ts_clim = (Ts_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
-            Ss_clim = (Ss_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
-        ))
-        
-        for i=1:Nx, j=1:Ny
-            cols.zs[i, j]              = view(zs,  :, i, j)
-            cols.Δzs[i, j]             = view(Δzs, :, i, j)
-            cols.hs[i, j]              = view(hs,  :, i, j)
-            cols.w[i, j]               = view(_w,  :, i, j)
-            cols.bs[i, j]              = view(_bs, :, i, j)
-            cols.Ts[i, j]              = view(_Ts, :, i, j)
-            cols.Ss[i, j]              = view(_Ss, :, i, j)
-            cols.T_vadvs[i, j]         = view(_T_vadvs, :, i, j)
-            cols.S_vadvs[i, j]         = view(_S_vadvs, :, i, j)
-            cols.rad_decay_coes[i, j]  = view(_rad_decay_coes,  :, i, j)
-            cols.rad_absorp_coes[i, j] = view(_rad_absorp_coes, :, i, j)
-        end
-
-        if Ts_clim != nothing
-            for i=1:Nx, j=1:Ny
-                cols.Ts_clim[i, j] = view(_Ts_clim, :, i, j)
+            # ===== [BEGIN] Construct Views of Lays =====
+            lays = ((
+                hs      = Array{SubArray}(undef, Nz_bone),
+                bs      = Array{SubArray}(undef, Nz_bone),
+                Ts      = Array{SubArray}(undef, Nz_bone),
+                Ss      = Array{SubArray}(undef, Nz_bone),
+                u       = Array{SubArray}(undef, Nz_bone),
+                v       = Array{SubArray}(undef, Nz_bone),
+                div     = Array{SubArray}(undef, Nz_bone),
+                T_hadvs = Array{SubArray}(undef, Nz_bone),
+                S_hadvs = Array{SubArray}(undef, Nz_bone),
+                ∇∇T     = Array{SubArray}(undef, Nz_bone),
+                ∇∇S     = Array{SubArray}(undef, Nz_bone),
+                mask3   = Array{SubArray}(undef, Nz_bone),
+            ))
+     
+            
+            for k=1:Nz_bone
+                lays.hs[k]      = view(hs, k, :, :)
+                lays.bs[k]      = view(_bs, k, :, :)
+                lays.Ts[k]      = view(_Ts, k, :, :)
+                lays.Ss[k]      = view(_Ss, k, :, :)
+                lays.u[k]       = view(_u, k, :, :)
+                lays.v[k]       = view(_v, k, :, :)
+                lays.div[k]     = view(_div, k, :, :)
+                lays.T_hadvs[k] = view(_T_hadvs, k, :, :)
+                lays.S_hadvs[k] = view(_S_hadvs, k, :, :)
+                lays.∇∇T[k]     = view(_∇∇T, k, :, :)
+                lays.∇∇S[k]     = view(_∇∇S, k, :, :)
+                lays.mask3[k]   = view(_mask3, k, :, :)
             end
-        end
- 
-        if Ss_clim != nothing
+
+            # ===== [END] Construct Views of Lays =====
+
+            # ===== [BEGIN] Construct Views of Cols =====
+            cols = ((
+                zs  = Array{SubArray}(undef, Nx, Ny),
+                Δzs = Array{SubArray}(undef, Nx, Ny),
+                hs = Array{SubArray}(undef, Nx, Ny),
+                w  = Array{SubArray}(undef, Nx, Ny),
+                bs = Array{SubArray}(undef, Nx, Ny),
+                Ts = Array{SubArray}(undef, Nx, Ny),
+                Ss = Array{SubArray}(undef, Nx, Ny),
+                T_vadvs = Array{SubArray}(undef, Nx, Ny),
+                S_vadvs = Array{SubArray}(undef, Nx, Ny),
+                rad_decay_coes  = Array{SubArray}(undef, Nx, Ny),
+                rad_absorp_coes = Array{SubArray}(undef, Nx, Ny),
+                Ts_clim = (Ts_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
+                Ss_clim = (Ss_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
+            ))
+            
             for i=1:Nx, j=1:Ny
-                cols.Ss_clim[i, j] = view(_Ss_clim, :, i, j)
+                cols.zs[i, j]              = view(zs,  :, i, j)
+                cols.Δzs[i, j]             = view(Δzs, :, i, j)
+                cols.hs[i, j]              = view(hs,  :, i, j)
+                cols.w[i, j]               = view(_w,  :, i, j)
+                cols.bs[i, j]              = view(_bs, :, i, j)
+                cols.Ts[i, j]              = view(_Ts, :, i, j)
+                cols.Ss[i, j]              = view(_Ss, :, i, j)
+                cols.T_vadvs[i, j]         = view(_T_vadvs, :, i, j)
+                cols.S_vadvs[i, j]         = view(_S_vadvs, :, i, j)
+                cols.rad_decay_coes[i, j]  = view(_rad_decay_coes,  :, i, j)
+                cols.rad_absorp_coes[i, j] = view(_rad_absorp_coes, :, i, j)
             end
-        end
+
+            if Ts_clim != nothing
+                for i=1:Nx, j=1:Ny
+                    cols.Ts_clim[i, j] = view(_Ts_clim, :, i, j)
+                end
+            end
+ 
+            if Ss_clim != nothing
+                for i=1:Nx, j=1:Ny
+                    cols.Ss_clim[i, j] = view(_Ss_clim, :, i, j)
+                end
+            end
+
+#        end
+
      
         # ===== [END] Construct Views of Cols =====
 
