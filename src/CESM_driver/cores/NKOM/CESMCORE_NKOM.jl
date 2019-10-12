@@ -141,6 +141,8 @@ module CESMCORE_NKOM
             "S_ML"    => ( ocn.S_ML,                 ("Nx", "Ny") ),
             "dTdt_ent"=> ( ocn.dTdt_ent,             ("Nx", "Ny") ),
             "dSdt_ent"=> ( ocn.dSdt_ent,             ("Nx", "Ny") ),
+            "Q_clim"  => ( ocn.Q_clim,               ("Nx", "Ny") ),
+            "wT"      => ( ocn.wT,               ("Nx", "Ny") ),
             "h_ML"    => ( ocn.h_ML,                 ("Nx", "Ny") ),
             "h_MO"    => ( ocn.h_MO,                 ("Nx", "Ny") ),
             "nswflx"  => ( ocn.in_flds.nswflx,       ("Nx", "Ny") ),

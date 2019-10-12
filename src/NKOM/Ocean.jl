@@ -37,6 +37,11 @@ mutable struct Ocean
     dTdt_ent    :: AbstractArray{Float64, 2}
     dSdt_ent    :: AbstractArray{Float64, 2}
 
+    # To calculate ocean heat transport, we need the
+    # unconserved part of energy
+    Q_clim   :: AbstractArray{Float64, 2}
+    wT       :: AbstractArray{Float64, 2}
+
     bs       :: AbstractArray{Float64, 3}
     Ts       :: AbstractArray{Float64, 3}
     Ss       :: AbstractArray{Float64, 3}
@@ -315,6 +320,9 @@ mutable struct Ocean
         _fric_u   = allocate(datakind, Float64, Nx, Ny)
         _dTdt_ent    = allocate(datakind, Float64, Nx, Ny)
         _dSdt_ent    = allocate(datakind, Float64, Nx, Ny)
+
+        _Q_clim   = allocate(datakind, Float64, Nx, Ny)
+        _wT       = allocate(datakind, Float64, Nx, Ny)
 
         _bs       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _Ts       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
@@ -694,6 +702,7 @@ mutable struct Ocean
             _mask3, _mask, mask_idx, valid_idx,
             _b_ML, _T_ML, _S_ML, _ΔT, _ΔS,
             _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
+            _Q_clim, _wT,
             _bs,   _Ts,   _Ss,
             _FLDO, qflx2atm,
             _h_ML_min, _h_ML_max, we_max,

@@ -131,13 +131,24 @@ function stepOcean_Flow!(
     end
 
     @loop_hor ocn i j let
+        
+        Nz = ocn.Nz[i, j]
+        zs   = ocn.cols.zs[i, j]
+        hs   = ocn.cols.hs[i, j]
+        h_ML = ocn.h_ML[i, j]
+        FLDO = ocn.FLDO[i, j]
+        Nz   = ocn.Nz[i, j]
+
+
+        ocn.wT[i, j] = ocn.cols.w[i, j][Nz] * ocn.cols.Ts[i, j][Nz]
+
 
         vadv_upwind!(
             ocn.cols.T_vadvs[i, j],
             ocn.cols.w[i, j],
             ocn.cols.Ts[i, j],
             ocn.cols.Δzs[i, j],
-            ocn.Nz[i, j],
+            Nz,
         )
 
         vadv_upwind!(
@@ -145,27 +156,21 @@ function stepOcean_Flow!(
             ocn.cols.w[i, j],
             ocn.cols.Ss[i, j],
             ocn.cols.Δzs[i, j],
-            ocn.Nz[i, j],
+            Nz,
         )
 
-        Nz = ocn.Nz[i, j]
+
 
         if Nz > 1
             
             # Here I choose not to update the bottom layer.
 
-            for k = 1:ocn.Nz[i, j]
+            for k = 1:Nz
                 ocn.Ts[k, i, j] += Δt * ( ocn.T_vadvs[k, i, j] + ocn.T_hadvs[k, i, j] )
                 ocn.Ss[k, i, j] += Δt * ( ocn.S_vadvs[k, i, j] + ocn.S_hadvs[k, i, j] )
             end
         
         end
-
-        zs   = ocn.cols.zs[i, j]
-        hs   = ocn.cols.hs[i, j]
-        h_ML = ocn.h_ML[i, j]
-        FLDO = ocn.FLDO[i, j]
-        Nz   = ocn.Nz[i, j]
 
 
         #=

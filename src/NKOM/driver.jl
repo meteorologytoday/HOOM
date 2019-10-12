@@ -288,13 +288,13 @@ function run!(
     sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
     sync_bnd_vars3 = (:Ts,   :Ss)
 
-    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :dTdt_ent, :dSdt_ent)
+    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :dTdt_ent, :dSdt_ent, :Q_clim, :wT)
     sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
 
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
     #accumulative_vars3 = (:T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
 
-    for substep = 1:substeps
+    cost_hor = @elapse for substep = 1:substeps
 
         @sync for (i, p) in enumerate(wkrs)
             @spawnat p let
@@ -308,7 +308,7 @@ function run!(
 
     end
 
-    @sync for (i, p) in enumerate(wkrs)
+    cost_ver = @elapse @sync for (i, p) in enumerate(wkrs)
         @spawnat p let
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
             calQflx2atm!(subocn.worker_ocn; Δt=Δt)
@@ -320,6 +320,8 @@ function run!(
             )
         end
     end
+
+    println(format("Cost: {.1f}s (horizontal), {.1f}s (vertical).", cost_hor, cost_ver))
 
 end
 

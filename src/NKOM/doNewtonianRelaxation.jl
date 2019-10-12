@@ -5,7 +5,7 @@ function OC_doNewtonianRelaxation_T!(
     Δt  :: Float64,
 )
 
-    doNewtonianRelaxation!(
+    return doNewtonianRelaxation!(
         qs      = ocn.cols.Ts[i, j],
         qs_clim = ocn.cols.Ts_clim[i, j],
         FLDO    = ocn.FLDO[i, j],
@@ -23,7 +23,7 @@ function OC_doNewtonianRelaxation_S!(
     Δt  :: Float64,
 )
 
-    doNewtonianRelaxation!(
+    return doNewtonianRelaxation!(
         qs      = ocn.cols.Ss[i, j],
         qs_clim = ocn.cols.Ss_clim[i, j],
         FLDO    = ocn.FLDO[i, j],
@@ -50,14 +50,21 @@ function doNewtonianRelaxation!(;
     Nz         :: Integer,
     τ          :: Float64,
     Δt         :: Float64,
+    hs         :: AbstractArray{Float64, 1},
 )
+
+    src_and_sink = 0.0
+
 
     if τ > 0.0
 
         r = Δt / τ
         if FLDO != -1
             for i = FLDO:Nz
-                qs[i] = (qs[i] + r * qs_clim[i]) / (1+r)
+                dq = r * (qs_clim[i] - qs[i]) / (1.0 + r)
+                src_and_sink += hs[i] * dq
+                #qs[i] = (qs[i] + r * qs_clim[i]) / (1+r)
+                qs[i] += dq
             end
         end
 
@@ -65,10 +72,13 @@ function doNewtonianRelaxation!(;
  
         if FLDO != -1
             for i = FLDO:Nz
+                src_and_sink += hs[i] * (qs_clim[i] - qs[i])
                 qs[i] = qs_clim[i]
             end
         end
    
     end
+
+    return src_and_sink / Δt
 end
 
