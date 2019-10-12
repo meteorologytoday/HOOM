@@ -276,7 +276,7 @@ function run!(
 
     dt = Δt / substeps
 
-    @sync for (i, p) in enumerate(wkrs)
+    cost_prep = @elapsed @sync for (i, p) in enumerate(wkrs)
         @spawnat p let
             syncFromMaster!(subocn)
             cleanQflx2atm!(subocn.worker_ocn)
@@ -294,7 +294,7 @@ function run!(
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
     #accumulative_vars3 = (:T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
 
-    cost_hor = @elapse for substep = 1:substeps
+    cost_hor = @elapsed for substep = 1:substeps
 
         @sync for (i, p) in enumerate(wkrs)
             @spawnat p let
@@ -308,7 +308,7 @@ function run!(
 
     end
 
-    cost_ver = @elapse @sync for (i, p) in enumerate(wkrs)
+    cost_ver = @elapsed @sync for (i, p) in enumerate(wkrs)
         @spawnat p let
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
             calQflx2atm!(subocn.worker_ocn; Δt=Δt)
@@ -321,7 +321,7 @@ function run!(
         end
     end
 
-    println(format("Cost: {.1f}s (horizontal), {.1f}s (vertical).", cost_hor, cost_ver))
+    println(format("### Cost: {:.1f}s (prep), {:.1f}s (horizontal), {:.1f}s (vertical). ###", cost_prep, cost_hor, cost_ver))
 
 end
 

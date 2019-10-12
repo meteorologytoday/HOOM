@@ -10,6 +10,7 @@ const α   = 3e-4     # K^-1    http://www.kayelaby.npl.co.uk/general_physics/2_
 const β   = 1e-3     # Simple estimation
 
 const αgρc = α * g / (ρ * c_p)
+const ρc = ρ * c_p
 
 const b_sw_frz = α * (T_sw_frz - T_ref)
 

@@ -230,7 +230,7 @@ function stepOcean_slowprocesses!(
     # Climatology relaxation
     if do_relaxation
         @loop_hor ocn i j let
-            ocn.Q_clim[i, j] = OC_doNewtonianRelaxation_T!(ocn, i, j; Δt=Δt)
+            ocn.Q_clim[i, j] = OC_doNewtonianRelaxation_T!(ocn, i, j; Δt=Δt) *  ρc
             OC_doNewtonianRelaxation_S!(ocn, i, j; Δt=Δt)
         end
     end

@@ -139,10 +139,6 @@ function stepOcean_Flow!(
         FLDO = ocn.FLDO[i, j]
         Nz   = ocn.Nz[i, j]
 
-
-        ocn.wT[i, j] = ocn.cols.w[i, j][Nz] * ocn.cols.Ts[i, j][Nz]
-
-
         vadv_upwind!(
             ocn.cols.T_vadvs[i, j],
             ocn.cols.w[i, j],
@@ -161,9 +157,10 @@ function stepOcean_Flow!(
 
 
 
+        # Here I choose not to update the bottom layer if there is only one layer.
         if Nz > 1
-            
-            # Here I choose not to update the bottom layer.
+        
+            ocn.wT[i, j] = ocn.cols.w[i, j][Nz] * ocn.cols.Ts[i, j][Nz]
 
             for k = 1:Nz
                 ocn.Ts[k, i, j] += Δt * ( ocn.T_vadvs[k, i, j] + ocn.T_hadvs[k, i, j] )
