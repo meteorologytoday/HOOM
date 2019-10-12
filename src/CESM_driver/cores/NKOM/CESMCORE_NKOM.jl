@@ -148,6 +148,7 @@ module CESMCORE_NKOM
             "nswflx"  => ( ocn.in_flds.nswflx,       ("Nx", "Ny") ),
             "swflx"   => ( ocn.in_flds.swflx,        ("Nx", "Ny") ),
             "frwflx"  => ( ocn.in_flds.frwflx,       ("Nx", "Ny") ),
+            "qflx"    => ( ocn.in_flds.qflx,         ("Nx", "Ny") ),
             "fric_u"  => ( ocn.fric_u,               ("Nx", "Ny") ),
             "taux"    => ( ocn.τx,                   ("Nx", "Ny") ),
             "tauy"    => ( ocn.τy,                   ("Nx", "Ny") ),

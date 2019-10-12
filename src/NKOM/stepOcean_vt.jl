@@ -11,8 +11,6 @@ function stepOcean_MLDynamics!(
     Δt            = cfgs[:Δt]
     do_convadjust = cfgs[:do_convadjust]
     rad_scheme    = cfgs[:rad_scheme]
-
-
     
     ifrac   = ocn.in_flds.ifrac
 
