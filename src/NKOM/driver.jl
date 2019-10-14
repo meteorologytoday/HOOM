@@ -288,7 +288,7 @@ function run!(
     sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
     sync_bnd_vars3 = (:Ts,   :Ss)
 
-    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :dTdt_ent, :dSdt_ent, :Q_clim, :wT)
+    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :dTdt_ent, :dSdt_ent, :Q_clim, :wT, :neb)
     sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
 
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
@@ -313,6 +313,7 @@ function run!(
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
             calQflx2atm!(subocn.worker_ocn; Δt=Δt)
             avg_accumulate!(subocn.worker_ocn; count=substeps)
+            calNetEnergyBudget!(subocn.worker_ocn; cfgs...)
             syncToMaster!(
                 subocn;
                 vars2 = sync_to_master_vars2,

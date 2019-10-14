@@ -39,6 +39,7 @@ end
     @hinclude("Ocean.jl")
 
     @hinclude("qflx2atm.jl")
+    @hinclude("calNetEnergyBudget.jl")
     @hinclude("trivial_functions.jl")
 
     @hinclude("calNewMLD.jl")
