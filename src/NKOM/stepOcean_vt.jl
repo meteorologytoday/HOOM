@@ -125,18 +125,19 @@ function stepOcean_MLDynamics!(
 
             if old_FLDO == -1
 
+                # Mixing does not happen because FLDO does not exist in this case
                 ocn.Ts[new_FLDO:Nz, i, j] .= ocn.T_ML[i, j]
                 ocn.Ss[new_FLDO:Nz, i, j] .= ocn.S_ML[i, j]
 
             else
-                FLDO_Δz =  -zs[old_FLDO+1] - old_h_ML
+                FLDO_Δz =  -old_h_ML - zs[old_FLDO+1]
                 retreat_Δz =  old_h_ML - ( (new_FLDO == old_FLDO) ? new_h_ML : (-zs[old_FLDO]) )
 
-                ocn.Ts[new_FLDO, i, j] = (
+                ocn.Ts[old_FLDO, i, j] = (
                     ocn.Ts[old_FLDO, i, j] * FLDO_Δz + ocn.T_ML[i, j] * retreat_Δz
                 ) / (FLDO_Δz + retreat_Δz)
 
-                ocn.Ss[new_FLDO, i, j] = (
+                ocn.Ss[old_FLDO, i, j] = (
                     ocn.Ss[old_FLDO, i, j] * FLDO_Δz + ocn.S_ML[i, j] * retreat_Δz
                 ) / (FLDO_Δz + retreat_Δz)
             end
@@ -209,6 +210,8 @@ function stepOcean_MLDynamics!(
 
         end
 
+        # 2019/10/15 : doing this variable to check if energy is closed
+        ocn.heat_cont[i, j] = OC_getIntegratedTemperature(ocn, i, j; target_z = ocn.cols.zs[i, j][ocn.Nz[i, j]+1]) * ρc
 
     end
 

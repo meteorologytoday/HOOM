@@ -288,7 +288,7 @@ function run!(
     sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
     sync_bnd_vars3 = (:Ts,   :Ss)
 
-    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :dTdt_ent, :dSdt_ent, :Q_clim, :wT, :neb)
+    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :dTdt_ent, :dSdt_ent, :Q_clim, :wT, :neb, :heat_cont, :frz_heat)
     sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
 
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
