@@ -8,7 +8,7 @@ function calH_dHdT!(ocn::Ocean; Δt::Float64)
     end
 end
 
-function calH!(ocn::Ocean; Δt::Float64)
+function calH!(ocn::Ocean)
 
     @loop_hor ocn i j let
         ocn.H[i, j] = OC_getIntegratedTemperature(ocn, i, j; target_z = ocn.cols.zs[i, j][ocn.Nz[i, j]+1]) * ρc
