@@ -165,7 +165,7 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
 #        end
 
         for k = 2:Nz
-            ocn.w[k, i, j] = ocn.w[k-1, i, j] + (ocn.hs[k-1] * ocn.div[k-1, i, j] + ocn.hs[k] * ocn.div[k, i, j]) / 2.0
+            ocn.w[k, i, j] = ocn.w[k-1, i, j] + (ocn.hs[k-1, i, j] * ocn.div[k-1, i, j] + ocn.hs[k, i, j] * ocn.div[k, i, j]) / 2.0
         end
 
     end
