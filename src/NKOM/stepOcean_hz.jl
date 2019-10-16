@@ -158,17 +158,11 @@ function stepOcean_Flow!(
 
 
         # Here I choose not to update the bottom layer if there is only one layer.
-        if Nz > 1
-        
-            ocn.wT[i, j] = ocn.cols.w[i, j][Nz] * ocn.cols.Ts[i, j][Nz]
-
-            for k = 1:Nz
-                ocn.Ts[k, i, j] += Δt * ( ocn.T_vadvs[k, i, j] + ocn.T_hadvs[k, i, j] )
-                ocn.Ss[k, i, j] += Δt * ( ocn.S_vadvs[k, i, j] + ocn.S_hadvs[k, i, j] )
-            end
-        
+        ocn.wT[i, j] = ocn.cols.w[i, j][Nz] * ocn.cols.Ts[i, j][Nz]
+        for k = 1:Nz
+            ocn.Ts[k, i, j] += Δt * ( ocn.T_vadvs[k, i, j] + ocn.T_hadvs[k, i, j] )
+            ocn.Ss[k, i, j] += Δt * ( ocn.S_vadvs[k, i, j] + ocn.S_hadvs[k, i, j] )
         end
-
 
         #=
         if (i, j) == (80, 50)
@@ -259,6 +253,7 @@ function vadv_upwind!(
 
     # Extreme case: only one grid point
     if Nz <= 1
+        vadvs .= 0
         return
     end
 

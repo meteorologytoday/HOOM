@@ -462,7 +462,7 @@ mutable struct Ocean
         _τy      = allocate(datakind, Float64, Nx, Ny)
         _u       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _v       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _w       = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
+        _w       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
 
         _div     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _T_hadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
@@ -740,6 +740,8 @@ mutable struct Ocean
                 OC_doConvectiveAdjustment!(ocn, i, j)
             end
         end
+
+        calH!(ocn)
 
         return ocn
     end
