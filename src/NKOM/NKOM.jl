@@ -40,6 +40,7 @@ end
 
     @hinclude("qflx2atm.jl")
     @hinclude("calNetEnergyBudget.jl")
+    @hinclude("calH.jl")
     @hinclude("trivial_functions.jl")
 
     @hinclude("calNewMLD.jl")

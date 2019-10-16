@@ -210,9 +210,6 @@ function stepOcean_MLDynamics!(
 
         end
 
-        # 2019/10/15 : doing this variable to check if energy is closed
-        ocn.heat_cont[i, j] = OC_getIntegratedTemperature(ocn, i, j; target_z = ocn.cols.zs[i, j][ocn.Nz[i, j]+1]) * ρc
-
     end
 
 end

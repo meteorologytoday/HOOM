@@ -48,7 +48,9 @@ mutable struct Ocean
     Ss       :: AbstractArray{Float64, 3}
     FLDO     :: AbstractArray{Int64,   2}
     qflx2atm :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
-    heat_cont:: AbstractArray{Float64, 2} # Total heat content
+    H        :: AbstractArray{Float64, 2} # Total heat content
+    dHdt     :: AbstractArray{Float64, 2} # Total heat content change rate
+
     frz_heat :: AbstractArray{Float64, 2} # Same as qflx2atm but cut zero if negative
 
     h_ML_min :: AbstractArray{Float64, 2}
@@ -333,7 +335,8 @@ mutable struct Ocean
         _Ss       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _FLDO     = allocate(datakind, Int64, Nx, Ny)
         _qflx2atm  = allocate(datakind, Float64, Nx, Ny)
-        _heat_cont = allocate(datakind, Float64, Nx, Ny)
+        _H         = allocate(datakind, Float64, Nx, Ny)
+        _dHdt      = allocate(datakind, Float64, Nx, Ny)
         _frz_heat  = allocate(datakind, Float64, Nx, Ny)
 
 
@@ -710,7 +713,7 @@ mutable struct Ocean
             _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
             _Q_clim, _wT, _neb,
             _bs,   _Ts,   _Ss,
-            _FLDO, _qflx2atm, _heat_cont, _frz_heat,
+            _FLDO, _qflx2atm, _H, _dHdt, _frz_heat,
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,
             _u, _v, _w,
