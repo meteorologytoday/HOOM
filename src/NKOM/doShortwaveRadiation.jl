@@ -74,7 +74,7 @@ function doShortwaveRadiation!(;
 
     # ===== [BEGIN] Rest layers =====
 
-    for k=FLDO+1:Nz-1
+    for k=FLDO+1:Nz
         Ts[k] += - Tswflx * rad_decay_coes[k] * rad_absorp_coes[k] * Δt / hs[k]
     end
 
