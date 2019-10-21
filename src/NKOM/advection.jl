@@ -27,12 +27,83 @@ function calDiffAdv_QUICK!(
         mask3 = ocn.mask3,
     )
 
-    calGRAD!()
-    assignHorPhiStar!() 
-    assignVerPhiStar!() 
-    
+    calGRAD_CURV!()
+    calFluxes!()
+    calEvolve!()    
+end
+
+function calGRAD_CURV!(;
+    gi         :: GridInfo,
+    Nx         :: Integer,
+    Ny         :: Integer,
+    Nz         :: AbstractArray{Integer, 2},
+    qs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    GRAD_bnd_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx+1, Ny   )
+    GRAD_bnd_y :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
+    GRAD_bnd_z :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
+    CURV_x     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    CURV_y     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    CURV_z     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    mask3      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+)
+
+    # x 
+    for i=2:Nx, j=1:Ny 
+        for k=1:Nz[i, j]
+            GRAD_bnd_x[k, i, j] = (
+                ( mask3[k, i, j] == 0.0 || mask3[k, i-1, j] == 0.0 )  
+                ? 0.0 : ( qs[k, i, j] - qs[k, i-1, j] ) / gi.dx_w[i, j] 
+            )
+        end
+    end
+
+    # x - periodic
+    for j=1:Ny
+        for k=1:Nz[1, j]
+            GRAD_bnd_x[k, 1, j] = GRAD_x[k, Nx+1, j] = (
+                ( mask3[k, 1, j] == 0.0 || mask3[k, Nx, j] == 0.0 )
+                ? 0.0 : ( qs[k, 1, j] - qs[k, Nx, j] ) / gi.dx_w[1, j]
+            )
+        end
+    end
+
+    # y
+    for i=1:Nx, j=2:Ny-1
+        for k=1:Nz[i, j]
+            GRAD_bnd_y[k, i, j] = ( qs[k, i, j] - qs[k, i, j-1] ) / gi.dx_s[i, j]
+        end
+    end
+
+    # z
+    for i=1:Nx, j=1:Ny
+
+        if mask3[1, i, j] == 0.0
+            continue
+        end
+
+        _Nz = Nz[i, j]
+        GRAD_bnd_z[1, i, j] = GRAD_bnd_z[_Nz+1, i, j] = 0.0
+        for k=2:_Nz
+            GRAD_bnd_z[k, i, j] = ( qs[k-1, i, j] - qs[k, i, j] ) / Δzs[k-1, i, j]
+        end
+
+    end
 
 end
+
+
+
+function calEvolve!(;
+    gi      :: GridInfo,
+)
+
+    for i=1:Nx, j=1:Ny 
+        for k=1:Nz[i, j]
+            ( u_bnd )
+        end
+    end
+end
+
 
 function calVerVelBnd!(;
     gi       :: GridInfo,
@@ -91,6 +162,7 @@ function calHorVelBnd!(;
     mask3    :: AbstractArray{Float64, 3},   # (Nz_bone, Nx, Ny)
 )
 
+    # x
     for i=2:Nx, j=1:Ny
         for k=1:Nz[i, j]
             if mask3[k, i, j] == 0.0 || mask3[k, i-1, j] == 0.0
@@ -101,16 +173,18 @@ function calHorVelBnd!(;
         end
     end
     
+    # x - periodic
     for j=1:Ny
-        for k=1:Nz[i, j]
+        for k=1:Nz[1, j]
             if mask3[k, 1, j] == 0.0 || mask3[k, Nx, j] == 0.0
-                u_bnd[k, 1, j] = 0.0
+                u_bnd[k, 1, j] = u_bnd[k, Nx+1, j] = 0.0
             else
                 u_bnd[k, 1, j] = u_bnd[k, Nx+1, j] = u[k, Nx, j] * (1.0 - weight_e[1, j]) + u[k, 1, j] * weight_e[1, j]
             end
         end
     end
 
+    # y
     for i=1:Nx, j=2:Ny-1
         for k=1:Nz[i, j]
             if mask3[k, i, j-1] == 0.0 || mask3[k, i, j] == 0.0
@@ -132,10 +206,3 @@ function assignVerPhiStar!(;
 )
 end
 
-function calHorAdv!(;
-)
-end
-
-function calVerAdv!(;
-)
-end
