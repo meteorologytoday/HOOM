@@ -15,7 +15,7 @@ function calDiffAdv_QUICK!(
     )
 
     calVerVelBnd!(
-        gi = ocn.gi,
+        gi    = ocn.gi,
         Nx    = ocn.Nx,
         Ny    = ocn.Ny,
         Nz    = ocn.Nz,
@@ -27,7 +27,23 @@ function calDiffAdv_QUICK!(
         mask3 = ocn.mask3,
     )
 
-    calGRAD_CURV!()
+    calGRAD_CURV!(
+        gi         = ocn.gi,
+        Nx         = ocn.Nx,
+        Ny         = ocn.Ny,
+        Nz         = ocn.Nz,
+        qs         = ocn.Ts,
+        GRAD_bnd_x = ocn.GRAD_bnd_x,
+        GRAD_bnd_y = ocn.GRAD_bnd_y,
+        GRAD_bnd_z = ocn.GRAD_bnd_z,
+        CURV_x     = ocn.CURV_x,
+        CURV_y     = ocn.CURV_y,
+        CURV_z     = ocn.CURV_z,
+        mask3 = ocn.mask3,
+        Δzs        = ocn.Δzs,
+        hs         = ocn.hs,
+    )
+
     calFluxes!()
     calEvolve!()    
 end
@@ -45,6 +61,8 @@ function calGRAD_CURV!(;
     CURV_y     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     CURV_z     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     mask3      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    Δzs        :: AbstractArray{Float64, 3},     # ( Nz_bone-1 ,  Nx  , Ny   )
+    hs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
 )
 
     # x 
@@ -70,7 +88,10 @@ function calGRAD_CURV!(;
     # y
     for i=1:Nx, j=2:Ny-1
         for k=1:Nz[i, j]
-            GRAD_bnd_y[k, i, j] = ( qs[k, i, j] - qs[k, i, j-1] ) / gi.dx_s[i, j]
+            GRAD_bnd_y[k, i, j] = (
+                ( mask3[k, i, j] == 0.0 || mask3[k, i, j-1] == 0.0 )
+                ? 0.0 : ( qs[k, i, j] - qs[k, i, j-1] ) / gi.dx_s[i, j]
+            )
         end
     end
 
@@ -87,6 +108,15 @@ function calGRAD_CURV!(;
             GRAD_bnd_z[k, i, j] = ( qs[k-1, i, j] - qs[k, i, j] ) / Δzs[k-1, i, j]
         end
 
+    end
+
+    # CURV
+    for i=1:Nx, j=1:Ny
+        for k=1:Nz[i, j]
+            CURV_x[k, i, j] = ( GRAD_bnd_x[k, i+1, j  ] - GRAD_bnd_x[k  , i, j] ) / gi.dx_c[i, j]
+            CURV_y[k, i, j] = ( GRAD_bnd_y[k, i  , j+1] - GRAD_bnd_y[k  , i, j] ) / gi.dy_c[i, j]
+            CURV_z[k, i, j] = ( GRAD_bnd_z[k, i  , j  ] - GRAD_bnd_z[k+1, i, j] ) / hs[k, i, j]
+        end
     end
 
 end
