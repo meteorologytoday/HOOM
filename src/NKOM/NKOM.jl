@@ -54,6 +54,7 @@ end
     @hinclude("stepOcean_prepare.jl")
     @hinclude("stepOcean_hz.jl")
     @hinclude("stepOcean_vt.jl")
+    @hinclude("advection.jl")
 
 
     @hinclude("setOceanColumn.jl")

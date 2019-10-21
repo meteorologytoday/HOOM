@@ -148,18 +148,51 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
         end
 
     elseif adv_scheme == :test
-        ocn.u .= 1.0
+        ocn.u .= 0.1
  
     elseif adv_scheme == :testusin
         @loop_hor ocn i j let
             for k = 1:ocn.Nz[i, j]
-                ocn.u[k, i, j] = 1.0 * exp(ocn.zs[k, i, j]/50.0) * sin(ocn.mi.xc[i, j] * π/180.0)
+                ocn.u[k, i, j] = .1 * exp(ocn.zs[k, i, j]/50.0) * sin(ocn.mi.xc[i, j] * π/180.0)
             end
         end
+
+        ocn.u .= 0.0
+        ocn.v[1, :, :] .= 0.1
+
 #    else
 #        throw(ErrorException("Unknown advection scheme: " * string(adv_scheme)))
     end
-        
+
+
+     
+    calHorVelBnd!(
+        Nx    = ocn.Nx,
+        Ny    = ocn.Ny,
+        Nz    = ocn.Nz,
+        weight_e = ocn.gi.weight_e,
+        weight_n = ocn.gi.weight_n,
+        u     = ocn.u,
+        v     = ocn.v,
+        u_bnd = ocn.u_bnd,
+        v_bnd = ocn.v_bnd,
+        mask3 = ocn.mask3,
+    )
+
+    calVerVelBnd!(
+        gi    = ocn.gi,
+        Nx    = ocn.Nx,
+        Ny    = ocn.Ny,
+        Nz    = ocn.Nz,
+        u_bnd = ocn.u_bnd,
+        v_bnd = ocn.v_bnd,
+        w_bnd = ocn.w_bnd,
+        hs    = ocn.hs,
+        div   = ocn.div,
+        mask3 = ocn.mask3,
+    )
+   
+    #=    
     # Calculate ∇⋅v
     for k=1:ocn.Nz_bone
         DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.u[k],  ocn.lays.v[k],  ocn.lays.div[k], ocn.lays.mask3[k])
@@ -193,6 +226,6 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
     end
 
     #ocn.w .= -1e-4
-    
+    =#
 end
 

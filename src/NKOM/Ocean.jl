@@ -16,8 +16,10 @@ mutable struct Ocean
     Nz       :: AbstractArray{Int64, 2} # Number of layers that is active
 
     K_v      :: Float64           # Diffusion coe of momentum. Used by ekman flow calculation
-    K_T      :: Float64           # Diffusion coe of temperature
-    K_S      :: Float64           # Diffusion coe of salinity
+    Dh_T      :: Float64           # Horizontal diffusion coe of temperature
+    Dv_T      :: Float64           # Vertical   diffusion coe of temperature
+    Dh_S      :: Float64           # Horizontal diffusion coe of salinity
+    Dv_S      :: Float64           # Vertical   diffusion coe of salinity
 
     fs       :: AbstractArray{Float64, 2}
     ϵs       :: AbstractArray{Float64, 2}
@@ -62,10 +64,26 @@ mutable struct Ocean
     # Advection related variables
     τx       :: AbstractArray{Float64, 2}
     τy       :: AbstractArray{Float64, 2}
+
     u        :: AbstractArray{Float64, 3}
     v        :: AbstractArray{Float64, 3}
     w        :: AbstractArray{Float64, 3}
+
+    u_bnd    :: AbstractArray{Float64, 3}
+    v_bnd    :: AbstractArray{Float64, 3}
     w_bnd    :: AbstractArray{Float64, 3}
+
+    GRAD_bnd_x :: AbstractArray{Float64, 3}
+    GRAD_bnd_y :: AbstractArray{Float64, 3}
+    GRAD_bnd_z :: AbstractArray{Float64, 3}
+    
+    CURV_x     :: AbstractArray{Float64, 3}
+    CURV_y     :: AbstractArray{Float64, 3}
+    CURV_z     :: AbstractArray{Float64, 3}
+    
+    FLUX_DEN_x :: AbstractArray{Float64, 3}
+    FLUX_DEN_y :: AbstractArray{Float64, 3}
+    FLUX_DEN_z :: AbstractArray{Float64, 3}
 
     div      :: AbstractArray{Float64, 3}
     T_hadvs  :: AbstractArray{Float64, 3}
@@ -128,8 +146,10 @@ mutable struct Ocean
         Ts       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
         Ss       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
         K_v      :: Float64 = 1e-2,
-        K_T      :: Float64 = 1e-5,
-        K_S      :: Float64 = 1e-5,
+        Dh_T     :: Float64 = 1e4,
+        Dv_T     :: Float64 = 1e-5,
+        Dh_S     :: Float64 = 1e4,
+        Dv_S     :: Float64 = 1e-5,
         T_ML     :: Union{AbstractArray{Float64, 2}, Float64},
         S_ML     :: Union{AbstractArray{Float64, 2}, Float64},
         h_ML     :: Union{AbstractArray{Float64, 2}, Float64, Nothing},
@@ -465,9 +485,25 @@ mutable struct Ocean
         _u       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _v       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _w       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+
+        _u_bnd   = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _v_bnd   = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
         _w_bnd   = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
 
+        _GRAD_bnd_x   = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _GRAD_bnd_y   = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
+        _GRAD_bnd_z   = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
+
+        _CURV_x       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _CURV_y       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _CURV_z       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+
+        _FLUX_DEN_x   = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _FLUX_DEN_y   = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
+        _FLUX_DEN_z   = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
+
         _div     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+
         _T_hadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _T_vadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _S_hadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
@@ -475,7 +511,7 @@ mutable struct Ocean
 
         _∇∇T     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _∇∇S     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-    
+
         # ===== [END] Advection variables =====
 
         # ===== [BEGIN] Climatology =====
@@ -712,7 +748,7 @@ mutable struct Ocean
             mi,
             Nx, Ny, Nz_bone,
             zs_bone, _topo, zs, Nz,
-            K_v, K_T, K_S,
+            K_v, Dh_T, Dv_T, Dh_S, Dv_S,
             _fs, _ϵs,
             _mask3, _mask, mask_idx, valid_idx,
             _b_ML, _T_ML, _S_ML, _ΔT, _ΔS,
@@ -722,7 +758,11 @@ mutable struct Ocean
             _FLDO, _qflx2atm, _H, _dHdt, _frz_heat,
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,
-            _u, _v, _w, _w_bnd
+            _u, _v, _w,
+            _u_bnd, _v_bnd, _w_bnd,
+            _GRAD_bnd_x, _GRAD_bnd_y, _GRAD_bnd_z,
+            _CURV_x, _CURV_y, _CURV_z,
+            _FLUX_DEN_x, _FLUX_DEN_y, _FLUX_DEN_z,
             _div,
             _T_hadvs, _T_vadvs,
             _S_hadvs, _S_vadvs,

@@ -31,8 +31,10 @@ function loadSnapshot(
             Ts       = toZXY( nomissing(ds["Ts"][:], NaN), :xyz),
             Ss       = toZXY( nomissing(ds["Ss"][:], NaN), :xyz),
             K_v      = ds.attrib["K_v"],
-            K_T      = ds.attrib["K_T"],
-            K_S      = ds.attrib["K_S"],
+            Dh_T      = ds.attrib["Dh_T"],
+            Dv_T      = ds.attrib["Dv_T"],
+            Dh_S      = ds.attrib["Dh_S"],
+            Dv_S      = ds.attrib["Dv_S"],
             fs       = nomissing(ds["fs"][:], NaN),
             ϵs       = nomissing(ds["epsilons"][:], NaN),
             T_ML     = nomissing(ds["T_ML"][:], NaN),
@@ -69,8 +71,11 @@ function takeSnapshot(
  
         ds.attrib["gridinfo_file"] = ocn.gi_file
         ds.attrib["K_v"] = ocn.K_v
-        ds.attrib["K_T"] = ocn.K_T
-        ds.attrib["K_S"] = ocn.K_S
+        ds.attrib["Dh_T"] = ocn.Dh_T
+        ds.attrib["Dv_T"] = ocn.Dv_T
+        ds.attrib["Dh_S"] = ocn.Dh_S
+        ds.attrib["Dv_S"] = ocn.Dv_S
+
 
         ds.attrib["we_max"] = ocn.we_max
         ds.attrib["R"]    = ocn.R

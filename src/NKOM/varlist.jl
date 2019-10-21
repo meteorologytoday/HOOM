@@ -24,7 +24,7 @@ function getCompleteVariableList(ocn::Ocean)
             "fric_u"  => ( ocn.fric_u,               ("Nx", "Ny") ),
             "taux"    => ( ocn.τx,                   ("Nx", "Ny") ),
             "tauy"    => ( ocn.τy,                   ("Nx", "Ny") ),
-            "w"       => ( toXYZ(ocn.w, :zxy),  ("Nx", "Ny", "zs_bone") ),
+            "w_bnd"   => ( toXYZ(ocn.w_bnd, :zxy),   ("Nx", "Ny", "zs_bone") ),
             "u"       => ( toXYZ(ocn.u, :zxy),  ("Nx", "Ny", "Nz_bone") ),
             "v"       => ( toXYZ(ocn.v, :zxy),  ("Nx", "Ny", "Nz_bone") ),
             "T_hadvs" => ( toXYZ(ocn.T_hadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),

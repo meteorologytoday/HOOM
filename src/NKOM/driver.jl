@@ -107,8 +107,11 @@ function makeSubOcean(
             zs_bone        = master_ocn.zs_bone,
             Ts             = master_ocn.Ts[pull_fr_rng3...],
             Ss             = master_ocn.Ss[pull_fr_rng3...],
-            K_T            = master_ocn.K_T,
-            K_S            = master_ocn.K_S,
+            K_v            = master_ocn.K_v,
+            Dh_T           = master_ocn.Dh_T,
+            Dv_T           = master_ocn.Dv_T,
+            Dh_S           = master_ocn.Dh_S,
+            Dv_S           = master_ocn.Dv_S,
             T_ML           = master_ocn.T_ML[pull_fr_rng2...],
             S_ML           = master_ocn.S_ML[pull_fr_rng2...],
             h_ML           = master_ocn.h_ML[pull_fr_rng2...],
@@ -289,13 +292,13 @@ function run!(
     sync_bnd_vars3 = (:Ts,   :Ss)
 
     sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :dTdt_ent, :dSdt_ent, :Q_clim, :wT, :neb, :H, :dHdt, :frz_heat)
-    sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
+    sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
 
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
     #accumulative_vars3 = (:T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
 
     cost_hor = @elapsed for substep = 1:substeps
-        println("substep: ", substep)
+#        println("substep: ", substep)
         @sync for (i, p) in enumerate(wkrs)
             @spawnat p let
                 syncBoundaryFromMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)

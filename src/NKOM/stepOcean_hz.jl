@@ -19,6 +19,7 @@ function stepOcean_Flow!(
 #        Ss_old = ocn.Ss[1:7, i, j]
 #        T_ML_old = ocn.T_ML[i, j]
 
+        #=
         ocn.ΔT[i, j] = mixFLDO!(
             qs   = ocn.cols.Ts[i, j],
             zs   = ocn.cols.zs[i, j],
@@ -36,7 +37,7 @@ function stepOcean_Flow!(
             h_ML = ocn.h_ML[i, j],
             FLDO = ocn.FLDO[i, j],
         )
-
+        =#
  #       ΔT_old = ocn.ΔT[i, j]
  #       ΔS_old = ocn.ΔS[i, j]
  #       Δb_old = g * ( α * ΔT_old - β * ΔS_old )
@@ -110,6 +111,56 @@ function stepOcean_Flow!(
     # 3. calculate temperature & salinity flux divergence
     # Gov eqn adv + diff: ∂T/∂t = - 1 / (ρ H1) ( ∇⋅(M1 T1) - (∇⋅M1) Tmid )
   
+    calDiffAdv_QUICK!(ocn)
+
+    @loop_hor ocn i j let
+ 
+        Nz = ocn.Nz[i, j]
+        zs   = ocn.cols.zs[i, j]
+        hs   = ocn.cols.hs[i, j]
+        h_ML = ocn.h_ML[i, j]
+        FLDO = ocn.FLDO[i, j]
+        
+        #ocn.wT[i, j] = ocn.cols.w[i, j][Nz] * ocn.cols.Ts[i, j][Nz]
+        for k = 1:ocn.Nz[i, j]
+            if (i, j) == (1, 2)
+                #println(k, ": ", ocn.T_hadvs[k, i, j], "; ", ocn.Ts[k, i, j])
+                #println(k, ": ", ocn.GRAD_bnd_z[k, i, j])
+            end
+            ocn.Ts[k, i, j] += Δt * ( ocn.T_hadvs[k, i, j] )
+        end
+        ocn.T_ML[i, j] = ocn.Ts[1, i, j]
+        #=
+        ocn.T_ML[i, j] = unmixFLDOKeepDiff!(;
+            qs   = ocn.cols.Ts[i, j],
+            zs   = zs,
+            hs   = hs,
+            h_ML = h_ML,
+            FLDO = FLDO,
+            Nz   = Nz,
+            Δq   = ocn.ΔT[i, j],
+            verbose = (i, j) == (1, 2)
+        )
+ 
+        ocn.S_ML[i, j] = unmixFLDOKeepDiff!(;
+            qs   = ocn.cols.Ss[i, j],
+            zs   = zs,
+            hs   = hs,
+            h_ML = h_ML,
+            FLDO = FLDO,
+            Nz   = Nz,
+            Δq   = ocn.ΔS[i, j],
+        )
+        =#
+        OC_updateB!(ocn, i, j)
+
+        if do_convadjust
+            OC_doConvectiveAdjustment!(ocn, i, j)
+        end
+
+    end
+
+    #=
     for k = 1:ocn.Nz_bone
         DisplacedPoleCoordinate.hadv_upwind!(
             ocn.gi,
@@ -205,7 +256,6 @@ function stepOcean_Flow!(
         if (i, j) == (20, 2)
             println(format("Before 20,2: T_ML = {:f}, T = {:f}", ocn.T_ML[20, 2], ocn.Ts[1, 20, 2] ))
         end
-      
 
         ocn.T_ML[i, j] = unmixFLDOKeepDiff!(;
             qs   = ocn.cols.Ts[i, j],
@@ -248,12 +298,12 @@ function stepOcean_Flow!(
 
 
     end
-
+    =#
 
 end
 
 
-
+#=
 function vadv_upwind!(
     vadvs  :: AbstractArray{Float64, 1},
     ws     :: AbstractArray{Float64, 1},
@@ -336,7 +386,7 @@ function vadv_upwind!(
 
 end
 
-
+=#
 """
 
 Calculation follows "MacCormack method" of Lax-Wendroff scheme.

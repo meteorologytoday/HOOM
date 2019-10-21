@@ -4,7 +4,6 @@ function OC_doConvectiveAdjustment!(
         j   :: Integer,
     )
 
-    println("CONV")
 
     if_adjust, ocn.b_ML[i, j], ocn.T_ML[i, j], ocn.S_ML[i, j], ocn.h_ML[i, j], ocn.FLDO[i, j] = doConvectiveAdjustment!(
         zs       = ocn.cols.zs[i, j],
