@@ -28,20 +28,19 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
     DisplacedPoleCoordinate.project!(ocn.gi, ocn.in_flds.taux, ocn.in_flds.tauy, ocn.τx, ocn.τy, direction=:Forward)
 
     if adv_scheme == :ekman_all_in_ML
-
-
+        
         @loop_hor ocn i j let
-
+            
             ϵ = ocn.ϵs[i, j]
             f = ocn.fs[i, j]
-
+            
             τx = ocn.τx[i, j]
             τy = ocn.τy[i, j]
-
+            
             h_ML = ocn.h_ML[i, j]
             Nz   = ocn.Nz[i, j] 
             s2ρh = ρ * h_ML * (ϵ^2.0 + f^2.0)
-
+            
             ek_u = (ϵ * τx + f * τy) / s2ρh
             ek_v = (ϵ * τy - f * τx) / s2ρh
 
@@ -136,7 +135,8 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
 
             end
 
-#=            if (i, j) == (67, 57)
+#=
+            if (i, j) == (67, 57)
                 println("M̃ = ", M̃)
                 println("H_ek = ", H_ek)
                 println("H_rf = ", H_rf)
@@ -147,6 +147,17 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
   =#      
         end
 
+    elseif adv_scheme == :test
+        ocn.u .= 1.0
+ 
+    elseif adv_scheme == :testusin
+        @loop_hor ocn i j let
+            for k = 1:ocn.Nz[i, j]
+                ocn.u[k, i, j] = 1.0 * exp(ocn.zs[k, i, j]/50.0) * sin(ocn.mi.xc[i, j] * π/180.0)
+            end
+        end
+#    else
+#        throw(ErrorException("Unknown advection scheme: " * string(adv_scheme)))
     end
         
     # Calculate ∇⋅v
@@ -158,6 +169,8 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
     @loop_hor ocn i j let
 
         Nz = ocn.Nz[i, j]
+
+#=
         ocn.w[1, i, j] = 0.0
 
 #        for k = 2:Nz+1
@@ -167,9 +180,19 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
         for k = 2:Nz
             ocn.w[k, i, j] = ocn.w[k-1, i, j] + (ocn.hs[k-1, i, j] * ocn.div[k-1, i, j] + ocn.hs[k, i, j] * ocn.div[k, i, j]) / 2.0
         end
+=#
 
+        ocn.w_bnd[1, i, j] = 0.0
+
+        for k = 2:Nz+1
+            Δw = ocn.hs[k-1, i, j] * ocn.div[k-1, i, j]
+            ocn.w_bnd[k, i, j] = ocn.w_bnd[k-1, i, j] + Δw
+            ocn.w[k-1, i, j]   = ocn.w_bnd[k-1, i, j] + Δw / 2.0
+        end
+        
     end
 
+    #ocn.w .= -1e-4
     
 end
 

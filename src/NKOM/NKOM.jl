@@ -63,6 +63,7 @@ end
     @hinclude("accumulate.jl")
     @hinclude("driver.jl")
 
+    @hinclude("varlist.jl")
 
 
 end

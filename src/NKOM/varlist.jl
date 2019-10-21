@@ -1,0 +1,36 @@
+function getCompleteVariableList(ocn::Ocean)
+
+        return Dict(
+            "T"       => ( toXYZ(ocn.Ts, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "S"       => ( toXYZ(ocn.Ss, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "b"       => ( toXYZ(ocn.bs, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "T_ML"    => ( ocn.T_ML,                 ("Nx", "Ny") ),
+            "S_ML"    => ( ocn.S_ML,                 ("Nx", "Ny") ),
+            "dTdt_ent"=> ( ocn.dTdt_ent,             ("Nx", "Ny") ),
+            "dSdt_ent"=> ( ocn.dSdt_ent,             ("Nx", "Ny") ),
+            "Q_clim"  => ( ocn.Q_clim,               ("Nx", "Ny") ),
+            "wT"      => ( ocn.wT,                   ("Nx", "Ny") ),
+            "neb"     => ( ocn.neb,                  ("Nx", "Ny") ),
+            "qflx2atm"=> ( ocn.qflx2atm,             ("Nx", "Ny") ),
+            "h_ML"    => ( ocn.h_ML,                 ("Nx", "Ny") ),
+            "h_MO"    => ( ocn.h_MO,                 ("Nx", "Ny") ),
+            "nswflx"  => ( ocn.in_flds.nswflx,       ("Nx", "Ny") ),
+            "swflx"   => ( ocn.in_flds.swflx,        ("Nx", "Ny") ),
+            "frwflx"  => ( ocn.in_flds.frwflx,       ("Nx", "Ny") ),
+            "qflx"    => ( ocn.in_flds.qflx,         ("Nx", "Ny") ),
+            "H"       => ( ocn.H,                    ("Nx", "Ny") ),
+            "dHdt"    => ( ocn.dHdt,                 ("Nx", "Ny") ),
+            "frz_heat"  => ( ocn.frz_heat,           ("Nx", "Ny") ),
+            "fric_u"  => ( ocn.fric_u,               ("Nx", "Ny") ),
+            "taux"    => ( ocn.τx,                   ("Nx", "Ny") ),
+            "tauy"    => ( ocn.τy,                   ("Nx", "Ny") ),
+            "w"       => ( toXYZ(ocn.w, :zxy),  ("Nx", "Ny", "zs_bone") ),
+            "u"       => ( toXYZ(ocn.u, :zxy),  ("Nx", "Ny", "Nz_bone") ),
+            "v"       => ( toXYZ(ocn.v, :zxy),  ("Nx", "Ny", "Nz_bone") ),
+            "T_hadvs" => ( toXYZ(ocn.T_hadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "T_vadvs" => ( toXYZ(ocn.T_vadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "S_hadvs" => ( toXYZ(ocn.S_hadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
+            "S_vadvs" => ( toXYZ(ocn.S_vadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
+        )
+
+end

@@ -4,6 +4,7 @@ mutable struct Ocean
     
     gi       :: Union{DisplacedPoleCoordinate.GridInfo, Nothing}
     gi_file  :: Union{AbstractString, Nothing}
+    mi       :: Union{ModelMap.MapInfo, Nothing}
 
     Nx       :: Integer           # Number of columns in i direction
     Ny       :: Integer           # Number of columns in j direction
@@ -64,6 +65,7 @@ mutable struct Ocean
     u        :: AbstractArray{Float64, 3}
     v        :: AbstractArray{Float64, 3}
     w        :: AbstractArray{Float64, 3}
+    w_bnd    :: AbstractArray{Float64, 3}
 
     div      :: AbstractArray{Float64, 3}
     T_hadvs  :: AbstractArray{Float64, 3}
@@ -463,6 +465,7 @@ mutable struct Ocean
         _u       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _v       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _w       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _w_bnd   = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
 
         _div     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _T_hadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
@@ -657,6 +660,7 @@ mutable struct Ocean
                 Δzs = Array{SubArray}(undef, Nx, Ny),
                 hs = Array{SubArray}(undef, Nx, Ny),
                 w  = Array{SubArray}(undef, Nx, Ny),
+                w_bnd = Array{SubArray}(undef, Nx, Ny),
                 bs = Array{SubArray}(undef, Nx, Ny),
                 Ts = Array{SubArray}(undef, Nx, Ny),
                 Ss = Array{SubArray}(undef, Nx, Ny),
@@ -673,6 +677,7 @@ mutable struct Ocean
                 cols.Δzs[i, j]             = view(Δzs, :, i, j)
                 cols.hs[i, j]              = view(hs,  :, i, j)
                 cols.w[i, j]               = view(_w,  :, i, j)
+                cols.w_bnd[i, j]           = view(_w_bnd,  :, i, j)
                 cols.bs[i, j]              = view(_bs, :, i, j)
                 cols.Ts[i, j]              = view(_Ts, :, i, j)
                 cols.Ss[i, j]              = view(_Ss, :, i, j)
@@ -704,6 +709,7 @@ mutable struct Ocean
             id,
             gridinfo,
             gridinfo_file,
+            mi,
             Nx, Ny, Nz_bone,
             zs_bone, _topo, zs, Nz,
             K_v, K_T, K_S,
@@ -716,7 +722,7 @@ mutable struct Ocean
             _FLDO, _qflx2atm, _H, _dHdt, _frz_heat,
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,
-            _u, _v, _w,
+            _u, _v, _w, _w_bnd
             _div,
             _T_hadvs, _T_vadvs,
             _S_hadvs, _S_vadvs,

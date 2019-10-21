@@ -295,7 +295,7 @@ function run!(
     #accumulative_vars3 = (:T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
 
     cost_hor = @elapsed for substep = 1:substeps
-
+        println("substep: ", substep)
         @sync for (i, p) in enumerate(wkrs)
             @spawnat p let
                 syncBoundaryFromMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
@@ -307,7 +307,7 @@ function run!(
         end
 
     end
-
+    
     cost_ver = @elapsed @sync for (i, p) in enumerate(wkrs)
         @spawnat p let
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)

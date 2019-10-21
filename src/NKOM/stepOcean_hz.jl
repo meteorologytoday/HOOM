@@ -4,6 +4,7 @@ function stepOcean_Flow!(
 )
     
     adv_scheme = cfgs[:adv_scheme]
+    do_convadjust = cfgs[:do_convadjust]
     Δt         = cfgs[:Δt]
 
     if adv_scheme == :static
@@ -143,7 +144,7 @@ function stepOcean_Flow!(
             ocn.cols.T_vadvs[i, j],
             ocn.cols.w[i, j],
             ocn.cols.Ts[i, j],
-            ocn.cols.Δzs[i, j],
+            ocn.cols.hs[i, j],
             Nz,
         )
 
@@ -151,7 +152,7 @@ function stepOcean_Flow!(
             ocn.cols.S_vadvs[i, j],
             ocn.cols.w[i, j],
             ocn.cols.Ss[i, j],
-            ocn.cols.Δzs[i, j],
+            ocn.cols.hs[i, j],
             Nz,
         )
 
@@ -159,9 +160,16 @@ function stepOcean_Flow!(
 
         # Here I choose not to update the bottom layer if there is only one layer.
         ocn.wT[i, j] = ocn.cols.w[i, j][Nz] * ocn.cols.Ts[i, j][Nz]
+        if (i, j) == (20, 2)
+            println(format("20,2: T_ML = {:f}, T = {:f}", ocn.T_ML[20, 2], ocn.Ts[1, 20, 2] ))
+            println(format("20,2: vadv = {:e}, hadv = {:e}", ocn.T_vadvs[1, 20, 2], ocn.T_hadvs[1, 20, 2] ))
+        end
         for k = 1:Nz
             ocn.Ts[k, i, j] += Δt * ( ocn.T_vadvs[k, i, j] + ocn.T_hadvs[k, i, j] )
             ocn.Ss[k, i, j] += Δt * ( ocn.S_vadvs[k, i, j] + ocn.S_hadvs[k, i, j] )
+            #ocn.Ts[k, i, j] += Δt * ( ocn.T_hadvs[k, i, j] )
+            #ocn.Ss[k, i, j] += Δt * ( ocn.S_hadvs[k, i, j] )
+
         end
 
         #=
@@ -194,6 +202,11 @@ function stepOcean_Flow!(
         )
         =#
 
+        if (i, j) == (20, 2)
+            println(format("Before 20,2: T_ML = {:f}, T = {:f}", ocn.T_ML[20, 2], ocn.Ts[1, 20, 2] ))
+        end
+      
+
         ocn.T_ML[i, j] = unmixFLDOKeepDiff!(;
             qs   = ocn.cols.Ts[i, j],
             zs   = zs,
@@ -202,6 +215,7 @@ function stepOcean_Flow!(
             FLDO = FLDO,
             Nz   = Nz,
             Δq   = ocn.ΔT[i, j],
+            verbose = (i, j) == (20, 2)
         )
  
         ocn.S_ML[i, j] = unmixFLDOKeepDiff!(;
@@ -213,7 +227,11 @@ function stepOcean_Flow!(
             Nz   = Nz,
             Δq   = ocn.ΔS[i, j],
         )
-       
+ 
+        if (i, j) == (20, 2)
+            println(format("20,2: T_ML = {:f}, T = {:f}", ocn.T_ML[20, 2], ocn.Ts[1, 20, 2] ))
+        end
+      
         #=
         if (i, j) == (80, 50)
             println("#AFTER")
@@ -222,7 +240,11 @@ function stepOcean_Flow!(
         end
         =#
         OC_updateB!(ocn, i, j)
-        OC_doConvectiveAdjustment!(ocn, i, j)
+
+
+        if do_convadjust
+            OC_doConvectiveAdjustment!(ocn, i, j)
+        end
 
 
     end
@@ -236,7 +258,8 @@ function vadv_upwind!(
     vadvs  :: AbstractArray{Float64, 1},
     ws     :: AbstractArray{Float64, 1},
     qs     :: AbstractArray{Float64, 1},
-    Δzs    :: AbstractArray{Float64, 1},
+    #Δzs    :: AbstractArray{Float64, 1},
+    hs    :: AbstractArray{Float64, 1},
     Nz     :: Integer,
 )
 
@@ -257,6 +280,7 @@ function vadv_upwind!(
         return
     end
 
+#=
     if ws[1] > 0.0
         vadvs[1] = - ws[1] * (qs[1] - qs[2]) / Δzs[1]
     else
@@ -270,10 +294,46 @@ function vadv_upwind!(
             vadvs[k] = - ws[k] * (qs[k-1] - qs[k]) / Δzs[k-1]
         end
     end
+=#
+#= 2019/10/19 commented
+    if ws[1] > 0.0
+        vadvs[1] = - ws[1] * (qs[1] - qs[2]) / hs[1]
+    else
+        vadvs[1] = 0.0
+    end
 
-    # Do not update final layer
-    vadvs[Nz] = 0.0 
-    
+    for k = 2:Nz-1
+        if ws[k] > 0.0
+            vadvs[k] = - ws[k] * (qs[k] - qs[k+1]) / hs[k]
+        else
+            vadvs[k] = - ws[k] * (qs[k-1] - qs[k]) / hs[k]
+        end
+    end
+=#
+
+    # Skip the last layer
+#    vadvs[Nz] = 0.0
+#=
+    if ws[Nz] > 0.0
+        vadvs[Nz] = 0.0
+    else
+        vadvs[Nz] = - ws[Nz] * (qs[Nz-1] - qs[Nz]) / hs[Nz]
+    end
+=#
+
+    vadvs[1] = 0.0
+
+    if ws[2] > 0.0
+        vadvs[2] = - ws[2] * qs[2] / 2.0 / hs[2]
+
+    for k = 2:Nz-1
+        if ws[k] > 0.0
+            vadvs[k] = - ( ((k==2) ? 0.0 : ws[k-1] * qs[k-1] ) - qs[k+1]) / hs[k]
+        else
+            vadvs[k] = - ws[k] * (qs[k-1] - qs[k]) / hs[k]
+        end
+    end
+
 end
 
 

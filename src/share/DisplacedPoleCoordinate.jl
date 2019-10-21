@@ -84,6 +84,9 @@ struct GridInfo
     ds4   :: AbstractArray{Float64, 2}
 
     dσ    :: AbstractArray{Float64, 2}
+
+    weight_e :: AbstractArray{Float64, 2}    # ( Nx+1 , Ny   )
+    weight_n :: AbstractArray{Float64, 2}    # ( Nx   , Ny+1 )
    
     function GridInfo(
         R      :: Float64,
@@ -124,6 +127,9 @@ struct GridInfo
 
         vs_lon_rad = copy(vs_lon)
         vs_lat_rad = copy(vs_lat)
+        
+        weight_e = zeros(Float64, Nx+1, Ny)
+        weight_n = zeros(Float64, Nx, Ny+1)
 
         if angle_unit == :deg
 
@@ -213,6 +219,39 @@ struct GridInfo
 
         end
 
+        #
+        # weight_e[i, ?] is the relative portion of grid weighting
+        # to the west of the boundary of eastward vectors
+        #
+        #                     bnd
+        #                     [i]
+        #     |                |                  |
+        #     |    grid[i-1]   |    grid[i]       |
+        #     |                |                  |
+        #     | <-- dx[i-1]--> | <--- dx[i] --->  |
+        #     |                |                  |
+        #
+        #   weight_e[i, ?] = dx[i-1] / (dx[i-1] + dx[i])
+        #
+        #   weight_n would be the same idea with 
+        #   portion represent the south grid
+        #
+
+        for j = 1:Ny
+            weight_e[1, j] = weight_e[Nx+1, j] = dx_c[Nx, j] / (dx_c[Nx, j] + dx_c[1, j])
+        end
+        for i = 2:Nx, j = 1:Ny
+            weight_e[i, j] = dx_c[i-1, j] / (dx_c[i-1, j] + dx_c[i, j])
+        end
+
+        # Ignore the northest and the southest because information
+        # is unknown
+        for i = 1:Nx, j = 2:Ny-1
+            weight_n[i, j] = dy_s[i, j-1] / ( dy_c[i, j-1] + dy_c[i, j] )
+        end
+
+
+
 
         return new(
             R, Nx, Ny,
@@ -221,6 +260,7 @@ struct GridInfo
             dy_s, dy_c, dy_n,
             ds1, ds2, ds3, ds4,
             dσ,
+            weight_e, weight_n,
         )
  
     end
@@ -313,6 +353,7 @@ end
 
 
 
+
 function DIV!(
     gi   :: GridInfo,
     vf_e :: AbstractArray{Float64, 2},
@@ -343,6 +384,8 @@ function DIV!(
     end
         
 end
+
+
 
 
 
@@ -400,8 +443,23 @@ function hadv_upwind!(
 
         if u > 0 && mask[i_w, j] != 0.0           # use point on the west
             hadv += - u * ( qs[i, j] - qs[i_w, j] ) / gi.dx_w[i, j]
+
+        #    if qs[i, j] != qs[i_w, j]
+        #        println("[1] i,j = ", i, ", ", j)
+        #        println("qs[  i,j] = ", qs[i, j])
+        #        println("qs[i_w,j] = ", qs[i_w, j])
+        #        throw(ErrorException("!!!"))
+        #    end
+
         elseif u <= 0 && mask[i_e, j] != 0.0      # use point on the east
             hadv += - u * ( qs[i_e, j] - qs[i, j] ) / gi.dx_e[i, j]
+
+        #    if qs[i, j] != qs[i_e, j]
+        #        println("[2] i,j = ", i, ", ", j)
+        #        throw(ErrorException("!!!"))
+        #    end
+
+
         end
 
         if v > 0 && mask[i, j_s] != 0.0           # use point on the south

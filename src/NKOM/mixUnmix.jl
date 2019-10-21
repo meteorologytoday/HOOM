@@ -33,6 +33,7 @@ function unmixFLDOKeepDiff!(;
     FLDO :: Integer,
     Nz   :: Integer,
     Δq   :: Float64,
+    verbose = false
 )
 
     # no need to remix if h_ML is shallower than the first layer
@@ -54,9 +55,15 @@ function unmixFLDOKeepDiff!(;
 
     else
 
+        verbose && println("FLDO = ", FLDO)
+        verbose && println("Δq: ", Δq)
         for k = 1:FLDO
             integral += hs[k] * qs[k]
+            verbose && println(k, "; hs: ", hs[k], "; qs: ", qs[k])
         end 
+        verbose && println("integral = ", integral)
+        verbose && println("h_ML = ", h_ML, "; zs[FLDO+1] = ", zs[FLDO+1])
+
         new_q_ML = (integral - Δq * (h_ML + zs[FLDO+1])) / ( - zs[FLDO+1] )
         qs[1:FLDO] .= new_q_ML
         qs[FLDO]    = new_q_ML - Δq
