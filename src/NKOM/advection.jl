@@ -92,8 +92,11 @@ function calTotalChange!(;
 )
 
 
-#    tmp = 0.0
-#    tmp_v = 0.0
+    tmp = 0.0
+    tmp_wT = 0.0
+    tmp_v = 0.0
+    tmp_σ = 0.0
+
     for i=1:Nx, j=1:Ny
         
         if mask3[1, i, j] == 0
@@ -103,11 +106,13 @@ function calTotalChange!(;
         i_e = (i==Nx) ? 1 : i+1
 
 
-#        if FLUX_DEN_z[1, i, j] != 0
-#            println("i: ", i, "; j:", j)
-#            throw(ErrorException("FLUX_DEN_z != 0.0"))
-#        end
+        if FLUX_DEN_z[1, i, j] != 0
+            println("i: ", i, "; j:", j)
+            throw(ErrorException("FLUX_DEN_z != 0.0"))
+        end
 
+        tmp_wT += FLUX_DEN_z[Nz[i, j]+1, i, j] * gi.dσ[i, j]
+        tmp_σ += gi.dσ[i, j]
 
         for k=1:Nz[i, j]
             total_chg[k, i, j] = (
@@ -119,7 +124,7 @@ function calTotalChange!(;
                      FLUX_DEN_z[k, i, j] - FLUX_DEN_z[k+1, i, j]
                 ) / hs[k, i, j]
             )
-#=
+
            if i==1 && FLUX_DEN_x[k, 1, j] != FLUX_DEN_x[k, Nx+1, j]
                 println("i: ", i, "; j:", j)
                 throw(ErrorException("FLUX_DEN_x does not match"))
@@ -130,7 +135,7 @@ function calTotalChange!(;
                 throw(ErrorException("FLUX_DEN_y != 0"))
            end
  
-=#
+
 #=
             if i < Nx-1 && gi.ds2[i, j] != gi.ds4[i+1, j]
                 println("i: ", i, "; j:", j)
@@ -143,20 +148,26 @@ function calTotalChange!(;
                 throw(ErrorException("ds1 ds3 does not match"))
             end
 =#
-#            tmp += total_chg[k, i, j] * hs[k, i, j] * gi.dσ[i, j]
-#            tmp_v += hs[k, i, j] * gi.dσ[i, j]
+
+            tmp += total_chg[k, i, j] * hs[k, i, j] * gi.dσ[i, j]
+            tmp_v += hs[k, i, j] * gi.dσ[i, j]
 
 #            if (k, j) == (2, 10)
-#                println(FLUX_DEN_x[k, i, j], " ::: ", FLUX_DEN_x[k, i+1, j])
-#                
-#                tmp += FLUX_DEN_x[k, i+1, j] - FLUX_DEN_x[k, i, j]
+#                println(FLUX_DEN_x[k, i, j] * gi.ds4[i_e, j], " ::: ", FLUX_DEN_x[k, i+1, j] * gi.ds4[i, j])
+#                tmp += FLUX_DEN_x[k, i+1, j] * gi.ds4[i_e, j] - FLUX_DEN_x[k, i, j] * gi.ds4[i, j]
+#            end
+            
+#            if (k, i) == (1, 10) 
+#                println(FLUX_DEN_y[k, i, j+1] * gi.ds1[i, j+1], " ::: ", FLUX_DEN_y[k, i, j] * gi.ds1[i, j])
 #            end
 
         end
 
     end
 
-    #println("SUM of total_chg weighted by volume: ", tmp, " / ", tmp_v, " = ", tmp/tmp_v)
+#    println("SUM of total_chg weighted by volume: ", tmp, " / ", tmp_v, " = ", tmp/tmp_v)
+#    println("wT total: ", tmp_wT)
+    println("tmp_wT * ρc = ", tmp_wT * ρc / tmp_σ,"; If consider the affect of wT: ", (tmp - tmp_wT) /tmp_v)
 end
 
 
@@ -318,7 +329,7 @@ function calGRAD_CURV!(;
         end
     end
 
-
+    #=
     if any(isnan.(GRAD_bnd_x))
         throw(ErrorException("GRAD_bnd_x NaN"))
     end
@@ -331,7 +342,7 @@ function calGRAD_CURV!(;
         throw(ErrorException("GRAD_bnd_z NaN"))
     end
 
-
+    =#
 
 end
 
@@ -360,12 +371,6 @@ function calVerVelBnd!(;
                 break
             end
             
-            flux_w = u_bnd[k, i,   j  ]  * gi.ds4[i, j]
-            flux_e = u_bnd[k, i+1, j  ]  * gi.ds2[i, j]
-
-            flux_s = v_bnd[k, i,   j  ]  * gi.ds1[i, j]
-            flux_n = v_bnd[k, i,   j+1]  * gi.ds3[i, j]
-
             div[k, i, j] =  (  
                 u_bnd[k, i+1, j  ]  * gi.ds2[i, j]
               - u_bnd[k, i,   j  ]  * gi.ds4[i, j]
@@ -377,11 +382,6 @@ function calVerVelBnd!(;
         end
     end
  
-    if any(isnan.(w_bnd))
-        throw(ErrorException("w_bnd NaN"))
-    end
-
-
 end
 
 
@@ -431,14 +431,5 @@ function calHorVelBnd!(;
             end
         end
     end
-
-    if any(isnan.(u_bnd))
-        throw(ErrorException("u_bnd NaN"))
-    end
-
-    if any(isnan.(v_bnd))
-        throw(ErrorException("v_bnd NaN"))
-    end
-
 
 end

@@ -20,6 +20,8 @@ function makeSubOcean(
     nblocks      :: Integer,
 )
 
+    overlap_grids = 2
+
     println(format("{:03d} Entering makeSubOcean.", block_id))
 
     touch_southpole = block_id == 1
@@ -143,8 +145,8 @@ function makeSubOcean(
 end
 
 function syncToMaster!(subocn::SubOcean;
-        vars2 :: Tuple = (),
-        vars3 :: Tuple = (),
+        vars2 :: Any,
+        vars3 :: Any,
 )
 
     (subocn.worker_ocn.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
@@ -291,8 +293,9 @@ function run!(
     sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
     sync_bnd_vars3 = (:Ts,   :Ss)
 
-    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :dTdt_ent, :dSdt_ent, :Q_clim, :wT, :neb, :H, :dHdt, :frz_heat)
+    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :Q_clim, :neb, :H, :dHdt, :frz_heat, :dTdt_ent, :dSdt_ent, :wT)
     sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
+
 
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
     #accumulative_vars3 = (:T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)

@@ -251,8 +251,6 @@ struct GridInfo
         end
 
 
-
-
         return new(
             R, Nx, Ny,
             α, cosα, sinα,
