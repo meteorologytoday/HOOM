@@ -28,32 +28,41 @@ function calParallizationRange(;
     n̄ = floor(Integer, N / P)
     R = N - n̄ * P
 
-    push_to_rng = Array{UnitRange}(undef, P)
-    pull_fr_rng = Array{UnitRange}(undef, P)
+
+    pull_fr_rngs = Array{UnitRange}(undef, P)
+    push_fr_rngs = Array{UnitRange}(undef, P)
+    push_to_rngs = Array{UnitRange}(undef, P)
 
     cnt = 1
     for p = 1:P
-        m = (p <= r) ? n̄ + 1 : n̄  # assigned grids
-        push_to_rng[p] = cnt:(cnt+m-1)
-        pull_fr_rng[p] = (cnt-L):(cnt+m-1+L)
+        m = (p <= R) ? n̄ + 1 : n̄  # assigned grids
+
+        push_to_rngs[p] = cnt:(cnt+m-1)
+        pull_fr_rngs[p] = (cnt-L):(cnt+m-1+L)
+        push_fr_rngs[p] = (L+1):(L+m)
+
         cnt += m
     end
 
     # Adjust the first and last range (south pole and north pole)
-    pull_fr_rng[1]   = (pull_fr_rng[1][1]+L):pull_fr_rng[1][end]
-    pull_fr_rng[end] = pull_fr_rng[end][1]:(pull_fr_rng[end][end]-L)
+    pull_fr_rngs[1]   = (pull_fr_rngs[1][1]+L):pull_fr_rngs[1][end]
+    pull_fr_rngs[end] = pull_fr_rngs[end][1]:(pull_fr_rngs[end][end]-L)
+    push_fr_rngs[1]   = 1:length(push_to_rngs[1])
 
-    return push_to_rng, pull_fr_rng
+    return pull_fr_rngs, push_fr_rngs, push_to_rngs
 
 end
 
 
-function makeSubOcean(
+function makeSubOcean(;
     master_ocn   :: Ocean,
     block_id     :: Integer,
-    nblocks      :: Integer,
+    pull_fr_rng  :: UnitRange,
+    push_fr_rng  :: UnitRange,
+    push_to_rng  :: UnitRange,
+#    nblocks      :: Integer,
 )
-
+#=
     overlap_grids = 2
 
     println(format("{:03d} Entering makeSubOcean.", block_id))
@@ -99,15 +108,18 @@ function makeSubOcean(
         # It is not affected.
     end
 
+=#
 
-    pull_fr_rng2 = [Colon(),          pull_fr_beg_y:pull_fr_end_y]
-    pull_fr_rng3 = [Colon(), Colon(), pull_fr_beg_y:pull_fr_end_y]
+    sub_Ny = length(pull_fr_rng)
 
-    push_to_rng2 = [Colon(),          push_to_beg_y:push_to_end_y]
-    push_to_rng3 = [Colon(), Colon(), push_to_beg_y:push_to_end_y]
+    pull_fr_rng2 = [Colon(),          pull_fr_rng]
+    pull_fr_rng3 = [Colon(), Colon(), pull_fr_rng]
 
-    push_fr_rng2 = [Colon(),          push_fr_beg_y:push_fr_end_y]
-    push_fr_rng3 = [Colon(), Colon(), push_fr_beg_y:push_fr_end_y]
+    push_to_rng2 = [Colon(),          push_to_rng]
+    push_to_rng3 = [Colon(), Colon(), push_to_rng]
+
+    push_fr_rng2 = [Colon(),          push_fr_rng]
+    push_fr_rng3 = [Colon(), Colon(), push_fr_rng]
 
 
     println("pull_fr_rng2: ", pull_fr_rng2)
@@ -121,7 +133,7 @@ function makeSubOcean(
     println("push_fr_rng3: ", push_fr_rng3)
     =#
 
-
+#=
     if length(pull_fr_rng2[2]) != sub_Ny
         throw(ErrorException("Pull from dimension does not match sub_Ny"))
     end
@@ -129,7 +141,7 @@ function makeSubOcean(
     if length(push_fr_rng2[2]) != length(push_to_rng2[2])
         throw(ErrorException("Push from and push to dimensions do not match."))
     end
-
+=#
 
     return SubOcean(
         SubInputFields(master_ocn.in_flds, pull_fr_rng2...), 
@@ -137,7 +149,7 @@ function makeSubOcean(
         Ocean(
             id             = block_id,
             gridinfo_file  = master_ocn.gi_file,
-            sub_yrng       = pull_fr_beg_y:pull_fr_end_y,
+            sub_yrng       = pull_fr_rng,
             Nx             = master_ocn.Nx,
             Ny             = sub_Ny,
             zs_bone        = master_ocn.zs_bone,
@@ -280,21 +292,32 @@ function init(ocn::Ocean)
 
     (ocn.id == 0) || throw(ErrorException("`id` is not 0 (master). Id received: " * string(ocn.id)))
 
+
+    # Assign `nothing` to prevent from sending large array of `View` objects.
     tmp_cols = ocn.cols
     tmp_lays = ocn.lays
 
     ocn.cols = nothing
     ocn.lays = nothing
 
+    pull_fr_rngs, push_fr_rngs, push_to_rngs = calParallizationRange(N=ocn.Ny, P=nwkrs, L=4)
+
     @sync for (i, p) in enumerate(wkrs)
             # We have P processors, N workers, N blocks
             # Block ids are numbered from 1 to N
             @spawnat p let
-                global subocn = makeSubOcean(ocn, i, nwkrs)
+                global subocn = makeSubOcean(
+                    master_ocn  = ocn,
+                    block_id    = i,
+                    pull_fr_rng = pull_fr_rngs[i],
+                    push_fr_rng = push_fr_rngs[i],
+                    push_to_rng = push_to_rngs[i],
+                )
             end
 
     end
 
+    # Restore `View` objects
     ocn.cols = ocn.cols
     ocn.lays = ocn.lays
 
