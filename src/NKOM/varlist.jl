@@ -11,7 +11,7 @@ function getCompleteVariableList(ocn::Ocean)
             "Q_clim"  => ( ocn.Q_clim,               ("Nx", "Ny") ),
             "wT"      => ( ocn.wT,                   ("Nx", "Ny") ),
             "wS"      => ( ocn.wT,                   ("Nx", "Ny") ),
-            "neb"     => ( ocn.neb,                  ("Nx", "Ny") ),
+            "TFLUX_DIV_implied"     => ( ocn.TFLUX_DIV_implied,                  ("Nx", "Ny") ),
             "qflx2atm"=> ( ocn.qflx2atm,             ("Nx", "Ny") ),
             "h_ML"    => ( ocn.h_ML,                 ("Nx", "Ny") ),
             "h_MO"    => ( ocn.h_MO,                 ("Nx", "Ny") ),

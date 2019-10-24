@@ -14,6 +14,40 @@ mutable struct SubOcean
 
 end
 
+
+function calParallizationRange(;
+    N = Integer,     # Total grids
+    P = Integer,     # Number of procs
+    L = Integer,     # Overlapping grids
+)
+
+    if ! (N >= max(1, L) * P)
+        throw(ErrorException("Condition must be satisfied: N >= max(1, L) * P"))
+    end
+
+    n̄ = floor(Integer, N / P)
+    R = N - n̄ * P
+
+    push_to_rng = Array{UnitRange}(undef, P)
+    pull_fr_rng = Array{UnitRange}(undef, P)
+
+    cnt = 1
+    for p = 1:P
+        m = (p <= r) ? n̄ + 1 : n̄  # assigned grids
+        push_to_rng[p] = cnt:(cnt+m-1)
+        pull_fr_rng[p] = (cnt-L):(cnt+m-1+L)
+        cnt += m
+    end
+
+    # Adjust the first and last range (south pole and north pole)
+    pull_fr_rng[1]   = (pull_fr_rng[1][1]+L):pull_fr_rng[1][end]
+    pull_fr_rng[end] = pull_fr_rng[end][1]:(pull_fr_rng[end][end]-L)
+
+    return push_to_rng, pull_fr_rng
+
+end
+
+
 function makeSubOcean(
     master_ocn   :: Ocean,
     block_id     :: Integer,
@@ -237,10 +271,6 @@ function syncBoundaryFromMaster!(subocn::SubOcean;
 
 end
 
-
-
-
-
 function init(ocn::Ocean)
 
     global  wkrs  =  workers()
@@ -293,7 +323,7 @@ function run!(
     sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
     sync_bnd_vars3 = (:Ts,   :Ss)
 
-    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :Q_clim, :neb, :H, :dHdt, :SALT, :dSALTdt, :frz_heat, :dTdt_ent, :dSdt_ent, :wT, :wS)
+    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :Q_clim, :TFLUX_DIV_implied, :H, :dHdt, :SALT, :dSALTdt, :frz_heat, :dTdt_ent, :dSdt_ent, :wT, :wS)
     sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :TFLUX_CONV, :SFLUX_CONV, :TFLUX_DEN_z, :SFLUX_DEN_z)
 
 
@@ -319,10 +349,14 @@ function run!(
         @spawnat p let
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
             calQflx2atm!(subocn.worker_ocn; Δt=Δt)
+
             avg_accumulate!(subocn.worker_ocn; count=substeps)
-            calNetEnergyBudget!(subocn.worker_ocn; cfgs...)
+
             calH_dHdt!(subocn.worker_ocn; Δt=Δt)
             calSALT_dSALTdt!(subocn.worker_ocn; Δt=Δt)
+            calNetEnergyBudget!(subocn.worker_ocn; cfgs...)
+
+
             syncToMaster!(
                 subocn;
                 vars2 = sync_to_master_vars2,

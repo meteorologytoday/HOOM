@@ -848,7 +848,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         do n = 1, lsize
           if (imask(n) /= 0) then
-            o2x%rAttr(kt,n) = somtp(n)
+            o2x%rAttr(kt,n) = somtp(n) + TkFrz
             o2x%rAttr(kq,n) = x_q(n)
           end if
         end do

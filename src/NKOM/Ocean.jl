@@ -50,7 +50,7 @@ mutable struct Ocean
     Q_clim   :: AbstractArray{Float64, 2}
     wT       :: AbstractArray{Float64, 2}
     wS       :: AbstractArray{Float64, 2}
-    neb      :: AbstractArray{Float64, 2}
+    TFLUX_DIV_implied      :: AbstractArray{Float64, 2}
 
     bs       :: AbstractArray{Float64, 3}
     Ts       :: AbstractArray{Float64, 3}
@@ -370,7 +370,7 @@ mutable struct Ocean
         _Q_clim   = allocate(datakind, Float64, Nx, Ny)
         _wT       = allocate(datakind, Float64, Nx, Ny)
         _wS       = allocate(datakind, Float64, Nx, Ny)
-        _neb      = allocate(datakind, Float64, Nx, Ny)
+        _TFLUX_DIV_implied      = allocate(datakind, Float64, Nx, Ny)
 
         _bs       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _Ts       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
@@ -774,7 +774,7 @@ mutable struct Ocean
             _mask3, _mask, mask_idx, valid_idx,
             _b_ML, _T_ML, _S_ML, _ΔT, _ΔS, _dΔTdt, _dΔSdt,
             _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
-            _Q_clim, _wT, _wS, _neb,
+            _Q_clim, _wT, _wS, _TFLUX_DIV_implied,
             _bs,   _Ts,   _Ss,
             _FLDO, _FLDO_ratio_top, _FLDO_ratio_bot,
             _qflx2atm, _H, _dHdt, _SALT, _dSALTdt, _frz_heat,

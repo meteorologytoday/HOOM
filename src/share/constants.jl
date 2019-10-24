@@ -1,12 +1,14 @@
-const T_fw_frz = 273.15              # Freeze point of freshwater in Kelvin
-const T_sw_frz = T_fw_frz - 1.8      # Freeze point of seawater in Kelvin
+const T_fw_frz_Kelvin = 273.15
 
-const T_ref = T_fw_frz + 20.0        # Reference temperature of thermal expansion coefficient / salinity coefficient
-const S_ref = 35.0                   # Reference salinity    of thermal expansion coefficient / salinity coefficient  (PSU)
-const c_p = 3996.0   # J / kg / K   copied from models/csm_share/shr/shr_const_mod.F90
+const T_fw_frz =  0.0       # Freeze point of freshwater in Celcius
+const T_sw_frz = -1.8       # Freeze point of seawater in Celcius
+
+const T_ref = 20.0          # Reference temperature of thermal expansion coefficient / salinity coefficient in Celcius
+const S_ref = 35.0          # Reference salinity    of thermal expansion coefficient / salinity coefficient  (PSU)
+const c_p = 3996.0   # J / kg / C   copied from models/csm_share/shr/shr_const_mod.F90
 const ρ   = 1026.0   # kg / m^3     copied from models/csm_share/shr/shr_const_mod.F90
 const g   = 9.80616  # m / s^2      copied from models/csm_share/shr/shr_const_mod.F90
-const α   = 3e-4     # K^-1    http://www.kayelaby.npl.co.uk/general_physics/2_7/2_7_9.html
+const α   = 3e-4     # C^-1    http://www.kayelaby.npl.co.uk/general_physics/2_7/2_7_9.html
 const β   = 1e-3     # Simple estimation
 
 const αgρc = α * g / (ρ * c_p)
