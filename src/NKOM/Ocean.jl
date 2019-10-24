@@ -32,8 +32,13 @@ mutable struct Ocean
     b_ML     :: AbstractArray{Float64, 2}
     T_ML     :: AbstractArray{Float64, 2}
     S_ML     :: AbstractArray{Float64, 2}
+
     ΔT       :: AbstractArray{Float64, 2}
     ΔS       :: AbstractArray{Float64, 2}
+
+    dΔTdt     :: AbstractArray{Float64, 2}
+    dΔSdt     :: AbstractArray{Float64, 2}
+
     h_ML     :: AbstractArray{Float64, 2}
     h_MO     :: AbstractArray{Float64, 2}
     fric_u   :: AbstractArray{Float64, 2}
@@ -44,15 +49,23 @@ mutable struct Ocean
     # unconserved part of energy
     Q_clim   :: AbstractArray{Float64, 2}
     wT       :: AbstractArray{Float64, 2}
+    wS       :: AbstractArray{Float64, 2}
     neb      :: AbstractArray{Float64, 2}
 
     bs       :: AbstractArray{Float64, 3}
     Ts       :: AbstractArray{Float64, 3}
     Ss       :: AbstractArray{Float64, 3}
-    FLDO     :: AbstractArray{Int64,   2}
-    qflx2atm :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
+
+    FLDO           :: AbstractArray{Int64,   2}
+    FLDO_ratio_top :: AbstractArray{Float64,   2}
+    FLDO_ratio_bot :: AbstractArray{Float64,   2}
+
+    qflx2atm       :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
     H        :: AbstractArray{Float64, 2} # Total heat content
     dHdt     :: AbstractArray{Float64, 2} # Total heat content change rate
+    SALT     :: AbstractArray{Float64, 2} # Total salt
+    dSALTdt  :: AbstractArray{Float64, 2} # Total salt change rate
+
 
     frz_heat :: AbstractArray{Float64, 2} # Same as qflx2atm but cut zero if negative
 
@@ -81,15 +94,19 @@ mutable struct Ocean
     CURV_y     :: AbstractArray{Float64, 3}
     CURV_z     :: AbstractArray{Float64, 3}
     
-    FLUX_DEN_x :: AbstractArray{Float64, 3}
-    FLUX_DEN_y :: AbstractArray{Float64, 3}
-    FLUX_DEN_z :: AbstractArray{Float64, 3}
+    TFLUX_DEN_x :: AbstractArray{Float64, 3}
+    TFLUX_DEN_y :: AbstractArray{Float64, 3}
+    TFLUX_DEN_z :: AbstractArray{Float64, 3}
+
+    SFLUX_DEN_x :: AbstractArray{Float64, 3}
+    SFLUX_DEN_y :: AbstractArray{Float64, 3}
+    SFLUX_DEN_z :: AbstractArray{Float64, 3}
 
     div      :: AbstractArray{Float64, 3}
-    T_hadvs  :: AbstractArray{Float64, 3}
-    T_vadvs  :: AbstractArray{Float64, 3}
-    S_hadvs  :: AbstractArray{Float64, 3}
-    S_vadvs  :: AbstractArray{Float64, 3}
+    TFLUX_CONV    :: AbstractArray{Float64, 3}
+    TFLUX_CONV_h  :: AbstractArray{Float64, 3}
+    SFLUX_CONV    :: AbstractArray{Float64, 3}
+    SFLUX_CONV_h  :: AbstractArray{Float64, 3}
 
     ∇∇T      :: AbstractArray{Float64, 3}     
     ∇∇S      :: AbstractArray{Float64, 3}     
@@ -342,6 +359,8 @@ mutable struct Ocean
         _S_ML     = allocate(datakind, Float64, Nx, Ny)
         _ΔT       = allocate(datakind, Float64, Nx, Ny)
         _ΔS       = allocate(datakind, Float64, Nx, Ny)
+        _dΔTdt    = allocate(datakind, Float64, Nx, Ny)
+        _dΔSdt    = allocate(datakind, Float64, Nx, Ny)
         _h_ML     = allocate(datakind, Float64, Nx, Ny)
         _h_MO     = allocate(datakind, Float64, Nx, Ny)
         _fric_u   = allocate(datakind, Float64, Nx, Ny)
@@ -350,15 +369,20 @@ mutable struct Ocean
 
         _Q_clim   = allocate(datakind, Float64, Nx, Ny)
         _wT       = allocate(datakind, Float64, Nx, Ny)
+        _wS       = allocate(datakind, Float64, Nx, Ny)
         _neb      = allocate(datakind, Float64, Nx, Ny)
 
         _bs       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _Ts       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _Ss       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _FLDO     = allocate(datakind, Int64, Nx, Ny)
+        _FLDO_ratio_top = allocate(datakind, Float64, Nx, Ny)
+        _FLDO_ratio_bot = allocate(datakind, Float64, Nx, Ny)
         _qflx2atm  = allocate(datakind, Float64, Nx, Ny)
         _H         = allocate(datakind, Float64, Nx, Ny)
         _dHdt      = allocate(datakind, Float64, Nx, Ny)
+        _SALT      = allocate(datakind, Float64, Nx, Ny)
+        _dSALTdt   = allocate(datakind, Float64, Nx, Ny)
         _frz_heat  = allocate(datakind, Float64, Nx, Ny)
 
 
@@ -498,16 +522,21 @@ mutable struct Ocean
         _CURV_y       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _CURV_z       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
 
-        _FLUX_DEN_x   = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
-        _FLUX_DEN_y   = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
-        _FLUX_DEN_z   = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
+        _TFLUX_DEN_x  = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _TFLUX_DEN_y  = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
+        _TFLUX_DEN_z  = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
+
+        _SFLUX_DEN_x  = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _SFLUX_DEN_y  = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
+        _SFLUX_DEN_z  = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
+
 
         _div     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
 
-        _T_hadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _T_vadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _S_hadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _S_vadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _TFLUX_CONV   = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _TFLUX_CONV_h = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _SFLUX_CONV   = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _SFLUX_CONV_h = allocate(datakind, Float64, Nz_bone, Nx, Ny)
 
         _∇∇T     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _∇∇S     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
@@ -665,8 +694,6 @@ mutable struct Ocean
                 u       = Array{SubArray}(undef, Nz_bone),
                 v       = Array{SubArray}(undef, Nz_bone),
                 div     = Array{SubArray}(undef, Nz_bone),
-                T_hadvs = Array{SubArray}(undef, Nz_bone),
-                S_hadvs = Array{SubArray}(undef, Nz_bone),
                 ∇∇T     = Array{SubArray}(undef, Nz_bone),
                 ∇∇S     = Array{SubArray}(undef, Nz_bone),
                 mask3   = Array{SubArray}(undef, Nz_bone),
@@ -681,8 +708,6 @@ mutable struct Ocean
                 lays.u[k]       = view(_u, k, :, :)
                 lays.v[k]       = view(_v, k, :, :)
                 lays.div[k]     = view(_div, k, :, :)
-                lays.T_hadvs[k] = view(_T_hadvs, k, :, :)
-                lays.S_hadvs[k] = view(_S_hadvs, k, :, :)
                 lays.∇∇T[k]     = view(_∇∇T, k, :, :)
                 lays.∇∇S[k]     = view(_∇∇S, k, :, :)
                 lays.mask3[k]   = view(_mask3, k, :, :)
@@ -700,8 +725,6 @@ mutable struct Ocean
                 bs = Array{SubArray}(undef, Nx, Ny),
                 Ts = Array{SubArray}(undef, Nx, Ny),
                 Ss = Array{SubArray}(undef, Nx, Ny),
-                T_vadvs = Array{SubArray}(undef, Nx, Ny),
-                S_vadvs = Array{SubArray}(undef, Nx, Ny),
                 rad_decay_coes  = Array{SubArray}(undef, Nx, Ny),
                 rad_absorp_coes = Array{SubArray}(undef, Nx, Ny),
                 Ts_clim = (Ts_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
@@ -717,8 +740,6 @@ mutable struct Ocean
                 cols.bs[i, j]              = view(_bs, :, i, j)
                 cols.Ts[i, j]              = view(_Ts, :, i, j)
                 cols.Ss[i, j]              = view(_Ss, :, i, j)
-                cols.T_vadvs[i, j]         = view(_T_vadvs, :, i, j)
-                cols.S_vadvs[i, j]         = view(_S_vadvs, :, i, j)
                 cols.rad_decay_coes[i, j]  = view(_rad_decay_coes,  :, i, j)
                 cols.rad_absorp_coes[i, j] = view(_rad_absorp_coes, :, i, j)
             end
@@ -751,21 +772,23 @@ mutable struct Ocean
             K_v, Dh_T, Dv_T, Dh_S, Dv_S,
             _fs, _ϵs,
             _mask3, _mask, mask_idx, valid_idx,
-            _b_ML, _T_ML, _S_ML, _ΔT, _ΔS,
+            _b_ML, _T_ML, _S_ML, _ΔT, _ΔS, _dΔTdt, _dΔSdt,
             _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
-            _Q_clim, _wT, _neb,
+            _Q_clim, _wT, _wS, _neb,
             _bs,   _Ts,   _Ss,
-            _FLDO, _qflx2atm, _H, _dHdt, _frz_heat,
+            _FLDO, _FLDO_ratio_top, _FLDO_ratio_bot,
+            _qflx2atm, _H, _dHdt, _SALT, _dSALTdt, _frz_heat,
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,
             _u, _v, _w,
             _u_bnd, _v_bnd, _w_bnd,
             _GRAD_bnd_x, _GRAD_bnd_y, _GRAD_bnd_z,
             _CURV_x, _CURV_y, _CURV_z,
-            _FLUX_DEN_x, _FLUX_DEN_y, _FLUX_DEN_z,
+            _TFLUX_DEN_x, _TFLUX_DEN_y, _TFLUX_DEN_z,
+            _SFLUX_DEN_x, _SFLUX_DEN_y, _SFLUX_DEN_z,
             _div,
-            _T_hadvs, _T_vadvs,
-            _S_hadvs, _S_vadvs,
+            _TFLUX_CONV, _TFLUX_CONV_h,
+            _SFLUX_CONV, _SFLUX_CONV_h,
             _∇∇T, _∇∇S,
             R, ζ,
             _rad_decay_coes, _rad_absorp_coes,

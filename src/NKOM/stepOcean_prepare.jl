@@ -148,8 +148,7 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
         end
 
     elseif adv_scheme == :test
-        println("HERE")
-        ocn.u .= 0.1
+        ocn.u .= 0.0
         ocn.v .= 0.0
     elseif adv_scheme == :testusin
         @loop_hor ocn i j let

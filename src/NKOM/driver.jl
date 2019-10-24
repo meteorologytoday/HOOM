@@ -293,18 +293,19 @@ function run!(
     sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
     sync_bnd_vars3 = (:Ts,   :Ss)
 
-    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :Q_clim, :neb, :H, :dHdt, :frz_heat, :dTdt_ent, :dSdt_ent, :wT)
-    sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
+    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :Q_clim, :neb, :H, :dHdt, :SALT, :dSALTdt, :frz_heat, :dTdt_ent, :dSdt_ent, :wT, :wS)
+    sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :TFLUX_CONV, :SFLUX_CONV, :TFLUX_DEN_z, :SFLUX_DEN_z)
 
 
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
-    #accumulative_vars3 = (:T_hadvs, :T_vadvs, :S_hadvs, :S_vadvs)
+    #accumulative_vars3 = (:TFLUX_CONV, :T_vflux_ML, :SFLUX_CONV, :S_vflux_ML)
 
     cost_hor = @elapsed for substep = 1:substeps
 #        println("substep: ", substep)
         @sync for (i, p) in enumerate(wkrs)
             @spawnat p let
                 syncBoundaryFromMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
+                calFLDOPartition!(subocn.worker_ocn)
                 stepOcean_Flow!(subocn.worker_ocn; Δt = dt, cfgs...)
                 stepOcean_MLDynamics!(subocn.worker_ocn; Δt = dt, cfgs...)
                 syncBoundaryToMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
@@ -320,7 +321,8 @@ function run!(
             calQflx2atm!(subocn.worker_ocn; Δt=Δt)
             avg_accumulate!(subocn.worker_ocn; count=substeps)
             calNetEnergyBudget!(subocn.worker_ocn; cfgs...)
-            calH_dHdT!(subocn.worker_ocn; Δt=Δt)
+            calH_dHdt!(subocn.worker_ocn; Δt=Δt)
+            calSALT_dSALTdt!(subocn.worker_ocn; Δt=Δt)
             syncToMaster!(
                 subocn;
                 vars2 = sync_to_master_vars2,

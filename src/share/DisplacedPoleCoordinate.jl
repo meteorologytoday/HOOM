@@ -83,11 +83,15 @@ struct GridInfo
     ds3   :: AbstractArray{Float64, 2}
     ds4   :: AbstractArray{Float64, 2}
 
+
     dσ    :: AbstractArray{Float64, 2}
 
     weight_e :: AbstractArray{Float64, 2}    # ( Nx+1 , Ny   )
     weight_n :: AbstractArray{Float64, 2}    # ( Nx   , Ny+1 )
-   
+    DX    :: AbstractArray{Float64, 2}       # ( Nx   , Ny+1 )   The X-side grid size.
+    DY    :: AbstractArray{Float64, 2}       # ( Nx+1 , Ny   )   The Y-side grid size.
+
+  
     function GridInfo(
         R      :: Float64,
         Nx     :: Integer,
@@ -130,6 +134,11 @@ struct GridInfo
         
         weight_e = zeros(Float64, Nx+1, Ny)
         weight_n = zeros(Float64, Nx, Ny+1)
+
+        DX = zeros(Float64, Nx, Ny+1)
+        DY = zeros(Float64, Nx+1, Ny)
+
+
 
         if angle_unit == :deg
 
@@ -251,6 +260,18 @@ struct GridInfo
         end
 
 
+        # Calculate DX
+        for i = 1:Nx, j = 1:Ny
+            DX[i, j] = ds1[i, j]
+        end
+        DX[:, Ny+1] = ds3[:, Ny]
+
+        # Calculate DY
+        for i = 1:Nx, j = 1:Ny
+            DY[i, j] = ds4[i, j]
+        end
+        DY[Nx+1, :] = DY[1, :]
+
         return new(
             R, Nx, Ny,
             α, cosα, sinα,
@@ -259,6 +280,7 @@ struct GridInfo
             ds1, ds2, ds3, ds4,
             dσ,
             weight_e, weight_n,
+            DX, DY,
         )
  
     end

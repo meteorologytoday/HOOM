@@ -2,7 +2,15 @@
 
 
 function calDiffAdv_QUICK!(
-    ocn :: Ocean,
+    ocn :: Ocean;
+    qs          :: AbstractArray{Float64, 3},
+    wq_bnd      :: AbstractArray{Float64, 2},
+    dΔqdt       :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    FLUX_CONV   :: AbstractArray{Float64, 3},
+    FLUX_CONV_h :: AbstractArray{Float64, 3},
+    FLUX_DEN_x  :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx+1, Ny   )
+    FLUX_DEN_y  :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
+    FLUX_DEN_z  :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
 )
 
     calGRAD_CURV!(
@@ -10,7 +18,7 @@ function calDiffAdv_QUICK!(
         Nx         = ocn.Nx,
         Ny         = ocn.Ny,
         Nz         = ocn.Nz,
-        qs         = ocn.Ts,
+        qs         = qs,
         GRAD_bnd_x = ocn.GRAD_bnd_x,
         GRAD_bnd_y = ocn.GRAD_bnd_y,
         GRAD_bnd_z = ocn.GRAD_bnd_z,
@@ -27,17 +35,17 @@ function calDiffAdv_QUICK!(
         Nx         = ocn.Nx,
         Ny         = ocn.Ny,
         Nz         = ocn.Nz,
-        wq_bnd     = ocn.wT,
-        qs         = ocn.Ts,
+        wq_bnd     = wq_bnd,
+        qs         = qs,
         GRAD_bnd_x = ocn.GRAD_bnd_x,
         GRAD_bnd_y = ocn.GRAD_bnd_y,
         GRAD_bnd_z = ocn.GRAD_bnd_z,
         CURV_x     = ocn.CURV_x,
         CURV_y     = ocn.CURV_y,
         CURV_z     = ocn.CURV_z,
-        FLUX_DEN_x = ocn.FLUX_DEN_x,
-        FLUX_DEN_y = ocn.FLUX_DEN_y,
-        FLUX_DEN_z = ocn.FLUX_DEN_z,
+        FLUX_DEN_x = FLUX_DEN_x,
+        FLUX_DEN_y = FLUX_DEN_y,
+        FLUX_DEN_z = FLUX_DEN_z,
         u_bnd      = ocn.u_bnd,
         v_bnd      = ocn.v_bnd,
         w_bnd      = ocn.w_bnd,
@@ -47,39 +55,41 @@ function calDiffAdv_QUICK!(
         D_ver      = ocn.Dv_T,
     )
 
-    #=
-    if any(isnan.(ocn.FLUX_DEN_x))
-        throw(ErrorException("FLUX_DEN_x NaN"))
-    end
-
-    if any(isnan.(ocn.FLUX_DEN_y))
-        throw(ErrorException("FLUX_DEN_y NaN"))
-    end
-
-
-    if any(isnan.(ocn.FLUX_DEN_z))
-        throw(ErrorException("FLUX_DEN_z NaN"))
-    end
-    =#
-
 
     calTotalChange!(
-        total_chg  = ocn.T_hadvs,
-        gi         = ocn.gi,
-        Nx         = ocn.Nx,
-        Ny         = ocn.Ny,
-        Nz         = ocn.Nz,
-        FLUX_DEN_x = ocn.FLUX_DEN_x,
-        FLUX_DEN_y = ocn.FLUX_DEN_y,
-        FLUX_DEN_z = ocn.FLUX_DEN_z,
-        mask3      = ocn.mask3,
-        hs         = ocn.hs,
+        FLUX_CONV   = FLUX_CONV,
+        FLUX_CONV_h = FLUX_CONV_h,
+        gi          = ocn.gi,
+        Nx          = ocn.Nx,
+        Ny          = ocn.Ny,
+        Nz          = ocn.Nz,
+        FLUX_DEN_x  = FLUX_DEN_x,
+        FLUX_DEN_y  = FLUX_DEN_y,
+        FLUX_DEN_z  = FLUX_DEN_z,
+        mask3       = ocn.mask3,
+        hs          = ocn.hs,
     )
+
+    calMixedLayer_dΔqdt!(
+        Nx          = ocn.Nx,
+        Ny          = ocn.Ny,
+        Nz          = ocn.Nz,
+        FLUX_CONV_h = FLUX_CONV_h,
+        FLUX_DEN_z  = FLUX_DEN_z,
+        dΔqdt       = dΔqdt,
+        mask        = ocn.mask,
+        FLDO        = ocn.FLDO,
+        h_ML        = ocn.h_ML,
+        hs          = ocn.hs,
+        zs          = ocn.zs,
+    )
+
 end
 
 
 function calTotalChange!(;
-    total_chg  :: AbstractArray{Float64, 3},     # ( Nz_bone,  , Nx   , Ny   )
+    FLUX_CONV  :: AbstractArray{Float64, 3},     # ( Nz_bone,  , Nx   , Ny   )
+    FLUX_CONV_h:: AbstractArray{Float64, 3},     # ( Nz_bone,  , Nx   , Ny   )
     gi         :: DisplacedPoleCoordinate.GridInfo,
     Nx         :: Integer,
     Ny         :: Integer,
@@ -92,10 +102,10 @@ function calTotalChange!(;
 )
 
 
-    tmp = 0.0
-    tmp_wT = 0.0
-    tmp_v = 0.0
-    tmp_σ = 0.0
+#    tmp = 0.0
+#    tmp_wT = 0.0
+#    tmp_v = 0.0
+#    tmp_σ = 0.0
 
     for i=1:Nx, j=1:Ny
         
@@ -103,28 +113,34 @@ function calTotalChange!(;
             continue
         end
 
-        i_e = (i==Nx) ? 1 : i+1
+        #i_e = (i==Nx) ? 1 : i+1
 
 
-        if FLUX_DEN_z[1, i, j] != 0
-            println("i: ", i, "; j:", j)
-            throw(ErrorException("FLUX_DEN_z != 0.0"))
-        end
+ #       if FLUX_DEN_z[1, i, j] != 0
+ #           println("i: ", i, "; j:", j)
+ #           throw(ErrorException("FLUX_DEN_z != 0.0"))
+ #       end
 
-        tmp_wT += FLUX_DEN_z[Nz[i, j]+1, i, j] * gi.dσ[i, j]
-        tmp_σ += gi.dσ[i, j]
+#        tmp_wT += FLUX_DEN_z[Nz[i, j]+1, i, j] * gi.dσ[i, j]
+#        tmp_σ += gi.dσ[i, j]
 
         for k=1:Nz[i, j]
-            total_chg[k, i, j] = (
+
+            _CONV_h = (
                 - (
-                     FLUX_DEN_x[k, i+1, j] * gi.ds4[i_e, j] - FLUX_DEN_x[k, i, j] * gi.ds4[i, j]
-                   + FLUX_DEN_y[k, i, j+1] * gi.ds1[i, j+1] - FLUX_DEN_y[k, i, j] * gi.ds1[i, j]
+                     FLUX_DEN_x[k, i+1, j] * gi.DY[i+1, j] - FLUX_DEN_x[k, i, j] * gi.DY[i, j]
+                   + FLUX_DEN_y[k, i, j+1] * gi.DX[i, j+1] - FLUX_DEN_y[k, i, j] * gi.DX[i, j]
                 ) / gi.dσ[i, j]
-                - (
+            )
+
+            FLUX_CONV_h[k, i, j] = _CONV_h
+            FLUX_CONV[k, i, j] = ( 
+                _CONV_h - (
                      FLUX_DEN_z[k, i, j] - FLUX_DEN_z[k+1, i, j]
                 ) / hs[k, i, j]
             )
 
+#=
            if i==1 && FLUX_DEN_x[k, 1, j] != FLUX_DEN_x[k, Nx+1, j]
                 println("i: ", i, "; j:", j)
                 throw(ErrorException("FLUX_DEN_x does not match"))
@@ -135,7 +151,7 @@ function calTotalChange!(;
                 throw(ErrorException("FLUX_DEN_y != 0"))
            end
  
-
+=#
 #=
             if i < Nx-1 && gi.ds2[i, j] != gi.ds4[i+1, j]
                 println("i: ", i, "; j:", j)
@@ -149,8 +165,8 @@ function calTotalChange!(;
             end
 =#
 
-            tmp += total_chg[k, i, j] * hs[k, i, j] * gi.dσ[i, j]
-            tmp_v += hs[k, i, j] * gi.dσ[i, j]
+#            tmp += FLUX_CONV[k, i, j] * hs[k, i, j] * gi.dσ[i, j]
+#            tmp_v += hs[k, i, j] * gi.dσ[i, j]
 
 #            if (k, j) == (2, 10)
 #                println(FLUX_DEN_x[k, i, j] * gi.ds4[i_e, j], " ::: ", FLUX_DEN_x[k, i+1, j] * gi.ds4[i, j])
@@ -165,11 +181,76 @@ function calTotalChange!(;
 
     end
 
-#    println("SUM of total_chg weighted by volume: ", tmp, " / ", tmp_v, " = ", tmp/tmp_v)
+#    println("SUM of FLUX_CONV weighted by volume: ", tmp, " / ", tmp_v, " = ", tmp/tmp_v)
 #    println("wT total: ", tmp_wT)
-    println("tmp_wT * ρc = ", tmp_wT * ρc / tmp_σ,"; If consider the affect of wT: ", (tmp - tmp_wT) /tmp_v)
+#    println("tmp_wT * ρc = ", tmp_wT * ρc / tmp_σ,"; If consider the affect of wT: ", (tmp - tmp_wT) /tmp_v)
 end
 
+function calMixedLayerBottomFluxDensity!(;
+    Nx                :: Integer,
+    Ny                :: Integer,
+    FLUX_DEN_z        :: AbstractArray{Float64, 3},     # ( Nz_bone+1,  Nx, Ny )
+    BOTTOM_FLUX_DEN_z :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    mask              :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    FLDO              :: AbstractArray{Int64, 2},       # ( Nx, Ny )
+    FLDO_ratio_top    :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    FLDO_ratio_bot    :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+)
+    for i=1:Nx, j=1:Ny
+
+        if mask[i ,j] == 0.0
+            continue
+        end
+       
+        if FLDO[i, j] == -1
+            BOTTOM_FLUX_DEN_z[i, j] = 0.0
+            continue
+        end
+
+        BOTTOM_FLUX_DEN_z[i, j] = FLDO_ratio_bot[i, j] * FLUX_DEN_z[FLDO, i, j] + FLDO_ratio_top[i, j] * FLUX_DEN_z[FLDO+1, i, j]
+        
+    end
+end
+   
+function calMixedLayer_dΔqdt!(;
+    Nx          :: Integer,
+    Ny          :: Integer,
+    Nz          :: AbstractArray{Int64, 2},
+    FLUX_CONV_h :: AbstractArray{Float64, 3},     # ( Nz_bone  ,  Nx, Ny )
+    FLUX_DEN_z  :: AbstractArray{Float64, 3},     # ( Nz_bone+1,  Nx, Ny )
+    dΔqdt       :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    mask        :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    FLDO        :: AbstractArray{Int64, 2},       # ( Nx, Ny )
+    h_ML        :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    hs          :: AbstractArray{Float64, 3},     # ( Nz_bone  ,  Nx, Ny )
+    zs          :: AbstractArray{Float64, 3},     # ( Nz_bone+1,  Nx, Ny )
+) 
+
+    for i=1:Nx, j=1:Ny
+
+        if mask[i, j] == 0.0
+            continue
+        end
+
+        _FLDO = FLDO[i, j]
+
+        if _FLDO == -1
+            continue
+        end
+
+        tmp = 0.0
+        for k = 1:_FLDO-1
+            tmp += FLUX_CONV_h[k, i, j] * hs[k, i, j]
+        end
+        tmp += ( 
+              FLUX_CONV_h[_FLDO, i, j] * zs[_FLDO, i, j] 
+            + ( FLUX_DEN_z[_FLDO+1, i, j] * zs[_FLDO, i, j] - FLUX_DEN_z[_FLDO, i, j] * zs[_FLDO+1, i, j] ) / hs[_FLDO, i, j]
+        )
+
+        dΔqdt[i, j] = tmp / h_ML[i, j]
+    end
+
+end
 
 function calFluxDensity!(;
     gi         :: DisplacedPoleCoordinate.GridInfo,
@@ -372,10 +453,10 @@ function calVerVelBnd!(;
             end
             
             div[k, i, j] =  (  
-                u_bnd[k, i+1, j  ]  * gi.ds2[i, j]
-              - u_bnd[k, i,   j  ]  * gi.ds4[i, j]
-              + v_bnd[k, i,   j+1]  * gi.ds3[i, j]
-              - v_bnd[k, i,   j  ]  * gi.ds1[i, j]
+                u_bnd[k, i+1, j  ]  * gi.DY[i+1, j  ]
+              - u_bnd[k, i,   j  ]  * gi.DY[i  , j  ]
+              + v_bnd[k, i,   j+1]  * gi.DX[i  , j+1]
+              - v_bnd[k, i,   j  ]  * gi.DX[i  , j  ]
             ) / gi.dσ[i, j]
 
             w_bnd[k+1, i, j] = w_bnd[k, i, j] + div[k, i, j] * hs[k, i, j]

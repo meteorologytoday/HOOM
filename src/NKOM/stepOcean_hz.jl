@@ -13,20 +13,15 @@ function stepOcean_Flow!(
 
     # Determine the temperature / salinity of FLDO layer
     @loop_hor ocn i j let
-        
-#        bs_old = ocn.bs[1:7, i, j]
-#        Ts_old = ocn.Ts[1:7, i, j]
-#        Ss_old = ocn.Ss[1:7, i, j]
-#        T_ML_old = ocn.T_ML[i, j]
 
-        #=
         ocn.ΔT[i, j] = mixFLDO!(
             qs   = ocn.cols.Ts[i, j],
             zs   = ocn.cols.zs[i, j],
             hs   = ocn.cols.hs[i, j],
             q_ML = ocn.T_ML[i, j],
-            h_ML = ocn.h_ML[i, j],
             FLDO = ocn.FLDO[i, j],
+            FLDO_ratio_top = ocn.FLDO_ratio_top[i, j],
+            FLDO_ratio_bot = ocn.FLDO_ratio_bot[i, j],
         )
 
         ocn.ΔS[i, j] = mixFLDO!(
@@ -34,84 +29,43 @@ function stepOcean_Flow!(
             zs   = ocn.cols.zs[i, j],
             hs   = ocn.cols.hs[i, j],
             q_ML = ocn.S_ML[i, j],
-            h_ML = ocn.h_ML[i, j],
             FLDO = ocn.FLDO[i, j],
+            FLDO_ratio_top = ocn.FLDO_ratio_top[i, j],
+            FLDO_ratio_bot = ocn.FLDO_ratio_bot[i, j],
         )
-        =#
- #       ΔT_old = ocn.ΔT[i, j]
- #       ΔS_old = ocn.ΔS[i, j]
- #       Δb_old = g * ( α * ΔT_old - β * ΔS_old )
-
-#        zs   = ocn.cols.zs[i, j]
-#        hs   = ocn.cols.hs[i, j]
-#        h_ML = ocn.h_ML[i, j]
-#        FLDO = ocn.FLDO[i, j]
-#        Nz   = ocn.Nz[i, j]
-
-#            if (i, j) == (7, 18)
-#                println("Intermediate: ", "Ts=", ocn.Ts[1:7, i, j], "; Ss=", ocn.Ss[1:7, i, j])
-#            end
- 
-#=
-        ocn.T_ML[i, j] = unmixFLDOKeepDiff!(;
-            qs   = ocn.cols.Ts[i, j],
-            zs   = zs,
-            hs   = hs,
-            h_ML = h_ML,
-            FLDO = FLDO,
-            Nz   = Nz,
-            Δq   = ocn.ΔT[i, j],
-        )
- 
-        ocn.S_ML[i, j] = unmixFLDOKeepDiff!(;
-            qs   = ocn.cols.Ss[i, j],
-            zs   = zs,
-            hs   = hs,
-            h_ML = h_ML,
-            FLDO = FLDO,
-            Nz   = Nz,
-            Δq   = ocn.ΔS[i, j],
-        )
-      
-        OC_updateB!(ocn, i, j)
-        if FLDO != -1
- 
-            ΔT_new = ocn.T_ML[i, j] - ocn.Ts[FLDO, i, j]
-            ΔS_new = ocn.S_ML[i, j] - ocn.Ss[FLDO, i, j]
-            Δb_new = g * ( α * ΔT_new - β * ΔS_new )
-
-            if Δb_new < -3e-6 || (i, j) == (7, 18)
-                println(format("({:d}, {:d}) ΔT_old={:f}, ΔS_old={:f}, ΔT_new={:f}, ΔS_new={:f}, Δb_old={:f}, Δb_new={:f}. FLDO={:d}, h_ML={:f}, Nz={:d}", i, j, ΔT_old, ΔS_old, ΔT_new, ΔS_new, Δb_old, Δb_new, FLDO, h_ML, Nz))
-                println("bs_old=", bs_old, "; Ts_old=", Ts_old, "; Ss_old=", Ss_old)
-                println("bs_new: ", ocn.bs[1:7, i, j], "; Ts_new=", ocn.Ts[1:7, i, j], "; Ss_new=", ocn.Ss[1:7, i, j])
-                println("hs: ", hs[1:7])
-                println("zs: ", zs[1:9])
-                println("T_ML old: ", T_ML_old)
-            end
-        
-        end
- =#
-        #=
-        if (i, j) == (80, 50)
-            println("#AFTER")
-            println(ocn.cols.Ts[i,j][1:10])
-            println(ocn.T_ML[i,j])
-        end
-        =#
-
-        #OC_doConvectiveAdjustment!(ocn, i, j)
-
 
     end
 
-#    return
     # Pseudo code
     # 1. assign velocity field
     # 2. calculate temperature & salinity flux
     # 3. calculate temperature & salinity flux divergence
     # Gov eqn adv + diff: ∂T/∂t = - 1 / (ρ H1) ( ∇⋅(M1 T1) - (∇⋅M1) Tmid )
   
-    calDiffAdv_QUICK!(ocn)
+    calDiffAdv_QUICK!(
+        ocn,
+        qs          = ocn.Ts,
+        wq_bnd      = ocn.wT,
+        dΔqdt       = ocn.dΔTdt,
+        FLUX_CONV   = ocn.TFLUX_CONV,
+        FLUX_CONV_h = ocn.TFLUX_CONV_h,
+        FLUX_DEN_x  = ocn.TFLUX_DEN_x,
+        FLUX_DEN_y  = ocn.TFLUX_DEN_y,
+        FLUX_DEN_z  = ocn.TFLUX_DEN_z,
+    )
+
+    calDiffAdv_QUICK!(
+        ocn,
+        qs          = ocn.Ss,
+        wq_bnd      = ocn.wS,
+        dΔqdt       = ocn.dΔSdt,
+        FLUX_CONV   = ocn.SFLUX_CONV,
+        FLUX_CONV_h = ocn.SFLUX_CONV_h,
+        FLUX_DEN_x  = ocn.SFLUX_DEN_x,
+        FLUX_DEN_y  = ocn.SFLUX_DEN_y,
+        FLUX_DEN_z  = ocn.SFLUX_DEN_z,
+    )
+
 
     @loop_hor ocn i j let
  
@@ -121,16 +75,23 @@ function stepOcean_Flow!(
         h_ML = ocn.h_ML[i, j]
         FLDO = ocn.FLDO[i, j]
         
-        #ocn.wT[i, j] = ocn.cols.w[i, j][Nz] * ocn.cols.Ts[i, j][Nz]
         for k = 1:ocn.Nz[i, j]
-            if (i, j) == (1, 2)
-                #println(k, ": ", ocn.T_hadvs[k, i, j], "; ", ocn.Ts[k, i, j])
-                #println(k, ": ", ocn.GRAD_bnd_z[k, i, j])
-            end
-            ocn.Ts[k, i, j] += Δt * ( ocn.T_hadvs[k, i, j] )
+            ocn.Ts[k, i, j] += Δt * ocn.TFLUX_CONV[k, i, j]
+            ocn.Ss[k, i, j] += Δt * ocn.SFLUX_CONV[k, i, j]
         end
-        ocn.T_ML[i, j] = ocn.Ts[1, i, j]
-        #=
+
+        # Adjust ΔT, ΔS
+        ocn.ΔT[i, j] += ocn.dΔTdt[i, j] * Δt 
+        ocn.ΔS[i, j] += ocn.dΔSdt[i, j] * Δt 
+
+#=        if (i, j) == (45, 2)
+           println("ocn.TFLUX_CONV_h[1:2, 45, 2]: ", ocn.TFLUX_CONV_h[1:2, i, j])
+           println("ocn.TFLUX_DEN_z[1:3, 45, 2]: ", ocn.TFLUX_DEN_z[1:3, i, j])
+           println("ocn.dΔTdt[45, 2]: ", ocn.dΔTdt[i, j])
+           println("ocn.dΔSdt[45, 2]: ", ocn.dΔSdt[i, j])
+        end
+=#
+
         ocn.T_ML[i, j] = unmixFLDOKeepDiff!(;
             qs   = ocn.cols.Ts[i, j],
             zs   = zs,
@@ -139,9 +100,8 @@ function stepOcean_Flow!(
             FLDO = FLDO,
             Nz   = Nz,
             Δq   = ocn.ΔT[i, j],
-            verbose = (i, j) == (1, 2)
         )
- 
+
         ocn.S_ML[i, j] = unmixFLDOKeepDiff!(;
             qs   = ocn.cols.Ss[i, j],
             zs   = zs,
@@ -151,7 +111,7 @@ function stepOcean_Flow!(
             Nz   = Nz,
             Δq   = ocn.ΔS[i, j],
         )
-        =#
+
         OC_updateB!(ocn, i, j)
 
         if do_convadjust

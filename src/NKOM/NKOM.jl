@@ -47,6 +47,7 @@ end
     @hinclude("doConvectiveAdjustment.jl")
     @hinclude("doDiffusion.jl")
     @hinclude("mixUnmix.jl")
+    @hinclude("calFLDOPartition.jl")
     @hinclude("getIntegratedBuoyancy.jl")
     @hinclude("doNewtonianRelaxation.jl")
     @hinclude("doShortwaveRadiation.jl")
