@@ -4,13 +4,14 @@ mutable struct SubOcean
     worker_ocn        :: Ocean
     block_id          :: Integer
 
-    pull_fr_rng2      :: AbstractArray
-    pull_fr_rng3      :: AbstractArray
-
-    push_fr_rng2      :: AbstractArray
-    push_fr_rng3      :: AbstractArray
-    push_to_rng2      :: AbstractArray
-    push_to_rng3      :: AbstractArray
+    pull_fr_rng      :: UnitRange
+    push_fr_rng      :: UnitRange
+    push_to_rng      :: UnitRange
+    
+    pull_fr_rng_bnd  :: AbstractArray{Union{UnitRange, Nothing}}
+    pull_to_rng_bnd  :: AbstractArray{Union{UnitRange, Nothing}}
+    push_fr_rng_bnd  :: AbstractArray{Union{UnitRange, Nothing}}
+    push_to_rng_bnd  :: AbstractArray{Union{UnitRange, Nothing}}
 
 end
 
@@ -29,27 +30,68 @@ function calParallizationRange(;
     R = N - n̄ * P
 
 
-    pull_fr_rngs = Array{UnitRange}(undef, P)
-    push_fr_rngs = Array{UnitRange}(undef, P)
-    push_to_rngs = Array{UnitRange}(undef, P)
+    pull_fr_rngs = Array{Union{UnitRange, Nothing}}(undef, P)
+    push_fr_rngs = Array{Union{UnitRange, Nothing}}(undef, P)
+    push_to_rngs = Array{Union{UnitRange, Nothing}}(undef, P)
+    
+    # 1: lower latitude side (south), 2: higher latitude side (north)
+    pull_fr_rngs_bnd = Array{Union{UnitRange, Nothing}}(undef, P, 2)
+    pull_to_rngs_bnd = Array{Union{UnitRange, Nothing}}(undef, P, 2)
+    push_fr_rngs_bnd = Array{Union{UnitRange, Nothing}}(undef, P, 2)
+    push_to_rngs_bnd = Array{Union{UnitRange, Nothing}}(undef, P, 2)
+
+
 
     cnt = 1
     for p = 1:P
         m = (p <= R) ? n̄ + 1 : n̄  # assigned grids
 
-        push_to_rngs[p] = cnt:(cnt+m-1)
-        pull_fr_rngs[p] = (cnt-L):(cnt+m-1+L)
-        push_fr_rngs[p] = (L+1):(L+m)
+
+        pull_fr_rngs[p] = cnt-L:cnt+m-1+L
+        push_fr_rngs[p] = L+1:L+m
+        push_to_rngs[p] = cnt:cnt+m-1
+
+
+        # Boundary
+        pull_fr_rngs_bnd[p, 1] = cnt-L:cnt-1
+        pull_fr_rngs_bnd[p, 2] = cnt+m:cnt+m+L-1
+
+        pull_to_rngs_bnd[p, 1] = 1:L
+        pull_to_rngs_bnd[p, 2] = L+m+1:L+m+L
+
+        push_fr_rngs_bnd[p, 1] = L+1:L+L
+        push_fr_rngs_bnd[p, 2] = L+m-L+1:L+m
+
+        push_to_rngs_bnd[p, 1] = cnt:cnt+L-1
+        push_to_rngs_bnd[p, 2] = cnt+m-L:cnt+m-1
 
         cnt += m
     end
 
-    # Adjust the first and last range (south pole and north pole)
-    pull_fr_rngs[1]   = (pull_fr_rngs[1][1]+L):pull_fr_rngs[1][end]
-    pull_fr_rngs[end] = pull_fr_rngs[end][1]:(pull_fr_rngs[end][end]-L)
-    push_fr_rngs[1]   = 1:length(push_to_rngs[1])
+    # South pole and north pole do not have boundaries
+    pull_fr_rngs_bnd[1, 1] = nothing
+    pull_to_rngs_bnd[1, 1] = nothing
+    push_fr_rngs_bnd[1, 1] = nothing
+    push_to_rngs_bnd[1, 1] = nothing
 
-    return pull_fr_rngs, push_fr_rngs, push_to_rngs
+    pull_fr_rngs_bnd[end, 2] = nothing
+    pull_to_rngs_bnd[end, 2] = nothing
+    push_fr_rngs_bnd[end, 2] = nothing
+    push_to_rngs_bnd[end, 2] = nothing
+
+    # Adjust the first and last range (south pole and north pole)
+    pull_fr_rngs[1] = (pull_fr_rngs[1][1]+L):pull_fr_rngs[1][end]
+    pull_fr_rngs[end] = pull_fr_rngs[end][1]:(pull_fr_rngs[end][end]-L)
+    push_fr_rngs[1] = 1:length(push_to_rngs[1])
+
+
+    # Change range because to southmost boundary is trimmed
+    if P > 1
+        pull_to_rngs_bnd[1, 2] = pull_to_rngs_bnd[1, 2] .- L
+        push_fr_rngs_bnd[1, 2] = push_fr_rngs_bnd[1, 2] .- L
+    end
+
+    return pull_fr_rngs, push_fr_rngs, push_to_rngs, pull_fr_rngs_bnd, pull_to_rngs_bnd, push_fr_rngs_bnd, push_to_rngs_bnd
 
 end
 
@@ -60,6 +102,11 @@ function makeSubOcean(;
     pull_fr_rng  :: UnitRange,
     push_fr_rng  :: UnitRange,
     push_to_rng  :: UnitRange,
+    pull_fr_rng_bnd :: AbstractArray{Union{UnitRange, Nothing}},
+    pull_to_rng_bnd :: AbstractArray{Union{UnitRange, Nothing}},
+    push_fr_rng_bnd :: AbstractArray{Union{UnitRange, Nothing}},
+    push_to_rng_bnd :: AbstractArray{Union{UnitRange, Nothing}},
+ 
 #    nblocks      :: Integer,
 )
 #=
@@ -112,19 +159,13 @@ function makeSubOcean(;
 
     sub_Ny = length(pull_fr_rng)
 
-    pull_fr_rng2 = [Colon(),          pull_fr_rng]
-    pull_fr_rng3 = [Colon(), Colon(), pull_fr_rng]
-
-    push_to_rng2 = [Colon(),          push_to_rng]
-    push_to_rng3 = [Colon(), Colon(), push_to_rng]
-
-    push_fr_rng2 = [Colon(),          push_fr_rng]
-    push_fr_rng3 = [Colon(), Colon(), push_fr_rng]
-
-
-    println("pull_fr_rng2: ", pull_fr_rng2)
-    println("push_to_rng2: ", push_to_rng2)
-    println("push_fr_rng2: ", push_fr_rng2)
+    println("pull_fr_rng: ", pull_fr_rng)
+    println("push_to_rng: ", push_to_rng)
+    println("push_fr_rng: ", push_fr_rng)
+    println("pull_fr_rng_bnd: ", pull_fr_rng_bnd)
+    println("pull_to_rng_bnd: ", pull_to_rng_bnd)
+    println("push_fr_rng_bnd: ", push_fr_rng_bnd)
+    println("push_to_rng_bnd: ", push_to_rng_bnd)
 
     #=
     println("### rng3: ")
@@ -144,7 +185,7 @@ function makeSubOcean(;
 =#
 
     return SubOcean(
-        SubInputFields(master_ocn.in_flds, pull_fr_rng2...), 
+        SubInputFields(master_ocn.in_flds, :, pull_fr_rng), 
         master_ocn,
         Ocean(
             id             = block_id,
@@ -153,39 +194,40 @@ function makeSubOcean(;
             Nx             = master_ocn.Nx,
             Ny             = sub_Ny,
             zs_bone        = master_ocn.zs_bone,
-            Ts             = master_ocn.Ts[pull_fr_rng3...],
-            Ss             = master_ocn.Ss[pull_fr_rng3...],
+            Ts             = master_ocn.Ts[:, :, pull_fr_rng],
+            Ss             = master_ocn.Ss[:, :, pull_fr_rng],
             K_v            = master_ocn.K_v,
             Dh_T           = master_ocn.Dh_T,
             Dv_T           = master_ocn.Dv_T,
             Dh_S           = master_ocn.Dh_S,
             Dv_S           = master_ocn.Dv_S,
-            T_ML           = master_ocn.T_ML[pull_fr_rng2...],
-            S_ML           = master_ocn.S_ML[pull_fr_rng2...],
-            h_ML           = master_ocn.h_ML[pull_fr_rng2...],
-            h_ML_min       = master_ocn.h_ML_min[pull_fr_rng2...],
-            h_ML_max       = master_ocn.h_ML_max[pull_fr_rng2...],
+            T_ML           = master_ocn.T_ML[:, pull_fr_rng],
+            S_ML           = master_ocn.S_ML[:, pull_fr_rng],
+            h_ML           = master_ocn.h_ML[:, pull_fr_rng],
+            h_ML_min       = master_ocn.h_ML_min[:, pull_fr_rng],
+            h_ML_max       = master_ocn.h_ML_max[:, pull_fr_rng],
             we_max         = master_ocn.we_max,
             R              = master_ocn.R,
             ζ              = master_ocn.ζ,
             Ts_clim_relax_time = master_ocn.Ts_clim_relax_time,
             Ss_clim_relax_time = master_ocn.Ss_clim_relax_time,
-            Ts_clim        = ( master_ocn.Ts_clim != nothing ) ? master_ocn.Ts_clim[pull_fr_rng3...] : nothing,
-            Ss_clim        = ( master_ocn.Ss_clim != nothing ) ? master_ocn.Ss_clim[pull_fr_rng3...] : nothing,
-            mask           = master_ocn.mask[pull_fr_rng2...],
-            topo           = master_ocn.topo[pull_fr_rng2...],
-            fs             = master_ocn.fs[pull_fr_rng2...],
-            ϵs             = master_ocn.ϵs[pull_fr_rng2...],
+            Ts_clim        = ( master_ocn.Ts_clim != nothing ) ? master_ocn.Ts_clim[:, :, pull_fr_rng] : nothing,
+            Ss_clim        = ( master_ocn.Ss_clim != nothing ) ? master_ocn.Ss_clim[:, :, pull_fr_rng] : nothing,
+            mask           = master_ocn.mask[:, pull_fr_rng],
+            topo           = master_ocn.topo[:, pull_fr_rng],
+            fs             = master_ocn.fs[:, pull_fr_rng],
+            ϵs             = master_ocn.ϵs[:, pull_fr_rng],
             in_flds        = InputFields(:local, master_ocn.Nx, sub_Ny),
             arrange        = :zxy,
         ),
         block_id,
-        pull_fr_rng2,
-        pull_fr_rng3,
-        push_fr_rng2,
-        push_fr_rng3,
-        push_to_rng2,
-        push_to_rng3,
+        pull_fr_rng,
+        push_fr_rng,
+        push_to_rng,
+        pull_fr_rng_bnd,
+        pull_to_rng_bnd,
+        push_fr_rng_bnd,
+        push_to_rng_bnd,
     )
 
 end
@@ -200,23 +242,44 @@ function syncToMaster!(subocn::SubOcean;
     master_ocn = subocn.master_ocn
     worker_ocn = subocn.worker_ocn
    
-    w_rng3 = subocn.push_fr_rng3
-    w_rng2 = subocn.push_fr_rng2
- 
-    m_rng3 = subocn.push_to_rng3
-    m_rng2 = subocn.push_to_rng2
+    w_rng = subocn.push_fr_rng
+    m_rng = subocn.push_to_rng
  
     for var in vars2
-        getfield(master_ocn, var)[m_rng2...] = view(getfield(worker_ocn, var), w_rng2...)
+        getfield(master_ocn, var)[:, m_rng] = view(getfield(worker_ocn, var), :, w_rng)
     end
 
     for var in vars3
-        getfield(master_ocn, var)[m_rng3...] = view(getfield(worker_ocn, var), w_rng3...)
+        getfield(master_ocn, var)[:, :, m_rng] = view(getfield(worker_ocn, var), :, :, w_rng)
     end
 
 end
 
 function syncFromMaster!(
+        subocn::SubOcean;
+        vars2 :: Any,
+        vars3 :: Any,
+)
+
+    (subocn.worker_ocn.id == 0) && throw(ErrorException("`id` should not be 0 (master)."))
+
+    master_ocn = subocn.master_ocn
+    worker_ocn = subocn.worker_ocn
+   
+    m_rng = subocn.pull_fr_rng
+    w_rng = Colon()
+ 
+    for var in vars2
+        getfield(worker_ocn, var)[:, w_rng] = view(getfield(master_ocn, var), :, m_rng)
+    end
+
+    for var in vars3
+        getfield(worker_ocn, var)[:, :, w_rng] = view(getfield(master_ocn, var), :, :, m_rng)
+    end
+
+end
+
+function syncForcingFromMaster!(
     subocn::SubOcean
 )
 
@@ -240,22 +303,23 @@ function syncBoundaryToMaster!(subocn::SubOcean;
     master_ocn = subocn.master_ocn
     worker_ocn = subocn.worker_ocn
   
-    w_rng3 = subocn.push_fr_rng3
-    w_rng2 = subocn.push_fr_rng2
+    w_rng = subocn.push_fr_rng_bnd
+    m_rng = subocn.push_to_rng_bnd
  
-    m_rng3 = subocn.push_to_rng3
-    m_rng2 = subocn.push_to_rng2
- 
-    for var in vars2
-        getfield(master_ocn, var)[:, m_rng2[2][  1]] = view(getfield(worker_ocn, var), :, w_rng2[2][  1])
-        getfield(master_ocn, var)[:, m_rng2[2][end]] = view(getfield(worker_ocn, var), :, w_rng2[2][end])
-    end
 
-    for var in vars3
-        getfield(master_ocn, var)[:, :, m_rng3[3][  1]] = view(getfield(worker_ocn, var), :, :, w_rng3[3][  1])
-        getfield(master_ocn, var)[:, :, m_rng3[3][end]] = view(getfield(worker_ocn, var), :, :, w_rng3[3][end])
-    end
+    for r=1:2
+        if m_rng[r] != nothing
 
+            for var in vars2
+                getfield(master_ocn, var)[:, m_rng[r]]    = view(getfield(worker_ocn, var), :, w_rng[r])
+            end
+
+            for var in vars3
+                getfield(master_ocn, var)[:, :, m_rng[r]] = view(getfield(worker_ocn, var), :, :, w_rng[r])
+            end
+
+        end
+    end
 end
 
 function syncBoundaryFromMaster!(subocn::SubOcean;
@@ -268,17 +332,21 @@ function syncBoundaryFromMaster!(subocn::SubOcean;
     master_ocn = subocn.master_ocn
     worker_ocn = subocn.worker_ocn
   
-    m_rng3 = subocn.pull_fr_rng3
-    m_rng2 = subocn.pull_fr_rng2
+    m_rng = subocn.pull_fr_rng_bnd
+    w_rng = subocn.pull_to_rng_bnd
  
-    for var in vars2
-        getfield(worker_ocn, var)[:,   1] = view(getfield(master_ocn, var), :, m_rng2[2][  1])
-        getfield(worker_ocn, var)[:, end] = view(getfield(master_ocn, var), :, m_rng2[2][end])
-    end
+    for r=1:2
+        if m_rng[r] != nothing
 
-    for var in vars3
-        getfield(worker_ocn, var)[:, :,   1] = view(getfield(master_ocn, var), :, :, m_rng3[3][  1])
-        getfield(worker_ocn, var)[:, :, end] = view(getfield(master_ocn, var), :, :, m_rng3[3][end])
+            for var in vars2
+                getfield(worker_ocn, var)[:, w_rng[r]]    = view(getfield(master_ocn, var), :, m_rng[r])
+            end
+
+            for var in vars3
+                getfield(worker_ocn, var)[:, :, w_rng[r]] = view(getfield(master_ocn, var), :, :, m_rng[r])
+            end
+
+        end
     end
 
 end
@@ -300,7 +368,7 @@ function init(ocn::Ocean)
     ocn.cols = nothing
     ocn.lays = nothing
 
-    pull_fr_rngs, push_fr_rngs, push_to_rngs = calParallizationRange(N=ocn.Ny, P=nwkrs, L=4)
+    pull_fr_rngs, push_fr_rngs, push_to_rngs, pull_fr_rngs_bnd, pull_to_rngs_bnd, push_fr_rngs_bnd, push_to_rngs_bnd = calParallizationRange(N=ocn.Ny, P=nwkrs, L=2)
 
     @sync for (i, p) in enumerate(wkrs)
             # We have P processors, N workers, N blocks
@@ -309,9 +377,13 @@ function init(ocn::Ocean)
                 global subocn = makeSubOcean(
                     master_ocn  = ocn,
                     block_id    = i,
-                    pull_fr_rng = pull_fr_rngs[i],
-                    push_fr_rng = push_fr_rngs[i],
-                    push_to_rng = push_to_rngs[i],
+                    pull_fr_rng      = pull_fr_rngs[i],
+                    push_fr_rng      = push_fr_rngs[i],
+                    push_to_rng      = push_to_rngs[i],
+                    pull_fr_rng_bnd  = pull_fr_rngs_bnd[i, :],
+                    pull_to_rng_bnd  = pull_to_rngs_bnd[i, :],
+                    push_fr_rng_bnd  = push_fr_rngs_bnd[i, :],
+                    push_to_rng_bnd  = push_to_rngs_bnd[i, :],
                 )
             end
 
@@ -336,7 +408,7 @@ function run!(
 
     cost_prep = @elapsed @sync for (i, p) in enumerate(wkrs)
         @spawnat p let
-            syncFromMaster!(subocn)
+            syncForcingFromMaster!(subocn)
             cleanQflx2atm!(subocn.worker_ocn)
             stepOcean_prepare!(subocn.worker_ocn; cfgs...)
         end
@@ -346,22 +418,24 @@ function run!(
     sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
     sync_bnd_vars3 = (:Ts,   :Ss)
 
-    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :Q_clim, :TFLUX_DIV_implied, :H, :dHdt, :SALT, :dSALTdt, :frz_heat, :dTdt_ent, :dSdt_ent, :wT, :wS)
-    sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :TFLUX_CONV, :SFLUX_CONV, :TFLUX_DEN_z, :SFLUX_DEN_z)
+    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :TSAS_clim, :SSAS_clim, :TFLUX_DIV_implied, :SFLUX_DIV_implied, :TEMP, :dTEMPdt, :SALT, :dSALTdt, :dTdt_ent, :dSdt_ent, :wT, :wS)
+    sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :TFLUX_CONV, :SFLUX_CONV, :TFLUX_DEN_z, :SFLUX_DEN_z, :div)
 
 
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
     #accumulative_vars3 = (:TFLUX_CONV, :T_vflux_ML, :SFLUX_CONV, :S_vflux_ML)
 
     cost_hor = @elapsed for substep = 1:substeps
-#        println("substep: ", substep)
+        #println("substep: ", substep)
         @sync for (i, p) in enumerate(wkrs)
             @spawnat p let
                 syncBoundaryFromMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
+                #syncFromMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
                 calFLDOPartition!(subocn.worker_ocn)
                 stepOcean_Flow!(subocn.worker_ocn; Δt = dt, cfgs...)
                 stepOcean_MLDynamics!(subocn.worker_ocn; Δt = dt, cfgs...)
                 syncBoundaryToMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
+                #syncToMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
                 accumulate!(subocn.worker_ocn)
             end
         end
@@ -375,9 +449,10 @@ function run!(
 
             avg_accumulate!(subocn.worker_ocn; count=substeps)
 
-            calH_dHdt!(subocn.worker_ocn; Δt=Δt)
+            calTEMP_dTEMPdt!(subocn.worker_ocn; Δt=Δt)
             calSALT_dSALTdt!(subocn.worker_ocn; Δt=Δt)
-            calNetEnergyBudget!(subocn.worker_ocn; cfgs...)
+            calNetTEMPBudget!(subocn.worker_ocn; cfgs...)
+            calNetSALTBudget!(subocn.worker_ocn; cfgs...)
 
 
             syncToMaster!(

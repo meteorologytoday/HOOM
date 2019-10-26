@@ -95,6 +95,11 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
                 Nz = ocn.Nz[i, j],
             )
 
+#            if i == 1
+#                println(format("[{:03d}] H_ek={:f}, bot_layer_ek={:d}, bot_layer_rf={:d}", j, H_ek, bot_lay_ek, bot_lay_rf))
+#                println("zs: ", ocn.cols.zs[i, j][1:10])
+#            end
+
             if bot_lay_ek == -1
             
                 ocn.u[:, i, j] .= u_ek
@@ -134,7 +139,6 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
                 end
 
             end
-
 #=
             if (i, j) == (67, 57)
                 println("M̃ = ", M̃)
@@ -153,12 +157,13 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
     elseif adv_scheme == :testusin
         @loop_hor ocn i j let
             for k = 1:ocn.Nz[i, j]
-                ocn.u[k, i, j] = .1 * exp(ocn.zs[k, i, j]/50.0) * sin(ocn.mi.xc[i, j] * π/180.0)
+                ocn.u[k, i, j] = .1 * exp(ocn.zs[k, i, j]/50.0) * sin(ocn.gi.c_lon[i, j])
+                ocn.v[k, i, j] = .1 * exp(ocn.zs[k, i, j]/50.0) * cos(ocn.gi.c_lat[i, j])
             end
         end
 
-        ocn.u .= 0.0
-        ocn.v[1, :, :] .= 0.1
+        #ocn.u .= 0.0
+        #ocn.v[1, :, :] .= 0.1
 
 #    else
 #        throw(ErrorException("Unknown advection scheme: " * string(adv_scheme)))

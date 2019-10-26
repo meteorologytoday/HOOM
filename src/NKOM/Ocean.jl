@@ -4,7 +4,7 @@ mutable struct Ocean
     
     gi       :: Union{DisplacedPoleCoordinate.GridInfo, Nothing}
     gi_file  :: Union{AbstractString, Nothing}
-    mi       :: Union{ModelMap.MapInfo, Nothing}
+#    mi       :: Union{ModelMap.MapInfo, Nothing}
 
     Nx       :: Integer           # Number of columns in i direction
     Ny       :: Integer           # Number of columns in j direction
@@ -47,10 +47,12 @@ mutable struct Ocean
 
     # To calculate ocean heat transport, we need the
     # unconserved part of energy
-    Q_clim   :: AbstractArray{Float64, 2}
+    TSAS_clim   :: AbstractArray{Float64, 2}
+    SSAS_clim   :: AbstractArray{Float64, 2}
     wT       :: AbstractArray{Float64, 2}
     wS       :: AbstractArray{Float64, 2}
     TFLUX_DIV_implied      :: AbstractArray{Float64, 2}
+    SFLUX_DIV_implied      :: AbstractArray{Float64, 2}
 
     bs       :: AbstractArray{Float64, 3}
     Ts       :: AbstractArray{Float64, 3}
@@ -61,13 +63,10 @@ mutable struct Ocean
     FLDO_ratio_bot :: AbstractArray{Float64,   2}
 
     qflx2atm       :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
-    H        :: AbstractArray{Float64, 2} # Total heat content
-    dHdt     :: AbstractArray{Float64, 2} # Total heat content change rate
+    TEMP        :: AbstractArray{Float64, 2} # Total heat content
+    dTEMPdt     :: AbstractArray{Float64, 2} # Total heat content change rate
     SALT     :: AbstractArray{Float64, 2} # Total salt
     dSALTdt  :: AbstractArray{Float64, 2} # Total salt change rate
-
-
-    frz_heat :: AbstractArray{Float64, 2} # Same as qflx2atm but cut zero if negative
 
     h_ML_min :: AbstractArray{Float64, 2}
     h_ML_max :: AbstractArray{Float64, 2}
@@ -156,7 +155,7 @@ mutable struct Ocean
     function Ocean(;
         id       :: Integer = 0,  
         gridinfo_file :: AbstractString,
-        sub_yrng      :: Union{UnitRange, Nothing} = nothing,
+        sub_yrng :: Union{UnitRange, Nothing} = nothing,
         Nx       :: Integer,
         Ny       :: Integer,
         zs_bone  :: AbstractArray{Float64, 1},
@@ -367,10 +366,12 @@ mutable struct Ocean
         _dTdt_ent    = allocate(datakind, Float64, Nx, Ny)
         _dSdt_ent    = allocate(datakind, Float64, Nx, Ny)
 
-        _Q_clim   = allocate(datakind, Float64, Nx, Ny)
+        _TSAS_clim   = allocate(datakind, Float64, Nx, Ny)
+        _SSAS_clim   = allocate(datakind, Float64, Nx, Ny)
         _wT       = allocate(datakind, Float64, Nx, Ny)
         _wS       = allocate(datakind, Float64, Nx, Ny)
         _TFLUX_DIV_implied      = allocate(datakind, Float64, Nx, Ny)
+        _SFLUX_DIV_implied      = allocate(datakind, Float64, Nx, Ny)
 
         _bs       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _Ts       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
@@ -379,12 +380,10 @@ mutable struct Ocean
         _FLDO_ratio_top = allocate(datakind, Float64, Nx, Ny)
         _FLDO_ratio_bot = allocate(datakind, Float64, Nx, Ny)
         _qflx2atm  = allocate(datakind, Float64, Nx, Ny)
-        _H         = allocate(datakind, Float64, Nx, Ny)
-        _dHdt      = allocate(datakind, Float64, Nx, Ny)
+        _TEMP         = allocate(datakind, Float64, Nx, Ny)
+        _dTEMPdt      = allocate(datakind, Float64, Nx, Ny)
         _SALT      = allocate(datakind, Float64, Nx, Ny)
         _dSALTdt   = allocate(datakind, Float64, Nx, Ny)
-        _frz_heat  = allocate(datakind, Float64, Nx, Ny)
-
 
         if typeof(h_ML) <: AbstractArray{Float64, 2}
             _h_ML[:, :] = h_ML
@@ -468,14 +467,37 @@ mutable struct Ocean
         gridinfo = nothing
         mi = ModelMap.MapInfo{Float64}(gridinfo_file)
 
-        if id != 0
+        if id == 0
+
+            gridinfo = DisplacedPoleCoordinate.GridInfo(
+                Re,
+                mi.nx,
+                mi.ny,
+                mi.xc,
+                mi.yc,
+                mi.xv,
+                mi.yv;
+                angle_unit=:deg,
+            )
+
+        else
             if sub_yrng == nothing
                 thorw(ErrorException("Init worker ocean,  sub_yrng must be provided."))
             end
 
 
 
-            gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, length(sub_yrng), mi.xc[:, sub_yrng], mi.yc[:, sub_yrng], mi.xv[:, :, sub_yrng], mi.yv[:, :, sub_yrng]; angle_unit=:deg)
+            gridinfo = DisplacedPoleCoordinate.GridInfo(
+                Re,
+                mi.nx,
+                mi.ny,
+                mi.xc,
+                mi.yc,
+                mi.xv,
+                mi.yv;
+                angle_unit=:deg,
+                sub_yrng=sub_yrng,
+            )
            
         end
 
@@ -491,7 +513,7 @@ mutable struct Ocean
         elseif typeof(fs) <: Float64 
             _fs .= fs
         elseif fs == nothing
-           _fs[:, :] = 2 * Ωe * sin.(mi.yc * π / 180.0)
+           _fs[:, :] = 2 * Ωe * sin.(gridinfo.c_lat)
         end
 
         if typeof(ϵs) <: AbstractArray{Float64, 2}
@@ -766,7 +788,7 @@ mutable struct Ocean
             id,
             gridinfo,
             gridinfo_file,
-            mi,
+            #mi,
             Nx, Ny, Nz_bone,
             zs_bone, _topo, zs, Nz,
             K_v, Dh_T, Dv_T, Dh_S, Dv_S,
@@ -774,10 +796,12 @@ mutable struct Ocean
             _mask3, _mask, mask_idx, valid_idx,
             _b_ML, _T_ML, _S_ML, _ΔT, _ΔS, _dΔTdt, _dΔSdt,
             _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
-            _Q_clim, _wT, _wS, _TFLUX_DIV_implied,
+            _TSAS_clim, _SSAS_clim,
+            _wT, _wS,
+            _TFLUX_DIV_implied, _SFLUX_DIV_implied,
             _bs,   _Ts,   _Ss,
             _FLDO, _FLDO_ratio_top, _FLDO_ratio_bot,
-            _qflx2atm, _H, _dHdt, _SALT, _dSALTdt, _frz_heat,
+            _qflx2atm, _TEMP, _dTEMPdt, _SALT, _dSALTdt,
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,
             _u, _v, _w,
@@ -810,7 +834,7 @@ mutable struct Ocean
             end
         end
 
-        calH!(ocn)
+        calTEMP!(ocn)
 
         return ocn
     end

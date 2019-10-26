@@ -11,6 +11,8 @@ function calDiffAdv_QUICK!(
     FLUX_DEN_x  :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx+1, Ny   )
     FLUX_DEN_y  :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
     FLUX_DEN_z  :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
+    Dh          :: Float64,
+    Dv          :: Float64,
 )
 
     calGRAD_CURV!(
@@ -51,8 +53,8 @@ function calDiffAdv_QUICK!(
         w_bnd      = ocn.w_bnd,
         mask3      = ocn.mask3,
         Δzs        = ocn.Δzs,
-        D_hor      = ocn.Dh_T,
-        D_ver      = ocn.Dv_T,
+        D_hor      = Dh,
+        D_ver      = Dv,
     )
 
 
@@ -121,8 +123,8 @@ function calTotalChange!(;
  #           throw(ErrorException("FLUX_DEN_z != 0.0"))
  #       end
 
-#        tmp_wT += FLUX_DEN_z[Nz[i, j]+1, i, j] * gi.dσ[i, j]
-#        tmp_σ += gi.dσ[i, j]
+ #       tmp_wT += FLUX_DEN_z[Nz[i, j]+1, i, j] * gi.dσ[i, j]
+ #       tmp_σ += gi.dσ[i, j]
 
         for k=1:Nz[i, j]
 
@@ -303,7 +305,7 @@ function calFluxDensity!(;
 
 
     # y
-    for i=1:Nx, j=2:Ny-1
+    for i=1:Nx, j=2:Ny
         for k=1:Nz[i, j]
             if mask3[k, i, j] == 0.0 || mask3[k, i, j-1] == 0.0
                 FLUX_DEN_y[k, i, j] = 0.0
@@ -326,13 +328,16 @@ function calFluxDensity!(;
 
         _Nz = Nz[i, j]
 
+        #local q_star
         for k=2:_Nz
             q_star = (qs[k, i, j] + qs[k-1, i, j]) / 2.0 - Δzs[k-1, i, j]^2.0/8.0 * ( ( w_bnd[k, i, j] >= 0.0 ) ? CURV_z[k, i, j] : CURV_z[k-1, i, j] )
             FLUX_DEN_z[k, i, j] = w_bnd[k, i, j] * q_star - D_ver * GRAD_bnd_z[k, i, j]
- 
         end
 
         FLUX_DEN_z[_Nz+1, i, j] = wq_bnd[i, j] = FLUX_DEN_z[_Nz, i, j]
+
+        #println("(i, j) = ", (i, j), "; q_star = ", q_star, "; w_bnd = ", w_bnd[_Nz+1, i, j])
+
     end
 
 end
@@ -377,7 +382,7 @@ function calGRAD_CURV!(;
     end
 
     # y
-    for i=1:Nx, j=2:Ny-1
+    for i=1:Nx, j=2:Ny
         for k=1:Nz[i, j]
             GRAD_bnd_y[k, i, j] = (
                 ( mask3[k, i, j] == 0.0 || mask3[k, i, j-1] == 0.0 )
@@ -442,6 +447,7 @@ function calVerVelBnd!(;
     mask3    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
 )
 
+#    local tmp = tmp_σ = 0.0
     for i=1:Nx, j=1:Ny
 
         w_bnd[1, i, j] = 0.0
@@ -461,8 +467,13 @@ function calVerVelBnd!(;
 
             w_bnd[k+1, i, j] = w_bnd[k, i, j] + div[k, i, j] * hs[k, i, j]
         end
+
+#        tmp   += w_bnd[Nz[i, j]+1, i, j] * gi.dσ[i, j]
+#        tmp_σ += gi.dσ[i, j]
     end
- 
+
+#    println("tmp: ", tmp, "; tmp_σ: ", tmp_σ, "; Average w: ", tmp/tmp_σ)
+
 end
 
 
@@ -503,7 +514,7 @@ function calHorVelBnd!(;
     end
 
     # y
-    for i=1:Nx, j=2:Ny-1
+    for i=1:Nx, j=2:Ny
         for k=1:Nz[i, j]
             if mask3[k, i, j-1] == 0.0 || mask3[k, i, j] == 0.0
                 v_bnd[k, i, j] = 0.0

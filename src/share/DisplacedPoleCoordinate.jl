@@ -68,6 +68,9 @@ struct GridInfo
     Nx    :: Integer
     Ny    :: Integer
 
+    c_lon :: AbstractArray{Float64, 2}
+    c_lat :: AbstractArray{Float64, 2}
+
     α     :: AbstractArray{Float64, 2}
     cosα  :: AbstractArray{Float64, 2}
     sinα  :: AbstractArray{Float64, 2}
@@ -101,6 +104,7 @@ struct GridInfo
         vs_lon :: AbstractArray{Float64, 3},  # vertices longitude (4, Nx, Ny)
         vs_lat :: AbstractArray{Float64, 3};  # vertices latitude  (4, Nx, Ny)
         angle_unit :: Symbol = :deg,
+        sub_yrng :: Union{Colon, UnitRange} = Colon(),
     )
    
         α    = zeros(Float64, Nx, Ny)
@@ -255,7 +259,7 @@ struct GridInfo
 
         # Ignore the northest and the southest because information
         # is unknown
-        for i = 1:Nx, j = 2:Ny-1
+        for i = 1:Nx, j = 2:Ny
             weight_n[i, j] = dy_s[i, j-1] / ( dy_c[i, j-1] + dy_c[i, j] )
         end
 
@@ -272,15 +276,37 @@ struct GridInfo
         end
         DY[Nx+1, :] = DY[1, :]
 
+        if sub_yrng == Colon()
+            sub_yrng = 1:Ny
+        end
+
+        new_Ny = length(sub_yrng)
+        sub_yrng_ext = sub_yrng[1]:sub_yrng[end]+1
+        
         return new(
-            R, Nx, Ny,
-            α, cosα, sinα,
-            dx_w, dx_c, dx_e,
-            dy_s, dy_c, dy_n,
-            ds1, ds2, ds3, ds4,
-            dσ,
-            weight_e, weight_n,
-            DX, DY,
+            R,
+            Nx,
+            new_Ny,
+            c_lon_rad[:, sub_yrng],
+            c_lat_rad[:, sub_yrng],
+            α[:, sub_yrng],
+            cosα[:, sub_yrng],
+            sinα[:, sub_yrng],
+            dx_w[:, sub_yrng],
+            dx_c[:, sub_yrng],
+            dx_e[:, sub_yrng],
+            dy_s[:, sub_yrng],
+            dy_c[:, sub_yrng],
+            dy_n[:, sub_yrng],
+            ds1[:, sub_yrng],
+            ds2[:, sub_yrng],
+            ds3[:, sub_yrng],
+            ds4[:, sub_yrng],
+            dσ[:, sub_yrng],
+            weight_e[:, sub_yrng],
+            weight_n[:, sub_yrng_ext],
+            DX[:, sub_yrng_ext],
+            DY[:, sub_yrng],
         )
  
     end
