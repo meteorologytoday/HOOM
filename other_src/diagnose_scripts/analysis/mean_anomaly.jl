@@ -45,11 +45,9 @@ function parse_commandline()
             arg_type = String
             required = true
 
-              
         "--detrend"
             help = "Whether to detrend the data or not."
             action = :store_true 
-
 
      
     end

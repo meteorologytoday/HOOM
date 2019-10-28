@@ -21,10 +21,11 @@ mutable struct Ocean
     fs       :: AbstractArray{Float64, 2}
     ϵs       :: AbstractArray{Float64, 2}
 
-    mask3    :: AbstractArray{Float64, 3}
-    mask     :: AbstractArray{Float64, 2}
-    mask_idx  :: Any
-    valid_idx :: AbstractArray{Int64, 2}
+    mask3      :: AbstractArray{Float64, 3}
+    mask       :: AbstractArray{Float64, 2}
+    mask_idx   :: Any
+    valid_idx  :: AbstractArray{Int64, 2}
+    coast_mask :: AbstractArray{Float64, 3}
 
     b_ML     :: AbstractArray{Float64, 2}
     T_ML     :: AbstractArray{Float64, 2}
@@ -409,9 +410,7 @@ mutable struct Ocean
             if sub_yrng == nothing
                 thorw(ErrorException("Init worker ocean,  sub_yrng must be provided."))
             end
-
-
-
+            
             gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, length(sub_yrng), mi.xc[:, sub_yrng], mi.yc[:, sub_yrng], mi.xv[:, :, sub_yrng], mi.yv[:, :, sub_yrng]; angle_unit=:deg)
            
         end
@@ -537,6 +536,20 @@ mutable struct Ocean
 
 
         # ===== [END] Mask out data
+
+        # ===== [BEGIN] Construct coastal mask =====
+
+        _coast_mask = allocate(:local, Float64, Nz_bone, Nx, Ny)
+        
+        # Clean up all variables
+        for i=1:Nx, j=1:Ny
+            _mask3[Nz[i, j] + 1:end, i, j] .= 0.0
+        end
+
+
+
+        # ===== [END] Construct coastal mask =====
+
 
         # ===== [BEGIN] check integrity =====
 

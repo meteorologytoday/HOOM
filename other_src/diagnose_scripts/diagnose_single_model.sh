@@ -97,6 +97,7 @@ export atm_analysis4a=$diag_dir/atm_analysis4a_precip.nc
 export atm_analysis5=$diag_dir/atm_analysis5_AO.nc
 export atm_analysis6=$diag_dir/atm_analysis6_icefrac.nc
 export atm_analysis6a=$diag_dir/atm_analysis6a_icefrac.nc
+export atm_analysis7=$diag_dir/atm_analysis7.nc
 
 
 
@@ -105,6 +106,23 @@ export ocn_analysis1_rg=$diag_dir/ocn_anomalies1_rg.nc
 export ocn_analysis2_rg=$diag_dir/ocn_analysis2_rg_PDO.nc
 export ocn_analysis3_rg=$diag_dir/ocn_analysis3_rg_MLD.nc
 export ocn_analysis3a_rg=$diag_dir/ocn_analysis3a_rg_MLD.nc
+export ocn_analysis4_rg=$diag_dir/ocn_analysis4_rg_dTdt_ent.nc
+export ocn_analysis4a_rg=$diag_dir/ocn_analysis4a_rg_dTdt_ent.nc
+export ocn_analysis5_rg=$diag_dir/ocn_analysis5_rg_T_hadvs.nc
+export ocn_analysis5a_rg=$diag_dir/ocn_analysis5a_rg_T_hadvs.nc
+export ocn_analysis6_rg=$diag_dir/ocn_analysis6_rg_T_vadvs.nc
+export ocn_analysis6a_rg=$diag_dir/ocn_analysis6a_rg_T_vadvs.nc
+export ocn_analysis7_rg=$diag_dir/ocn_analysis7_rg_swflx.nc
+export ocn_analysis7a_rg=$diag_dir/ocn_analysis7a_rg_swflx.nc
+export ocn_analysis8_rg=$diag_dir/ocn_analysis8_rg_nswflx.nc
+export ocn_analysis8a_rg=$diag_dir/ocn_analysis8a_rg_nswflx.nc
+export ocn_analysis9_rg=$diag_dir/ocn_analysis9_rg_oiet.nc
+export ocn_analysis9a_rg=$diag_dir/ocn_analysis9a_rg_oiet.nc
+export ocn_analysis9b_rg=$diag_dir/ocn_analysis9b_rg_oiet_avg.nc
+export ocn_analysis10_rg=$diag_dir/ocn_analysis10_rg.nc
+export ocn_analysis10a_rg=$diag_dir/ocn_analysis10a_rg.nc
+
+
 export ocn_mstat_rg=$diag_dir/ocn_mstat_rg.nc
 
 
@@ -150,24 +168,29 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
     echo "Diagnose atm..."
 
     # Need to specify --beg-year --end-year
-    julia $script_analysis_dir/atm_anomalies.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
+#    julia $script_analysis_dir/atm_anomalies.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
     # Surface temperature (TREFHT) monthly mean and anomaly
-    julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=TREFHT
-    ncwa -O -a months,Nx $atm_analysis2 $atm_analysis2a
+#    julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=TREFHT
+#    ncwa -h -O -a months,Nx $atm_analysis2 $atm_analysis2a
 
+    
+#    julia $script_analysis_dir/atm_temperature.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis7 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
-    julia $script_analysis_dir/atm_temperature.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year
-    julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    # IAET : Implied Atmospheric Energy Transport
+    # julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
+
+    # IET : Implied Energy Transport of atm, ocn, lnd
+    julia $script_analysis_dir/implied_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
 
     # Total precipitation
-    julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_prec --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PREC_TOTAL
-    ncwa -O -a months,Nx $atm_analysis4 $atm_analysis4a
+#    julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_prec --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PREC_TOTAL
+#    ncwa -h -O -a months,Nx $atm_analysis4 $atm_analysis4a
 
     # Sea-ice monthly mean and anomaly
-    julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis6 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=ICEFRAC
-    ncwa -O -a months,Nx $atm_analysis6 $atm_analysis6a
+#    julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis6 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=ICEFRAC
+#    ncwa -h -O -a months,Nx $atm_analysis6 $atm_analysis6a
 
     #julia $script_analysis_dir/atm_precip.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
@@ -185,9 +208,36 @@ if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
 
 
 
-    julia $script_analysis_dir/mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis3_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=h_ML
-    ncwa -O -a months,Nx $ocn_analysis3_rg $ocn_analysis3a_rg
-    
+#    julia $script_analysis_dir/mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis3_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=h_ML
+#    ncwa -h -O -a months,Nx $ocn_analysis3_rg $ocn_analysis3a_rg
+ 
+    # Entrainment
+#    julia $script_analysis_dir/mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis4_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=dTdt_ent
+#    ncwa -h -O -a months,Nx $ocn_analysis4_rg $ocn_analysis4a_rg
+ 
+    # Horizontal advection
+#    julia $script_analysis_dir/mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis5_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=T_hadvs
+#    ncwa -h -O -a months,Nx $ocn_analysis5_rg $ocn_analysis5a_rg
+ 
+    # Solar surface flux
+#    julia $script_analysis_dir/mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis7_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=swflx
+#    ncwa -h -O -a months,Nx $ocn_analysis7_rg $ocn_analysis7a_rg
+  
+    # Non-solar surface fluxes
+#    julia $script_analysis_dir/mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis8_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=nswflx
+#    ncwa -h -O -a months,Nx $ocn_analysis8_rg $ocn_analysis8a_rg
+ 
+    # Ocean implied energy transport
+    julia $script_analysis_dir/implied_ocn_energy_transport.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis9_rg --beg-year=$diag_beg_year --end-year=$diag_end_year
+    julia $script_analysis_dir/mean_anomaly.jl --data-file=$ocn_analysis9_rg --domain-file=$atm_domain --output-file=$ocn_analysis9a_rg --beg-year=1 --end-year="$(( $diag_end_year - $diag_beg_year + 1 ))" --varname=IET_OCN 
+    ncwa -h -O -a months,Nx $ocn_analysis9a_rg $ocn_analysis9b_rg
+
+
+    # Ocean energy analysis    
+    julia $script_analysis_dir/ocn_energy_analysis.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis10_rg --beg-year=$diag_beg_year --end-year=$diag_end_year
+    ncwa -h -O -a time $ocn_analysis10_rg $ocn_analysis10a_rg
+
+
     # Downstream data. No need to specify --beg-year --end-year
     #julia $script_analysis_dir/PDO.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg
     #julia $script_analysis_dir/EN34.jl --data-file-SSTA=$ocn_concat_rg --domain-file=$atm_domain

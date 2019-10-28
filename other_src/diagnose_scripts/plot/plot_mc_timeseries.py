@@ -1,5 +1,26 @@
 import matplotlib as mplt
 mplt.use('Agg')
+from matplotlib import rc
+
+default_linewidth = 2.0;
+default_ticksize = 10.0;
+
+mplt.rcParams['lines.linewidth'] =   default_linewidth;
+mplt.rcParams['axes.linewidth'] =    default_linewidth;
+mplt.rcParams['xtick.major.size'] =  default_ticksize;
+mplt.rcParams['xtick.major.width'] = default_linewidth;
+mplt.rcParams['ytick.major.size'] =  default_ticksize;
+mplt.rcParams['ytick.major.width'] = default_linewidth;
+
+#rc('font', **{'family':'sans-serif', 'serif': 'Bitstream Vera Serif', 'sans-serif': 'MS Reference Sans Serif', 'size': 20.0, 'weight' : 100});
+rc('font', **{'size': 20.0});
+rc('axes', **{'labelsize': 20.0});
+rc('mathtext', **{'fontset':'stixsans'});
+rc(('xtick.major','ytick.major'), pad=20)
+
+#import matplotlib.font_manager as fm;
+#print("%s: %d"%(fm.FontProperties().get_name(),fm.FontProperties().get_weight()));
+
 
 
 from netCDF4 import Dataset
@@ -42,6 +63,7 @@ parser.add_argument('--extra-title', default="")
 parser.add_argument('--colors')
 parser.add_argument('--linestyles', type=str)
 parser.add_argument('--t-offset', type=float, default=0.0)
+parser.add_argument('--y-offset', type=float, default=0.0)
 parser.add_argument('--indexing', default=":")
 
 args = parser.parse_args()
@@ -85,6 +107,7 @@ for i in range(len(casenames)):
     
     
     new_casenames.append([casenames[i], legends[i], colors[i], linestyles[i]])
+    #ts = mavg(( f.variables[args.varname][indices] - args.y_offset) / args.yscale, args.mavg)
     ts = mavg(f.variables[args.varname][indices] / args.yscale, args.mavg)
 
     tss.append(ts)
@@ -107,7 +130,8 @@ ax.grid()
 for i, (casename, legend, color, linestyle) in enumerate(casenames): 
     ax.plot(time, tss[i], linewidth=2, label=legend, color=color, linestyle=linestyle)
 
-ax.legend()
+ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
+fig.subplots_adjust(right=0.7, bottom=0.2)
 ax.grid()
 
 fig.savefig("%s/mc_timeseries_%s.png" % (args.output_dir, args.varname), dpi=200)

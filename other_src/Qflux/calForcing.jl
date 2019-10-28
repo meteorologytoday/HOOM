@@ -36,7 +36,6 @@ in_zcoord = "b.e11.B1850C5CN.f09_g16.005.pop.h.TEMP.100001-109912.nc"
 gridinfo_file = "domain.ocn.gx3v7.120323.nc"
 gridinfo_file = "domain.ocn.gx1v6.090206.nc"
 
-out_file = "forcing.gx3v7.nc"
 out_file = "forcing.gx1v6.nc"
 
 missing_value = 1e20
@@ -429,7 +428,7 @@ for t = 13:Nt - 12
         sea_ices[i, j, m] += tmp_sea_ices
         var_sea_ices[i, j, m] += tmp_sea_ices^2.0
 
-        # Surface downward heat flux heat flux
+        # Surface downward heat flux 
         tmp_Fs = (SHF[i, j, t] + SHF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p
         Fs[i, j, m] += tmp_Fs
         var_Fs[i, j, m] += tmp_Fs^2.0
