@@ -28,6 +28,8 @@ function calDiffAdv_QUICK!(
         CURV_y     = ocn.CURV_y,
         CURV_z     = ocn.CURV_z,
         mask3      = ocn.mask3,
+        noflux_x_mask3 = ocn.noflux_x_mask3,
+        noflux_y_mask3 = ocn.noflux_y_mask3,
         Δzs        = ocn.Δzs,
         hs         = ocn.hs,
     )
@@ -51,7 +53,9 @@ function calDiffAdv_QUICK!(
         u_bnd      = ocn.u_bnd,
         v_bnd      = ocn.v_bnd,
         w_bnd      = ocn.w_bnd,
-        mask3      = ocn.mask3,
+        mask3          = ocn.mask3,
+        noflux_x_mask3 = ocn.noflux_x_mask3,
+        noflux_y_mask3 = ocn.noflux_y_mask3,
         Δzs        = ocn.Δzs,
         D_hor      = Dh,
         D_ver      = Dv,
@@ -104,10 +108,10 @@ function calTotalChange!(;
 )
 
 
-#    tmp = 0.0
-#    tmp_wT = 0.0
-#    tmp_v = 0.0
-#    tmp_σ = 0.0
+    #tmp = 0.0
+    #tmp_wT = 0.0
+    #tmp_v = 0.0
+    #tmp_σ = 0.0
 
     for i=1:Nx, j=1:Ny
         
@@ -123,8 +127,19 @@ function calTotalChange!(;
  #           throw(ErrorException("FLUX_DEN_z != 0.0"))
  #       end
 
- #       tmp_wT += FLUX_DEN_z[Nz[i, j]+1, i, j] * gi.dσ[i, j]
- #       tmp_σ += gi.dσ[i, j]
+      # tmp_wT += FLUX_DEN_z[Nz[i, j]+1, i, j] * gi.dσ[i, j]
+      # tmp_σ += gi.dσ[i, j]
+
+#=
+        if (i, j) == (48, 89)
+            println("FLUX_X = ", FLUX_DEN_x[1:6, i+1, j], "; ", FLUX_DEN_x[1:6, i, j])
+            println("FLUX_X conv=", FLUX_DEN_x[1:6, i+1, j] * gi.DY[i+1, j] - FLUX_DEN_x[1:6, i, j] * gi.DY[i, j])
+            println("FLUX_y conv=", FLUX_DEN_y[1:6, i, j+1] * gi.DX[i, j+1] - FLUX_DEN_y[1:6, i, j] * gi.DX[i, j])
+
+            println("DX: ", gi.DX[i, j:j+1])
+            println("DY: ", gi.DY[i:i+1, j])
+        end
+=#
 
         for k=1:Nz[i, j]
 
@@ -167,8 +182,8 @@ function calTotalChange!(;
             end
 =#
 
-#            tmp += FLUX_CONV[k, i, j] * hs[k, i, j] * gi.dσ[i, j]
-#            tmp_v += hs[k, i, j] * gi.dσ[i, j]
+     #       tmp += FLUX_CONV[k, i, j] * hs[k, i, j] * gi.dσ[i, j]
+     #       tmp_v += hs[k, i, j] * gi.dσ[i, j]
 
 #            if (k, j) == (2, 10)
 #                println(FLUX_DEN_x[k, i, j] * gi.ds4[i_e, j], " ::: ", FLUX_DEN_x[k, i+1, j] * gi.ds4[i, j])
@@ -183,9 +198,9 @@ function calTotalChange!(;
 
     end
 
-#    println("SUM of FLUX_CONV weighted by volume: ", tmp, " / ", tmp_v, " = ", tmp/tmp_v)
-#    println("wT total: ", tmp_wT)
-#    println("tmp_wT * ρc = ", tmp_wT * ρc / tmp_σ,"; If consider the affect of wT: ", (tmp - tmp_wT) /tmp_v)
+    #println("SUM of FLUX_CONV weighted by volume: ", tmp, " / ", tmp_v, " = ", tmp/tmp_v)
+    #println("wQ total: ", tmp_wT/tmp_σ)
+    #println("If consider the affect of wQ: ", (tmp - tmp_wT) /tmp_v)
 end
 
 function calMixedLayerBottomFluxDensity!(;
@@ -274,18 +289,39 @@ function calFluxDensity!(;
     FLUX_DEN_y :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
     FLUX_DEN_z :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
     mask3      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    noflux_x_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx+1, Ny   )
+    noflux_y_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx  , Ny+1 )
     Δzs        :: AbstractArray{Float64, 3},     # ( Nz_bone-1 ,  Nx  , Ny   )
     D_hor      :: Float64,
     D_ver      :: Float64,
 )
 
     # x
-    for i=2:Nx, j=1:Ny 
+    for i=2:Nx, j=1:Ny
         for k=1:Nz[i, j]
-            if mask3[k, i, j] == 0.0 || mask3[k, i-1, j] == 0.0
+            if noflux_x_mask3[k, i, j] == 0.0
                 FLUX_DEN_x[k, i, j] = 0.0
             else
                 q_star = (qs[k, i-1, j] + qs[k, i, j]) / 2.0 - gi.dx_w[i, j]^2.0/8.0 * ( ( u_bnd[k, i, j] >= 0.0 ) ? CURV_x[k, i-1, j] : CURV_x[k, i, j] )
+
+    #=
+                if any(u_bnd[k, i:i+1, j] .> 10.0)
+                    println("Weird u_bnd at i, j = ", i, ", ", j)
+                end
+
+                if any(q_star .> 100.0)
+                    println("Weird q_star at i, j = ", i, ", ", j, "; q_star=", q_star)
+                    println("qs:",qs[k, i-4:i+1, j])
+                    println("u_bnd: ", u_bnd[k ,i:i+1, j])
+                    println("CURV_x:",CURV_x[k, i-3:i, j])
+                    println("gi.dx_w^2 / 8 :",gi.dx_w[i, j]^2.0 / 8.0)
+                    println("gi.dx_c :",gi.dx_c[i, j])
+
+                    throw(ErrorException("STOP"))
+                end
+
+=#
+
                 FLUX_DEN_x[k, i, j] = u_bnd[k, i, j] * q_star - D_hor * GRAD_bnd_x[k, i, j]
             end
         end
@@ -294,7 +330,7 @@ function calFluxDensity!(;
     # x - periodic
     for j=1:Ny 
         for k=1:Nz[1, j]
-            if mask3[k, 1, j] == 0.0 || mask3[k, Nx, j] == 0.0
+            if noflux_x_mask3[k, 1, j] == 0.0
                 FLUX_DEN_x[k, 1, j] = FLUX_DEN_x[k, Nx+1, j] = 0.0
             else
                 q_star = (qs[k, Nx, j] + qs[k, 1, j]) / 2.0 - gi.dx_w[1, j]^2.0/8.0 * ( ( u_bnd[k, 1, j] >= 0.0 ) ? CURV_x[k, Nx, j] : CURV_x[k, 1, j] )
@@ -307,7 +343,7 @@ function calFluxDensity!(;
     # y
     for i=1:Nx, j=2:Ny
         for k=1:Nz[i, j]
-            if mask3[k, i, j] == 0.0 || mask3[k, i, j-1] == 0.0
+            if noflux_y_mask3[k, i, j] == 0.0
                 FLUX_DEN_y[k, i, j] = 0.0
             else
                 q_star = (qs[k, i, j-1] + qs[k, i, j]) / 2.0 - gi.dy_s[i, j]^2.0/8.0 * ( ( v_bnd[k, i, j] >= 0.0 ) ? CURV_y[k, i, j-1] : CURV_y[k, i, j] )
@@ -332,6 +368,16 @@ function calFluxDensity!(;
         for k=2:_Nz
             q_star = (qs[k, i, j] + qs[k-1, i, j]) / 2.0 - Δzs[k-1, i, j]^2.0/8.0 * ( ( w_bnd[k, i, j] >= 0.0 ) ? CURV_z[k, i, j] : CURV_z[k-1, i, j] )
             FLUX_DEN_z[k, i, j] = w_bnd[k, i, j] * q_star - D_ver * GRAD_bnd_z[k, i, j]
+
+#=
+                if (k, i, j) == (3, 47, 87)
+                    println("q_star=", q_star, ", ; GRAD_bnd_z=", GRAD_bnd_z[1:6, i, j])
+                    println("qs:",qs[1:5, i, j])
+                    println("CURV_z:",CURV_z[1:5, i, j])
+                    println("gi.dx_w^2 / 8 :",gi.dx_w[i, j]^2.0 / 8.0)
+                    println("gi.dx_c :",gi.dx_c[i, j])
+                end
+=#
         end
 
         FLUX_DEN_z[_Nz+1, i, j] = wq_bnd[i, j] = FLUX_DEN_z[_Nz, i, j]
@@ -357,6 +403,8 @@ function calGRAD_CURV!(;
     CURV_y     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     CURV_z     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     mask3      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    noflux_x_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx+1, Ny   )
+    noflux_y_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx  , Ny+1 )
     Δzs        :: AbstractArray{Float64, 3},     # ( Nz_bone-1 ,  Nx  , Ny   )
     hs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
 )
@@ -365,7 +413,7 @@ function calGRAD_CURV!(;
     for i=2:Nx, j=1:Ny 
         for k=1:Nz[i, j]
             GRAD_bnd_x[k, i, j] = (
-                ( mask3[k, i, j] == 0.0 || mask3[k, i-1, j] == 0.0 )  
+                ( noflux_x_mask3[k, i, j] == 0.0 )  
                 ? 0.0 : ( qs[k, i, j] - qs[k, i-1, j] ) / gi.dx_w[i, j] 
             )
         end
@@ -375,7 +423,7 @@ function calGRAD_CURV!(;
     for j=1:Ny
         for k=1:Nz[1, j]
             GRAD_bnd_x[k, 1, j] = GRAD_bnd_x[k, Nx+1, j] = (
-                ( mask3[k, 1, j] == 0.0 || mask3[k, Nx, j] == 0.0 )
+                ( noflux_x_mask3[k, 1, j] == 0.0 )  
                 ? 0.0 : ( qs[k, 1, j] - qs[k, Nx, j] ) / gi.dx_w[1, j]
             )
         end
@@ -385,7 +433,7 @@ function calGRAD_CURV!(;
     for i=1:Nx, j=2:Ny
         for k=1:Nz[i, j]
             GRAD_bnd_y[k, i, j] = (
-                ( mask3[k, i, j] == 0.0 || mask3[k, i, j-1] == 0.0 )
+                ( noflux_y_mask3[k, i, j] == 0.0 )  
                 ? 0.0 : ( qs[k, i, j] - qs[k, i, j-1] ) / gi.dy_s[i, j]
             )
         end
@@ -404,6 +452,8 @@ function calGRAD_CURV!(;
             GRAD_bnd_z[k, i, j] = ( qs[k-1, i, j] - qs[k, i, j] ) / Δzs[k-1, i, j]
         end
 
+        GRAD_bnd_z[_Nz+1, i, j] = GRAD_bnd_z[_Nz, i, j]
+
     end
 
     # CURV
@@ -412,6 +462,10 @@ function calGRAD_CURV!(;
             CURV_x[k, i, j] = ( GRAD_bnd_x[k, i+1, j  ] - GRAD_bnd_x[k  , i, j] ) / gi.dx_c[i, j]
             CURV_y[k, i, j] = ( GRAD_bnd_y[k, i  , j+1] - GRAD_bnd_y[k  , i, j] ) / gi.dy_c[i, j]
             CURV_z[k, i, j] = ( GRAD_bnd_z[k, i  , j  ] - GRAD_bnd_z[k+1, i, j] ) / hs[k, i, j]
+#            if (k, i, j) == (4, 47, 87)
+#                println("[3,47,87] CURV_z=", CURV_z[1:6, i, j], ", hs=", hs[1:6, i, j], "; Δzs: ", Δzs[1:6, i, j])
+#                println("[3,47,87] GRAD_bnd_z: ", GRAD_bnd_z[1:6, i, j])
+#            end
         end
     end
 
@@ -489,15 +543,18 @@ function calHorVelBnd!(;
     u_bnd    :: AbstractArray{Float64, 3},   # (Nz_bone, Nx+1, Ny)
     v_bnd    :: AbstractArray{Float64, 3},   # (Nz_bone, Nx, Ny+1)
     mask3    :: AbstractArray{Float64, 3},   # (Nz_bone, Nx, Ny)
+    noflux_x_mask3 :: AbstractArray{Float64, 3}, # (Nz_bone, Nx+1, Ny)
+    noflux_y_mask3 :: AbstractArray{Float64, 3}, # (Nz_bone, Nx, Ny+1)
 )
 
     # x
     for i=2:Nx, j=1:Ny
         for k=1:Nz[i, j]
-            if mask3[k, i, j] == 0.0 || mask3[k, i-1, j] == 0.0
+            if noflux_x_mask3[k, i, j] == 0.0
                 u_bnd[k, i, j] = 0.0
             else
                 u_bnd[k, i, j] = u[k, i-1, j] * (1.0 - weight_e[i, j]) + u[k, i, j] * weight_e[i, j]
+                #u_bnd[k, i, j] = (u[k, i-1, j] + u[k, i, j]) / 2.0
             end
         end
     end
@@ -505,10 +562,11 @@ function calHorVelBnd!(;
     # x - periodic
     for j=1:Ny
         for k=1:Nz[1, j]
-            if mask3[k, 1, j] == 0.0 || mask3[k, Nx, j] == 0.0
+            if noflux_x_mask3[k, 1, j] == 0.0
                 u_bnd[k, 1, j] = u_bnd[k, Nx+1, j] = 0.0
             else
                 u_bnd[k, 1, j] = u_bnd[k, Nx+1, j] = u[k, Nx, j] * (1.0 - weight_e[1, j]) + u[k, 1, j] * weight_e[1, j]
+                #u_bnd[k, 1, j] = u_bnd[k, Nx+1, j] = (u[k, Nx, j] + u[k, 1, j]) / 2.0
             end
         end
     end
@@ -516,10 +574,11 @@ function calHorVelBnd!(;
     # y
     for i=1:Nx, j=2:Ny
         for k=1:Nz[i, j]
-            if mask3[k, i, j-1] == 0.0 || mask3[k, i, j] == 0.0
+            if noflux_y_mask3[k, i, j] == 0.0
                 v_bnd[k, i, j] = 0.0
             else
                 v_bnd[k, i, j] = v[k, i, j-1] * (1.0 - weight_n[i, j]) + v[k, i, j] * weight_n[i, j]
+                #v_bnd[k, i, j] = (v[k, i, j-1] + v[k, i, j]) / 2.0
             end
         end
     end

@@ -25,6 +25,8 @@ mutable struct Ocean
     ϵs       :: AbstractArray{Float64, 2}
 
     mask3    :: AbstractArray{Float64, 3}
+    noflux_x_mask3  :: AbstractArray{Float64, 3}
+    noflux_y_mask3  :: AbstractArray{Float64, 3}
     mask     :: AbstractArray{Float64, 2}
     mask_idx  :: Any
     valid_idx :: AbstractArray{Int64, 2}
@@ -49,8 +51,9 @@ mutable struct Ocean
     # unconserved part of energy
     TSAS_clim   :: AbstractArray{Float64, 2}
     SSAS_clim   :: AbstractArray{Float64, 2}
-    wT       :: AbstractArray{Float64, 2}
-    wS       :: AbstractArray{Float64, 2}
+    wT_bot       :: AbstractArray{Float64, 2}
+    wS_bot       :: AbstractArray{Float64, 2}
+    wS_top       :: AbstractArray{Float64, 2}
     TFLUX_DIV_implied      :: AbstractArray{Float64, 2}
     SFLUX_DIV_implied      :: AbstractArray{Float64, 2}
 
@@ -195,10 +198,11 @@ mutable struct Ocean
         # deeper than the bottom boundary
         # Also, in real data topo can be 0 and not masked out
        
-        _topo = allocate(datakind, Float64, Nx, Ny)
-        _h_ML_min = allocate(datakind, Float64, Nx, Ny)
-        _h_ML_max = allocate(datakind, Float64, Nx, Ny)
-        _mask = allocate(datakind, Float64, Nx, Ny)
+        _topo        = allocate(datakind, Float64, Nx, Ny)
+        _h_ML_min    = allocate(datakind, Float64, Nx, Ny)
+        _h_ML_max    = allocate(datakind, Float64, Nx, Ny)
+        _mask        = allocate(datakind, Float64, Nx, Ny)
+
 
         if topo == nothing
             _topo .= zs_bone[end]
@@ -368,8 +372,9 @@ mutable struct Ocean
 
         _TSAS_clim   = allocate(datakind, Float64, Nx, Ny)
         _SSAS_clim   = allocate(datakind, Float64, Nx, Ny)
-        _wT       = allocate(datakind, Float64, Nx, Ny)
-        _wS       = allocate(datakind, Float64, Nx, Ny)
+        _wT_bot       = allocate(datakind, Float64, Nx, Ny)
+        _wS_bot       = allocate(datakind, Float64, Nx, Ny)
+        _wS_top       = allocate(datakind, Float64, Nx, Ny)
         _TFLUX_DIV_implied      = allocate(datakind, Float64, Nx, Ny)
         _SFLUX_DIV_implied      = allocate(datakind, Float64, Nx, Ny)
 
@@ -617,13 +622,38 @@ mutable struct Ocean
 
         # ===== [BEGIN] Mask out data =====
 
-        _mask3 = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _mask3        = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _noflux_x_mask3 = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _noflux_y_mask3 = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
         _mask3 .= 1.0
 
         # Clean up all variables
         for i=1:Nx, j=1:Ny
             _mask3[Nz[i, j] + 1:end, i, j] .= 0.0
         end
+
+        # no flow try to avoid the horizontal flow when topography is cutting through a grid box.
+        
+        # x
+        for i=2:Nx, j=1:Ny
+            for k=1:Nz[i, j]
+                _noflux_x_mask3[k, i, j] = (  _mask3[k, i, j] == 0.0 || _mask3[k, i-1, j] == 0.0 || k >= Nz[i-1, j] || k == Nz[i, j] ) ? 0.0 : 1.0
+            end
+        end
+        # x - periodic boundary
+        for j=1:Ny
+            for k=1:Nz[1, j]
+                _noflux_x_mask3[k, 1, j] = _noflux_x_mask3[k, Nx+1, j] = ( _mask3[k, 1, j] == 0.0 || _mask3[k, Nx, j] == 0.0 || k >= Nz[Nx, j] || k == Nz[1, j] ) ? 0.0 : 1.0
+            end
+        end
+
+        # y
+        for i=1:Nx, j=2:Ny
+            for k=1:Nz[i, j]
+                _noflux_y_mask3[k, i, j] = ( _mask3[k, i, j] == 0.0 || _mask3[k, i, j-1] == 0.0 || k >= Nz[i, j-1] || k == Nz[i, j] ) ? 0.0 : 1.0
+            end
+        end
+
 
         #println("sum of _mask3: ", sum(_mask3))
 
@@ -793,11 +823,13 @@ mutable struct Ocean
             zs_bone, _topo, zs, Nz,
             K_v, Dh_T, Dv_T, Dh_S, Dv_S,
             _fs, _ϵs,
-            _mask3, _mask, mask_idx, valid_idx,
+            _mask3,
+            _noflux_x_mask3, _noflux_y_mask3,
+            _mask, mask_idx, valid_idx,
             _b_ML, _T_ML, _S_ML, _ΔT, _ΔS, _dΔTdt, _dΔSdt,
             _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
             _TSAS_clim, _SSAS_clim,
-            _wT, _wS,
+            _wT_bot, _wS_bot, _wS_top,
             _TFLUX_DIV_implied, _SFLUX_DIV_implied,
             _bs,   _Ts,   _Ss,
             _FLDO, _FLDO_ratio_top, _FLDO_ratio_bot,

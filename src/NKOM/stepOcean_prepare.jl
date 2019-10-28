@@ -60,7 +60,6 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
         end
 
     elseif adv_scheme == :ekman_simple_partition
-
         @loop_hor ocn i j let
 
             h_ML = ocn.h_ML[i, j]
@@ -99,7 +98,10 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
 #                println(format("[{:03d}] H_ek={:f}, bot_layer_ek={:d}, bot_layer_rf={:d}", j, H_ek, bot_lay_ek, bot_lay_rf))
 #                println("zs: ", ocn.cols.zs[i, j][1:10])
 #            end
-
+#            if (i, j) == (48, 89)
+#                println("u_ek = ", u_ek, "; v_ek=", v_ek)
+#                println("u_rf = ", u_rf, "; v_rf=", v_rf)
+#            end
             if bot_lay_ek == -1
             
                 ocn.u[:, i, j] .= u_ek
@@ -139,18 +141,7 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
                 end
 
             end
-#=
-            if (i, j) == (67, 57)
-                println("M̃ = ", M̃)
-                println("H_ek = ", H_ek)
-                println("H_rf = ", H_rf)
-                println("h_ML = ", h_ML)
-                println("ṽ_ek = ", ṽ_ek)
-                println("ṽ_rf = ", ṽ_rf)
-            end
-  =#      
         end
-
     elseif adv_scheme == :test
         ocn.u .= 0.0
         ocn.v .= 0.0
@@ -182,6 +173,8 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
         u_bnd = ocn.u_bnd,
         v_bnd = ocn.v_bnd,
         mask3 = ocn.mask3,
+        noflux_x_mask3 = ocn.noflux_x_mask3,
+        noflux_y_mask3 = ocn.noflux_y_mask3,
     )
 
     calVerVelBnd!(
@@ -196,7 +189,20 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
         div   = ocn.div,
         mask3 = ocn.mask3,
     )
-   
+#=
+    println("Max nswflx: ", maximum(ocn.in_flds.nswflx[ocn.mask_idx]))
+    println("Min nswflx: ", minimum(ocn.in_flds.nswflx[ocn.mask_idx]))
+    println("Max swflx: ", maximum(abs.(ocn.in_flds.swflx[ocn.mask_idx])))
+    println("Max tau : ", sqrt(maximum(abs.(ocn.in_flds.taux[ocn.mask_idx].^2.0 + ocn.in_flds.tauy[ocn.mask_idx].^2.0))))
+    println("Max taux: ", maximum(abs.(ocn.in_flds.taux[ocn.mask_idx])))
+    println("Max tauy: ", maximum(abs.(ocn.in_flds.tauy[ocn.mask_idx])))
+ 
+    println("Max τx: ", maximum(abs.(ocn.τx[ocn.mask_idx])))
+    println("Max τy: ", maximum(abs.(ocn.τy[ocn.mask_idx])))
+    println("Max u: ", maximum(abs.(ocn.u)))
+    println("Max v: ", maximum(abs.(ocn.v)))
+    println("Max w_bnd: ", maximum(abs.(ocn.w_bnd)))
+=#
     #=    
     # Calculate ∇⋅v
     for k=1:ocn.Nz_bone

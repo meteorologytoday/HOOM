@@ -715,9 +715,9 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         allocate(x_frwflx(lsize))
 
         do n = 1,lsize
-            if (.not. read_restart) then
-                somtp(n) = o2x%rAttr(kt,n) + TkFrz
-            end if
+!            if (.not. read_restart) then
+!                somtp(n) = o2x%rAttr(kt,n) + TkFrz
+!            end if
 
             x_qflx(n)   = 0.0_R8
             x_mld(n)     = 0.0_R8
@@ -730,7 +730,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_frwflx(n)  = 0.0_R8
             x_mask(n)    = 0.0_R8
 
-            o2x%rAttr(kt,n) = somtp(n)
+!            o2x%rAttr(kt,n) = somtp(n)
             o2x%rAttr(kq,n) = x_q(n)
 
         end do
@@ -780,7 +780,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         do n = 1, lsize
           if (imask(n) /= 0) then
-            o2x%rAttr(kt,n) = somtp(n)
+            o2x%rAttr(kt,n) = somtp(n) + TkFrz
             o2x%rAttr(kq,n) = x_q(n)
           end if
         end do

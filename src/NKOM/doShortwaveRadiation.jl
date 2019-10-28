@@ -45,6 +45,7 @@ function doShortwaveRadiation!(;
 
     if FLDO == -1      # Entire ocean column is mixed-layer
         T_ML += - Tswflx * Δt / h_ML
+        Ts[1:Nz] .= T_ML
         return T_ML
     end
 
@@ -57,7 +58,7 @@ function doShortwaveRadiation!(;
     elseif FLDO == -1
         Ts[1:Nz] .= T_ML
     end
-    
+
     # ===== [END] Mixed layer =====
 
     # ===== [BEGIN] FLDO layer =====

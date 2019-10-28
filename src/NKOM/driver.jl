@@ -418,31 +418,35 @@ function run!(
     sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
     sync_bnd_vars3 = (:Ts,   :Ss)
 
-    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :TSAS_clim, :SSAS_clim, :TFLUX_DIV_implied, :SFLUX_DIV_implied, :TEMP, :dTEMPdt, :SALT, :dSALTdt, :dTdt_ent, :dSdt_ent, :wT, :wS)
+    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :TSAS_clim, :SSAS_clim, :TFLUX_DIV_implied, :SFLUX_DIV_implied, :TEMP, :dTEMPdt, :SALT, :dSALTdt, :dTdt_ent, :dSdt_ent, :wT_bot, :wS_bot, :wS_top)
     sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :TFLUX_CONV, :SFLUX_CONV, :TFLUX_DEN_z, :SFLUX_DEN_z, :div)
 
 
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
     #accumulative_vars3 = (:TFLUX_CONV, :T_vflux_ML, :SFLUX_CONV, :S_vflux_ML)
 
-    cost_hor = @elapsed for substep = 1:substeps
+    cost_main = @elapsed for substep = 1:substeps
         #println("substep: ", substep)
+
         @sync for (i, p) in enumerate(wkrs)
             @spawnat p let
                 syncBoundaryFromMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
-                #syncFromMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
                 calFLDOPartition!(subocn.worker_ocn)
                 stepOcean_Flow!(subocn.worker_ocn; Δt = dt, cfgs...)
                 stepOcean_MLDynamics!(subocn.worker_ocn; Δt = dt, cfgs...)
+            end
+        end
+        
+        @sync for (i, p) in enumerate(wkrs)
+            @spawnat p let
                 syncBoundaryToMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
-                #syncToMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
                 accumulate!(subocn.worker_ocn)
             end
         end
 
     end
     
-    cost_ver = @elapsed @sync for (i, p) in enumerate(wkrs)
+    cost_final = @elapsed @sync for (i, p) in enumerate(wkrs)
         @spawnat p let
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
             calQflx2atm!(subocn.worker_ocn; Δt=Δt)
@@ -463,7 +467,7 @@ function run!(
         end
     end
 
-    println(format("### Cost: {:.1f}s (prep), {:.1f}s (horizontal), {:.1f}s (vertical). ###", cost_prep, cost_hor, cost_ver))
+    println(format("### Cost: prep={:.1f}s , main={:.1f}s, final={:.1f}s. ###", cost_prep, cost_main, cost_final))
 
 end
 

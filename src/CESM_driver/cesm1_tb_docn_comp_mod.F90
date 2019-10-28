@@ -787,6 +787,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         do n = 1, lsize
           if (imask(n) /= 0) then
+            somtp(n) = somtp(n) + TkFrz
             o2x%rAttr(kt,n) = somtp(n)
             o2x%rAttr(kq,n) = x_q(n)
           end if
@@ -815,7 +816,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                         - (   x2o%rAttr(ksnow,n) & 
                             + x2o%rAttr(kioff,n) ) * latice ! latent by snow and roff
  
-            ! fresh water flux in terms of m / s
+            ! fresh water flux in terms of m / s. Positive means upward (evap),
+            ! negative means downward (precip)
             x_frwflx(n) = ( x2o%rAttr(kevap, n) - &
                             x2o%rAttr(kprec, n) ) / SHR_CONST_RHOFW 
                        
@@ -859,6 +861,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         do n = 1, lsize
           if (imask(n) /= 0) then
+            somtp(n) = somtp(n) + TkFrz
             o2x%rAttr(kt,n) = somtp(n)
             o2x%rAttr(kq,n) = x_q(n)
           end if

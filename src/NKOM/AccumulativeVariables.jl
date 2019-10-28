@@ -18,8 +18,9 @@ mutable struct AccumulativeVariables
     dTdt_ent :: AbstractArray
     dSdt_ent :: AbstractArray
     
-    wT       :: AbstractArray
-    wS       :: AbstractArray
+    wT_bot       :: AbstractArray
+    wS_bot       :: AbstractArray
+    wS_top       :: AbstractArray
 
 
     function AccumulativeVariables(Nx, Ny, Nz)
@@ -34,6 +35,7 @@ mutable struct AccumulativeVariables
             zeros(Nz+1, Nx, Ny),
             zeros(Nz, Nx, Ny),
             zeros(Nz, Nx, Ny),
+            zeros(Nx, Ny),
             zeros(Nx, Ny),
             zeros(Nx, Ny),
             zeros(Nx, Ny),
