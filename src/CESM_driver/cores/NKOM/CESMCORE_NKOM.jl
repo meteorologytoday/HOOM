@@ -139,7 +139,12 @@ module CESMCORE_NKOM
             println("# For record key: " * string(rec_key))
 
             var_list = []
-            
+           
+            if rec_key == :ALL
+                rec_key = keys(complete_variable_list)
+            end
+
+ 
             # Load variables information as a list
             for varname in configs[rec_key]
 
