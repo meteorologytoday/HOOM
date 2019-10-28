@@ -140,8 +140,8 @@ module CESMCORE_NKOM
 
             var_list = []
            
-            if rec_key == :ALL
-                rec_key = keys(complete_variable_list)
+            if configs[rec_key] == :ALL
+                configs[rec_key] = keys(complete_variable_list)
             end
 
  
