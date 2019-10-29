@@ -15,7 +15,8 @@ function calDiffAdv_QUICK!(
     Dv          :: Float64,
 )
 
-    time1 = @elapsed calGRAD_CURV!(
+    println("GRAD_CRUV")
+    @time calGRAD_CURV!(
         gi         = ocn.gi,
         Nx         = ocn.Nx,
         Ny         = ocn.Ny,
@@ -34,7 +35,8 @@ function calDiffAdv_QUICK!(
         hs         = ocn.hs,
     )
 
-    time2 = @elapsed calFluxDensity!(
+    println("FLUXDEN")
+    @time calFluxDensity!(
         gi         = ocn.gi,
         Nx         = ocn.Nx,
         Ny         = ocn.Ny,
@@ -62,7 +64,8 @@ function calDiffAdv_QUICK!(
     )
 
 
-    time3 = @elapsed calTotalChange!(
+    println("TOTAL CHANGE")
+    @time calTotalChange!(
         FLUX_CONV   = FLUX_CONV,
         FLUX_CONV_h = FLUX_CONV_h,
         gi          = ocn.gi,
@@ -76,7 +79,8 @@ function calDiffAdv_QUICK!(
         hs          = ocn.hs,
     )
 
-    time4 = @elapsed calMixedLayer_dΔqdt!(
+    println("CALMIXEDLAYER")
+    @time calMixedLayer_dΔqdt!(
         Nx          = ocn.Nx,
         Ny          = ocn.Ny,
         Nz          = ocn.Nz,
@@ -90,7 +94,7 @@ function calDiffAdv_QUICK!(
         zs          = ocn.zs,
     )
 
-    println(format("time1={:f}, time2={:f}, time3={:f}, time4={:f}", time1, time2, time3, time4))
+    #println(format("time1={:f}, time2={:f}, time3={:f}, time4={:f}", time1, time2, time3, time4))
 
 end
 
@@ -153,6 +157,7 @@ function calTotalChange!(;
             )
 
             FLUX_CONV_h[k, i, j] = _CONV_h
+
             FLUX_CONV[k, i, j] = ( 
                 _CONV_h - (
                      FLUX_DEN_z[k, i, j] - FLUX_DEN_z[k+1, i, j]
