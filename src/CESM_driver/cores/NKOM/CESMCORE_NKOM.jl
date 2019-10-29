@@ -48,8 +48,8 @@ module CESMCORE_NKOM
             (:relaxation_scheme,             true, (:on, :off,),                nothing),
             (:convective_adjustment_scheme,  true, (:on, :off,),                nothing),
             (:radiation_scheme,              true, (:exponential, :step,),      nothing),
-            (:daily_record,                  true, (AbstractArray,),                 []),
-            (:monthly_record,                true, (AbstractArray,),                 []),
+            (:daily_record,                  true, (AbstractArray, Symbol),                 []),
+            (:monthly_record,                true, (AbstractArray, Symbol),                 []),
             (:turn_off_frwflx,              false, (Bool,),                       false),
         ])
 
@@ -139,7 +139,12 @@ module CESMCORE_NKOM
             println("# For record key: " * string(rec_key))
 
             var_list = []
-            
+           
+            if configs[rec_key] == :ALL
+                configs[rec_key] = keys(complete_variable_list)
+            end
+
+ 
             # Load variables information as a list
             for varname in configs[rec_key]
 
