@@ -15,7 +15,7 @@ function calDiffAdv_QUICK!(
     Dv          :: Float64,
 )
 
-    calGRAD_CURV!(
+    time1 = @elapsed calGRAD_CURV!(
         gi         = ocn.gi,
         Nx         = ocn.Nx,
         Ny         = ocn.Ny,
@@ -34,7 +34,7 @@ function calDiffAdv_QUICK!(
         hs         = ocn.hs,
     )
 
-    calFluxDensity!(
+    time2 = @elapsed calFluxDensity!(
         gi         = ocn.gi,
         Nx         = ocn.Nx,
         Ny         = ocn.Ny,
@@ -62,7 +62,7 @@ function calDiffAdv_QUICK!(
     )
 
 
-    calTotalChange!(
+    time3 = @elapsed calTotalChange!(
         FLUX_CONV   = FLUX_CONV,
         FLUX_CONV_h = FLUX_CONV_h,
         gi          = ocn.gi,
@@ -76,7 +76,7 @@ function calDiffAdv_QUICK!(
         hs          = ocn.hs,
     )
 
-    calMixedLayer_dΔqdt!(
+    time4 = @elapsed calMixedLayer_dΔqdt!(
         Nx          = ocn.Nx,
         Ny          = ocn.Ny,
         Nz          = ocn.Nz,
@@ -89,6 +89,8 @@ function calDiffAdv_QUICK!(
         hs          = ocn.hs,
         zs          = ocn.zs,
     )
+
+    println(format("time1={:f}, time2={:f}, time3={:f}, time4={:f}", time1, time2, time3, time4))
 
 end
 

@@ -432,7 +432,7 @@ function run!(
             @spawnat p let
                 syncBoundaryFromMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
                 calFLDOPartition!(subocn.worker_ocn)
-                stepOcean_Flow!(subocn.worker_ocn; Δt = dt, cfgs...)
+                @time stepOcean_Flow!(subocn.worker_ocn; Δt = dt, cfgs...)
                 stepOcean_MLDynamics!(subocn.worker_ocn; Δt = dt, cfgs...)
             end
         end

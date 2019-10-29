@@ -12,7 +12,8 @@ function stepOcean_Flow!(
     end
 
     # Determine the temperature / salinity of FLDO layer
-    @loop_hor ocn i j let
+    println("mixFLDO")
+    @time @loop_hor ocn i j let
 
         ocn.ΔT[i, j] = mixFLDO!(
             qs   = ocn.cols.Ts[i, j],
@@ -52,7 +53,9 @@ function stepOcean_Flow!(
     end
 =#
 
-    calDiffAdv_QUICK!(
+    println("QUICK")
+    @time let
+        calDiffAdv_QUICK!(
         ocn,
         qs          = ocn.Ts,
         wq_bnd      = ocn.wT_bot,
@@ -79,6 +82,7 @@ function stepOcean_Flow!(
         Dh = ocn.Dh_S,
         Dv = ocn.Dv_S,
     )
+    end
 
 #=
         if any(ocn.TFLUX_CONV .>= 0.1) 
@@ -90,7 +94,9 @@ function stepOcean_Flow!(
     println("Before Ts: ", ocn.Ts[1:5, 48, 89])
     println("Before Ss: ", ocn.Ss[1:5, 48, 89])
 =#
-    @loop_hor ocn i j let
+
+    println("ADD")
+    @time @loop_hor ocn i j let
  
         Nz = ocn.Nz[i, j]
         zs   = ocn.cols.zs[i, j]
@@ -183,6 +189,6 @@ function stepOcean_Flow!(
 
 
     end
-
+    println("DONE")
 
 end
