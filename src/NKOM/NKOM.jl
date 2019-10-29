@@ -20,11 +20,10 @@ end
     end
  
     macro loop_hor(ocn, idx1, idx2, stmts)
+        
+        return :( for $(esc(idx1))=1:$(esc(ocn)).Nx, $(esc(idx2))=$(esc(ocn)).Ny
 
-        return :( for grid_idx in 1:size($(esc(ocn)).valid_idx)[2]
-
-            $(esc(idx1)) = $(esc(ocn)).valid_idx[1, grid_idx]
-            $(esc(idx2)) = $(esc(ocn)).valid_idx[2, grid_idx]
+            $(esc(ocn)).mask[$(esc(idx1)), $(esc(idx2))] == 0.0 && continue
             $(esc(stmts))
 
         end )
