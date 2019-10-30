@@ -155,6 +155,9 @@ mutable struct Ocean
     # Accumulative variables
     acc_vars :: Union{AccumulativeVariables, Nothing}
 
+
+    ASUM :: Union{AdvectionSpeedUpMatrix, Nothing}
+
     function Ocean(;
         id       :: Integer = 0,  
         gridinfo_file :: AbstractString,
@@ -809,9 +812,27 @@ mutable struct Ocean
             end
 
 #        end
-
-     
         # ===== [END] Construct Views of Cols =====
+
+        # ===== [BEGIN] Making speed-up matrix
+
+        if id != 0
+            ASUM = AdvectionSpeedUpMatrix(;
+                gi = gridinfo,
+                Nx = Nx,
+                Ny = Ny,
+                Nz_bone = Nz_bone,
+                Nz = Nz,
+                mask3 = _mask3,
+                noflux_x_mask3 = _noflux_x_mask3,
+                noflux_y_mask3 = _noflux_y_mask3,
+                Δzs = Δzs,
+                hs  = hs,
+            )
+        else
+            ASUM = nothing
+        end
+        # ===== [END] Making speed-up matrix
 
 
         ocn = new(
@@ -855,6 +876,7 @@ mutable struct Ocean
             lays,
             cols,
             ( id == 0 ) ? nothing : AccumulativeVariables(Nx, Ny, Nz_bone),
+            ASUM,
         )
 
         updateB!(ocn)

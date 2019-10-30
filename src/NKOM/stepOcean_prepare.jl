@@ -1,3 +1,5 @@
+using LinearAlgebra: mul!
+
 function calWeightedQuantity(;
     top     :: Float64,
     bot     :: Float64,
@@ -161,8 +163,8 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
     end
 
 
-     
-    calHorVelBnd!(
+    println("calHorVelBnd!")     
+    @time calHorVelBnd!(
         Nx    = ocn.Nx,
         Ny    = ocn.Ny,
         Nz    = ocn.Nz,
@@ -176,6 +178,13 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
         noflux_x_mask3 = ocn.noflux_x_mask3,
         noflux_y_mask3 = ocn.noflux_y_mask3,
     )
+
+
+    println("calHorVelBnd with spmtx")
+    #@time let
+    #    mul!(view(ocn.u_bnd, :), ocn.ASUM.mtx_interp_U, view(ocn.u, :))
+    #    mul!(view(ocn.v_bnd, :), ocn.ASUM.mtx_interp_V, view(ocn.v, :))
+    #end
 
     calVerVelBnd!(
         gi    = ocn.gi,

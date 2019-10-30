@@ -1,5 +1,15 @@
 
+function sig(f)
+    return isdispatchtuple(methods(f).ms[1].sig)
+end
 
+function isdis()
+    println("calDiffAdv_QUICK! : ", calDiffAdv_QUICK! |> sig)
+    println("calGRAD_CURV!     : ", calGRAD_CURV!     |> sig)
+    println("calFluxDensity!   : ", calFluxDensity!   |> sig)
+    println("calTotalChange! : ",   calTotalChange!    |> sig)
+    println("calMixedLayer_dΔqdt! : ",  calMixedLayer_dΔqdt! |> sig)
+end
 
 function calDiffAdv_QUICK!(
     ocn :: Ocean;
@@ -14,6 +24,8 @@ function calDiffAdv_QUICK!(
     Dh          :: Float64,
     Dv          :: Float64,
 )
+
+    isdis()
 
     println("GRAD_CRUV")
     @time calGRAD_CURV!(

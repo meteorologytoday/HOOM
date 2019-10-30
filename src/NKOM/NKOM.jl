@@ -44,6 +44,7 @@ end
     @hinclude("../share/constants.jl")
     @hinclude("InputFields.jl")
     @hinclude("AccumulativeVariables.jl")
+    @hinclude("SpeedUpMtx.jl")
     @hinclude("Ocean.jl")
 
     @hinclude("qflx2atm.jl")
@@ -74,6 +75,7 @@ end
     @hinclude("driver.jl")
 
     @hinclude("varlist.jl")
+
 
 
 end
