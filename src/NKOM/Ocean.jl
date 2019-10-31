@@ -481,7 +481,8 @@ mutable struct Ocean
                 mi.xc,
                 mi.yc,
                 mi.xv,
-                mi.yv;
+                mi.yv,
+                mi.area;
                 angle_unit=:deg,
             )
 
@@ -499,7 +500,8 @@ mutable struct Ocean
                 mi.xc,
                 mi.yc,
                 mi.xv,
-                mi.yv;
+                mi.yv,
+                mi.area;
                 angle_unit=:deg,
                 sub_yrng=sub_yrng,
             )
