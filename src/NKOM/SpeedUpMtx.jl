@@ -22,7 +22,9 @@ mutable struct AdvectionSpeedUpMatrix
 #    mtx_CURV :: AbstractArray{Float64, 2}
     mtx_interp_U :: AbstractArray{Float64, 2}
     mtx_interp_V :: AbstractArray{Float64, 2}
-#    mtx_DIV2 :: AbstractArray{Float64, 2}
+    mtx_DIV2_X   :: AbstractArray{Float64, 2}
+    mtx_DIV2_Y   :: AbstractArray{Float64, 2}
+
 #    mtx_DIV3 :: AbstractArray{Float64, 2}
 
     function AdvectionSpeedUpMatrix(;
@@ -83,15 +85,17 @@ mutable struct AdvectionSpeedUpMatrix
             end
         end
         # ===== [END] Making interp matrix =====
- 
+
         # ===== [BEGIN] Making divergent matrix =====
         # x
-        for i=1:Nx+1, j=1:Ny
+        for i=1:Nx, j=1:Ny
             for k=1:Nz[cyc(i, Nx), j]
-                if noflux_x_mask3[k, i, j] != 0.0
-                    ib   = flat_i(k, i           , j, Nz_bone, Nx+1, Ny)
-                    ic_e = flat_i(k, cyc(i  ,Nx) , j, Nz_bone, Nx  , Ny)
-                    ic_w = flat_i(k, cyc(i-1,Nx) , j, Nz_bone, Nx  , Ny)
+                if mask3[k, i, j] == 0.0
+                    break
+                end
+                ic = flat_i(k, i, j, Nz_bone, Nx  , Ny)
+                ib_w   = flat_i(k, i  , j, Nz_bone, Nx+1, Ny)
+                ib_e   = flat_i(k, i+1, j, Nz_bone, Nx+1, Ny)
 
                     #u_bnd[k, i, j] = u[k, i-1, j] * (1.0 - weight_e[i, j]) + u[k, i, j] * weight_e[i, j]
                     mtx_interp_U[ib, ic_w] = 1.0 - gi.weight_e[i, j] 
@@ -116,6 +120,7 @@ mutable struct AdvectionSpeedUpMatrix
             end
         end
 
+        # 
 #    local tmp = tmp_σ = 0.0
     for i=1:Nx, j=1:Ny
 
