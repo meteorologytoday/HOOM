@@ -142,7 +142,7 @@ fi
 
 getXML "\${env_vars[@]}"
 
-nodes=\$( python -c "from math import ceil; print ceil(float(\${totalpes}) / float(\${max_tasks_per_node}) )" )
+nodes=\$( python -c "from math import ceil; print('%d' % (ceil(float(\${totalpes}) / float(\${max_tasks_per_node})),));" )
 
 cat << XEOFX > config.jl
 
@@ -157,7 +157,7 @@ global overwrite_configs = Dict(
     :enable_short_term_archive  => true,
     :enable_long_term_archive   => true,
     :daily_record              => [],
-    :monthly_record            => ["T", "S", "b", "T_ML", "S_ML", "dTdt_ent", "dSdt_ent", "h_ML", "nswflx", "swflx", "frwflx", "fric_u", "taux", "tauy", "w", "u", "v", "T_hadvs", "T_vadvs", "S_hadvs", "S_vadvs"],
+    :monthly_record            => :ALL,
     :yearly_snapshot            => true,
     :short_term_archive_list    => "SSM_short_term_archive_list.txt",
     :substeps                   => 8,

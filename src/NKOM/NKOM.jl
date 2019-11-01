@@ -38,6 +38,20 @@ end
         end )
     end
 
+
+    macro loop_hor2(ocn, idx1, idx2, stmts)
+        
+        return :( for $(esc(idx1))=1:$(esc(ocn)).Nx, $(esc(idx2))=1:$(esc(ocn)).Ny
+
+            if $(esc(ocn)).mask[$(esc(idx1)), $(esc(idx2))] == 0.0
+                continue
+            end
+
+            $(esc(stmts))
+
+        end )
+    end
+
     @hinclude("../share/DisplacedPoleCoordinate.jl")
     @hinclude("../share/MapInfo.jl")
        
