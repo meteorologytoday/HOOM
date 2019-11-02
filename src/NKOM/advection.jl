@@ -11,6 +11,96 @@ function isdis()
     println("calMixedLayer_dΔqdt! : ",  calMixedLayer_dΔqdt! |> sig)
 end
 
+function calDiffAdv_QUICK_SpeedUp!(
+    ocn :: Ocean;
+    qs          :: AbstractArray{Float64, 3},
+    wq_bnd      :: AbstractArray{Float64, 2},
+    dΔqdt       :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    FLUX_CONV   :: AbstractArray{Float64, 3},
+    FLUX_CONV_h :: AbstractArray{Float64, 3},
+    FLUX_DEN_x  :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx+1, Ny   )
+    FLUX_DEN_y  :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
+    FLUX_DEN_z  :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
+    Dh          :: Float64,
+    Dv          :: Float64,
+)
+
+    ASUM = ocn.ASUM
+    println("GRAD_CRUV")
+    @time let
+        mul!(view(ocn.GRAD_bnd_x, :), ASUM.mtx_GRAD_X, view(qs, :))
+        mul!(view(ocn.GRAD_bnd_y, :), ASUM.mtx_GRAD_Y, view(qs, :))
+        mul!(view(ocn.GRAD_bnd_z, :), ASUM.mtx_GRAD_Z, view(qs, :))
+ 
+        mul!(view(ocn.CURV_x, :), ASUM.mtx_CURV_X, view(ocn.GRAD_bnd_x, :))
+        mul!(view(ocn.CURV_y, :), ASUM.mtx_CURV_Y, view(ocn.GRAD_bnd_y, :))
+        mul!(view(ocn.CURV_z, :), ASUM.mtx_CURV_Z, view(ocn.GRAD_bnd_z, :))
+       
+    end
+
+    println("FLUXDEN")
+    @time calFluxDensity!(
+        gi         = ocn.gi,
+        Nx         = ocn.Nx,
+        Ny         = ocn.Ny,
+        Nz         = ocn.Nz,
+        wq_bnd     = wq_bnd,
+        qs         = qs,
+        GRAD_bnd_x = ocn.GRAD_bnd_x,
+        GRAD_bnd_y = ocn.GRAD_bnd_y,
+        GRAD_bnd_z = ocn.GRAD_bnd_z,
+        CURV_x     = ocn.CURV_x,
+        CURV_y     = ocn.CURV_y,
+        CURV_z     = ocn.CURV_z,
+        FLUX_DEN_x = FLUX_DEN_x,
+        FLUX_DEN_y = FLUX_DEN_y,
+        FLUX_DEN_z = FLUX_DEN_z,
+        u_bnd      = ocn.u_bnd,
+        v_bnd      = ocn.v_bnd,
+        w_bnd      = ocn.w_bnd,
+        mask3          = ocn.mask3,
+        noflux_x_mask3 = ocn.noflux_x_mask3,
+        noflux_y_mask3 = ocn.noflux_y_mask3,
+        Δzs        = ocn.Δzs,
+        D_hor      = Dh,
+        D_ver      = Dv,
+    )
+
+
+    println("TOTAL CHANGE")
+    @time let
+        mul!(view(FLUX_CONV_h, :), ASUM.mtx_DIV_X, view(FLUX_DEN_x, :))
+        mul!(view(ocn.workspace2, :), ASUM.mtx_DIV_Y, view(FLUX_DEN_y, :))
+        mul!(view(ocn.workspace3, :), ASUM.mtx_DIV_Z, view(FLUX_DEN_z, :))
+
+        FLUX_CONV_h .+= ocn.workspace2
+        FLUX_CONV_h .*= -1.0
+        FLUX_CONV .= FLUX_CONV_h 
+        FLUX_CONV .-= ocn.workspace3
+
+#        for j=1:ocn.Ny, i=1:ocn.Nx, k=1:ocn.Nz_bone
+#            FLUX_CONV_h[k, i, j] = - ( ocn.workspace1[k, i, j] + ocn.workspace2[k, i, j] )
+#            FLUX_CONV[k, i, j] = FLUX_CONV_h[k, i, j] - ocn.workspace3[k, i, j]
+#        end
+    end
+
+    println("CALMIXEDLAYER")
+    @time calMixedLayer_dΔqdt!(
+        Nx          = ocn.Nx,
+        Ny          = ocn.Ny,
+        Nz          = ocn.Nz,
+        FLUX_CONV_h = FLUX_CONV_h,
+        FLUX_DEN_z  = FLUX_DEN_z,
+        dΔqdt       = dΔqdt,
+        mask        = ocn.mask,
+        FLDO        = ocn.FLDO,
+        h_ML        = ocn.h_ML,
+        hs          = ocn.hs,
+        zs          = ocn.zs,
+    )
+end
+
+
 function calDiffAdv_QUICK!(
     ocn :: Ocean;
     qs          :: AbstractArray{Float64, 3},

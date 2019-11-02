@@ -53,9 +53,23 @@ function stepOcean_Flow!(
     end
 =#
 
-    println("QUICK")
-    @time let
-        calDiffAdv_QUICK!(
+    println("##### QUICK NO SPEEDUP")
+    @time calDiffAdv_QUICK!(
+        ocn,
+        qs          = ocn.Ts,
+        wq_bnd      = ocn.wT_bot,
+        dΔqdt       = ocn.dΔTdt,
+        FLUX_CONV   = ocn.TFLUX_CONV,
+        FLUX_CONV_h = ocn.TFLUX_CONV_h,
+        FLUX_DEN_x  = ocn.TFLUX_DEN_x,
+        FLUX_DEN_y  = ocn.TFLUX_DEN_y,
+        FLUX_DEN_z  = ocn.TFLUX_DEN_z,
+        Dh = ocn.Dh_T,
+        Dv = ocn.Dv_T,
+   )
+#= 
+    println("##### QUICK SPEEDUP")
+    @time calDiffAdv_QUICK_SpeedUp!(
         ocn,
         qs          = ocn.Ts,
         wq_bnd      = ocn.wT_bot,
@@ -68,7 +82,7 @@ function stepOcean_Flow!(
         Dh = ocn.Dh_T,
         Dv = ocn.Dv_T,
     )
-    
+  =#  
     calDiffAdv_QUICK!(
         ocn,
         qs          = ocn.Ss,
@@ -82,7 +96,6 @@ function stepOcean_Flow!(
         Dh = ocn.Dh_S,
         Dv = ocn.Dv_S,
     )
-    end
 
 #=
         if any(ocn.TFLUX_CONV .>= 0.1) 

@@ -61,6 +61,74 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
             
         end
 
+    elseif adv_scheme == :ekman_codron2012_partition
+
+        H_ek =  50.0
+        H_rf = 250.0   # Codron (2012) suggests 150 - 350 meters. Here I take the average.
+        H_total = H_ek + H_rf
+
+        bot_lay_ek = getLayerFromDepth(
+            z  = - H_ek,
+            zs = ocn.zs_bone,  
+            Nz = ocn.Nz_bone,
+        )
+
+        bot_lay_rf = getLayerFromDepth(
+            z  = - H_total,
+            zs = ocn.zs_bone,  
+            Nz = ocn.Nz_bone,
+        )
+
+        @loop_hor ocn i j let
+
+            M̃ = (ocn.τx[i, j] + ocn.τy[i, j] * im) / (ρ * (ocn.ϵs[i, j] + ocn.fs[i, j] * im) )
+
+            ṽ_ek =   M̃ / H_ek
+            ṽ_rf = - M̃ / H_rf
+
+            u_ek, v_ek = real(ṽ_ek), imag(ṽ_ek)
+            u_rf, v_rf = real(ṽ_rf), imag(ṽ_rf)
+
+            if bot_lay_ek == -1
+            
+                ocn.u[:, i, j] .= u_ek
+                ocn.v[:, i, j] .= v_ek
+
+            else
+
+                ocn.u[1:bot_lay_ek, i, j] .= u_ek
+                ocn.v[1:bot_lay_ek, i, j] .= v_ek
+
+                # Mix the top of RF layer
+                Δh     = ocn.hs[bot_lay_ek, i, j]
+                Δh_top = H_ek + ocn.zs[bot_lay_ek, i, j]
+                Δh_bot = Δh - Δh_top
+
+                ocn.u[bot_lay_ek, i, j] = (Δh_top * u_ek + Δh_bot * u_rf) / Δh
+                ocn.v[bot_lay_ek, i, j] = (Δh_top * v_ek + Δh_bot * v_rf) / Δh
+
+                if bot_lay_ek < ocn.Nz[i, j] # Bottom layers exists
+                    if bot_lay_rf == -1
+                       ocn.u[bot_lay_ek+1:end, i, j] .= u_rf
+                       ocn.v[bot_lay_ek+1:end, i, j] .= v_rf
+                    else
+                       ocn.u[bot_lay_ek+1:bot_lay_rf, i, j] .= u_rf
+                       ocn.v[bot_lay_ek+1:bot_lay_rf, i, j] .= v_rf
+
+                        # Mix the bottom of RF layer
+                        Δh     = ocn.hs[bot_lay_rf, i, j]
+                        Δh_top = H_total + ocn.zs[bot_lay_rf, i, j]
+                        Δh_bot = Δh - Δh_top
+
+                        ocn.u[bot_lay_rf, i, j] = Δh_top * u_rf / Δh
+                        ocn.v[bot_lay_rf, i, j] = Δh_top * v_rf / Δh
+
+                    end
+                end
+
+            end
+        end
+
     elseif adv_scheme == :ekman_simple_partition
         @loop_hor ocn i j let
 
