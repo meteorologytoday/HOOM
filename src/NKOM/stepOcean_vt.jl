@@ -75,8 +75,8 @@ function stepOcean_MLDynamics!(
 
         else        # h_ML is prognostic
  
-            target_z = max( - old_h_ML - 30.0,  - ocn.h_ML_max[i, j])
-            avg_D = - old_h_ML - target_z
+#            target_z = max( - old_h_ML - 30.0,  - ocn.h_ML_max[i, j])
+#            avg_D = - old_h_ML - target_z
 
 #=
             if (i, j) == (48, 89)
@@ -87,11 +87,13 @@ function stepOcean_MLDynamics!(
 =#
 
 
-            Δb = ( (avg_D > 0.0) ? ocn.b_ML[i, j] - (
-                  OC_getIntegratedBuoyancy(ocn, i, j; target_z =   target_z)
-                - OC_getIntegratedBuoyancy(ocn, i, j; target_z = - old_h_ML)
-            ) / avg_D
-            : 0.0 )
+#            Δb = ( (avg_D > 0.0) ? ocn.b_ML[i, j] - (
+#                  OC_getIntegratedBuoyancy(ocn, i, j; target_z =   target_z)
+#                - OC_getIntegratedBuoyancy(ocn, i, j; target_z = - old_h_ML)
+#            ) / avg_D
+#            : 0.0 )
+
+            Δb = (old_FLDO == -1 ) ? 0.0 : ocn.b_ML[i, j] - ocn.bs[old_FLDO, i, j]
 
             # After convective adjustment, there still might
             # be some numerical error making Δb slightly negative
