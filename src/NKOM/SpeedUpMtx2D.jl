@@ -1,7 +1,17 @@
 
 using SparseArrays
 
-@inline function flat_i(
+@inline function flat2_i(
+    i :: Int64,
+    j :: Int64,
+    Nx :: Int64,
+    Ny :: Int64,
+)
+    return i + (j-1) * Nx
+end
+
+
+@inline function flat3_i(
     k :: Int64,
     i :: Int64,
     j :: Int64,
@@ -49,52 +59,41 @@ mutable struct AdvectionSpeedUpMatrix
     
    # mtx_CURV :: AbstractArray{Float64, 2}
      
-        mtx_interp_U = spzeros(Float64, Nz_bone * (Nx+1) * Ny    , Nz_bone     * Nx     * Ny    )
-        mtx_interp_V = spzeros(Float64, Nz_bone * Nx     * (Ny+1), Nz_bone     * Nx     * Ny    )
-        mtx_DIV_X    = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * (Nx+1) * Ny    )
-        mtx_DIV_Y    = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * Nx     * (Ny+1))
-        mtx_DIV_Z    = spzeros(Float64, Nz_bone * Nx     * Ny    , (Nz_bone+1) * Nx     * Ny    )
-        mtx_GRAD_X   = spzeros(Float64, Nz_bone * (Nx+1) * Ny    , Nz_bone     * Nx     * Ny    )
-        mtx_GRAD_Y   = spzeros(Float64, Nz_bone * Nx     * (Ny+1), Nz_bone     * Nx     * Ny    )
-        mtx_GRAD_Z   = spzeros(Float64, (Nz_bone+1) * Nx * Ny    , Nz_bone     * Nx     * Ny    )
-        mtx_CURV_X   = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * (Nx+1) * Ny    )
-        mtx_CURV_Y   = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * Nx     * (Ny+1))
-        mtx_CURV_Z   = spzeros(Float64, Nz_bone * Nx     * Ny    , (Nz_bone+1) * Nx     * Ny    )
+        mtx_interp_U = spzeros(Float64, (Nx+1) * Ny    , Nx     * Ny    )
+        mtx_interp_V = spzeros(Float64, Nx     * (Ny+1), Nx     * Ny    )
+        mtx_DIV_X    = spzeros(Float64, Nx     * Ny    , (Nx+1) * Ny    )
+        mtx_DIV_Y    = spzeros(Float64, Nx     * Ny    , Nx     * (Ny+1))
+        mtx_DIV_Z    = spzeros(Float64, Nx     * Ny    , Nx     * Ny    )
+        mtx_GRAD_X   = spzeros(Float64, (Nx+1) * Ny    , Nx     * Ny    )
+        mtx_GRAD_Y   = spzeros(Float64, Nx     * (Ny+1), Nx     * Ny    )
+        mtx_GRAD_Z   = spzeros(Float64, (Nz_bone+1)    , Nz_bone        )
+        mtx_CURV_X   = spzeros(Float64, Nx     * Ny    , (Nx+1) * Ny    )
+        mtx_CURV_Y   = spzeros(Float64, Nx     * Ny    , Nx     * (Ny+1))
+        mtx_CURV_Z   = spzeros(Float64, Nz_bone        , (Nz_bone+1)    )
 
 
-     #   println("Size mtx_interp_U: ", size(mtx_interp_U))
-     #   println("Size mtx_interp_V: ", size(mtx_interp_V))
         println("Making Interp Matrix")
         # ===== [BEGIN] Making interp matrix =====
         # x
         for i=1:Nx+1, j=1:Ny  # iterate through bounds
-            for k=1:Nz[cyc(i, Nx), j]  # Bounds Nx+1 is the same as the bound 1
-                if noflux_x_mask3[k, i, j] != 0.0
-                    ib   = flat_i(k, i           , j, Nz_bone, Nx+1, Ny)
-                    ic_e = flat_i(k, cyc(i  ,Nx) , j, Nz_bone, Nx  , Ny)
-                    ic_w = flat_i(k, cyc(i-1,Nx) , j, Nz_bone, Nx  , Ny)
+            ib   = flat2_i(i           , j, Nx+1, Ny)
+            ic_e = flat2_i(cyc(i  ,Nx) , j, Nx  , Ny)
+            ic_w = flat2_i(cyc(i-1,Nx) , j, Nx  , Ny)
 
-                    #u_bnd[k, i, j] = u[k, i-1, j] * (1.0 - weight_e[i, j]) + u[k, i, j] * weight_e[i, j]
-                    mtx_interp_U[ib, ic_w] = 1.0 - gi.weight_e[i, j] 
-                    mtx_interp_U[ib, ic_e] = gi.weight_e[i, j]
-                end
-            end
+            #u_bnd[k, i, j] = u[k, i-1, j] * (1.0 - weight_e[i, j]) + u[k, i, j] * weight_e[i, j]
+            mtx_interp_U[ib, ic_w] = 1.0 - gi.weight_e[i, j] 
+            mtx_interp_U[ib, ic_e] = gi.weight_e[i, j]
         end
 
         # y
         for i=1:Nx, j=2:Ny   # iterate through bounds
-            for k=1:Nz[i, j]
-               if noflux_y_mask3[k, i, j] != 0.0
-                    ib   = flat_i(k, i, j  , Nz_bone, Nx, Ny+1)
-                    ic_n = flat_i(k, i, j  , Nz_bone, Nx, Ny  )
-                    ic_s = flat_i(k, i, j-1, Nz_bone, Nx, Ny  )
+                    ib   = flat2_i(i, j  , Nx, Ny+1)
+                    ic_n = flat2_i(i, j  , Nx, Ny  )
+                    ic_s = flat2_i(i, j-1, Nx, Ny  )
 
                     #v_bnd[k, i, j] = v[k, i, j-1] * (1.0 - weight_n[i, j]) + v[k, i, j] * weight_n[i, j]
                     mtx_interp_V[ib, ic_s] = 1.0 - gi.weight_n[i, j] 
                     mtx_interp_V[ib, ic_n] = gi.weight_n[i, j]
-                end
-
-            end
         end
         # ===== [END] Making interp matrix =====
 
@@ -102,36 +101,33 @@ mutable struct AdvectionSpeedUpMatrix
         # ===== [BEGIN] Making divergent matrix =====
         # x and y
         for i=1:Nx, j=1:Ny  # iterate through face centers
-            for k=1:Nz[i, j]
-                if mask3[k, i, j] == 0.0
-                    break
-                end
+            ic = flat2_i(i, j, Nx  , Ny)
 
-                ic = flat_i(k, i, j, Nz_bone, Nx  , Ny)
+            # X direction
+            ib_e   = flat2_i(i+1, j, Nx+1, Ny)
+            ib_w   = flat2_i(i  , j, Nx+1, Ny)
 
-                # X direction
-                ib_e   = flat_i(k, i+1, j, Nz_bone, Nx+1, Ny)
-                ib_w   = flat_i(k, i  , j, Nz_bone, Nx+1, Ny)
+            mtx_DIV_X[ic, ib_e] =   gi.DY[i+1, j] / gi.dσ[i, j]
+            mtx_DIV_X[ic, ib_w] = - gi.DY[i  , j] / gi.dσ[i, j]
 
-                mtx_DIV_X[ic, ib_e] =   gi.DY[i+1, j] / gi.dσ[i, j]
-                mtx_DIV_X[ic, ib_w] = - gi.DY[i  , j] / gi.dσ[i, j]
+            # Y direction
+            ib_n   = flat2_i(i, j+1, Nx, Ny+1)
+            ib_s   = flat2_i(i, j  , Nx, Ny+1)
 
+            mtx_DIV_Y[ic, ib_n] =   gi.DX[i, j+1] / gi.dσ[i, j]
+            mtx_DIV_Y[ic, ib_s] = - gi.DX[i, j  ] / gi.dσ[i, j]
+        end
 
-                # Y direction
-                ib_n   = flat_i(k, i, j+1, Nz_bone, Nx, Ny+1)
-                ib_s   = flat_i(k, i, j  , Nz_bone, Nx, Ny+1)
+        for k=1:Nz_bone
+            ic = k
 
-                mtx_DIV_Y[ic, ib_n] =   gi.DX[i, j+1] / gi.dσ[i, j]
-                mtx_DIV_Y[ic, ib_s] = - gi.DX[i, j  ] / gi.dσ[i, j]
+            # Z direction
+            ib_t   = k
+            ib_b   = k+1
 
-                # Z direction
-                ib_t   = flat_i(k  , i, j, Nz_bone+1, Nx, Ny)
-                ib_b   = flat_i(k+1, i, j, Nz_bone+1, Nx, Ny)
+            mtx_DIV_Z[ic, ib_t] =   1.0 / hs[k, i, j]
+            mtx_DIV_Z[ic, ib_b] = - 1.0 / hs[k, i, j]
 
-                mtx_DIV_Z[ic, ib_t] =   1.0 / hs[k, i, j]
-                mtx_DIV_Z[ic, ib_b] = - 1.0 / hs[k, i, j]
-
-            end
         end
         # ===== [END] Making divergent matrix =====
         

@@ -418,7 +418,7 @@ function run!(
     sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
     sync_bnd_vars3 = (:Ts,   :Ss)
 
-    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :TSAS_clim, :SSAS_clim, :TFLUX_DIV_implied, :SFLUX_DIV_implied, :TEMP, :dTEMPdt, :SALT, :dSALTdt, :dTdt_ent, :dSdt_ent, :wT_bot, :wS_bot, :wS_top)
+    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :TSAS_clim, :SSAS_clim, :TFLUX_DIV_implied, :SFLUX_DIV_implied, :TEMP, :dTEMPdt, :SALT, :dSALTdt, :dTdt_ent, :dSdt_ent, :TFLUX_bot, :SFLUX_bot, :SFLUX_top)
     sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :TFLUX_CONV, :SFLUX_CONV, :TFLUX_DEN_z, :SFLUX_DEN_z, :div)
 
 
@@ -432,7 +432,7 @@ function run!(
             @spawnat p let
                 syncBoundaryFromMaster!(subocn; vars3 = sync_bnd_vars3, vars2 = sync_bnd_vars2)
                 calFLDOPartition!(subocn.worker_ocn)
-                @time stepOcean_Flow!(subocn.worker_ocn; Δt = dt, cfgs...)
+                stepOcean_Flow!(subocn.worker_ocn; Δt = dt, cfgs...)
                 stepOcean_MLDynamics!(subocn.worker_ocn; Δt = dt, cfgs...)
             end
         end

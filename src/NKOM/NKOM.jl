@@ -44,7 +44,7 @@ end
     @hinclude("../share/constants.jl")
     @hinclude("InputFields.jl")
     @hinclude("AccumulativeVariables.jl")
-    @hinclude("SpeedUpMtx.jl")
+    @hinclude("SpeedUpMtx3D.jl")
     @hinclude("Ocean.jl")
 
     @hinclude("qflx2atm.jl")

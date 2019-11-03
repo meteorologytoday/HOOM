@@ -212,6 +212,8 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
 
             end
         end
+
+    #=
     elseif adv_scheme == :test
         ocn.u .= 0.0
         ocn.v .= 0.0
@@ -225,14 +227,15 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
 
         #ocn.u .= 0.0
         #ocn.v[1, :, :] .= 0.1
-
-#    else
-#        throw(ErrorException("Unknown advection scheme: " * string(adv_scheme)))
+    =#
+    else
+        throw(ErrorException("Unknown advection scheme: " * string(adv_scheme)))
     end
 
 
-    println("calHorVelBnd!")     
-    @time calHorVelBnd!(
+    #println("calHorVelBnd!")    
+    #= 
+    calHorVelBnd!(
         Nx    = ocn.Nx,
         Ny    = ocn.Ny,
         Nz    = ocn.Nz,
@@ -248,19 +251,31 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
     )
 
 
-    println("calHorVelBnd with spmtx")
-    #@time let
-    #    mul!(view(ocn.u_bnd, :), ocn.ASUM.mtx_interp_U, view(ocn.u, :))
-    #    mul!(view(ocn.v_bnd, :), ocn.ASUM.mtx_interp_V, view(ocn.v, :))
-    #end
-
-    calVerVelBnd!(
+    calDIV!(
         gi    = ocn.gi,
         Nx    = ocn.Nx,
         Ny    = ocn.Ny,
         Nz    = ocn.Nz,
         u_bnd = ocn.u_bnd,
         v_bnd = ocn.v_bnd,
+        div   = ocn.div,
+        mask3 = ocn.mask3,
+    )
+    =#
+
+    #println("calHorVelBnd with spmtx")
+    mul!(view(ocn.u_bnd, :), ocn.ASUM.mtx_interp_U, view(ocn.u, :))
+    mul!(view(ocn.v_bnd, :), ocn.ASUM.mtx_interp_V, view(ocn.v, :))
+    mul!(view(ocn.div, :), ocn.ASUM.mtx_DIV_X, view(ocn.u_bnd, :))
+    mul!(view(ocn.workspace2, :), ocn.ASUM.mtx_DIV_Y, view(ocn.v_bnd, :))
+
+    ocn.div .+= ocn.workspace2
+
+    calVerVelBnd!(
+        gi    = ocn.gi,
+        Nx    = ocn.Nx,
+        Ny    = ocn.Ny,
+        Nz    = ocn.Nz,
         w_bnd = ocn.w_bnd,
         hs    = ocn.hs,
         div   = ocn.div,

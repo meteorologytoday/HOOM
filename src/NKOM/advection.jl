@@ -4,17 +4,17 @@ function sig(f)
 end
 
 function isdis()
-    println("calDiffAdv_QUICK! : ", calDiffAdv_QUICK! |> sig)
-    println("calGRAD_CURV!     : ", calGRAD_CURV!     |> sig)
-    println("calFluxDensity!   : ", calFluxDensity!   |> sig)
-    println("calTotalChange! : ",   calTotalChange!    |> sig)
-    println("calMixedLayer_dΔqdt! : ",  calMixedLayer_dΔqdt! |> sig)
+   #println("calDiffAdv_QUICK! : ", calDiffAdv_QUICK! |> sig)
+   #println("calGRAD_CURV!     : ", calGRAD_CURV!     |> sig)
+   #println("calFluxDensity!   : ", calFluxDensity!   |> sig)
+   #println("calTotalChange! : ",   calTotalChange!    |> sig)
+   #println("calMixedLayer_dΔqdt! : ",  calMixedLayer_dΔqdt! |> sig)
 end
 
 function calDiffAdv_QUICK_SpeedUp!(
     ocn :: Ocean;
     qs          :: AbstractArray{Float64, 3},
-    wq_bnd      :: AbstractArray{Float64, 2},
+    FLUX_bot      :: AbstractArray{Float64, 2},
     dΔqdt       :: AbstractArray{Float64, 2},     # ( Nx, Ny )
     FLUX_CONV   :: AbstractArray{Float64, 3},
     FLUX_CONV_h :: AbstractArray{Float64, 3},
@@ -26,8 +26,8 @@ function calDiffAdv_QUICK_SpeedUp!(
 )
 
     ASUM = ocn.ASUM
-    println("GRAD_CRUV")
-    @time let
+   #println("GRAD_CRUV")
+    let
         mul!(view(ocn.GRAD_bnd_x, :), ASUM.mtx_GRAD_X, view(qs, :))
         mul!(view(ocn.GRAD_bnd_y, :), ASUM.mtx_GRAD_Y, view(qs, :))
         mul!(view(ocn.GRAD_bnd_z, :), ASUM.mtx_GRAD_Z, view(qs, :))
@@ -35,16 +35,16 @@ function calDiffAdv_QUICK_SpeedUp!(
         mul!(view(ocn.CURV_x, :), ASUM.mtx_CURV_X, view(ocn.GRAD_bnd_x, :))
         mul!(view(ocn.CURV_y, :), ASUM.mtx_CURV_Y, view(ocn.GRAD_bnd_y, :))
         mul!(view(ocn.CURV_z, :), ASUM.mtx_CURV_Z, view(ocn.GRAD_bnd_z, :))
-       
+ 
     end
 
-    println("FLUXDEN")
-    @time calFluxDensity!(
+   #println("FLUXDEN")
+    calFluxDensity!(
         gi         = ocn.gi,
         Nx         = ocn.Nx,
         Ny         = ocn.Ny,
         Nz         = ocn.Nz,
-        wq_bnd     = wq_bnd,
+        FLUX_bot     = FLUX_bot,
         qs         = qs,
         GRAD_bnd_x = ocn.GRAD_bnd_x,
         GRAD_bnd_y = ocn.GRAD_bnd_y,
@@ -67,8 +67,8 @@ function calDiffAdv_QUICK_SpeedUp!(
     )
 
 
-    println("TOTAL CHANGE")
-    @time let
+   #println("TOTAL CHANGE")
+    let
         mul!(view(FLUX_CONV_h, :), ASUM.mtx_DIV_X, view(FLUX_DEN_x, :))
         mul!(view(ocn.workspace2, :), ASUM.mtx_DIV_Y, view(FLUX_DEN_y, :))
         mul!(view(ocn.workspace3, :), ASUM.mtx_DIV_Z, view(FLUX_DEN_z, :))
@@ -84,8 +84,8 @@ function calDiffAdv_QUICK_SpeedUp!(
 #        end
     end
 
-    println("CALMIXEDLAYER")
-    @time calMixedLayer_dΔqdt!(
+   #println("CALMIXEDLAYER")
+    calMixedLayer_dΔqdt!(
         Nx          = ocn.Nx,
         Ny          = ocn.Ny,
         Nz          = ocn.Nz,
@@ -104,7 +104,7 @@ end
 function calDiffAdv_QUICK!(
     ocn :: Ocean;
     qs          :: AbstractArray{Float64, 3},
-    wq_bnd      :: AbstractArray{Float64, 2},
+    FLUX_bot      :: AbstractArray{Float64, 2},
     dΔqdt       :: AbstractArray{Float64, 2},     # ( Nx, Ny )
     FLUX_CONV   :: AbstractArray{Float64, 3},
     FLUX_CONV_h :: AbstractArray{Float64, 3},
@@ -115,10 +115,8 @@ function calDiffAdv_QUICK!(
     Dv          :: Float64,
 )
 
-    isdis()
-
-    println("GRAD_CRUV")
-    @time calGRAD_CURV!(
+   #println("GRAD_CRUV")
+    calGRAD_CURV!(
         gi         = ocn.gi,
         Nx         = ocn.Nx,
         Ny         = ocn.Ny,
@@ -137,13 +135,13 @@ function calDiffAdv_QUICK!(
         hs         = ocn.hs,
     )
 
-    println("FLUXDEN")
-    @time calFluxDensity!(
+   #println("FLUXDEN")
+    calFluxDensity!(
         gi         = ocn.gi,
         Nx         = ocn.Nx,
         Ny         = ocn.Ny,
         Nz         = ocn.Nz,
-        wq_bnd     = wq_bnd,
+        FLUX_bot     = FLUX_bot,
         qs         = qs,
         GRAD_bnd_x = ocn.GRAD_bnd_x,
         GRAD_bnd_y = ocn.GRAD_bnd_y,
@@ -166,8 +164,8 @@ function calDiffAdv_QUICK!(
     )
 
 
-    println("TOTAL CHANGE")
-    @time calTotalChange!(
+   #println("TOTAL CHANGE")
+    calTotalChange!(
         FLUX_CONV   = FLUX_CONV,
         FLUX_CONV_h = FLUX_CONV_h,
         gi          = ocn.gi,
@@ -181,8 +179,8 @@ function calDiffAdv_QUICK!(
         hs          = ocn.hs,
     )
 
-    println("CALMIXEDLAYER")
-    @time calMixedLayer_dΔqdt!(
+   #println("CALMIXEDLAYER")
+    calMixedLayer_dΔqdt!(
         Nx          = ocn.Nx,
         Ny          = ocn.Ny,
         Nz          = ocn.Nz,
@@ -195,8 +193,6 @@ function calDiffAdv_QUICK!(
         hs          = ocn.hs,
         zs          = ocn.zs,
     )
-
-    #println(format("time1={:f}, time2={:f}, time3={:f}, time4={:f}", time1, time2, time3, time4))
 
 end
 
@@ -231,7 +227,7 @@ function calTotalChange!(;
 
 
  #       if FLUX_DEN_z[1, i, j] != 0
- #           println("i: ", i, "; j:", j)
+ #          #println("i: ", i, "; j:", j)
  #           throw(ErrorException("FLUX_DEN_z != 0.0"))
  #       end
 
@@ -240,12 +236,12 @@ function calTotalChange!(;
 
 #=
         if (i, j) == (48, 89)
-            println("FLUX_X = ", FLUX_DEN_x[1:6, i+1, j], "; ", FLUX_DEN_x[1:6, i, j])
-            println("FLUX_X conv=", FLUX_DEN_x[1:6, i+1, j] * gi.DY[i+1, j] - FLUX_DEN_x[1:6, i, j] * gi.DY[i, j])
-            println("FLUX_y conv=", FLUX_DEN_y[1:6, i, j+1] * gi.DX[i, j+1] - FLUX_DEN_y[1:6, i, j] * gi.DX[i, j])
+           #println("FLUX_X = ", FLUX_DEN_x[1:6, i+1, j], "; ", FLUX_DEN_x[1:6, i, j])
+           #println("FLUX_X conv=", FLUX_DEN_x[1:6, i+1, j] * gi.DY[i+1, j] - FLUX_DEN_x[1:6, i, j] * gi.DY[i, j])
+           #println("FLUX_y conv=", FLUX_DEN_y[1:6, i, j+1] * gi.DX[i, j+1] - FLUX_DEN_y[1:6, i, j] * gi.DX[i, j])
 
-            println("DX: ", gi.DX[i, j:j+1])
-            println("DY: ", gi.DY[i:i+1, j])
+           #println("DX: ", gi.DX[i, j:j+1])
+           #println("DY: ", gi.DY[i:i+1, j])
         end
 =#
 
@@ -268,25 +264,25 @@ function calTotalChange!(;
 
 #=
            if i==1 && FLUX_DEN_x[k, 1, j] != FLUX_DEN_x[k, Nx+1, j]
-                println("i: ", i, "; j:", j)
+               #println("i: ", i, "; j:", j)
                 throw(ErrorException("FLUX_DEN_x does not match"))
            end
  
            if j==1 && ( FLUX_DEN_y[k, i, 1] != 0 ||  FLUX_DEN_x[k, i, Ny+1] != 0)
-                println("i: ", i, "; j:", j)
+               #println("i: ", i, "; j:", j)
                 throw(ErrorException("FLUX_DEN_y != 0"))
            end
  
 =#
 #=
             if i < Nx-1 && gi.ds2[i, j] != gi.ds4[i+1, j]
-                println("i: ", i, "; j:", j)
+               #println("i: ", i, "; j:", j)
                 throw(ErrorException("ds2 ds4 does not match"))
             end
             
             if j < Ny-1 && gi.ds3[i, j] != gi.ds1[i, j+1]
-                println("i: ", i, "; j:", j)
-                println("ds3: ", gi.ds3[i, j], "; ds1: ", gi.ds1[i, j+1])
+               #println("i: ", i, "; j:", j)
+               #println("ds3: ", gi.ds3[i, j], "; ds1: ", gi.ds1[i, j+1])
                 throw(ErrorException("ds1 ds3 does not match"))
             end
 =#
@@ -295,12 +291,12 @@ function calTotalChange!(;
      #       tmp_v += hs[k, i, j] * gi.dσ[i, j]
 
 #            if (k, j) == (2, 10)
-#                println(FLUX_DEN_x[k, i, j] * gi.ds4[i_e, j], " ::: ", FLUX_DEN_x[k, i+1, j] * gi.ds4[i, j])
+#               #println(FLUX_DEN_x[k, i, j] * gi.ds4[i_e, j], " ::: ", FLUX_DEN_x[k, i+1, j] * gi.ds4[i, j])
 #                tmp += FLUX_DEN_x[k, i+1, j] * gi.ds4[i_e, j] - FLUX_DEN_x[k, i, j] * gi.ds4[i, j]
 #            end
             
 #            if (k, i) == (1, 10) 
-#                println(FLUX_DEN_y[k, i, j+1] * gi.ds1[i, j+1], " ::: ", FLUX_DEN_y[k, i, j] * gi.ds1[i, j])
+#               #println(FLUX_DEN_y[k, i, j+1] * gi.ds1[i, j+1], " ::: ", FLUX_DEN_y[k, i, j] * gi.ds1[i, j])
 #            end
 
         end
@@ -383,7 +379,7 @@ function calFluxDensity!(;
     Nx         :: Integer,
     Ny         :: Integer,
     Nz         :: AbstractArray{Int64, 2},
-    wq_bnd     :: AbstractArray{Float64, 2},     # ( Nx  , Ny   )
+    FLUX_bot     :: AbstractArray{Float64, 2},     # ( Nx  , Ny   )
     qs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     u_bnd      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx+1, Ny   )
     v_bnd      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
@@ -415,16 +411,16 @@ function calFluxDensity!(;
 
     #=
                 if any(u_bnd[k, i:i+1, j] .> 10.0)
-                    println("Weird u_bnd at i, j = ", i, ", ", j)
+                   #println("Weird u_bnd at i, j = ", i, ", ", j)
                 end
 
                 if any(q_star .> 100.0)
-                    println("Weird q_star at i, j = ", i, ", ", j, "; q_star=", q_star)
-                    println("qs:",qs[k, i-4:i+1, j])
-                    println("u_bnd: ", u_bnd[k ,i:i+1, j])
-                    println("CURV_x:",CURV_x[k, i-3:i, j])
-                    println("gi.dx_w^2 / 8 :",gi.dx_w[i, j]^2.0 / 8.0)
-                    println("gi.dx_c :",gi.dx_c[i, j])
+                   #println("Weird q_star at i, j = ", i, ", ", j, "; q_star=", q_star)
+                   #println("qs:",qs[k, i-4:i+1, j])
+                   #println("u_bnd: ", u_bnd[k ,i:i+1, j])
+                   #println("CURV_x:",CURV_x[k, i-3:i, j])
+                   #println("gi.dx_w^2 / 8 :",gi.dx_w[i, j]^2.0 / 8.0)
+                   #println("gi.dx_c :",gi.dx_c[i, j])
 
                     throw(ErrorException("STOP"))
                 end
@@ -480,16 +476,16 @@ function calFluxDensity!(;
 
 #=
                 if (k, i, j) == (3, 47, 87)
-                    println("q_star=", q_star, ", ; GRAD_bnd_z=", GRAD_bnd_z[1:6, i, j])
-                    println("qs:",qs[1:5, i, j])
-                    println("CURV_z:",CURV_z[1:5, i, j])
-                    println("gi.dx_w^2 / 8 :",gi.dx_w[i, j]^2.0 / 8.0)
-                    println("gi.dx_c :",gi.dx_c[i, j])
+                   #println("q_star=", q_star, ", ; GRAD_bnd_z=", GRAD_bnd_z[1:6, i, j])
+                   #println("qs:",qs[1:5, i, j])
+                   #println("CURV_z:",CURV_z[1:5, i, j])
+                   #println("gi.dx_w^2 / 8 :",gi.dx_w[i, j]^2.0 / 8.0)
+                   #println("gi.dx_c :",gi.dx_c[i, j])
                 end
 =#
         end
 
-        FLUX_DEN_z[_Nz+1, i, j] = wq_bnd[i, j] = FLUX_DEN_z[_Nz, i, j]
+        FLUX_DEN_z[_Nz+1, i, j] = FLUX_bot[i, j] = FLUX_DEN_z[_Nz, i, j]
 
         #println("(i, j) = ", (i, j), "; q_star = ", q_star, "; w_bnd = ", w_bnd[_Nz+1, i, j])
 
@@ -572,8 +568,8 @@ function calGRAD_CURV!(;
             CURV_y[k, i, j] = ( GRAD_bnd_y[k, i  , j+1] - GRAD_bnd_y[k  , i, j] ) / gi.dy_c[i, j]
             CURV_z[k, i, j] = ( GRAD_bnd_z[k, i  , j  ] - GRAD_bnd_z[k+1, i, j] ) / hs[k, i, j]
 #            if (k, i, j) == (4, 47, 87)
-#                println("[3,47,87] CURV_z=", CURV_z[1:6, i, j], ", hs=", hs[1:6, i, j], "; Δzs: ", Δzs[1:6, i, j])
-#                println("[3,47,87] GRAD_bnd_z: ", GRAD_bnd_z[1:6, i, j])
+#               #println("[3,47,87] CURV_z=", CURV_z[1:6, i, j], ", hs=", hs[1:6, i, j], "; Δzs: ", Δzs[1:6, i, j])
+#               #println("[3,47,87] GRAD_bnd_z: ", GRAD_bnd_z[1:6, i, j])
 #            end
         end
     end
@@ -596,14 +592,47 @@ function calGRAD_CURV!(;
 end
 
 
-
-function calVerVelBnd!(;
+function calDIV!(;
     gi       :: DisplacedPoleCoordinate.GridInfo,
     Nx       :: Integer,
     Ny       :: Integer,
     Nz       :: AbstractArray{Int64, 2},
     u_bnd    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx+1, Ny   )
     v_bnd    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny+1 )
+    div      :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+    mask3    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+)
+
+#    local tmp = tmp_σ = 0.0
+    for i=1:Nx, j=1:Ny
+
+        for k=1:Nz[i, j]
+
+            if mask3[k, i, j] == 0.0
+                break
+            end
+            
+            div[k, i, j] =  (  
+                u_bnd[k, i+1, j  ]  * gi.DY[i+1, j  ]
+              - u_bnd[k, i,   j  ]  * gi.DY[i  , j  ]
+              + v_bnd[k, i,   j+1]  * gi.DX[i  , j+1]
+              - v_bnd[k, i,   j  ]  * gi.DX[i  , j  ]
+            ) / gi.dσ[i, j]
+
+        end
+
+    end
+
+
+end
+
+
+
+function calVerVelBnd!(;
+    gi       :: DisplacedPoleCoordinate.GridInfo,
+    Nx       :: Integer,
+    Ny       :: Integer,
+    Nz       :: AbstractArray{Int64, 2},
     w_bnd    :: AbstractArray{Float64, 3},   # ( Nz_bone+1, Nx  , Ny   )
     hs       :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
     div      :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
@@ -621,13 +650,6 @@ function calVerVelBnd!(;
                 break
             end
             
-            div[k, i, j] =  (  
-                u_bnd[k, i+1, j  ]  * gi.DY[i+1, j  ]
-              - u_bnd[k, i,   j  ]  * gi.DY[i  , j  ]
-              + v_bnd[k, i,   j+1]  * gi.DX[i  , j+1]
-              - v_bnd[k, i,   j  ]  * gi.DX[i  , j  ]
-            ) / gi.dσ[i, j]
-
             w_bnd[k+1, i, j] = w_bnd[k, i, j] + div[k, i, j] * hs[k, i, j]
         end
 
@@ -635,7 +657,7 @@ function calVerVelBnd!(;
 #        tmp_σ += gi.dσ[i, j]
     end
 
-#    println("tmp: ", tmp, "; tmp_σ: ", tmp_σ, "; Average w: ", tmp/tmp_σ)
+#   #println("tmp: ", tmp, "; tmp_σ: ", tmp_σ, "; Average w: ", tmp/tmp_σ)
 
 end
 

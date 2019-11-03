@@ -60,7 +60,7 @@ function stepOcean_MLDynamics!(
         surf_Sflx    = - frwflx[i, j] * ocn.S_ML[i, j]
         surf_bflx    = g * ( α * surf_Tnswflx - β * surf_Sflx )
         
-        ocn.wS_top[i, j] = surf_Sflx
+        ocn.SFLUX_top[i, j] = surf_Sflx
 
         old_FLDO = ocn.FLDO[i, j]
         old_h_ML = ocn.h_ML[i, j]

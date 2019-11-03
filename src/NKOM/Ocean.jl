@@ -51,9 +51,9 @@ mutable struct Ocean
     # unconserved part of energy
     TSAS_clim   :: AbstractArray{Float64, 2}
     SSAS_clim   :: AbstractArray{Float64, 2}
-    wT_bot       :: AbstractArray{Float64, 2}
-    wS_bot       :: AbstractArray{Float64, 2}
-    wS_top       :: AbstractArray{Float64, 2}
+    TFLUX_bot       :: AbstractArray{Float64, 2}
+    SFLUX_bot       :: AbstractArray{Float64, 2}
+    SFLUX_top       :: AbstractArray{Float64, 2}
     TFLUX_DIV_implied      :: AbstractArray{Float64, 2}
     SFLUX_DIV_implied      :: AbstractArray{Float64, 2}
 
@@ -379,9 +379,9 @@ mutable struct Ocean
 
         _TSAS_clim   = allocate(datakind, Float64, Nx, Ny)
         _SSAS_clim   = allocate(datakind, Float64, Nx, Ny)
-        _wT_bot       = allocate(datakind, Float64, Nx, Ny)
-        _wS_bot       = allocate(datakind, Float64, Nx, Ny)
-        _wS_top       = allocate(datakind, Float64, Nx, Ny)
+        _TFLUX_bot       = allocate(datakind, Float64, Nx, Ny)
+        _SFLUX_bot       = allocate(datakind, Float64, Nx, Ny)
+        _SFLUX_top       = allocate(datakind, Float64, Nx, Ny)
         _TFLUX_DIV_implied      = allocate(datakind, Float64, Nx, Ny)
         _SFLUX_DIV_implied      = allocate(datakind, Float64, Nx, Ny)
 
@@ -856,7 +856,7 @@ mutable struct Ocean
             _b_ML, _T_ML, _S_ML, _ΔT, _ΔS, _dΔTdt, _dΔSdt,
             _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
             _TSAS_clim, _SSAS_clim,
-            _wT_bot, _wS_bot, _wS_top,
+            _TFLUX_bot, _SFLUX_bot, _SFLUX_top,
             _TFLUX_DIV_implied, _SFLUX_DIV_implied,
             _bs,   _Ts,   _Ss,
             _FLDO, _FLDO_ratio_top, _FLDO_ratio_bot,

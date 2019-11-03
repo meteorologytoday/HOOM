@@ -18,9 +18,9 @@ mutable struct AccumulativeVariables
     dTdt_ent :: AbstractArray
     dSdt_ent :: AbstractArray
     
-    wT_bot       :: AbstractArray
-    wS_bot       :: AbstractArray
-    wS_top       :: AbstractArray
+    TFLUX_bot       :: AbstractArray
+    SFLUX_bot       :: AbstractArray
+    SFLUX_top       :: AbstractArray
 
 
     function AccumulativeVariables(Nx, Ny, Nz)
