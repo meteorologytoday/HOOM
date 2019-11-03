@@ -86,6 +86,7 @@ function stepOcean_Flow!(
         FLUX_DEN_z  = ocn.TFLUX_DEN_z,
         Dh = ocn.Dh_T,
         Dv = ocn.Dv_T,
+        Δt = Δt,
     )
 
     calDiffAdv_QUICK_SpeedUp!(
@@ -100,6 +101,7 @@ function stepOcean_Flow!(
         FLUX_DEN_z  = ocn.SFLUX_DEN_z,
         Dh = ocn.Dh_S,
         Dv = ocn.Dv_S,
+        Δt = Δt,
     )
     #end
     

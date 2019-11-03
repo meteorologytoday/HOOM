@@ -823,7 +823,7 @@ mutable struct Ocean
         # ===== [BEGIN] Making speed-up matrix
 
         if id != 0
-            @time ASUM = AdvectionSpeedUpMatrix(;
+            ASUM = AdvectionSpeedUpMatrix(;
                 gi = gridinfo,
                 Nx = Nx,
                 Ny = Ny,

@@ -60,7 +60,18 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
             end
             
         end
+    elseif adv_scheme == :testu
+ 
+        @loop_hor ocn i j let
+            for k = 1:ocn.Nz[i, j]
+                ocn.u[k, i, j] = 2π/365/86400.0 * cos(ocn.gi.c_lat[i, j]) * Re
+                ocn.v[k, i, j] = 0.0
+            end
+        end
 
+        #ocn.u .= 0.0
+        #ocn.v[1, :, :] .= 0.1
+        
     elseif adv_scheme == :ekman_codron2012_partition
 
         H_ek =  50.0

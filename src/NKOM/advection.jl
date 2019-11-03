@@ -1,16 +1,3 @@
-
-function sig(f)
-    return isdispatchtuple(methods(f).ms[1].sig)
-end
-
-function isdis()
-   #println("calDiffAdv_QUICK! : ", calDiffAdv_QUICK! |> sig)
-   #println("calGRAD_CURV!     : ", calGRAD_CURV!     |> sig)
-   #println("calFluxDensity!   : ", calFluxDensity!   |> sig)
-   #println("calTotalChange! : ",   calTotalChange!    |> sig)
-   #println("calMixedLayer_dΔqdt! : ",  calMixedLayer_dΔqdt! |> sig)
-end
-
 function calDiffAdv_QUICK_SpeedUp!(
     ocn :: Ocean;
     qs          :: AbstractArray{Float64, 3},
@@ -23,6 +10,7 @@ function calDiffAdv_QUICK_SpeedUp!(
     FLUX_DEN_z  :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
     Dh          :: Float64,
     Dv          :: Float64,
+    Δt          :: Float64,
 )
 
     ASUM = ocn.ASUM
@@ -64,6 +52,7 @@ function calDiffAdv_QUICK_SpeedUp!(
         Δzs        = ocn.Δzs,
         D_hor      = Dh,
         D_ver      = Dv,
+        Δt         = Δt,
     )
 
 
@@ -399,6 +388,7 @@ function calFluxDensity!(;
     Δzs        :: AbstractArray{Float64, 3},     # ( Nz_bone-1 ,  Nx  , Ny   )
     D_hor      :: Float64,
     D_ver      :: Float64,
+    Δt         :: Float64,
 )
 
     # x
@@ -407,27 +397,11 @@ function calFluxDensity!(;
             if noflux_x_mask3[k, i, j] == 0.0
                 FLUX_DEN_x[k, i, j] = 0.0
             else
-                q_star = (qs[k, i-1, j] + qs[k, i, j]) / 2.0 - gi.dx_w[i, j]^2.0/8.0 * ( ( u_bnd[k, i, j] >= 0.0 ) ? CURV_x[k, i-1, j] : CURV_x[k, i, j] )
+                CURV_r = ( u_bnd[k, i, j] >= 0.0 ) ? CURV_x[k, i-1, j] : CURV_x[k, i, j]
+                uΔt    = u_bnd[k, i, j] * Δt
+                q_star = (qs[k, i-1, j] + qs[k, i, j]) / 2.0 - uΔt / 2.0 * GRAD_bnd_x[k, i, j] + ( D_hor * Δt / 2.0 - gi.dx_w[i, j]^2.0/6.0 + uΔt^2.0 / 6.0 ) * CURV_r
 
-    #=
-                if any(u_bnd[k, i:i+1, j] .> 10.0)
-                   #println("Weird u_bnd at i, j = ", i, ", ", j)
-                end
-
-                if any(q_star .> 100.0)
-                   #println("Weird q_star at i, j = ", i, ", ", j, "; q_star=", q_star)
-                   #println("qs:",qs[k, i-4:i+1, j])
-                   #println("u_bnd: ", u_bnd[k ,i:i+1, j])
-                   #println("CURV_x:",CURV_x[k, i-3:i, j])
-                   #println("gi.dx_w^2 / 8 :",gi.dx_w[i, j]^2.0 / 8.0)
-                   #println("gi.dx_c :",gi.dx_c[i, j])
-
-                    throw(ErrorException("STOP"))
-                end
-
-=#
-
-                FLUX_DEN_x[k, i, j] = u_bnd[k, i, j] * q_star - D_hor * GRAD_bnd_x[k, i, j]
+                FLUX_DEN_x[k, i, j] = u_bnd[k, i, j] * q_star - D_hor * ( GRAD_bnd_x[k, i, j] - uΔt / 2.0 * CURV_r )
             end
         end
     end
@@ -438,8 +412,12 @@ function calFluxDensity!(;
             if noflux_x_mask3[k, 1, j] == 0.0
                 FLUX_DEN_x[k, 1, j] = FLUX_DEN_x[k, Nx+1, j] = 0.0
             else
-                q_star = (qs[k, Nx, j] + qs[k, 1, j]) / 2.0 - gi.dx_w[1, j]^2.0/8.0 * ( ( u_bnd[k, 1, j] >= 0.0 ) ? CURV_x[k, Nx, j] : CURV_x[k, 1, j] )
-                FLUX_DEN_x[k, 1, j] = FLUX_DEN_x[k, Nx+1, j] = u_bnd[k, 1, j] * q_star - D_hor * GRAD_bnd_x[k, 1, j]
+
+                CURV_r = ( u_bnd[k, 1, j] >= 0.0 ) ? CURV_x[k, Nx, j] : CURV_x[k, 1, j]
+                uΔt    = u_bnd[k, 1, j] * Δt
+                q_star = (qs[k, Nx, j] + qs[k, 1, j]) / 2.0 - uΔt / 2.0 * GRAD_bnd_x[k, 1, j] + ( D_hor * Δt / 2.0 - gi.dx_w[1, j]^2.0/6.0 + uΔt^2.0 / 6.0 ) * CURV_r
+
+                FLUX_DEN_x[k, 1, j] = FLUX_DEN_x[k, Nx+1, j] = u_bnd[k, 1, j] * q_star - D_hor * ( GRAD_bnd_x[k, 1, j] - uΔt / 2.0 * CURV_r )
             end
         end
     end
@@ -451,8 +429,13 @@ function calFluxDensity!(;
             if noflux_y_mask3[k, i, j] == 0.0
                 FLUX_DEN_y[k, i, j] = 0.0
             else
-                q_star = (qs[k, i, j-1] + qs[k, i, j]) / 2.0 - gi.dy_s[i, j]^2.0/8.0 * ( ( v_bnd[k, i, j] >= 0.0 ) ? CURV_y[k, i, j-1] : CURV_y[k, i, j] )
-                FLUX_DEN_y[k, i, j] = v_bnd[k, i, j] * q_star - D_hor * GRAD_bnd_y[k, i, j]
+
+                CURV_r = ( v_bnd[k, i, j] >= 0.0 ) ? CURV_y[k, i, j-1] : CURV_y[k, i, j]
+                vΔt    = v_bnd[k, i, j] * Δt
+                q_star = (qs[k, i, j-1] + qs[k, i, j]) / 2.0 - vΔt / 2.0 * GRAD_bnd_y[k, i, j] + ( D_hor * Δt / 2.0 - gi.dy_s[i, j]^2.0/6.0 + vΔt^2.0 / 6.0 ) * CURV_r
+
+                FLUX_DEN_y[k, i, j] = v_bnd[k, i, j] * q_star - D_hor * ( GRAD_bnd_y[k, i, j] - vΔt / 2.0 * CURV_r )
+
             end
         end
     end
@@ -471,18 +454,13 @@ function calFluxDensity!(;
 
         #local q_star
         for k=2:_Nz
-            q_star = (qs[k, i, j] + qs[k-1, i, j]) / 2.0 - Δzs[k-1, i, j]^2.0/8.0 * ( ( w_bnd[k, i, j] >= 0.0 ) ? CURV_z[k, i, j] : CURV_z[k-1, i, j] )
-            FLUX_DEN_z[k, i, j] = w_bnd[k, i, j] * q_star - D_ver * GRAD_bnd_z[k, i, j]
 
-#=
-                if (k, i, j) == (3, 47, 87)
-                   #println("q_star=", q_star, ", ; GRAD_bnd_z=", GRAD_bnd_z[1:6, i, j])
-                   #println("qs:",qs[1:5, i, j])
-                   #println("CURV_z:",CURV_z[1:5, i, j])
-                   #println("gi.dx_w^2 / 8 :",gi.dx_w[i, j]^2.0 / 8.0)
-                   #println("gi.dx_c :",gi.dx_c[i, j])
-                end
-=#
+            CURV_r = ( w_bnd[k, i, j] >= 0.0 ) ? CURV_z[k, i, j] : CURV_z[k-1, i, j]
+            wΔt    = w_bnd[k, i, j] * Δt
+            q_star = (qs[k, i, j] + qs[k-1, i, j]) / 2.0 - wΔt / 2.0 * GRAD_bnd_z[k, i, j] + ( D_ver * Δt / 2.0 - Δzs[k-1, i, j]^2.0/6.0 + wΔt^2.0 / 6.0 ) * CURV_r
+
+            FLUX_DEN_z[k, i, j] = w_bnd[k, i, j] * q_star - D_ver * ( GRAD_bnd_z[k, i, j] - wΔt / 2.0 * CURV_r )
+
         end
 
         FLUX_DEN_z[_Nz+1, i, j] = FLUX_bot[i, j] = FLUX_DEN_z[_Nz, i, j]
