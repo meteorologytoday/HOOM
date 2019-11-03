@@ -40,7 +40,7 @@ module CESMCORE_NKOM
 
         checkDict!(configs, [
             (:init_file,                    false, (nothing, String,),          nothing),
-            (:advection_scheme,              true, (:static, :ekman_all_in_ML, :ekman_simple_partition,),  nothing),
+            (:advection_scheme,              true, (:static, :ekman_all_in_ML, :ekman_simple_partition, :ekman_codron2012_partition,),  nothing),
             (:MLD_scheme,                    true, (:prognostic, :datastream,), nothing),
             (:Qflux_scheme,                  true, (:energy_flux, :temperature_flux, :none),                nothing),
             (:vertical_diffusion_scheme,     true, (:on, :off,),                nothing),

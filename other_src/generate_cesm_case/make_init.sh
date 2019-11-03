@@ -92,7 +92,8 @@ fi
 
 # Make z-coordinate file
 if [ ! -f $output_zdomain_file ]; then
-    julia $script_coordtrans_dir/SSM_mk_zdomain.jl $output_zdomain_file
+#    julia $script_coordtrans_dir/SSM_mk_zdomain.jl $output_zdomain_file
+    julia $script_coordtrans_dir/mk_50m_zdomain.jl $output_zdomain_file
 fi
 
 
