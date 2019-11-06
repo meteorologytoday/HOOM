@@ -53,9 +53,10 @@ function parse_commandline()
             arg_type = String
             default = "deg"
 
-        "--mask-flip"
-            help = "Flip 1 and 0 in the mask."
-            action = :store_true
+        "--mask-value"
+            help = "Mask value."
+            arg_type = Float64
+            required = true
     end
 
     return parse_args(ARGS, s)
@@ -86,9 +87,9 @@ Dataset(parsed["input-file"]) do ds
     global grid_size = reduce(*, grid_dims)
 
 
-    if parsed["mask-flip"]
-        grid_imask = 1 .- grid_imask
-    end
+    _grid_imask = copy(grid_imask)
+    grid_imask[_grid_imask .== parsed["mask-value"]] .= 1.0
+    grid_imask[_grid_imask .!= parsed["mask-value"]] .= 0.0
 
 end
 

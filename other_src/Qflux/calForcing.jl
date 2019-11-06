@@ -7,6 +7,28 @@ using NCDatasets
 using Statistics
 using SharedArrays
 
+using ArgParse
+using JSON
+
+function parse_commandline()
+
+    s = ArgParseSettings()
+    @add_arg_table s begin
+
+        "--years"
+            help = "Processed years."
+            arg_type = Int64
+            default = -1
+     
+    end
+
+    return parse_args(ARGS, s)
+end
+
+parsed = parse_commandline()
+print(json(parsed, 4))
+
+
 ent_thickness = 10.0
 ρ    = 1026.0  # kg / m^3
 c_p  = 3996.0  # J / kg / K
@@ -24,6 +46,7 @@ in_SHF  = "b.e11.B1850C5CN.f09_g16.005.pop.h.SHF.100001-109912.nc"
 in_TAUX = "b.e11.B1850C5CN.f09_g16.005.pop.h.TAUX.100001-109912.nc"
 in_TAUY = "b.e11.B1850C5CN.f09_g16.005.pop.h.TAUY.100001-109912.nc"
 in_HMXL = "b.e11.B1850C5CN.f09_g16.005.pop.h.HMXL.100001-109912.nc"
+in_HBLT = "b.e11.B1850C5CN.f09_g16.005.pop.h.HBLT.100001-109912.nc"
 in_TEMP = "b.e11.B1850C5CN.f09_g16.005.pop.h.TEMP.100001-109912.nc"
 in_QFLUX = "b.e11.B1850C5CN.f09_g16.005.pop.h.QFLUX.100001-109912.nc"
 in_MELTH_F = "b.e11.B1850C5CN.f09_g16.005.pop.h.MELTH_F.100001-109912.nc"
@@ -70,10 +93,14 @@ Dataset(in_SST, "r") do ds
     global Nx, Ny, Nt = size(SST)
 
     (Nt%12 == 0) || throw(ErrorException("Time is not multiple of 12"))
-    Nt=48
+
+    if parsed["years"] > 0
+        Nt = parsed["years"] * 12
+    end
 
     global nyears = Int(Nt / 12)
 
+    println("YEARS: ", nyears)
 end
 
 Dataset(in_SHF, "r") do ds
@@ -81,9 +108,14 @@ Dataset(in_SHF, "r") do ds
 end
 
 
-Dataset(in_HMXL, "r") do ds
-    global HMXL = replace(ds["HMXL"][:], missing=>NaN) / 100.0
+#Dataset(in_HMXL, "r") do ds
+#    global HMXL = replace(ds["HMXL"][:], missing=>NaN) / 100.0
+#end
+
+Dataset(in_HBLT, "r") do ds
+    global HBLT = replace(ds["HBLT"][:], missing=>NaN) / 100.0
 end
+
 
 Dataset(in_TAUX, "r") do ds
     global TAUX = replace(ds["TAUX"][:], missing=>NaN) / 10.0
@@ -106,6 +138,7 @@ Dataset(in_SSH, "r") do ds
 end
 
 
+SURF = SHF + QFLUX
 
 SEAICE_HFLX = QFLUX + MELTH_F
 
@@ -286,7 +319,7 @@ for i=1:Nx, j=1:Ny
         continue
     end 
     
-    hs[i, j, :] = mean(reshape(view(HMXL, i, j, :), 12, :), dims=2)[:, 1]
+    hs[i, j, :] = mean(reshape(view(HBLT, i, j, :), 12, :), dims=2)[:, 1]
 
 end
 
@@ -328,7 +361,7 @@ for t = 13:Nt - 12
     for i=1:Nx, j=1:Ny
         isnan(SST[i, j, 1]) && continue
 
-        h = (HMXL[i, j, t] + HMXL[i, j, t+1] ) / 2.0
+        h = (HBLT[i, j, t] + HBLT[i, j, t+1] ) / 2.0
         s̃ = ϵs[i, j] + fs[i, j] * im
         H̃ = √(K_v / s̃)
         H = abs(H̃)
@@ -416,7 +449,12 @@ for t = 13:Nt - 12
 
         isnan(SST[i, j, 1]) && continue
         
-        h_mean = (HMXL[i, j, t] + HMXL[i, j, t+1]) / 2.0
+        # Using the time-variate of HBLT to estimate h_mean
+        #  is problematic because lacking of time resolution
+        # making entrainment a source of energy to the ocean
+        #h_mean = (HBLT[i, j, t] + HBLT[i, j, t+1]) / 2.0
+
+        h_mean = mean(HBLT[i, j, :]) 
 
         # Temperature change
         tmp_dTdts = (SST[i, j, t+1] - SST[i, j, t]) / Δts[m]
@@ -429,27 +467,27 @@ for t = 13:Nt - 12
         var_sea_ices[i, j, m] += tmp_sea_ices^2.0
 
         # Surface downward heat flux 
-        tmp_Fs = (SHF[i, j, t] + SHF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p
+        tmp_Fs = (SURF[i, j, t] + SURF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p
         Fs[i, j, m] += tmp_Fs
         var_Fs[i, j, m] += tmp_Fs^2.0
 
         # Entrainment
-        Δh = HMXL[i, j, t+1] - HMXL[i, j, t]
+        Δh = HBLT[i, j, t+1] - HBLT[i, j, t]
 
         tmp_Ents = 0.0
         if Δh > 0.0
 #=
             Ents[i, j, m] += - ρ * c_p * (
-                (SST[i, j, t+1] - getTd(-HMXL[i, j, t+1]-ent_thickness, i, j, TEMP_1, BOT_TEMP_1))
-              + (SST[i, j, t  ] - getTd(-HMXL[i, j, t  ]-ent_thickness, i, j, TEMP_0, BOT_TEMP_0))
+                (SST[i, j, t+1] - getTd(-HBLT[i, j, t+1]-ent_thickness, i, j, TEMP_1, BOT_TEMP_1))
+              + (SST[i, j, t  ] - getTd(-HBLT[i, j, t  ]-ent_thickness, i, j, TEMP_0, BOT_TEMP_0))
             ) * Δh  / 2.0 / Δts[m] / h_mean
 =#
 #            tmp_Ents = - (
-#                (SST[i, j, t] - getTd(-HMXL[i, j, t+1], i, j, TEMP_0, BOT_TEMP_0))
+#                (SST[i, j, t] - getTd(-HBLT[i, j, t+1], i, j, TEMP_0, BOT_TEMP_0))
 #            ) * Δh  / Δts[m] / h_mean
 
             tmp_Ents = - (
-                integrate(-HMXL[i, j, t+1], -HMXL[i, j, t], zs, SST[i, j, t] .- TEMP_0[i, j, :])
+                integrate(-HBLT[i, j, t+1], -HBLT[i, j, t], zs, SST[i, j, t] .- TEMP_0[i, j, :])
             )  / Δts[m] / h_mean
 
 
@@ -461,8 +499,8 @@ for t = 13:Nt - 12
 
         # Ekman advection
         tmp_T_vadvs = - tmp_DIV[i, j] * (
-                (SST[i, j, t+1] - getTd(-HMXL[i, j, t+1]-ent_thickness, i, j, TEMP_1, BOT_TEMP_1))
-              + (SST[i, j, t  ] - getTd(-HMXL[i, j, t  ]-ent_thickness, i, j, TEMP_0, BOT_TEMP_0))
+                (SST[i, j, t+1] - getTd(-HBLT[i, j, t+1]-ent_thickness, i, j, TEMP_1, BOT_TEMP_1))
+              + (SST[i, j, t  ] - getTd(-HBLT[i, j, t  ]-ent_thickness, i, j, TEMP_0, BOT_TEMP_0))
         ) / 2.0
 
         T_hadvs[i, j, m] += tmp_T_hadvs[i ,j]
@@ -516,9 +554,9 @@ for t = 13:Nt - 12
 
 
         # calculate Q1, Q3 qflux
-        h_mean = mean(HMXL[i, j, :]) 
+        h_mean = mean(HBLT[i, j, :]) 
         tmp_dTdts = (SST[i, j, t+1] - SST[i, j, t]) / Δts[m]
-        tmp_Fs    = (SHF[i, j, t] + SHF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p 
+        tmp_Fs    = (SURF[i, j, t] + SURF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p 
         
         tmp_Q1s = - ( tmp_dTdts - tmp_Fs )
         Q1s[i, j, m]     += tmp_Q1s
@@ -556,7 +594,6 @@ needed_vars = (
     var_Ents,
     var_Fs,
     var_sea_ices,
-    var_diffs,
     var_T_hadvs,
     var_T_vadvs,
     var_T_gadvs,
@@ -763,7 +800,7 @@ Dataset(out_file, "c") do ds
 
         ], [
             "Fs", Fs, ("Nx", "Ny", "time"), Dict(
-            "long_name"=>"SHF flux",
+            "long_name"=>"SURF flux",
             "units"=>"K / s",
             )
         ], [
@@ -789,7 +826,7 @@ Dataset(out_file, "c") do ds
             )
         ], [
             "var_Fs", var_Fs, ("Nx", "Ny", "time"), Dict(
-            "long_name"=>"SHF flux",
+            "long_name"=>"SURF flux",
             "units"=>"K / s",
             )
         ], [
