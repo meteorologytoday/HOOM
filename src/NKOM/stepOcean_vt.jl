@@ -11,8 +11,6 @@ function stepOcean_MLDynamics!(
     Δt            = cfgs[:Δt]
     do_convadjust = cfgs[:do_convadjust]
     rad_scheme    = cfgs[:rad_scheme]
-
-
     
     ifrac   = ocn.in_flds.ifrac
 
@@ -25,8 +23,11 @@ function stepOcean_MLDynamics!(
     frwflx  = ocn.in_flds.frwflx
     qflx    = ocn.in_flds.qflx
 
-    #println(swflx, ";", nswflx)
-
+#=
+    println("get in hz ##### Ts: ", ocn.Ts[1:5, 48, 89])
+    println("get in hz ##### Ss: ", ocn.Ss[1:5, 48, 89])
+    println("get in hz ##### bs: ", ocn.bs[1:5, 48, 89])
+=#
 
     # It is assumed here that buoyancy has already been updated.
     @loop_hor ocn i j let
@@ -59,6 +60,8 @@ function stepOcean_MLDynamics!(
         surf_Sflx    = - frwflx[i, j] * ocn.S_ML[i, j]
         surf_bflx    = g * ( α * surf_Tnswflx - β * surf_Sflx )
         
+        ocn.SFLUX_top[i, j] = surf_Sflx
+
         old_FLDO = ocn.FLDO[i, j]
         old_h_ML = ocn.h_ML[i, j]
         old_T_ML = ocn.T_ML[i, j]
@@ -72,14 +75,25 @@ function stepOcean_MLDynamics!(
 
         else        # h_ML is prognostic
  
-            target_z = max( - old_h_ML - 30.0,  - ocn.h_ML_max[i, j])
-            avg_D = - old_h_ML - target_z
+#            target_z = max( - old_h_ML - 30.0,  - ocn.h_ML_max[i, j])
+#            avg_D = - old_h_ML - target_z
 
-            Δb = ( (avg_D > 0.0) ? ocn.b_ML[i, j] - (
-                  OC_getIntegratedBuoyancy(ocn, i, j; target_z =   target_z)
-                - OC_getIntegratedBuoyancy(ocn, i, j; target_z = - old_h_ML)
-            ) / avg_D
-            : 0.0 )
+#=
+            if (i, j) == (48, 89)
+                println("before delta b ##### Ts: ", ocn.Ts[1:5, i, j])
+                println("before delta b ##### Ss: ", ocn.Ss[1:5, i, j])
+                println("before delta b ##### bs: ", ocn.bs[1:5, i, j])
+            end
+=#
+
+
+#            Δb = ( (avg_D > 0.0) ? ocn.b_ML[i, j] - (
+#                  OC_getIntegratedBuoyancy(ocn, i, j; target_z =   target_z)
+#                - OC_getIntegratedBuoyancy(ocn, i, j; target_z = - old_h_ML)
+#            ) / avg_D
+#            : 0.0 )
+
+            Δb = (old_FLDO == -1 ) ? 0.0 : ocn.b_ML[i, j] - ocn.bs[old_FLDO, i, j]
 
             # After convective adjustment, there still might
             # be some numerical error making Δb slightly negative
@@ -89,11 +103,17 @@ function stepOcean_MLDynamics!(
                 Δb = 0.0
             end
 
-            if Δb < 0.0
-                FLDO = ocn.FLDO[i, j]
+#            if Δb < 0.0
+#                FLDO = ocn.FLDO[i, j]
+
+#=
                 println(format("({:d},{:d}) Averge sense Δb={:f}", i, j, Δb))
                 println(format("({:d},{:d}) Jump sense Δb={:f}", i, j, (FLDO != -1) ? ocn.b_ML[i, j] - ocn.bs[FLDO, i, j] : 999 ))
-            end
+                println("##### Ts: ", ocn.Ts[:, i, j])
+                println("##### Ss: ", ocn.Ss[:, i, j])
+                println("##### bs: ", ocn.bs[:, i, j])
+=#
+#            end
 
             new_h_ML, ocn.h_MO[i, j] = calNewMLD(;
                 h_ML   = old_h_ML,
@@ -127,18 +147,19 @@ function stepOcean_MLDynamics!(
 
             if old_FLDO == -1
 
+                # Mixing does not happen because FLDO does not exist in this case
                 ocn.Ts[new_FLDO:Nz, i, j] .= ocn.T_ML[i, j]
                 ocn.Ss[new_FLDO:Nz, i, j] .= ocn.S_ML[i, j]
 
             else
-                FLDO_Δz =  -zs[old_FLDO+1] - old_h_ML
+                FLDO_Δz =  -old_h_ML - zs[old_FLDO+1]
                 retreat_Δz =  old_h_ML - ( (new_FLDO == old_FLDO) ? new_h_ML : (-zs[old_FLDO]) )
 
-                ocn.Ts[new_FLDO, i, j] = (
+                ocn.Ts[old_FLDO, i, j] = (
                     ocn.Ts[old_FLDO, i, j] * FLDO_Δz + ocn.T_ML[i, j] * retreat_Δz
                 ) / (FLDO_Δz + retreat_Δz)
 
-                ocn.Ss[new_FLDO, i, j] = (
+                ocn.Ss[old_FLDO, i, j] = (
                     ocn.Ss[old_FLDO, i, j] * FLDO_Δz + ocn.S_ML[i, j] * retreat_Δz
                 ) / (FLDO_Δz + retreat_Δz)
             end
@@ -211,7 +232,6 @@ function stepOcean_MLDynamics!(
 
         end
 
-
     end
 
 end
@@ -230,8 +250,8 @@ function stepOcean_slowprocesses!(
     # Climatology relaxation
     if do_relaxation
         @loop_hor ocn i j let
-            OC_doNewtonianRelaxation_T!(ocn, i, j; Δt=Δt)
-            OC_doNewtonianRelaxation_S!(ocn, i, j; Δt=Δt)
+            ocn.TSAS_clim[i, j] = OC_doNewtonianRelaxation_T!(ocn, i, j; Δt=Δt)
+            ocn.SSAS_clim[i, j] = OC_doNewtonianRelaxation_S!(ocn, i, j; Δt=Δt)
         end
     end
     

@@ -68,6 +68,9 @@ struct GridInfo
     Nx    :: Integer
     Ny    :: Integer
 
+    c_lon :: AbstractArray{Float64, 2}
+    c_lat :: AbstractArray{Float64, 2}
+
     α     :: AbstractArray{Float64, 2}
     cosα  :: AbstractArray{Float64, 2}
     sinα  :: AbstractArray{Float64, 2}
@@ -83,8 +86,15 @@ struct GridInfo
     ds3   :: AbstractArray{Float64, 2}
     ds4   :: AbstractArray{Float64, 2}
 
+
     dσ    :: AbstractArray{Float64, 2}
-   
+
+    weight_e :: AbstractArray{Float64, 2}    # ( Nx+1 , Ny   )
+    weight_n :: AbstractArray{Float64, 2}    # ( Nx   , Ny+1 )
+    DX    :: AbstractArray{Float64, 2}       # ( Nx   , Ny+1 )   The X-side grid size.
+    DY    :: AbstractArray{Float64, 2}       # ( Nx+1 , Ny   )   The Y-side grid size.
+
+  
     function GridInfo(
         R      :: Float64,
         Nx     :: Integer,
@@ -92,8 +102,10 @@ struct GridInfo
         c_lon  :: AbstractArray{Float64, 2},  # center longitude
         c_lat  :: AbstractArray{Float64, 2},  # center latitude
         vs_lon :: AbstractArray{Float64, 3},  # vertices longitude (4, Nx, Ny)
-        vs_lat :: AbstractArray{Float64, 3};  # vertices latitude  (4, Nx, Ny)
+        vs_lat :: AbstractArray{Float64, 3},  # vertices latitude  (4, Nx, Ny)
+        area   :: AbstractArray{Float64, 2};  # area in radian^2
         angle_unit :: Symbol = :deg,
+        sub_yrng :: Union{Colon, UnitRange} = Colon(),
     )
    
         α    = zeros(Float64, Nx, Ny)
@@ -124,6 +136,14 @@ struct GridInfo
 
         vs_lon_rad = copy(vs_lon)
         vs_lat_rad = copy(vs_lat)
+        
+        weight_e = zeros(Float64, Nx+1, Ny)
+        weight_n = zeros(Float64, Nx, Ny+1)
+
+        DX = zeros(Float64, Nx, Ny+1)
+        DY = zeros(Float64, Nx+1, Ny)
+
+
 
         if angle_unit == :deg
 
@@ -169,7 +189,7 @@ struct GridInfo
 
             dx_c[i, j] = (norm(u1) + norm(u3)) / 2.0
             dy_c[i, j] = (norm(u2) + norm(u4)) / 2.0
-            dσ[i, j] = dx_c[i, j] * dy_c[i, j]
+            dσ[i, j] = R^2.0 * area[i, j]  #dx_c[i, j] * dy_c[i, j]
 
             grid_east  = u1+u3
             grid_north = u2+u4
@@ -213,14 +233,81 @@ struct GridInfo
 
         end
 
+        #
+        # weight_e[i, ?] is the relative portion of grid weighting
+        # to the west of the boundary of eastward vectors
+        #
+        #                     bnd
+        #                     [i]
+        #     |                |                  |
+        #     |    grid[i-1]   |    grid[i]       |
+        #     |                |                  |
+        #     | <-- dx[i-1]--> | <--- dx[i] --->  |
+        #     |                |                  |
+        #
+        #   weight_e[i, ?] = dx[i-1] / (dx[i-1] + dx[i])
+        #
+        #   weight_n would be the same idea with 
+        #   portion represent the south grid
+        #
 
+        for j = 1:Ny
+            weight_e[1, j] = weight_e[Nx+1, j] = dx_c[Nx, j] / (dx_c[Nx, j] + dx_c[1, j])
+        end
+        for i = 2:Nx, j = 1:Ny
+            weight_e[i, j] = dx_c[i-1, j] / (dx_c[i-1, j] + dx_c[i, j])
+        end
+
+        # Ignore the northest and the southest because information
+        # is unknown
+        for i = 1:Nx, j = 2:Ny
+            weight_n[i, j] = dy_s[i, j-1] / ( dy_c[i, j-1] + dy_c[i, j] )
+        end
+
+
+        # Calculate DX
+        for i = 1:Nx, j = 1:Ny
+            DX[i, j] = ds1[i, j]
+        end
+        DX[:, Ny+1] = ds3[:, Ny]
+
+        # Calculate DY
+        for i = 1:Nx, j = 1:Ny
+            DY[i, j] = ds4[i, j]
+        end
+        DY[Nx+1, :] = DY[1, :]
+
+        if sub_yrng == Colon()
+            sub_yrng = 1:Ny
+        end
+
+        new_Ny = length(sub_yrng)
+        sub_yrng_ext = sub_yrng[1]:sub_yrng[end]+1
+       
         return new(
-            R, Nx, Ny,
-            α, cosα, sinα,
-            dx_w, dx_c, dx_e,
-            dy_s, dy_c, dy_n,
-            ds1, ds2, ds3, ds4,
-            dσ,
+            R,
+            Nx,
+            new_Ny,
+            c_lon_rad[:, sub_yrng],
+            c_lat_rad[:, sub_yrng],
+            α[:, sub_yrng],
+            cosα[:, sub_yrng],
+            sinα[:, sub_yrng],
+            dx_w[:, sub_yrng],
+            dx_c[:, sub_yrng],
+            dx_e[:, sub_yrng],
+            dy_s[:, sub_yrng],
+            dy_c[:, sub_yrng],
+            dy_n[:, sub_yrng],
+            ds1[:, sub_yrng],
+            ds2[:, sub_yrng],
+            ds3[:, sub_yrng],
+            ds4[:, sub_yrng],
+            dσ[:, sub_yrng],
+            weight_e[:, sub_yrng],
+            weight_n[:, sub_yrng_ext],
+            DX[:, sub_yrng_ext],
+            DY[:, sub_yrng],
         )
  
     end
@@ -313,6 +400,7 @@ end
 
 
 
+
 function DIV!(
     gi   :: GridInfo,
     vf_e :: AbstractArray{Float64, 2},
@@ -343,6 +431,8 @@ function DIV!(
     end
         
 end
+
+
 
 
 
@@ -400,8 +490,23 @@ function hadv_upwind!(
 
         if u > 0 && mask[i_w, j] != 0.0           # use point on the west
             hadv += - u * ( qs[i, j] - qs[i_w, j] ) / gi.dx_w[i, j]
+
+        #    if qs[i, j] != qs[i_w, j]
+        #        println("[1] i,j = ", i, ", ", j)
+        #        println("qs[  i,j] = ", qs[i, j])
+        #        println("qs[i_w,j] = ", qs[i_w, j])
+        #        throw(ErrorException("!!!"))
+        #    end
+
         elseif u <= 0 && mask[i_e, j] != 0.0      # use point on the east
             hadv += - u * ( qs[i_e, j] - qs[i, j] ) / gi.dx_e[i, j]
+
+        #    if qs[i, j] != qs[i_e, j]
+        #        println("[2] i,j = ", i, ", ", j)
+        #        throw(ErrorException("!!!"))
+        #    end
+
+
         end
 
         if v > 0 && mask[i, j_s] != 0.0           # use point on the south

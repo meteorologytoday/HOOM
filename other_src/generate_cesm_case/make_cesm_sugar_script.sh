@@ -142,8 +142,7 @@ fi
 
 getXML "\${env_vars[@]}"
 
-nodes=\$(( \$totalpes / \$max_tasks_per_node ))
-
+nodes=\$( python -c "from math import ceil; print('%d' % (ceil(float(\${totalpes}) / float(\${max_tasks_per_node})),));" )
 
 cat << XEOFX > config.jl
 
@@ -158,7 +157,7 @@ global overwrite_configs = Dict(
     :enable_short_term_archive  => true,
     :enable_long_term_archive   => true,
     :daily_record              => [],
-    :monthly_record            => ["T", "S", "b", "T_ML", "S_ML", "dTdt_ent", "dSdt_ent", "h_ML", "nswflx", "swflx", "frwflx", "fric_u", "taux", "tauy", "w", "u", "v", "T_hadvs", "T_vadvs", "S_hadvs", "S_vadvs"],
+    :monthly_record            => :ALL,
     :yearly_snapshot            => true,
     :short_term_archive_list    => "SSM_short_term_archive_list.txt",
     :substeps                   => 8,
@@ -223,10 +222,10 @@ XEOFX
 else
     echo "single_job = on. Use 1 job to complete a run."
 
-    if [ "\$nodes" -gt "1" ]; then
-        echo "ERROR: Only 1 node is allowed when single_job variable is set as 'on'."
-        exit 1
-    fi
+#    if [ "\$nodes" -gt "1" ]; then
+#        echo "ERROR: Only 1 node is allowed when single_job variable is set as 'on'."
+#        exit 1
+#    fi
 
     # Single job Run (Experimental. Currently may only works on a single node because CESM 
     # was designed to take all the resources of each nodes. This scripts needs "env_mach_pes.xml"
@@ -237,7 +236,7 @@ else
 #PBS -A \${PROJECT}
 #PBS -N \${casename}
 #PBS -q regular
-#PBS -l select=1:ncpus=\${max_tasks_per_node}:mpiprocs=\${max_tasks_per_node}:ompthreads=1
+#PBS -l select=\${nodes}:ncpus=\${max_tasks_per_node}:mpiprocs=\${max_tasks_per_node}:ompthreads=1
 #PBS -l walltime="\${walltime}"
 #PBS -j oe
 #PBS -S /bin/bash

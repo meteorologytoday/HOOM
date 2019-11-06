@@ -113,8 +113,8 @@ if haskey(parsed, "forcing-file")
     end
 end
 
-if parsed["T-unit"] == "C"
-    Ts_clim .+= 273.15
+if parsed["T-unit"] == "K"
+    Ts_clim .-= 273.15
 end
 
 if parsed["S-unit"] == "SI"

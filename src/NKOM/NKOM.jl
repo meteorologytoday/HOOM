@@ -20,7 +20,6 @@ end
     end
  
     macro loop_hor(ocn, idx1, idx2, stmts)
-
         return :( for grid_idx in 1:size($(esc(ocn)).valid_idx)[2]
 
             $(esc(idx1)) = $(esc(ocn)).valid_idx[1, grid_idx]
@@ -28,7 +27,16 @@ end
             $(esc(stmts))
 
         end )
+       #= 
+        return :( for $(esc(idx1))=1:$(esc(ocn)).Nx, $(esc(idx2))=1:$(esc(ocn)).Ny
+
+            $(esc(ocn)).mask[$(esc(idx1)), $(esc(idx2))] == 0.0 && continue
+            $(esc(stmts))
+
+        end )
+        =#
     end
+
 
     @hinclude("../share/DisplacedPoleCoordinate.jl")
     @hinclude("../share/MapInfo.jl")
@@ -36,15 +44,19 @@ end
     @hinclude("../share/constants.jl")
     @hinclude("InputFields.jl")
     @hinclude("AccumulativeVariables.jl")
+    @hinclude("SpeedUpMtx3D.jl")
     @hinclude("Ocean.jl")
 
     @hinclude("qflx2atm.jl")
+    @hinclude("calNetEnergyBudget.jl")
+    @hinclude("calH.jl")
     @hinclude("trivial_functions.jl")
 
     @hinclude("calNewMLD.jl")
     @hinclude("doConvectiveAdjustment.jl")
     @hinclude("doDiffusion.jl")
     @hinclude("mixUnmix.jl")
+    @hinclude("calFLDOPartition.jl")
     @hinclude("getIntegratedBuoyancy.jl")
     @hinclude("doNewtonianRelaxation.jl")
     @hinclude("doShortwaveRadiation.jl")
@@ -52,6 +64,7 @@ end
     @hinclude("stepOcean_prepare.jl")
     @hinclude("stepOcean_hz.jl")
     @hinclude("stepOcean_vt.jl")
+    @hinclude("advection.jl")
 
 
     @hinclude("setOceanColumn.jl")
@@ -60,6 +73,8 @@ end
 
     @hinclude("accumulate.jl")
     @hinclude("driver.jl")
+
+    @hinclude("varlist.jl")
 
 
 

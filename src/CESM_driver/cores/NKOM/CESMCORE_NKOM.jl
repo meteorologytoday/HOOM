@@ -40,7 +40,7 @@ module CESMCORE_NKOM
 
         checkDict!(configs, [
             (:init_file,                    false, (nothing, String,),          nothing),
-            (:advection_scheme,              true, (:static, :ekman_all_in_ML, :ekman_simple_partition,),  nothing),
+            (:advection_scheme,              true, (:static, :ekman_all_in_ML, :ekman_simple_partition, :ekman_codron2012_partition,),  nothing),
             (:MLD_scheme,                    true, (:prognostic, :datastream,), nothing),
             (:Qflux_scheme,                  true, (:energy_flux, :temperature_flux, :none),                nothing),
             (:vertical_diffusion_scheme,     true, (:on, :off,),                nothing),
@@ -48,8 +48,8 @@ module CESMCORE_NKOM
             (:relaxation_scheme,             true, (:on, :off,),                nothing),
             (:convective_adjustment_scheme,  true, (:on, :off,),                nothing),
             (:radiation_scheme,              true, (:exponential, :step,),      nothing),
-            (:daily_record,                  true, (AbstractArray,),                 []),
-            (:monthly_record,                true, (AbstractArray,),                 []),
+            (:daily_record,                  true, (AbstractArray, Symbol),                 []),
+            (:monthly_record,                true, (AbstractArray, Symbol),                 []),
             (:turn_off_frwflx,              false, (Bool,),                       false),
         ])
 
@@ -132,39 +132,19 @@ module CESMCORE_NKOM
         )
         
         recorders = Dict()
-
-        complete_variable_list = Dict(
-            "T"       => ( NKOM.toXYZ(ocn.Ts, :zxy), ("Nx", "Ny", "Nz_bone") ),
-            "S"       => ( NKOM.toXYZ(ocn.Ss, :zxy), ("Nx", "Ny", "Nz_bone") ),
-            "b"       => ( NKOM.toXYZ(ocn.bs, :zxy), ("Nx", "Ny", "Nz_bone") ),
-            "T_ML"    => ( ocn.T_ML,                 ("Nx", "Ny") ),
-            "S_ML"    => ( ocn.S_ML,                 ("Nx", "Ny") ),
-            "dTdt_ent"=> ( ocn.dTdt_ent,             ("Nx", "Ny") ),
-            "dSdt_ent"=> ( ocn.dSdt_ent,             ("Nx", "Ny") ),
-            "h_ML"    => ( ocn.h_ML,                 ("Nx", "Ny") ),
-            "h_MO"    => ( ocn.h_MO,                 ("Nx", "Ny") ),
-            "nswflx"  => ( ocn.in_flds.nswflx,       ("Nx", "Ny") ),
-            "swflx"   => ( ocn.in_flds.swflx,        ("Nx", "Ny") ),
-            "frwflx"  => ( ocn.in_flds.frwflx,       ("Nx", "Ny") ),
-            "fric_u"  => ( ocn.fric_u,               ("Nx", "Ny") ),
-            "taux"    => ( ocn.τx,                   ("Nx", "Ny") ),
-            "tauy"    => ( ocn.τy,                   ("Nx", "Ny") ),
-            "w"       => ( NKOM.toXYZ(ocn.w, :zxy),  ("Nx", "Ny", "zs_bone") ),
-            "u"       => ( NKOM.toXYZ(ocn.u, :zxy),  ("Nx", "Ny", "Nz_bone") ),
-            "v"       => ( NKOM.toXYZ(ocn.v, :zxy),  ("Nx", "Ny", "Nz_bone") ),
-            "T_hadvs" => ( NKOM.toXYZ(ocn.T_hadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
-            "T_vadvs" => ( NKOM.toXYZ(ocn.T_vadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
-            "S_hadvs" => ( NKOM.toXYZ(ocn.S_hadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
-            "S_vadvs" => ( NKOM.toXYZ(ocn.S_vadvs, :zxy), ("Nx", "Ny", "Nz_bone") ),
-        )
-
+        complete_variable_list = NKOM.getCompleteVariableList(ocn)
 
         for rec_key in [:daily_record, :monthly_record]
     
             println("# For record key: " * string(rec_key))
 
             var_list = []
-            
+           
+            if configs[rec_key] == :ALL
+                configs[rec_key] = keys(complete_variable_list)
+            end
+
+ 
             # Load variables information as a list
             for varname in configs[rec_key]
 
@@ -218,7 +198,6 @@ module CESMCORE_NKOM
         if MD.configs[:turn_off_frwflx]
             in_flds.frwflx .= 0.0
         end
-
 
         if MD.configs[:enable_short_term_archive]
 

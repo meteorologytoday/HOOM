@@ -4,6 +4,7 @@ mutable struct Ocean
     
     gi       :: Union{DisplacedPoleCoordinate.GridInfo, Nothing}
     gi_file  :: Union{AbstractString, Nothing}
+#    mi       :: Union{ModelMap.MapInfo, Nothing}
 
     Nx       :: Integer           # Number of columns in i direction
     Ny       :: Integer           # Number of columns in j direction
@@ -15,34 +16,60 @@ mutable struct Ocean
     Nz       :: AbstractArray{Int64, 2} # Number of layers that is active
 
     K_v      :: Float64           # Diffusion coe of momentum. Used by ekman flow calculation
-    K_T      :: Float64           # Diffusion coe of temperature
-    K_S      :: Float64           # Diffusion coe of salinity
+    Dh_T      :: Float64           # Horizontal diffusion coe of temperature
+    Dv_T      :: Float64           # Vertical   diffusion coe of temperature
+    Dh_S      :: Float64           # Horizontal diffusion coe of salinity
+    Dv_S      :: Float64           # Vertical   diffusion coe of salinity
 
     fs       :: AbstractArray{Float64, 2}
     ϵs       :: AbstractArray{Float64, 2}
 
-    mask3      :: AbstractArray{Float64, 3}
-    mask       :: AbstractArray{Float64, 2}
-    mask_idx   :: Any
-    valid_idx  :: AbstractArray{Int64, 2}
-    coast_mask :: AbstractArray{Float64, 3}
+    mask3    :: AbstractArray{Float64, 3}
+    noflux_x_mask3  :: AbstractArray{Float64, 3}
+    noflux_y_mask3  :: AbstractArray{Float64, 3}
+    mask     :: AbstractArray{Float64, 2}
+    mask_idx  :: Any
+    valid_idx :: AbstractArray{Int64, 2}
 
     b_ML     :: AbstractArray{Float64, 2}
     T_ML     :: AbstractArray{Float64, 2}
     S_ML     :: AbstractArray{Float64, 2}
+
     ΔT       :: AbstractArray{Float64, 2}
     ΔS       :: AbstractArray{Float64, 2}
+
+    dΔTdt     :: AbstractArray{Float64, 2}
+    dΔSdt     :: AbstractArray{Float64, 2}
+
     h_ML     :: AbstractArray{Float64, 2}
     h_MO     :: AbstractArray{Float64, 2}
     fric_u   :: AbstractArray{Float64, 2}
     dTdt_ent    :: AbstractArray{Float64, 2}
     dSdt_ent    :: AbstractArray{Float64, 2}
 
+    # To calculate ocean heat transport, we need the
+    # unconserved part of energy
+    TSAS_clim   :: AbstractArray{Float64, 2}
+    SSAS_clim   :: AbstractArray{Float64, 2}
+    TFLUX_bot       :: AbstractArray{Float64, 2}
+    SFLUX_bot       :: AbstractArray{Float64, 2}
+    SFLUX_top       :: AbstractArray{Float64, 2}
+    TFLUX_DIV_implied      :: AbstractArray{Float64, 2}
+    SFLUX_DIV_implied      :: AbstractArray{Float64, 2}
+
     bs       :: AbstractArray{Float64, 3}
     Ts       :: AbstractArray{Float64, 3}
     Ss       :: AbstractArray{Float64, 3}
-    FLDO     :: AbstractArray{Int64,   2}
-    qflx2atm :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
+
+    FLDO           :: AbstractArray{Int64,   2}
+    FLDO_ratio_top :: AbstractArray{Float64,   2}
+    FLDO_ratio_bot :: AbstractArray{Float64,   2}
+
+    qflx2atm       :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
+    TEMP        :: AbstractArray{Float64, 2} # Total heat content
+    dTEMPdt     :: AbstractArray{Float64, 2} # Total heat content change rate
+    SALT     :: AbstractArray{Float64, 2} # Total salt
+    dSALTdt  :: AbstractArray{Float64, 2} # Total salt change rate
 
     h_ML_min :: AbstractArray{Float64, 2}
     h_ML_max :: AbstractArray{Float64, 2}
@@ -52,15 +79,36 @@ mutable struct Ocean
     # Advection related variables
     τx       :: AbstractArray{Float64, 2}
     τy       :: AbstractArray{Float64, 2}
+
     u        :: AbstractArray{Float64, 3}
     v        :: AbstractArray{Float64, 3}
     w        :: AbstractArray{Float64, 3}
 
+    u_bnd    :: AbstractArray{Float64, 3}
+    v_bnd    :: AbstractArray{Float64, 3}
+    w_bnd    :: AbstractArray{Float64, 3}
+
+    GRAD_bnd_x :: AbstractArray{Float64, 3}
+    GRAD_bnd_y :: AbstractArray{Float64, 3}
+    GRAD_bnd_z :: AbstractArray{Float64, 3}
+    
+    CURV_x     :: AbstractArray{Float64, 3}
+    CURV_y     :: AbstractArray{Float64, 3}
+    CURV_z     :: AbstractArray{Float64, 3}
+    
+    TFLUX_DEN_x :: AbstractArray{Float64, 3}
+    TFLUX_DEN_y :: AbstractArray{Float64, 3}
+    TFLUX_DEN_z :: AbstractArray{Float64, 3}
+
+    SFLUX_DEN_x :: AbstractArray{Float64, 3}
+    SFLUX_DEN_y :: AbstractArray{Float64, 3}
+    SFLUX_DEN_z :: AbstractArray{Float64, 3}
+
     div      :: AbstractArray{Float64, 3}
-    T_hadvs  :: AbstractArray{Float64, 3}
-    T_vadvs  :: AbstractArray{Float64, 3}
-    S_hadvs  :: AbstractArray{Float64, 3}
-    S_vadvs  :: AbstractArray{Float64, 3}
+    TFLUX_CONV    :: AbstractArray{Float64, 3}
+    TFLUX_CONV_h  :: AbstractArray{Float64, 3}
+    SFLUX_CONV    :: AbstractArray{Float64, 3}
+    SFLUX_CONV_h  :: AbstractArray{Float64, 3}
 
     ∇∇T      :: AbstractArray{Float64, 3}     
     ∇∇S      :: AbstractArray{Float64, 3}     
@@ -101,24 +149,33 @@ mutable struct Ocean
 
     in_flds :: InputFields
 
-    lays :: NamedTuple
-    cols :: NamedTuple
+    lays :: Union{Nothing, NamedTuple}
+    cols :: Union{Nothing, NamedTuple}
 
     # Accumulative variables
     acc_vars :: Union{AccumulativeVariables, Nothing}
 
+
+    ASUM :: Union{AdvectionSpeedUpMatrix, Nothing}
+    workspace1    :: AbstractArray{Float64, 3}
+    workspace2    :: AbstractArray{Float64, 3}
+    workspace3    :: AbstractArray{Float64, 3}
+
+
     function Ocean(;
         id       :: Integer = 0,  
         gridinfo_file :: AbstractString,
-        sub_yrng      :: Union{UnitRange, Nothing} = nothing,
+        sub_yrng :: Union{UnitRange, Nothing} = nothing,
         Nx       :: Integer,
         Ny       :: Integer,
         zs_bone  :: AbstractArray{Float64, 1},
         Ts       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
         Ss       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
         K_v      :: Float64 = 1e-2,
-        K_T      :: Float64 = 1e-5,
-        K_S      :: Float64 = 1e-5,
+        Dh_T     :: Float64 = 1e3,
+        Dv_T     :: Float64 = 1e-5,
+        Dh_S     :: Float64 = 1e3,
+        Dv_S     :: Float64 = 1e-5,
         T_ML     :: Union{AbstractArray{Float64, 2}, Float64},
         S_ML     :: Union{AbstractArray{Float64, 2}, Float64},
         h_ML     :: Union{AbstractArray{Float64, 2}, Float64, Nothing},
@@ -148,10 +205,11 @@ mutable struct Ocean
         # deeper than the bottom boundary
         # Also, in real data topo can be 0 and not masked out
        
-        _topo = allocate(datakind, Float64, Nx, Ny)
-        _h_ML_min = allocate(datakind, Float64, Nx, Ny)
-        _h_ML_max = allocate(datakind, Float64, Nx, Ny)
-        _mask = allocate(datakind, Float64, Nx, Ny)
+        _topo        = allocate(datakind, Float64, Nx, Ny)
+        _h_ML_min    = allocate(datakind, Float64, Nx, Ny)
+        _h_ML_max    = allocate(datakind, Float64, Nx, Ny)
+        _mask        = allocate(datakind, Float64, Nx, Ny)
+
 
         if topo == nothing
             _topo .= zs_bone[end]
@@ -311,18 +369,33 @@ mutable struct Ocean
         _S_ML     = allocate(datakind, Float64, Nx, Ny)
         _ΔT       = allocate(datakind, Float64, Nx, Ny)
         _ΔS       = allocate(datakind, Float64, Nx, Ny)
+        _dΔTdt    = allocate(datakind, Float64, Nx, Ny)
+        _dΔSdt    = allocate(datakind, Float64, Nx, Ny)
         _h_ML     = allocate(datakind, Float64, Nx, Ny)
         _h_MO     = allocate(datakind, Float64, Nx, Ny)
         _fric_u   = allocate(datakind, Float64, Nx, Ny)
         _dTdt_ent    = allocate(datakind, Float64, Nx, Ny)
         _dSdt_ent    = allocate(datakind, Float64, Nx, Ny)
 
+        _TSAS_clim   = allocate(datakind, Float64, Nx, Ny)
+        _SSAS_clim   = allocate(datakind, Float64, Nx, Ny)
+        _TFLUX_bot       = allocate(datakind, Float64, Nx, Ny)
+        _SFLUX_bot       = allocate(datakind, Float64, Nx, Ny)
+        _SFLUX_top       = allocate(datakind, Float64, Nx, Ny)
+        _TFLUX_DIV_implied      = allocate(datakind, Float64, Nx, Ny)
+        _SFLUX_DIV_implied      = allocate(datakind, Float64, Nx, Ny)
+
         _bs       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _Ts       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _Ss       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _FLDO     = allocate(datakind, Int64, Nx, Ny)
-        qflx2atm  = allocate(datakind, Float64, Nx, Ny)
-
+        _FLDO_ratio_top = allocate(datakind, Float64, Nx, Ny)
+        _FLDO_ratio_bot = allocate(datakind, Float64, Nx, Ny)
+        _qflx2atm  = allocate(datakind, Float64, Nx, Ny)
+        _TEMP         = allocate(datakind, Float64, Nx, Ny)
+        _dTEMPdt      = allocate(datakind, Float64, Nx, Ny)
+        _SALT      = allocate(datakind, Float64, Nx, Ny)
+        _dSALTdt   = allocate(datakind, Float64, Nx, Ny)
 
         if typeof(h_ML) <: AbstractArray{Float64, 2}
             _h_ML[:, :] = h_ML
@@ -406,12 +479,39 @@ mutable struct Ocean
         gridinfo = nothing
         mi = ModelMap.MapInfo{Float64}(gridinfo_file)
 
-        if id != 0
+        if id == 0
+
+            gridinfo = DisplacedPoleCoordinate.GridInfo(
+                Re,
+                mi.nx,
+                mi.ny,
+                mi.xc,
+                mi.yc,
+                mi.xv,
+                mi.yv,
+                mi.area;
+                angle_unit=:deg,
+            )
+
+        else
             if sub_yrng == nothing
                 thorw(ErrorException("Init worker ocean,  sub_yrng must be provided."))
             end
-            
-            gridinfo = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, length(sub_yrng), mi.xc[:, sub_yrng], mi.yc[:, sub_yrng], mi.xv[:, :, sub_yrng], mi.yv[:, :, sub_yrng]; angle_unit=:deg)
+
+
+
+            gridinfo = DisplacedPoleCoordinate.GridInfo(
+                Re,
+                mi.nx,
+                mi.ny,
+                mi.xc,
+                mi.yc,
+                mi.xv,
+                mi.yv,
+                mi.area;
+                angle_unit=:deg,
+                sub_yrng=sub_yrng,
+            )
            
         end
 
@@ -427,7 +527,7 @@ mutable struct Ocean
         elseif typeof(fs) <: Float64 
             _fs .= fs
         elseif fs == nothing
-           _fs[:, :] = 2 * Ωe * sin.(mi.yc * π / 180.0)
+           _fs[:, :] = 2 * Ωe * sin.(gridinfo.c_lat)
         end
 
         if typeof(ϵs) <: AbstractArray{Float64, 2}
@@ -444,17 +544,39 @@ mutable struct Ocean
         _τy      = allocate(datakind, Float64, Nx, Ny)
         _u       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _v       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _w       = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
+        _w       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+
+        _u_bnd   = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _v_bnd   = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
+        _w_bnd   = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
+
+        _GRAD_bnd_x   = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _GRAD_bnd_y   = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
+        _GRAD_bnd_z   = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
+
+        _CURV_x       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _CURV_y       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _CURV_z       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+
+        _TFLUX_DEN_x  = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _TFLUX_DEN_y  = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
+        _TFLUX_DEN_z  = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
+
+        _SFLUX_DEN_x  = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _SFLUX_DEN_y  = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
+        _SFLUX_DEN_z  = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
+
 
         _div     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _T_hadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _T_vadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _S_hadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _S_vadvs = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+
+        _TFLUX_CONV   = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _TFLUX_CONV_h = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _SFLUX_CONV   = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _SFLUX_CONV_h = allocate(datakind, Float64, Nz_bone, Nx, Ny)
 
         _∇∇T     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _∇∇S     = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-    
+
         # ===== [END] Advection variables =====
 
         # ===== [BEGIN] Climatology =====
@@ -509,7 +631,9 @@ mutable struct Ocean
 
         # ===== [BEGIN] Mask out data =====
 
-        _mask3 = allocate(:local, Float64, Nz_bone, Nx, Ny)
+        _mask3        = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _noflux_x_mask3 = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _noflux_y_mask3 = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
         _mask3 .= 1.0
 
         # Clean up all variables
@@ -517,7 +641,30 @@ mutable struct Ocean
             _mask3[Nz[i, j] + 1:end, i, j] .= 0.0
         end
 
-        println("sum of _mask3: ", sum(_mask3))
+        # no flow try to avoid the horizontal flow when topography is cutting through a grid box.
+        
+        # x
+        for i=2:Nx, j=1:Ny
+            for k=1:Nz[i, j]
+                _noflux_x_mask3[k, i, j] = (  _mask3[k, i, j] == 0.0 || _mask3[k, i-1, j] == 0.0 || k >= Nz[i-1, j] || k == Nz[i, j] || _topo[i, j] > -300.0 || _topo[i-1, j] > -300.0) ? 0.0 : 1.0
+            end
+        end
+        # x - periodic boundary
+        for j=1:Ny
+            for k=1:Nz[1, j]
+                _noflux_x_mask3[k, 1, j] = _noflux_x_mask3[k, Nx+1, j] = ( _mask3[k, 1, j] == 0.0 || _mask3[k, Nx, j] == 0.0 || k >= Nz[Nx, j] || k == Nz[1, j] || _topo[1, j] > -300.0 || _topo[Nx, j] > -300.0 ) ? 0.0 : 1.0
+            end
+        end
+
+        # y
+        for i=1:Nx, j=2:Ny
+            for k=1:Nz[i, j]
+                _noflux_y_mask3[k, i, j] = ( _mask3[k, i, j] == 0.0 || _mask3[k, i, j-1] == 0.0 || k >= Nz[i, j-1] || k == Nz[i, j] || _topo[i, j] > -300.0 || _topo[i, j-1] > -300.0) ? 0.0 : 1.0
+            end
+        end
+
+
+        #println("sum of _mask3: ", sum(_mask3))
 
         mask3_lnd_idx = (_mask3  .== 0.0)
         mask2_lnd_idx = (_mask  .== 0.0)
@@ -536,20 +683,6 @@ mutable struct Ocean
 
 
         # ===== [END] Mask out data
-
-        # ===== [BEGIN] Construct coastal mask =====
-
-        _coast_mask = allocate(:local, Float64, Nz_bone, Nx, Ny)
-        
-        # Clean up all variables
-        for i=1:Nx, j=1:Ny
-            _mask3[Nz[i, j] + 1:end, i, j] .= 0.0
-        end
-
-
-
-        # ===== [END] Construct coastal mask =====
-
 
         # ===== [BEGIN] check integrity =====
 
@@ -576,9 +709,9 @@ mutable struct Ocean
         valid_grids = sum(mask3_idx)
         total_data  = Nx * Ny * Nz_bone
 
-        println("Total  data count: ", total_data)
-        println("Valid  data count: ", valid_grids)
-        println("Masked data count: ", total_data - valid_grids)
+        #println("Total  data count: ", total_data)
+        #println("Valid  data count: ", valid_grids)
+        #println("Masked data count: ", total_data - valid_grids)
         
         if sum(isfinite.(_Ss)) != valid_grids
             throw(ErrorException("Salinity data has holes"))
@@ -608,108 +741,137 @@ mutable struct Ocean
         
         # ===== [END] check integrity =====
 
+        cols = nothing
+        lays = nothing
 
+#        if id != 0
 
-
-        # ===== [BEGIN] Construct Views of Lays =====
-        lays = ((
-            hs      = Array{SubArray}(undef, Nz_bone),
-            bs      = Array{SubArray}(undef, Nz_bone),
-            Ts      = Array{SubArray}(undef, Nz_bone),
-            Ss      = Array{SubArray}(undef, Nz_bone),
-            u       = Array{SubArray}(undef, Nz_bone),
-            v       = Array{SubArray}(undef, Nz_bone),
-            div     = Array{SubArray}(undef, Nz_bone),
-            T_hadvs = Array{SubArray}(undef, Nz_bone),
-            S_hadvs = Array{SubArray}(undef, Nz_bone),
-            ∇∇T     = Array{SubArray}(undef, Nz_bone),
-            ∇∇S     = Array{SubArray}(undef, Nz_bone),
-            mask3   = Array{SubArray}(undef, Nz_bone),
-        ))
- 
-        
-        for k=1:Nz_bone
-            lays.hs[k]      = view(hs, k, :, :)
-            lays.bs[k]      = view(_bs, k, :, :)
-            lays.Ts[k]      = view(_Ts, k, :, :)
-            lays.Ss[k]      = view(_Ss, k, :, :)
-            lays.u[k]       = view(_u, k, :, :)
-            lays.v[k]       = view(_v, k, :, :)
-            lays.div[k]     = view(_div, k, :, :)
-            lays.T_hadvs[k] = view(_T_hadvs, k, :, :)
-            lays.S_hadvs[k] = view(_S_hadvs, k, :, :)
-            lays.∇∇T[k]     = view(_∇∇T, k, :, :)
-            lays.∇∇S[k]     = view(_∇∇S, k, :, :)
-            lays.mask3[k]   = view(_mask3, k, :, :)
-        end
-
-        # ===== [END] Construct Views of Lays =====
-
-        # ===== [BEGIN] Construct Views of Cols =====
-        cols = ((
-            zs  = Array{SubArray}(undef, Nx, Ny),
-            Δzs = Array{SubArray}(undef, Nx, Ny),
-            hs = Array{SubArray}(undef, Nx, Ny),
-            w  = Array{SubArray}(undef, Nx, Ny),
-            bs = Array{SubArray}(undef, Nx, Ny),
-            Ts = Array{SubArray}(undef, Nx, Ny),
-            Ss = Array{SubArray}(undef, Nx, Ny),
-            T_vadvs = Array{SubArray}(undef, Nx, Ny),
-            S_vadvs = Array{SubArray}(undef, Nx, Ny),
-            rad_decay_coes  = Array{SubArray}(undef, Nx, Ny),
-            rad_absorp_coes = Array{SubArray}(undef, Nx, Ny),
-            Ts_clim = (Ts_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
-            Ss_clim = (Ss_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
-        ))
-        
-        for i=1:Nx, j=1:Ny
-            cols.zs[i, j]              = view(zs,  :, i, j)
-            cols.Δzs[i, j]             = view(Δzs, :, i, j)
-            cols.hs[i, j]              = view(hs,  :, i, j)
-            cols.w[i, j]               = view(_w,  :, i, j)
-            cols.bs[i, j]              = view(_bs, :, i, j)
-            cols.Ts[i, j]              = view(_Ts, :, i, j)
-            cols.Ss[i, j]              = view(_Ss, :, i, j)
-            cols.T_vadvs[i, j]         = view(_T_vadvs, :, i, j)
-            cols.S_vadvs[i, j]         = view(_S_vadvs, :, i, j)
-            cols.rad_decay_coes[i, j]  = view(_rad_decay_coes,  :, i, j)
-            cols.rad_absorp_coes[i, j] = view(_rad_absorp_coes, :, i, j)
-        end
-
-        if Ts_clim != nothing
-            for i=1:Nx, j=1:Ny
-                cols.Ts_clim[i, j] = view(_Ts_clim, :, i, j)
-            end
-        end
- 
-        if Ss_clim != nothing
-            for i=1:Nx, j=1:Ny
-                cols.Ss_clim[i, j] = view(_Ss_clim, :, i, j)
-            end
-        end
+            # ===== [BEGIN] Construct Views of Lays =====
+            lays = ((
+                hs      = Array{SubArray}(undef, Nz_bone),
+                bs      = Array{SubArray}(undef, Nz_bone),
+                Ts      = Array{SubArray}(undef, Nz_bone),
+                Ss      = Array{SubArray}(undef, Nz_bone),
+                u       = Array{SubArray}(undef, Nz_bone),
+                v       = Array{SubArray}(undef, Nz_bone),
+                div     = Array{SubArray}(undef, Nz_bone),
+                ∇∇T     = Array{SubArray}(undef, Nz_bone),
+                ∇∇S     = Array{SubArray}(undef, Nz_bone),
+                mask3   = Array{SubArray}(undef, Nz_bone),
+            ))
      
+            
+            for k=1:Nz_bone
+                lays.hs[k]      = view(hs, k, :, :)
+                lays.bs[k]      = view(_bs, k, :, :)
+                lays.Ts[k]      = view(_Ts, k, :, :)
+                lays.Ss[k]      = view(_Ss, k, :, :)
+                lays.u[k]       = view(_u, k, :, :)
+                lays.v[k]       = view(_v, k, :, :)
+                lays.div[k]     = view(_div, k, :, :)
+                lays.∇∇T[k]     = view(_∇∇T, k, :, :)
+                lays.∇∇S[k]     = view(_∇∇S, k, :, :)
+                lays.mask3[k]   = view(_mask3, k, :, :)
+            end
+
+            # ===== [END] Construct Views of Lays =====
+
+            # ===== [BEGIN] Construct Views of Cols =====
+            cols = ((
+                zs  = Array{SubArray}(undef, Nx, Ny),
+                Δzs = Array{SubArray}(undef, Nx, Ny),
+                hs = Array{SubArray}(undef, Nx, Ny),
+                w  = Array{SubArray}(undef, Nx, Ny),
+                w_bnd = Array{SubArray}(undef, Nx, Ny),
+                bs = Array{SubArray}(undef, Nx, Ny),
+                Ts = Array{SubArray}(undef, Nx, Ny),
+                Ss = Array{SubArray}(undef, Nx, Ny),
+                rad_decay_coes  = Array{SubArray}(undef, Nx, Ny),
+                rad_absorp_coes = Array{SubArray}(undef, Nx, Ny),
+                Ts_clim = (Ts_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
+                Ss_clim = (Ss_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
+            ))
+            
+            for i=1:Nx, j=1:Ny
+                cols.zs[i, j]              = view(zs,  :, i, j)
+                cols.Δzs[i, j]             = view(Δzs, :, i, j)
+                cols.hs[i, j]              = view(hs,  :, i, j)
+                cols.w[i, j]               = view(_w,  :, i, j)
+                cols.w_bnd[i, j]           = view(_w_bnd,  :, i, j)
+                cols.bs[i, j]              = view(_bs, :, i, j)
+                cols.Ts[i, j]              = view(_Ts, :, i, j)
+                cols.Ss[i, j]              = view(_Ss, :, i, j)
+                cols.rad_decay_coes[i, j]  = view(_rad_decay_coes,  :, i, j)
+                cols.rad_absorp_coes[i, j] = view(_rad_absorp_coes, :, i, j)
+            end
+
+            if Ts_clim != nothing
+                for i=1:Nx, j=1:Ny
+                    cols.Ts_clim[i, j] = view(_Ts_clim, :, i, j)
+                end
+            end
+ 
+            if Ss_clim != nothing
+                for i=1:Nx, j=1:Ny
+                    cols.Ss_clim[i, j] = view(_Ss_clim, :, i, j)
+                end
+            end
+
+#        end
         # ===== [END] Construct Views of Cols =====
+
+        # ===== [BEGIN] Making speed-up matrix
+
+        if id != 0
+            ASUM = AdvectionSpeedUpMatrix(;
+                gi = gridinfo,
+                Nx = Nx,
+                Ny = Ny,
+                Nz_bone = Nz_bone,
+                Nz = Nz,
+                mask3 = _mask3,
+                noflux_x_mask3 = _noflux_x_mask3,
+                noflux_y_mask3 = _noflux_y_mask3,
+                Δzs = Δzs,
+                hs  = hs,
+            )
+        else
+            ASUM = nothing
+        end
+        # ===== [END] Making speed-up matrix
 
 
         ocn = new(
             id,
             gridinfo,
             gridinfo_file,
+            #mi,
             Nx, Ny, Nz_bone,
             zs_bone, _topo, zs, Nz,
-            K_v, K_T, K_S,
+            K_v, Dh_T, Dv_T, Dh_S, Dv_S,
             _fs, _ϵs,
-            _mask3, _mask, mask_idx, valid_idx,
-            _b_ML, _T_ML, _S_ML, _ΔT, _ΔS,
+            _mask3,
+            _noflux_x_mask3, _noflux_y_mask3,
+            _mask, mask_idx, valid_idx,
+            _b_ML, _T_ML, _S_ML, _ΔT, _ΔS, _dΔTdt, _dΔSdt,
             _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
+            _TSAS_clim, _SSAS_clim,
+            _TFLUX_bot, _SFLUX_bot, _SFLUX_top,
+            _TFLUX_DIV_implied, _SFLUX_DIV_implied,
             _bs,   _Ts,   _Ss,
-            _FLDO, qflx2atm,
+            _FLDO, _FLDO_ratio_top, _FLDO_ratio_bot,
+            _qflx2atm, _TEMP, _dTEMPdt, _SALT, _dSALTdt,
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,
             _u, _v, _w,
+            _u_bnd, _v_bnd, _w_bnd,
+            _GRAD_bnd_x, _GRAD_bnd_y, _GRAD_bnd_z,
+            _CURV_x, _CURV_y, _CURV_z,
+            _TFLUX_DEN_x, _TFLUX_DEN_y, _TFLUX_DEN_z,
+            _SFLUX_DEN_x, _SFLUX_DEN_y, _SFLUX_DEN_z,
             _div,
-            _T_hadvs, _T_vadvs,
-            _S_hadvs, _S_vadvs,
+            _TFLUX_CONV, _TFLUX_CONV_h,
+            _SFLUX_CONV, _SFLUX_CONV_h,
             _∇∇T, _∇∇S,
             R, ζ,
             _rad_decay_coes, _rad_absorp_coes,
@@ -720,6 +882,10 @@ mutable struct Ocean
             lays,
             cols,
             ( id == 0 ) ? nothing : AccumulativeVariables(Nx, Ny, Nz_bone),
+            ASUM,
+            allocate(datakind, Float64, Nz_bone, Nx, Ny),  # workspace1
+            allocate(datakind, Float64, Nz_bone, Nx, Ny),  # workspace2
+            allocate(datakind, Float64, Nz_bone, Nx, Ny),  # workspace3
         )
 
         updateB!(ocn)
@@ -730,6 +896,8 @@ mutable struct Ocean
                 OC_doConvectiveAdjustment!(ocn, i, j)
             end
         end
+
+        calTEMP!(ocn)
 
         return ocn
     end
