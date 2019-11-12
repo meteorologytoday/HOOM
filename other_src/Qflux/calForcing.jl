@@ -221,7 +221,7 @@ function integrate(zb, zt, zs, Ts)
 end
 
 mi = ModelMap.MapInfo{Float64}(gridinfo_file)
-gi = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv; angle_unit=:deg)
+gi = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv, mi.area; angle_unit=:deg)
 
 
 ϵs = mi.xc * 0.0 .+ 1e-5
@@ -452,9 +452,9 @@ for t = 13:Nt - 12
         # Using the time-variate of HBLT to estimate h_mean
         #  is problematic because lacking of time resolution
         # making entrainment a source of energy to the ocean
-        #h_mean = (HBLT[i, j, t] + HBLT[i, j, t+1]) / 2.0
+        h_mean = (HBLT[i, j, t] + HBLT[i, j, t+1]) / 2.0
 
-        h_mean = mean(HBLT[i, j, :]) 
+        #h_mean = mean(HBLT[i, j, :]) 
 
         # Temperature change
         tmp_dTdts = (SST[i, j, t+1] - SST[i, j, t]) / Δts[m]

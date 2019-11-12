@@ -56,8 +56,7 @@ julia $script_root_dir/generate_SCRIP_format.jl \
     --corner-lat=yv     \
     --mask-value=${d_mask_value}
 
-ESMF_RegridWeightGen -s ${s_SCRIP} -d ${d_SCRIP} -m conserve2nd -w $w_file --user_areas --check
-
+ESMF_RegridWeightGen -s ${s_SCRIP} -d ${d_SCRIP} -m conserve2nd -w $w_file --user_areas --check --ignore_unmapped
 
 
 
