@@ -49,6 +49,11 @@ function parse_commandline()
             help = "Whether to detrend the data or not."
             action = :store_true 
 
+        "--output-monthly-anomalies"
+            help = "Whether to output the monthly anomalies for all months."
+            action = :store_true 
+
+           
      
     end
 
@@ -147,15 +152,19 @@ Dataset(output_file, "c") do ds
     defDim(ds, "Nx", Nx)
     defDim(ds, "Ny", Ny)
     defDim(ds, "Nz", Nz)
-    
-    for (varname, vardata, vardim, attrib) in [
+
+    datas =  [
         (format("{:s}_MM",    parsed["varname"]),       data_MM,    ("Nx", "Ny", "Nz", "months"), Dict()),
-    #    (format("{:s}_MA",    parsed["varname"]),      data_MA,    ("Nx", "Ny", "Nz", "time"),   Dict()),
         (format("{:s}_MAVAR", parsed["varname"]),       data_MAVAR, ("Nx", "Ny", "Nz", "months"), Dict()),
         (format("{:s}_ZONAL_MEAN", parsed["varname"]),  nanmean( data_MM,    dims=(1,) )[1, :, :, :], ("Ny", "Nz", "months"), Dict()),
         (format("{:s}_ZONAL_MAVAR", parsed["varname"]), nanmean( data_MAVAR, dims=(1,) )[1, :, :, :], ("Ny", "Nz", "months"), Dict()),
     ]
 
+    if parsed["output-monthly-anomalies"]
+        push!(datas, (format("{:s}_MA",    parsed["varname"]),       data_MA,    ("Nx", "Ny", "Nz", "time"),   Dict()) )
+    end
+    
+    for (varname, vardata, vardim, attrib) in datas
         if ! haskey(ds, varname)
             var = defVar(ds, varname, Float64, vardim)
             var.attrib["_FillValue"] = 1e20

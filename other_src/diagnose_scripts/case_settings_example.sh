@@ -1,5 +1,7 @@
 #!/bin/bash
 
+diag_prefix="some_prefix"
+
 concat_beg_year=1
 concat_end_year=2
 
@@ -8,7 +10,8 @@ diag_end_year=2
 
 ptasks=4
 sim_data_dir="/PATH/TO/CASE/ARCHIVE/FOLDER"
-
+atm_domain=""
+ocn_domain=""
 
 case_settings=(
 

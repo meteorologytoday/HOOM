@@ -79,12 +79,8 @@ Dataset(parsed["data-file"], "r") do ds
 
     getData = (varname) -> mean( replace(ds[varname][rng...], missing=>0.0, NaN=>0.0), dims=(1, ))[1, :, :]
 
-    global neb  = getData("neb")
-    global dHdt = getData("dHdt")   
-    global wθ   = getData("wT") * ρc
+    global ECONV = getData("TFLUX_DIV_implied") * ρc
 
-    global ECONV = neb - dHdt + wθ
- 
     global (Ny, Nt) = size(ECONV)
 
 end
@@ -104,9 +100,6 @@ Dataset(parsed["output-file"], "c") do ds
 
     for (varname, vardata, vardim, attrib) in [
         ("IET_OCN",     reshape(IET_OCN, 1, Ny, 1, Nt), ("Nx", "Ny", "Nz", "time"), Dict()),
-        ("neb",         reshape(neb,   1, Ny, 1, Nt), ("Nx", "Ny", "Nz", "time"), Dict()),
-        ("dHdt",        reshape(dHdt,  1, Ny, 1, Nt), ("Nx", "Ny", "Nz", "time"), Dict()),
-        ("wtheta",      reshape(wθ,  1, Ny, 1, Nt), ("Nx", "Ny", "Nz", "time"), Dict()),
         ("ECONV",       reshape(ECONV, 1, Ny, 1, Nt), ("Nx", "Ny", "Nz", "time"), Dict()),
     ]
 

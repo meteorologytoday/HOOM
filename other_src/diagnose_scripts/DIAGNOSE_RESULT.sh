@@ -1,5 +1,11 @@
 #!/bin/bash
 
+export script_dir=$( dirname "$(realpath $0)" )
+export script_coordtrans_dir="$script_dir/../CoordTrans"
+
+echo "script_dir=$script_dir" 
+echo "script_coordtrans_dir=$script_coordtrans_dir" 
+
 
 # ===== [BEGIN] READ PARAMETERS =====
 
@@ -38,6 +44,15 @@ done
 
 source "$case_settings"
 
+if [ -z "$diag_prefix" ]; then
+    echo "Error: variable diag_prefix does not exist."
+    exit 1
+fi
+
+
+
+
+
 
 # Output kill process shell.
 echo "$(cat <<EOF
@@ -75,14 +90,20 @@ if [ ! -d "$sim_data_dir" ] ; then
     exit 1
 fi
 
-result_dir=$( printf "%s/result_%04d-%04d" `pwd` $concat_beg_year $concat_end_year )
+result_dir=$( printf "%s/result_%s_%04d-%04d" `pwd` $diag_prefix $concat_beg_year $concat_end_year )
 concat_data_dir=$( printf "%s/concat" $result_dir )
 diag_data_dir=$( printf "%s/%04d-%04d/diag" $result_dir $diag_beg_year $diag_end_year )
 graph_data_dir=$( printf "%s/%04d-%04d/graph" $result_dir $diag_beg_year $diag_end_year )
 
-atm_domain=domain.lnd.fv4x5_gx3v7.091218.nc
-ocn_domain=domain.ocn.gx3v7.120323.nc
+if [ ! -f "$atm_domain" ] ; then
+    echo "Error: atm_domain="$atm_domain" does not exists."
+    exit 1
+fi
 
+if [ ! -f "$ocn_domain" ] ; then
+    echo "Error: atm_domain="$ocn_domain" does not exists."
+    exit 1
+fi
 
 
 # Parallel loop : https://unix.stackexchange.com/questions/103920/parallelize-a-bash-for-loop
@@ -93,14 +114,43 @@ fi
 
 echo "### Parallization (ptasks) in batch of $ptasks ###"
 
+# Transform ocn grid to atm grid
+if [ ! -f "wgt_file.nc" ]; then
+    echo "Weight file \"wgt_file.nc\" does not exist, I am going to generate one..."
+    julia -p 4  $script_coordtrans_dir/generate_weight.jl --s-file=$ocn_domain --d-file=$atm_domain --w-file="wgt_file.nc" --s-mask-value=1.0 --d-mask-value=0.0
+
+#    julia $script_coordtrans_dir/generate_SCRIP_format.jl \
+#        --input-file=$ocn_domain    \
+#        --output-file=SCRIP_${ocn_domain}    \
+#        --center-lon=xc     \
+#        --center-lat=yc     \
+#        --corner-lon=xv     \
+#        --corner-lat=yv
+
+#    julia $script_coordtrans_dir/generate_SCRIP_format.jl \
+#        --input-file=$atm_domain    \
+#        --output-file=SCRIP_${atm_domain}    \
+#        --center-lon=xc     \
+#        --center-lat=yc     \
+#        --corner-lon=xv     \
+#        --corner-lat=yv     \
+#        --mask-flip
+
+    #ESMF_RegridWeightGen -s SCRIP_${ocn_domain} -d SCRIP_${atm_domain} -m conserve2nd -w $wgt_file --user_areas
+#    ESMF_RegridWeightGen -s SCRIP_${ocn_domain} -d SCRIP_${atm_domain} -m neareststod -w $wgt_file --user_areas
+fi
+
+
+
+
 for casename in "${casenames[@]}"; do
 
-    ((i=i%N)); ((i++==0)) && wait
+    ((i=i%ptasks)); ((i++==0)) && wait
 
     echo "Case: $casename"
 
     full_casename=${label}_${res}_${casename}
-     ./other_src/diagnose_scripts/diagnose_single_model.sh \
+    $script_dir/diagnose_single_model.sh \
         --casename=$casename                \
         --sim-data-dir=$sim_data_dir        \
         --concat-data-dir=$concat_data_dir  \
@@ -111,14 +161,15 @@ for casename in "${casenames[@]}"; do
         --diag-beg-year=$diag_beg_year      \
         --diag-end-year=$diag_end_year      \
         --atm-domain=$atm_domain            \
-        --ocn-domain=$ocn_domain            & 
+        --ocn-domain=$ocn_domain            \
+        --PCA-sparsity=$PCA_sparsity        & 
 done
 
 wait
 
 echo "Start doing model comparison..."
 
-./other_src/diagnose_scripts/diagnose_mc.sh     \
+$script_dir/diagnose_mc.sh     \
     --casenames=$( join_by , "${casenames[@]}") \
     --legends=$( join_by , "${legends[@]}") \
     --sim-data-dir=$sim_data_dir                \

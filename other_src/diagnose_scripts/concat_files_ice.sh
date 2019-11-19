@@ -17,6 +17,6 @@ EOF
     )"
 
     cd $wdir
-    julia $script_coordtrans_dir/transform_data.jl --s-file=$ice_concat --d-file=$ice_concat_rg --w-file=$wgt_file --vars=aice,hi --x-dim=ni --y-dim=nj --t-dim=time 
+    julia $script_coordtrans_dir/transform_data.jl --s-file=$ice_concat --d-file=$ice_concat_rg --w-file=wgt_file.nc --vars=aice,hi --x-dim=ni --y-dim=nj --t-dim=time 
 
 fi

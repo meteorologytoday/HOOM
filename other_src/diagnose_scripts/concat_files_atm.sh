@@ -11,7 +11,7 @@ else
 
     # atm variables
     eval "$(cat <<EOF
-    ncrcat -h -O -v ilev,PSL,V,TREFHT,PRECC,PRECL,FSNT,FSNS,FLNT,FLNS,SHFLX,LHFLX,PSL,ICEFRAC $full_casename.cam.h0.{$concat_beg_year..$concat_end_year}-{01..12}.nc $atm_concat
+    ncrcat -h -O -v ilev,PSL,V,TREFHT,PRECC,PRECL,FSNT,FSNS,FLNT,FLNS,SHFLX,LHFLX,PSL,ICEFRAC,SST $full_casename.cam.h0.{$concat_beg_year..$concat_end_year}-{01..12}.nc $atm_concat
     ncap2 -h -O -s "PREC_TOTAL=PRECC+PRECL;" $atm_concat $atm_prec
 EOF
     )"
