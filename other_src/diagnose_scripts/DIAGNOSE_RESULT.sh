@@ -44,16 +44,6 @@ done
 
 source "$case_settings"
 
-if [ -z "$diag_prefix" ]; then
-    echo "Error: variable diag_prefix does not exist."
-    exit 1
-fi
-
-
-
-
-
-
 # Output kill process shell.
 echo "$(cat <<EOF
 #!/bin/bash
@@ -90,7 +80,7 @@ if [ ! -d "$sim_data_dir" ] ; then
     exit 1
 fi
 
-result_dir=$( printf "%s/result_%s_%04d-%04d" `pwd` $diag_prefix $concat_beg_year $concat_end_year )
+result_dir=$( printf "%s/result_%04d-%04d" `pwd` $concat_beg_year $concat_end_year )
 concat_data_dir=$( printf "%s/concat" $result_dir )
 diag_data_dir=$( printf "%s/%04d-%04d/diag" $result_dir $diag_beg_year $diag_end_year )
 graph_data_dir=$( printf "%s/%04d-%04d/graph" $result_dir $diag_beg_year $diag_end_year )

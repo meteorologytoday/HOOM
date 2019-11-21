@@ -294,7 +294,7 @@ using Distributed
     function convertFile(
         in_filename   :: AbstractString,
         out_filename  :: AbstractString,
-        wgt_filename  :: AbstractString;
+        wgt_filename  :: Union{AbstractString, WeightInfo};
         varnames      :: Union{Nothing, Array} = nothing,
         xydim         :: AbstractString = "grid",
         xdim          :: AbstractString = "lon",
@@ -306,7 +306,12 @@ using Distributed
         ydim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         zdim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
     )
-        wi = readWeightInfo(wgt_filename)
+
+        if typeof(wgt_filename) <: AbstractString
+            wi = readWeightInfo(wgt_filename)
+        else
+            wi = wgt_filename
+        end
 
         dim_len = length(wi.d_dims)
         d_data_tmp = zeros(Float64, wi.d_N)
