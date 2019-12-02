@@ -5,9 +5,6 @@ using Statistics
 using JSON
 
 include("constants.jl")
-include("CESMReader.jl")
-
-using .CESMReader
 
 function mreplace(x)
     return replace(x, missing=>NaN)
@@ -27,17 +24,12 @@ function parse_commandline()
 
     s = ArgParseSettings()
     @add_arg_table s begin
- 
-        "--data-file-prefix"
-            help = "Data filename prefix including folder and path until the timestamp. File extension `nc` is assumed."
-            arg_type = String
-            required = true
- 
-        "--data-file-timestamp-form"
-            help = "Data filename timestamp form. Either `YEAR` or `YEAR_MONTH`."
-            arg_type = String
-            required = true
 
+        "--data-file"
+            help = "Atm data file."
+            arg_type = String
+            required = true
+ 
         "--output-file"
             help = "Output file."
             arg_type = String
@@ -66,7 +58,6 @@ end
 parsed = parse_commandline()
 print(json(parsed, 4))
 
- 
 Dataset(parsed["domain-file"], "r") do ds
     global mask = ds["mask"][:] |> mreplace
     global lat = ds["yc"][1, :] |> mreplace
@@ -77,26 +68,15 @@ Dataset(parsed["domain-file"], "r") do ds
     mask[mask.!=0] .= 1
 end
 
-let
-
-    if parsed["data-file-timestamp-form"] == "YEAR"
-        filename_format = format("{:s}{{:04d}}.nc", joinpath(parsed["data-file-prefix"]))
-        form = :YEAR
-    elseif parsed["data-file-timestamp-form"] == "YEAR_MONTH"
-        filename_format = format("{:s}{{:04d}}-{{:02d}}.nc", joinpath(parsed["data-file-prefix"]))
-        form = :YEAR_MONTH
-    end
-   
-    fh = FileHandler(filename_format=filename_format, form=form)
-
+Dataset(parsed["data-file"], "r") do ds
+ 
     beg_t = (parsed["beg-year"] - 1) * 12 + 1
     end_t = (parsed["end-year"] - 1) * 12 + 12
- 
-    FSNT, FLNT, FSNS, FLNS, SHFLX, LHFLX = getData(fh, ["FSNT", "FLNT", "FSNS", "FLNS", "SHFLX", "LHFLX"], (parsed["beg-year"], parsed["end-year"]), (:, :))
+    rng = (:,:,beg_t:end_t) 
     
-    global FFLX_TOA = ( - mean(FSNT, dims=(1, ))  + mean(FLNT,  dims=(1, )) )[1, :, :]
-    global FFLX_SFC = ( - mean(FSNS, dims=(1, ))  + mean(FLNS,  dims=(1, )) )[1, :, :]
-    global HFLX_SFC = (   mean(SHFLX, dims=(1, )) + mean(LHFLX, dims=(1, )) )[1, :, :]
+    global FFLX_TOA = ( - mean(ds["FSNT"][rng...], dims=(1, ))  + mean(ds["FLNT"][rng...],  dims=(1, )) )[1, :, :]
+    global FFLX_SFC = ( - mean(ds["FSNS"][rng...], dims=(1, ))  + mean(ds["FLNS"][rng...],  dims=(1, )) )[1, :, :]
+    global HFLX_SFC = (   mean(ds["SHFLX"][rng...], dims=(1, )) + mean(ds["LHFLX"][rng...], dims=(1, )) )[1, :, :]
 
     global (Ny, Nt) = size(FFLX_TOA)
 

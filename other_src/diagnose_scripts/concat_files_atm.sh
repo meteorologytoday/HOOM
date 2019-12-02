@@ -1,30 +1,25 @@
 #!/bin/bash
 
-if [ -f $atm_concat ] && [ ! -f flag_concat_atm ]; then
+echo "Transforming data..."
 
-    echo "$atm_concat already exists. Skip."
+old_files=""
+new_files=""
 
-else
+if [ ! -f flag_notrans_atm ] ; then
 
-    echo "Concat atm files of $full_casename"
-    cd $atm_hist_dir
+    
+    for y in $( seq $diag_beg_year $diag_end_year ); do
+        for m in $( seq 1 12 ); do
+            old_file=$full_casename.cam.h0.$( printf "%04d-%02d" $y $m ).nc
+            new_file=$( echo "$old_file" | sed -e 's/\.cam\./.cam_extra./' )
 
-    # atm variables
-    eval "$(cat <<EOF
-    ncrcat -h -O -v ilev,PSL,V,TREFHT,PRECC,PRECL,FSNT,FSNS,FLNT,FLNS,SHFLX,LHFLX,PSL,ICEFRAC $full_casename.cam.h0.{$concat_beg_year..$concat_end_year}-{01..12}.nc $atm_concat
-    ncap2 -h -O -s "PREC_TOTAL=PRECC+PRECL;" $atm_concat $atm_prec
-EOF
-    )"
-
-fi
-
-if [ -f $atm_prec ]; then
-
-    echo "$atm_prec already exists. Skip."
-
-else
-
-    echo "Creating $atm_prec"
-    ncap2 -h -O -s "PREC_TOTAL=PRECC+PRECL;" $atm_concat $atm_prec
+            if [ ! -f "$concat_dir/$new_file" ]; then 
+                ((i=i%4)); ((i++==0)) && wait
+                echo "$new_file does not exist, need to transform."
+                ncap2 -h -O -v -s 'PREC_TOTAL=PRECC+PRECL;' $atm_hist_dir/$old_file $concat_dir/$new_file
+            fi
+        done
+    done
 
 fi
+

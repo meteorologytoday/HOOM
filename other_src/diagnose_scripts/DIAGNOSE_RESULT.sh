@@ -80,7 +80,7 @@ if [ ! -d "$sim_data_dir" ] ; then
     exit 1
 fi
 
-result_dir=$( printf "%s/result_%04d-%04d" `pwd` $concat_beg_year $concat_end_year )
+result_dir=$( printf "%s/result" `pwd`)
 concat_data_dir=$( printf "%s/concat" $result_dir )
 diag_data_dir=$( printf "%s/%04d-%04d/diag" $result_dir $diag_beg_year $diag_end_year )
 graph_data_dir=$( printf "%s/%04d-%04d/graph" $result_dir $diag_beg_year $diag_end_year )
@@ -146,8 +146,6 @@ for casename in "${casenames[@]}"; do
         --concat-data-dir=$concat_data_dir  \
         --diag-data-dir=$diag_data_dir      \
         --graph-data-dir=$graph_data_dir    \
-        --concat-beg-year=$concat_beg_year  \
-        --concat-end-year=$concat_end_year  \
         --diag-beg-year=$diag_beg_year      \
         --diag-end-year=$diag_end_year      \
         --atm-domain=$atm_domain            \

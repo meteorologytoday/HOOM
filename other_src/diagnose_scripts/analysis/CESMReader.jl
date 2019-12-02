@@ -28,23 +28,41 @@ module CESMReader
     end
 
     function getData(
-        handler       :: FileHandler,
-        varname  :: String,
+        handler  :: FileHandler,
+        varnames :: Union{String, Array},
         year_rng :: Union{Tuple, Array},
-        idx...;
+        idxes...;
         verbose=true,
     )
-        return getData(handler, varname, (year_rng[1], 1), (year_rng[2], 12), idx...; verbose=verbose)
+        return _getData(handler, varnames, (year_rng[1], 1), (year_rng[2], 12), collect(idxes)...; verbose=verbose)
     end
 
-    function getData(
-        handler       :: FileHandler,
-        varname  :: String,
+    function _getData(
+        handler  :: FileHandler,
+        varnames :: Union{String, Array},
         beg_time :: Union{Tuple, Array},
         end_time :: Union{Tuple, Array},
-        idx...;
+        idxes...;
         verbose=true,
     )
+
+
+        local only_one_variable = false
+
+        if typeof(varnames) <: AbstractString
+            only_one_variable = true
+            varnames = [varnames]
+        end
+
+        if ! only_one_variable && length(idxes) == 1
+            idxes = [ idxes[1] for _ in 1:length(varnames) ]  
+        end
+
+        if ( only_one_variable && length(idxes) > 1 ) || length(idxes) != length(varnames)
+            println(varnames)
+            println(idxes)
+            throw(ErrorException("Number of idxes should match number of varnames or only 1 (applied to all varnames)."))
+        end
 
         beg_y, beg_m = beg_time
         end_y, end_m = end_time
@@ -62,15 +80,20 @@ module CESMReader
             throw(ErrorException("Invalid month"))
         end
 
-        if length(idx) == 0
-            throw(ErrorException("Spatial range not specified."))
+        for k = 1:length(idxes)
+            if length(idxes[k]) == 0
+                throw(ErrorException("Spatial range not specified."))
+            end
         end
 
-        local data, new_idx
+        local data, new_idxes
+
+        datas = Array{Any}(undef, length(varnames))
+        new_idxes = Array{Any}(undef, length(varnames))
 
         if handler.form == :YEAR_MONTH
-
-            flag_1 = true
+            
+            flag_1s = [true for _ in 1:length(varnames)]
 
             for y in beg_y:end_y, m in beg_m:end_m
 
@@ -80,16 +103,20 @@ module CESMReader
                 verbose && println("Loading file: ", filename)
                 ds = Dataset(filename, "r")
 
-                partial_data = nomissing(ds[varname][idx..., 1])
-                if flag_1
-                    new_size = size(partial_data)
-                    new_idx  = [Colon() for _ in 1:length(new_size)]
-                    data = zeros(Float64, new_size..., months)
-                    data .= NaN
-                    flag_1 = false
-                end
+                for (k, varname) in enumerate(varnames)
 
-                data[new_idx..., current_t] = partial_data
+                    partial_data = nomissing(ds[varname][idxes[k]..., 1])
+                    if flag_1s[k]
+                        new_size = size(partial_data)
+                        new_idxes[k]  = [Colon() for _ in 1:length(new_size)]
+                        datas[k] = zeros(Float64, new_size..., months)
+                        datas[k] .= NaN
+                        flag_1s[k] = false
+                    end
+
+                    datas[k][new_idxes[k]..., current_t] = partial_data
+
+                end
 
                 close(ds)
 
@@ -97,7 +124,7 @@ module CESMReader
             
         elseif handler.form == :YEAR
      
-            flag_1 = true
+            flag_1s = [true for _ in 1:length(varnames)]
 
             for y in beg_y:end_y
 
@@ -107,36 +134,38 @@ module CESMReader
                 verbose && println("Loading file: ", filename)
                 ds = Dataset(filename, "r")
 
-                if y == beg_y
-                    rng = (idx..., beg_m:12)
-                elseif y == end_y
-                    rng = (idx..., 1:end_m)
-                else
-                    rng = (idx..., 1:12)
-                end  
+                for (k, varname) in enumerate(varnames)
 
-                partial_data = nomissing(ds[varname][rng...])
+                    if y == beg_y
+                        rng = (idxes[k]..., beg_m:12)
+                    elseif y == end_y
+                        rng = (idxes[k]..., 1:end_m)
+                    else
+                        rng = (idxes[k]..., 1:12)
+                    end  
 
-                if flag_1
-                    new_size = size(partial_data)[1:end-1]
-                    new_idx  = [Colon() for _ in 1:length(new_size)]
-                    data = zeros(Float64, new_size..., months)
-                    flag_1 = false
-                end
+                    partial_data = nomissing(ds[varname][rng...])
 
+                    if flag_1s[k]
+                        new_size = size(partial_data)[1:end-1]
+                        new_idxes[k]  = [Colon() for _ in 1:length(new_size)]
+                        datas[k] = zeros(Float64, new_size..., months)
+                        datas[k] .= NaN
+                        flag_1s[k] = false
+                    end
 
-
-                if y == beg_y
-                    rng = beg_m:12
-                elseif y == end_y
-                    rng = 1:end_m
-                else
-                    rng = 1:12
-                end
-                
-                offset = (y-beg_y) * 12
-                data[new_idx..., rng .+ offset] = partial_data
+                    if y == beg_y
+                        rng = beg_m:12
+                    elseif y == end_y
+                        rng = 1:end_m
+                    else
+                        rng = 1:12
+                    end
+                    
+                    offset = (y-beg_y) * 12
+                    datas[k][new_idxes[k]..., rng .+ offset] = partial_data
                   
+                end
 
                 close(ds)
 
@@ -144,7 +173,7 @@ module CESMReader
 
         end 
 
-        return data
+        return (only_one_variable) ? datas[1] : datas
     end
 
 end

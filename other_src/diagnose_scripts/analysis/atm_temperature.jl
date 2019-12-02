@@ -3,8 +3,14 @@ using NCDatasets
 
 using ArgParse
 using JSON
+using Formatting
 
 include("LinearRegression.jl")
+include("CESMReader.jl")
+
+using .CESMReader
+
+
 correlation = (x1, x2) -> x1' * x2 / (sum(x1.^2)*sum(x2.^2)).^0.5
 
 function parse_commandline()
@@ -12,8 +18,13 @@ function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin
 
-        "--data-file"
-            help = "Atm data file. New variable will be appended."
+        "--data-file-prefix"
+            help = "Data filename prefix including folder and path until the timestamp. File extension `nc` is assumed."
+            arg_type = String
+            required = true
+ 
+        "--data-file-timestamp-form"
+            help = "Data filename timestamp form. Either `YEAR` or `YEAR_MONTH`."
             arg_type = String
             required = true
  
@@ -48,22 +59,25 @@ print(json(parsed, 4))
 
 output_file = parsed["output-file"]
 
-Dataset(parsed["data-file"], "r") do ds
+let
 
-    beg_t = (parsed["beg-year"] - 1) * 12 + 1
-    end_t = (parsed["end-year"] - 1) * 12 + 12
-    rng = (:,:,beg_t:end_t) 
- 
-    global TREFHT  = replace(ds["TREFHT"][rng...], missing=>NaN)
+    if parsed["data-file-timestamp-form"] == "YEAR"
+        filename_format = format("{:s}{{:04d}}.nc", joinpath(parsed["data-file-prefix"]))
+        form = :YEAR
+    elseif parsed["data-file-timestamp-form"] == "YEAR_MONTH"
+        filename_format = format("{:s}{{:04d}}-{{:02d}}.nc", joinpath(parsed["data-file-prefix"]))
+        form = :YEAR_MONTH
+    end
+   
+    fh = FileHandler(filename_format=filename_format, form=form)
+
+    global TREFHT = getData(fh, "TREFHT", (parsed["beg-year"], parsed["end-year"]), (:, :))
     global (Nx, Ny, Nt) = size(TREFHT)
     global nyears = Int64(Nt / 12)
     
     if mod(Nt, 12) != 0
-        
         ErrorException("Time record is not multiple of 12") |> throw
-
     end
-    
 
 end
 

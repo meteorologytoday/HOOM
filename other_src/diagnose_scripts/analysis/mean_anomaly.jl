@@ -53,9 +53,9 @@ function parse_commandline()
             arg_type = String
             required = true
 
-        "--detrend"
+        "--no-detrend"
             help = "Whether to detrend the data or not."
-            action = :store_true 
+            action = :store_true
 
         "--output-monthly-anomalies"
             help = "Whether to output the monthly anomalies for all months."
@@ -136,14 +136,14 @@ x = collect(Float64, 1:Nt)
 fh = FileHandler(filename_format=filename_format, form=form)
 for k=1:Nz
     spatial_rng = ( z_exists ) ? (:, :, k) : (:, :)
-    global data = getData(fh, parsed["varname"], (parsed["beg-year"], parsed["end-year"]), spatial_rng...)
+    global data = getData(fh, parsed["varname"], (parsed["beg-year"], parsed["end-year"]), spatial_rng)
 
     for i=1:Nx, j=1:Ny
 
         d = view(data, i, j, :)
         
-        if parsed["detrend"]
-            d = detrend(x, data)
+        if ! parsed["no-detrend"]
+            d = detrend(x, d, order=2)
         end
        
         data_MM[i, j, k, :] = mean( reshape(d, 12, :), dims=2 )[:, 1]

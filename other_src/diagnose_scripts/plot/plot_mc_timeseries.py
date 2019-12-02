@@ -107,8 +107,8 @@ for i in range(len(casenames)):
     
     
     new_casenames.append([casenames[i], legends[i], colors[i], linestyles[i]])
-    #ts = mavg(( f.variables[args.varname][indices] - args.y_offset) / args.yscale, args.mavg)
-    ts = mavg(f.variables[args.varname][indices] / args.yscale, args.mavg)
+    ts = mavg(( f.variables[args.varname][indices] - args.y_offset) / args.yscale, args.mavg)
+    #ts = mavg(f.variables[args.varname][indices] / args.yscale, args.mavg)
 
     tss.append(ts)
     
