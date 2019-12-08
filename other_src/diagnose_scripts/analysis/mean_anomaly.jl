@@ -61,8 +61,11 @@ function parse_commandline()
             help = "Whether to output the monthly anomalies for all months."
             action = :store_true 
 
-        
-     
+        "--dims"
+            help = "The form of dimensions. Now can be `XYZT`, `XYT`, `YZT`"        
+            arg_type = String
+            required = true
+
     end
 
     return parse_args(ARGS, s)
@@ -87,11 +90,12 @@ Dataset(parsed["domain-file"], "r") do ds
     global mask = replace(ds["mask"], missing=>NaN)
 end
 
+if ! ( parsed["dims"] in ["XYZT", "XYT", "YZT"] )
+    ErrorException("Unknown dimension: " * parsed["dims"]) |> throw
+end
 
 # Creating preknowledge of dimensions
 Dataset(format(filename_format, parsed["beg-year"], 1), "r") do ds
-
-    global z_exists
 
     var = ds[parsed["varname"]]
     dims = size(var)
@@ -99,20 +103,14 @@ Dataset(format(filename_format, parsed["beg-year"], 1), "r") do ds
     global beg_t = (parsed["beg-year"] - 1) * 12 + 1
     global end_t = (parsed["end-year"] - 1) * 12 + 12
 
-
-    if length(dims) == 3 # 2D + time
-        z_exists = false
-    elseif length(dims) == 4 # 3D + time
-        z_exists = true
-    else
-        ErrorException("Unknown dimension") |> throw
-    end
-
-    if z_exists
+    if parsed["dims"] == "XYZT"
         global (Nx, Ny, Nz, _ ) = size(var)
-    else
+    elseif parsed["dims"] == "XYT"
         global (Nx, Ny, _ ) = size(var)
         Nz = 1
+    elseif parsed["dims"] == "YZT"
+        global (Ny, Nz, _ ) = size(var)
+        Nx = 1
     end
 
     global Nt = end_t - beg_t + 1
@@ -122,6 +120,7 @@ Dataset(format(filename_format, parsed["beg-year"], 1), "r") do ds
     end
     
     global nyears = Int64(Nt / 12)
+    global Ns = Int64(Nt / 3)
 end
 
 # MM   = Monthly Mean
@@ -131,49 +130,125 @@ end
 data_MM    = zeros(Float64, Nx, Ny, Nz, 12)
 data_MA    = zeros(Float64, Nx, Ny, Nz, Nt)
 data_MAVAR = zeros(Float64, Nx, Ny, Nz, 12)
+data_MASTD = zeros(Float64, Nx, Ny, Nz, 12)
 
-x = collect(Float64, 1:Nt)
+data_SM    = zeros(Float64, Nx, Ny, Nz, 4)
+data_SA    = zeros(Float64, Nx, Ny, Nz, Ns)
+data_SAVAR = zeros(Float64, Nx, Ny, Nz, 4)
+data_SASTD = zeros(Float64, Nx, Ny, Nz, 4)
+
+
+
+months  = collect(Float64, 1:Nt)
+seasons = collect(Float64, 1:Ns)
 fh = FileHandler(filename_format=filename_format, form=form)
-for k=1:Nz
-    spatial_rng = ( z_exists ) ? (:, :, k) : (:, :)
-    global data = getData(fh, parsed["varname"], (parsed["beg-year"], parsed["end-year"]), spatial_rng)
 
+function doit!(
+    t    :: AbstractArray{Float64, 1},
+    d     :: AbstractArray{Float64, 1},
+    M    :: AbstractArray{Float64},
+    A    :: AbstractArray{Float64},
+    AVAR :: AbstractArray{Float64},
+    ASTD :: AbstractArray{Float64},
+    nyears :: Integer,
+    period :: Integer, 
+    i :: Integer,
+    j :: Integer,
+    k :: Integer,
+)
+
+    if ! parsed["no-detrend"]
+        d = detrend(t, d, order=2)
+    end
+    
+    M[i, j, k, :] = mean( reshape(d, period, :), dims=2 )[:, 1]
+    A[i, j, k, :] = d - repeat( M[i, j, k, :], outer=nyears)
+    
+    for m = 1:period
+        d_yy = view(A, i, j, k, m:period:(m+nyears*period-1))
+        AVAR[i, j, k, m] = var(d_yy)
+        ASTD[i, j, k, m] = std(d_yy)
+    end
+
+end
+
+if parsed["dims"] == "XYZT"
+
+    for k=1:Nz
+        spatial_rng = (:, :, k)
+        global data = reshape( getData(fh, parsed["varname"], (parsed["beg-year"], parsed["end-year"]), spatial_rng), Nx, Ny, Nt)
+        
+        for i=1:Nx, j=1:Ny
+            d = view(data, i, j, :)
+            doit!(months,           d, data_MM, data_MA, data_MAVAR, data_MASTD, nyears, 12, i, j, k)    
+            
+            seasonal_d = mean(reshape( circshift(d, -2), 3, :), dims=1)[1, :]
+            doit!(seasons, seasonal_d, data_SM, data_SA, data_SAVAR, data_SASTD, nyears,  4, i, j, k)    
+        end 
+    end
+
+elseif  parsed["dims"] == "XYT"
+
+    spatial_rng = (:, :)
+    global data = reshape( getData(fh, parsed["varname"], (parsed["beg-year"], parsed["end-year"]), spatial_rng), Nx, Ny, Nt)
     for i=1:Nx, j=1:Ny
-
         d = view(data, i, j, :)
+        doit!(months,           d, data_MM, data_MA, data_MAVAR, data_MASTD, nyears, 12, i, j, 1) 
         
-        if ! parsed["no-detrend"]
-            d = detrend(x, d, order=2)
-        end
-       
-        data_MM[i, j, k, :] = mean( reshape(d, 12, :), dims=2 )[:, 1]
-        data_MA[i, j, k, :] = d - repeat( data_MM[i, j, k, :], outer=nyears)
+        seasonal_d = mean(reshape( circshift(d, -2), 3, :), dims=1)[1, :]
+        doit!(seasons, seasonal_d, data_SM, data_SA, data_SAVAR, data_SASTD, nyears,  4, i, j, 1)    
+    end 
+
+elseif parsed["dims"] == "YZT"
+
+    spatial_rng = (:, :)
+    global data = reshape( getData(fh, parsed["varname"], (parsed["beg-year"], parsed["end-year"]), spatial_rng), Ny, Nz, Nt)
+    for j=1:Ny, k=1:Nz
         
-        for m = 1:12
-            d_yy = view(data_MA, i, j, k, m:12:(m+nyears*12-1))
-            data_MAVAR[i, j, k, m] = var(d_yy)
-        end
-    end     
+        d = view(data, j, k, :)
+        doit!(months,           d, data_MM, data_MA, data_MAVAR, data_MASTD, nyears, 12, 1, j, k) 
+        
+        seasonal_d = mean(reshape( circshift(d, -2 ), 3, :), dims=1)[1, :]
+        doit!(seasons, seasonal_d, data_SM, data_SA, data_SAVAR, data_SASTD, nyears,  4, 1, j, k)    
+
+    end 
+
+
 end
 
 Dataset(output_file, "c") do ds
 
     defDim(ds, "months", 12)
-    defDim(ds, "time", Inf)
+    defDim(ds, "seasons", 4)
+    defDim(ds, "time_month", Inf)
+    defDim(ds, "time_season", Inf)
     defDim(ds, "Nx", Nx)
     defDim(ds, "Ny", Ny)
     defDim(ds, "Nz", Nz)
 
     datas =  [
+
         (format("{:s}_MM",    parsed["varname"]),       data_MM,    ("Nx", "Ny", "Nz", "months"), Dict()),
         (format("{:s}_MAVAR", parsed["varname"]),       data_MAVAR, ("Nx", "Ny", "Nz", "months"), Dict()),
-        (format("{:s}_ZONAL_MEAN", parsed["varname"]),  nanmean( data_MM,    dims=(1,) )[1, :, :, :], ("Ny", "Nz", "months"), Dict()),
+        (format("{:s}_MASTD", parsed["varname"]),       data_MASTD, ("Nx", "Ny", "Nz", "months"), Dict()),
+        (format("{:s}_ZONAL_MM", parsed["varname"]),    nanmean( data_MM,    dims=(1,) )[1, :, :, :], ("Ny", "Nz", "months"), Dict()),
         (format("{:s}_ZONAL_MAVAR", parsed["varname"]), nanmean( data_MAVAR, dims=(1,) )[1, :, :, :], ("Ny", "Nz", "months"), Dict()),
+        (format("{:s}_ZONAL_MASTD", parsed["varname"]), nanmean( data_MASTD, dims=(1,) )[1, :, :, :], ("Ny", "Nz", "months"), Dict()),
+
+        (format("{:s}_SM",    parsed["varname"]),       data_SM,    ("Nx", "Ny", "Nz", "seasons"), Dict()),
+        (format("{:s}_SAVAR", parsed["varname"]),       data_SAVAR, ("Nx", "Ny", "Nz", "seasons"), Dict()),
+        (format("{:s}_SASTD", parsed["varname"]),       data_SASTD, ("Nx", "Ny", "Nz", "seasons"), Dict()),
+        (format("{:s}_ZONAL_SM", parsed["varname"]),    nanmean( data_SM,    dims=(1,) )[1, :, :, :], ("Ny", "Nz", "seasons"), Dict()),
+        (format("{:s}_ZONAL_SAVAR", parsed["varname"]), nanmean( data_SAVAR, dims=(1,) )[1, :, :, :], ("Ny", "Nz", "seasons"), Dict()),
+        (format("{:s}_ZONAL_SASTD", parsed["varname"]), nanmean( data_SASTD, dims=(1,) )[1, :, :, :], ("Ny", "Nz", "seasons"), Dict()),
+
     ]
 
     if parsed["output-monthly-anomalies"]
-        push!(datas, (format("{:s}_MA",    parsed["varname"]),       data_MA,    ("Nx", "Ny", "Nz", "time"),   Dict()) )
+        push!(datas, (format("{:s}_MA",    parsed["varname"]),       data_MA,    ("Nx", "Ny", "Nz", "time_month"),   Dict()) )
+        push!(datas, (format("{:s}_SA",    parsed["varname"]),       data_SA,    ("Nx", "Ny", "Nz", "time_season"),   Dict()) )
     end
+ 
     
     for (varname, vardata, vardim, attrib) in datas
         if ! haskey(ds, varname)

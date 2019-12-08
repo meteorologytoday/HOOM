@@ -1,12 +1,8 @@
-import cartopy.crs as ccrs
-
 import matplotlib as mplt
 mplt.use('Agg')
 
 import matplotlib.pyplot as plt
 from matplotlib import cm
-
-
 
 from netCDF4 import Dataset
 
@@ -27,6 +23,8 @@ def ext_axis(lon):
 parser = argparse.ArgumentParser()
 parser.add_argument('--data-file')
 parser.add_argument('--domain-file')
+parser.add_argument('--lev-file')
+parser.add_argument('--lev-varname')
 parser.add_argument('--output-dir')
 parser.add_argument('--casename')
 
@@ -47,7 +45,7 @@ parser.add_argument('--clabel-std', default="")
 parser.add_argument('--offset', type=float, default=0.0)
 parser.add_argument('--scale', default="1.0")
 parser.add_argument('--idx-t', type=int, default=-1)
-parser.add_argument('--idx-z', type=int, default=-1)
+parser.add_argument('--idx-x', type=int, default=-1)
 parser.add_argument('--extra-filename', default="")
 parser.add_argument('--land-transparent', action="store_true", default=False)
 parser.add_argument('--central-longitude', type=float, default=180.0)
@@ -66,12 +64,12 @@ args.scale = eval(args.scale)
 var_mean = f.variables[args.varname_mean]
 var_var  = f.variables[args.varname_var]
 
-if args.idx_z == -1:
+if args.idx_x == -1:
     data_mean = var_mean[:, :, :]
     data_var  = var_var[:, :, :]
 else:
-    data_mean = var_mean[:, args.idx_z, :, :]
-    data_var  = var_var[:, args.idx_z, :, :]
+    data_mean = var_mean[:, :, :, args.idx_x]
+    data_var  = var_var[:, :, :, args.idx_x]
 
 if data_mean.shape[0] != 12 or data_var.shape[0] != 12:
     raise Exception("Data length in time is not 12.")
@@ -86,11 +84,11 @@ if args.tick_levs_std == -1:
 
 #print(data_mean.shape)
 
-_, Ny, Nx = data_mean.shape
+_, Nz, Ny = data_mean.shape
 
-_data_mean = np.zeros((4, Ny, Nx))
-_data_var  = np.zeros((4, Ny, Nx))
-_data_std  = np.zeros((4, Ny, Nx))
+_data_mean = np.zeros((4, Nz, Ny))
+_data_var  = np.zeros((4, Nz, Ny))
+_data_std  = np.zeros((4, Nz, Ny))
 
 DOM = np.array([31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31])
 
@@ -101,20 +99,14 @@ for s in range(4):
         N += DOM[m]
         _data_mean[s, :, :] +=  data_mean[m, :, :] * DOM[m]
         _data_var[s, :, :]  +=  ( data_mean[m, :, :]**2.0 + data_var[m, :, :] ) * DOM[m]
-        #_data_var[s, :, :]  +=  ( data_var[m, :, :] ) * DOM[m]
 
     _data_mean[s, :, :] /= N
     _data_var[s, :, :] = _data_var[s, :, :] / N - _data_mean[s, :, :] ** 2.0
-    #_data_var[s, :, :] = data_var[s, :, :] / N 
     _data_std[s, :, :] = np.sqrt(_data_var[s, :, :])
-
 
 _data_mean -= args.offset
 _data_mean /= args.scale
 _data_std /= args.scale
-
-#missing_value = var._FillValue[0] 
-#data[np.isnan(data)] = missing_value
 
 f.close()
 

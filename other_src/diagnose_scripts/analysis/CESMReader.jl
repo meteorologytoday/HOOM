@@ -46,7 +46,6 @@ module CESMReader
         verbose=true,
     )
 
-
         local only_one_variable = false
 
         if typeof(varnames) <: AbstractString

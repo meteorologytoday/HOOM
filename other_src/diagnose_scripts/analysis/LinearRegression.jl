@@ -48,9 +48,13 @@ function detrend(
     β = LinearRegression(x, y; order=order)
     
     result = copy(y)
+    total_mean = 0.0
     for i = 1:bases
         result .-= β[i] * x.^(i-1)
+        total_mean += β[i]/ i * (x[end]^i - x[1]^i) 
     end
+
+    result .+= total_mean / (x[end] - x[1])
 
     return result
 
