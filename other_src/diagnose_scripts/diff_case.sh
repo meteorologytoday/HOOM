@@ -3,7 +3,7 @@
 lopts=(
     A-dir
     B-dir
-    A-B-dir
+    AB-dir
 )
 
 options=$(getopt -o '' --long $(printf "%s:," "${lopts[@]}") -- "$@")
@@ -42,17 +42,17 @@ if [ ! -d "$B_dir" ]; then
     exit 1;
 fi
 
-mkdir -p "$A_B_dir"
+mkdir -p "$AB_dir"
 
 for f in $( ls "$A_dir" ); do
     
     f_A="$A_dir/$f"
     f_B="$B_dir/$f"
-    f_AB="$A_B_dir/$f"
+    f_AB="$AB_dir/$f"
 
     if [ ! -f "$f_B" ]; then
-        echo "ERROR: File \"$f_B\" does not exist."
-        exit 1;
+        echo "ERROR: File \"$f_B\" does not exist. Going to skip this file."
+        continue
     fi
    
     ncdiff -O "$f_A" "$f_B" "$f_AB"

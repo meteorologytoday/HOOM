@@ -14,6 +14,7 @@ lopts=(
     PDO-file
     AO-file
     PCA-sparsity
+    stop-after-phase1
 )
 
 options=$(getopt -o '' --long $(printf "%s:," "${lopts[@]}") -- "$@")
@@ -157,6 +158,12 @@ printf "Phase 1 takes %d seconds\n" $(( $SECONDS - $begin_t ))
 
 wait
 
+if [ ! -z "$stop_after_phase1" ] ; then
+    echo "### --stop-after-phase1 is nonempty. Exit now. "
+    exit
+fi
+
+
 echo "Phase 2: Doing calculation of diagnose"
 begin_t=$SECONDS
 echo "Doing case: ${res}_${casename}"
@@ -165,14 +172,10 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
 
     echo "Diagnose atm..."
 
-    # Need to specify --beg-year --end-year
-#    julia $script_analysis_dir/atm_anomalies.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
-
     # Meridional averaged U
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$concat_dir/$casename.cam_extra2_zonal_mean.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis11 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=U --dims=YZT
 
-    exit;
-
+    # TODO :: Streamfunction
     # Global Average Temperature analysis
     julia $script_analysis_dir/atm_temperature.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis7 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
@@ -180,12 +183,10 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=TREFHT --dims=XYT
 
     ncwa -h -O -a months,Nx $atm_analysis2 $atm_analysis2a
- 
+
     # Total precipitation
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$concat_dir/$casename.cam_extra.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PREC_TOTAL --dims=XYT 
     ncwa -h -O -a months,Nx $atm_analysis4 $atm_analysis4a
-
-    if [ ] ; then
 
     # Sea-level Pressure monthly mean and anomaly
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PSL --output-monthly-anomalies --dims=XYT
@@ -195,19 +196,16 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis6 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=ICEFRAC --dims=XYT
     ncwa -h -O -a months,Nx $atm_analysis6 $atm_analysis6a
 
-
-    
     # IAET : Implied Atmospheric Energy Transport
     #julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
     julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
-
+    
     # IET : Implied Energy Transport of atm, ocn, lnd
     #julia $script_analysis_dir/implied_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
 
     # Downstream data. No need to specify --beg-year --end-year
     julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5 --sparsity=$PCA_sparsity
 
-    fi
 fi
 
 if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then

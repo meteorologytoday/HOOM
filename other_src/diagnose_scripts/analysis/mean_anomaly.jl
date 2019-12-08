@@ -220,8 +220,7 @@ Dataset(output_file, "c") do ds
 
     defDim(ds, "months", 12)
     defDim(ds, "seasons", 4)
-    defDim(ds, "time_month", Inf)
-    defDim(ds, "time_season", Inf)
+    defDim(ds, "time", Nt)
     defDim(ds, "Nx", Nx)
     defDim(ds, "Ny", Ny)
     defDim(ds, "Nz", Nz)
@@ -245,8 +244,7 @@ Dataset(output_file, "c") do ds
     ]
 
     if parsed["output-monthly-anomalies"]
-        push!(datas, (format("{:s}_MA",    parsed["varname"]),       data_MA,    ("Nx", "Ny", "Nz", "time_month"),   Dict()) )
-        push!(datas, (format("{:s}_SA",    parsed["varname"]),       data_SA,    ("Nx", "Ny", "Nz", "time_season"),   Dict()) )
+        push!(datas, (format("{:s}_MA",    parsed["varname"]),       data_MA,    ("Nx", "Ny", "Nz", "time"),   Dict()) )
     end
  
     
@@ -256,6 +254,7 @@ Dataset(output_file, "c") do ds
             var.attrib["_FillValue"] = 1e20
         end
 
+        println("Writing variable:  ", varname)
         var = ds[varname]
         
         for (k, v) in attrib
