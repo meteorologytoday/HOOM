@@ -7,12 +7,14 @@ mutable struct InputFields
     ifrac  :: AbstractArray{Float64, 2}
     frwflx :: AbstractArray{Float64, 2}
     qflx   :: AbstractArray{Float64, 2}
+    sst    :: AbstractArray{Float64, 2}
     h_ML   :: AbstractArray{Float64, 2}
 end
 
 function InputFields(datakind::Symbol, Nx::Integer, Ny::Integer)
 
     return InputFields(
+        allocate(datakind, Float64, Nx, Ny),
         allocate(datakind, Float64, Nx, Ny),
         allocate(datakind, Float64, Nx, Ny),
         allocate(datakind, Float64, Nx, Ny),
@@ -38,6 +40,7 @@ function SubInputFields(
         view( in_flds.ifrac,           rngs...), 
         view( in_flds.frwflx,          rngs...), 
         view( in_flds.qflx,            rngs...), 
+        view( in_flds.sst,             rngs...), 
         view( in_flds.h_ML,            rngs...), 
     )
 end
@@ -47,7 +50,7 @@ function copyfrom!(
     src::InputFields,
 )
 
-    for fld in [:taux, :tauy, :nswflx, :swflx, :sumflx, :ifrac, :frwflx, :qflx, :h_ML]
+    for fld in [:taux, :tauy, :nswflx, :swflx, :sumflx, :ifrac, :frwflx, :qflx, :sst, :h_ML]
         getfield(dst, fld)[:] = getfield(src, fld)
     end
 

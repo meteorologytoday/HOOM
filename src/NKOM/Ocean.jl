@@ -65,11 +65,13 @@ mutable struct Ocean
     FLDO_ratio_top :: AbstractArray{Float64,   2}
     FLDO_ratio_bot :: AbstractArray{Float64,   2}
 
-    qflx2atm       :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
-    TEMP        :: AbstractArray{Float64, 2} # Total heat content
-    dTEMPdt     :: AbstractArray{Float64, 2} # Total heat content change rate
-    SALT     :: AbstractArray{Float64, 2} # Total salt
-    dSALTdt  :: AbstractArray{Float64, 2} # Total salt change rate
+    qflx2atm         :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
+    TEMP             :: AbstractArray{Float64, 2} # Total heat content
+    dTEMPdt          :: AbstractArray{Float64, 2} # Total heat content change rate
+    SALT             :: AbstractArray{Float64, 2} # Total salt
+    dSALTdt          :: AbstractArray{Float64, 2} # Total salt change rate
+    
+    Qflux_correction :: AbstractArray{Float64, 2}
 
     h_ML_min :: AbstractArray{Float64, 2}
     h_ML_max :: AbstractArray{Float64, 2}
@@ -396,6 +398,7 @@ mutable struct Ocean
         _dTEMPdt      = allocate(datakind, Float64, Nx, Ny)
         _SALT      = allocate(datakind, Float64, Nx, Ny)
         _dSALTdt   = allocate(datakind, Float64, Nx, Ny)
+        _Qflux_correction = allocate(datakind, Float64, Nx, Ny)
 
         if typeof(h_ML) <: AbstractArray{Float64, 2}
             _h_ML[:, :] = h_ML
@@ -861,6 +864,7 @@ mutable struct Ocean
             _bs,   _Ts,   _Ss,
             _FLDO, _FLDO_ratio_top, _FLDO_ratio_bot,
             _qflx2atm, _TEMP, _dTEMPdt, _SALT, _dSALTdt,
+            _Qflux_correction,
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,
             _u, _v, _w,

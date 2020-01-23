@@ -448,7 +448,16 @@ function run!(
     
     cost_final = @elapsed @sync for (i, p) in enumerate(wkrs)
         @spawnat p let
+
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
+
+            # 2020/01/23 Q-flux mode
+            if qflux mode 
+                calQflux_correction!(subocn.worker_ocn; Δt = Δt, cfgs...)
+            end
+
+
+
             calQflx2atm!(subocn.worker_ocn; Δt=Δt)
 
             avg_accumulate!(subocn.worker_ocn; count=substeps)

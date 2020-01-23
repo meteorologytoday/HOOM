@@ -1,0 +1,9 @@
+
+1. Read in targeted SST. Save as T_0
+2. Read in k-th run of SST. Save as T
+3. Read in k-th run of qflux. Saved as q
+3. If k == 0 then set uniform SST-qflux sensitivity S to some constant.
+4. If k >  0 then read in S map.
+5. Calculate offset dT = T - T_0
+6. Calculate adjusted qflux q_adj = q - dT / S
+7. Output qflux file.
