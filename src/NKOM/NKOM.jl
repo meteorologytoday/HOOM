@@ -60,6 +60,7 @@ end
     @hinclude("getIntegratedBuoyancy.jl")
     @hinclude("doNewtonianRelaxation.jl")
     @hinclude("doShortwaveRadiation.jl")
+    @hinclude("calQfluxCorrection.jl")
     
     @hinclude("stepOcean_prepare.jl")
     @hinclude("stepOcean_hz.jl")

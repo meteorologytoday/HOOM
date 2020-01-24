@@ -1,5 +1,6 @@
 module RecordTool
     using NCDatasets
+    using Formatting
     missing_value = 1e20
     
     mutable struct StatObj

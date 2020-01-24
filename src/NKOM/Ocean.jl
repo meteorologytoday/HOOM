@@ -71,7 +71,7 @@ mutable struct Ocean
     SALT             :: AbstractArray{Float64, 2} # Total salt
     dSALTdt          :: AbstractArray{Float64, 2} # Total salt change rate
     
-    Qflux_correction :: AbstractArray{Float64, 2}
+    qflx_correction :: AbstractArray{Float64, 2}
 
     h_ML_min :: AbstractArray{Float64, 2}
     h_ML_max :: AbstractArray{Float64, 2}
@@ -106,7 +106,7 @@ mutable struct Ocean
     SFLUX_DEN_y :: AbstractArray{Float64, 3}
     SFLUX_DEN_z :: AbstractArray{Float64, 3}
 
-    div      :: AbstractArray{Float64, 3}
+    div           :: AbstractArray{Float64, 3}
     TFLUX_CONV    :: AbstractArray{Float64, 3}
     TFLUX_CONV_h  :: AbstractArray{Float64, 3}
     SFLUX_CONV    :: AbstractArray{Float64, 3}
@@ -398,7 +398,7 @@ mutable struct Ocean
         _dTEMPdt      = allocate(datakind, Float64, Nx, Ny)
         _SALT      = allocate(datakind, Float64, Nx, Ny)
         _dSALTdt   = allocate(datakind, Float64, Nx, Ny)
-        _Qflux_correction = allocate(datakind, Float64, Nx, Ny)
+        _qflx_correction = allocate(datakind, Float64, Nx, Ny)
 
         if typeof(h_ML) <: AbstractArray{Float64, 2}
             _h_ML[:, :] = h_ML
@@ -864,7 +864,7 @@ mutable struct Ocean
             _bs,   _Ts,   _Ss,
             _FLDO, _FLDO_ratio_top, _FLDO_ratio_bot,
             _qflx2atm, _TEMP, _dTEMPdt, _SALT, _dSALTdt,
-            _Qflux_correction,
+            _qflx_correction,
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,
             _u, _v, _w,
