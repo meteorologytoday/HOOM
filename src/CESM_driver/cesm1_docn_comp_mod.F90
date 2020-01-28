@@ -134,6 +134,8 @@ module docn_comp_mod
                            x_ifrac(:), x_q(:), x_frwflx(:), x_qflx(:), x_t(:), &
                            x_mld(:), x_mask(:) 
 
+  real(R8) :: x_sum
+
   !--- formats   ---
   character(*), parameter :: x_F00 = "(a, '.ssm.', a, '.', a)" 
 
@@ -798,6 +800,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         
         write (x_msg, "(A, A, F10.2, A)") trim(x_msg), "DT:", dt, ";"
 
+
+        x_sum = 0.0
         do n = 1,lsize
           if (imask(n) /= 0) then
             x_swflx(n)  = x2o%rAttr(kswnet, n) 
@@ -822,9 +826,12 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_t(n)     = avstrm%rAttr(kt,n)
             x_mld(n)   = avstrm%rAttr(kh,n)
 
+            x_sum = x_sum + x_t(n) * x_t(n)
           end if
         end do
         
+        print *, "Sum of T^2 : ", x_sum
+
         call stop_if_bad(ptm_sendText(x_TS, x_msg), "RUN_SEND")
                 
         call stop_if_bad(ptm_sendBinary(x_TS, x_qflx,   lsize), "SEND_QFLX")

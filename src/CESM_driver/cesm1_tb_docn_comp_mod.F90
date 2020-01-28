@@ -100,29 +100,38 @@ module docn_comp_mod
   type(mct_avect) :: avstrm   ! av of data from stream
   real(R8), pointer :: somtp(:)
   integer , pointer :: imask(:)
-  character(len=*),parameter :: flds_strm = 'strm_h:strm_qbot'
 
-  integer(IN),parameter :: ktrans = 28
+  ! ===== XTT MODIFIED BEGIN =====
+  ! OLD code ! character(len=*),parameter :: flds_strm = 'strm_h:strm_qbot'
+
+  character(len=*),parameter :: flds_strm = 'strm_h:strm_qbot:strm_tclim'
+
+
+
+  ! OLD code ktrans = 28, (without tclim and strm_tclim)
+
+  integer(IN),parameter :: ktrans = 29
   character(12),parameter  :: avifld(1:ktrans) = &
      (/ "ifrac       ","pslv        ","duu10n      ","taux        ","tauy        ", &
         "swnet       ","lat         ","sen         ","lwup        ","lwdn        ", &
         "melth       ","salt        ","prec        ","snow        ","rain        ", &
         "evap        ","meltw       ","roff        ","ioff        ",                &
         "t           ","u           ","v           ","dhdx        ","dhdy        ", &
-        "s           ","q           ","h           ","qbot        "                 /)
+        "s           ","q           ","h           ","qbot        ","tclim       "  /)
   character(12),parameter  :: avofld(1:ktrans) = &
      (/ "Si_ifrac    ","Sa_pslv     ","So_duu10n   ","Foxx_taux   ","Foxx_tauy   ", &
         "Foxx_swnet  ","Foxx_lat    ","Foxx_sen    ","Foxx_lwup   ","Faxa_lwdn   ", &
         "Fioi_melth  ","Fioi_salt   ","Faxa_prec   ","Faxa_snow   ","Faxa_rain   ", &
         "Foxx_evap   ","Fioi_meltw  ","Forr_roff   ","Forr_ioff   ",                &
         "So_t        ","So_u        ","So_v        ","So_dhdx     ","So_dhdy     ", &
-        "So_s        ","Fioo_q      ","strm_h      ","strm_qbot   "                 /)
+        "So_s        ","Fioo_q      ","strm_h      ","strm_qbot   ","strm_tclim  "  /)
 
 
+  ! ===== XTT MODIFIED END =====
 
 
 ! ===== XTT MODIFIED BEGIN =====
-  integer(IN)   :: ktaux, ktauy, kifrac, kprec, kevap  ! field indices
+  integer(IN)   :: ktaux, ktauy, kifrac, kprec, kevap, ktclim  ! field indices
  
   character(1024)             :: x_msg, x_datetime_str, x_cwd, x_real_time
   type(ptm_ProgramTunnelInfo) :: x_PTI
@@ -131,13 +140,13 @@ module docn_comp_mod
   integer :: x_iostat, x_fds(2)
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
-                           x_ifrac(:), x_q(:), x_frwflx(:), x_qflx(:), x_mld(:), &
-                           x_mask(:) 
+                           x_ifrac(:), x_q(:), x_frwflx(:), x_qflx(:), x_tclim(:), &
+                           x_mld(:), x_mask(:) 
 
   real(R8), pointer     :: x_blob_send(:), x_blob_recv(:)
   real(R8)              :: x_nullbin(1) = (/ 0.0 /)
-
-
+  
+  real(R8) :: x_sum
   !--- formats   ---
   character(*), parameter :: x_F00 = "(a, '.ssm.', a, '.', a)" 
 
@@ -447,8 +456,16 @@ subroutine docn_comp_init( EClock, cdata, x2o, o2x, NLFilename )
     call mct_aVect_init(avstrm, rList=flds_strm, lsize=lsize)
     call mct_aVect_zero(avstrm)
 
-    kh    = mct_aVect_indexRA(avstrm,'strm_h')
-    kqbot = mct_aVect_indexRA(avstrm,'strm_qbot')
+    kh      = mct_aVect_indexRA(avstrm,'strm_h')
+    kqbot   = mct_aVect_indexRA(avstrm,'strm_qbot')
+
+
+    ! ===== XTT MODIFIED BEGIN =====
+    
+    ktclim  = mct_aVect_indexRA(avstrm,'strm_tclim')
+    
+    ! ===== XTT MODIFIED END =====
+
 
     allocate(somtp(lsize))
     allocate(imask(lsize))
@@ -711,6 +728,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
 
         allocate(x_qflx(lsize))
+        allocate(x_tclim(lsize))
         allocate(x_mld(lsize))
         allocate(x_nswflx(lsize))
         allocate(x_swflx(lsize))
@@ -721,7 +739,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         allocate(x_mask(lsize))
         allocate(x_frwflx(lsize))
 
-        allocate(x_blob_send(lsize*8))
+        allocate(x_blob_send(lsize*9))
         allocate(x_blob_recv(lsize*2))
 
         do n = 1,lsize
@@ -729,7 +747,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                 somtp(n) = o2x%rAttr(kt,n) + TkFrz
             end if
 
-            x_qflx(n)   = 0.0_R8
+            x_qflx(n)    = 0.0_R8
+            x_tclim(n)   = 0.0_R8
             x_mld(n)     = 0.0_R8
             x_q(n)       = 0.0_R8 
             x_nswflx(n)  = 0.0_R8
@@ -755,7 +774,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
-        x_msg = trim(x_msg)//"VAR2D:QFLX,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
+        x_msg = trim(x_msg)//"VAR2D:QFLX,TCLIM,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
         if (read_restart) then
             x_msg = trim(x_msg)//"READ_RESTART:TRUE;"
         else
@@ -804,6 +823,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         
         write (x_msg, "(A, A, F10.2, A)") trim(x_msg), "DT:", dt, ";"
 
+        x_sum = 0.0
         do n = 1,lsize
           if (imask(n) /= 0) then
             x_swflx(n)  = x2o%rAttr(kswnet, n) 
@@ -825,20 +845,25 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_tauy(n)  = x2o%rAttr(ktauy,n)
             x_ifrac(n) = x2o%rAttr(kifrac,n)
 
-            x_qflx(n)    = avstrm%rAttr(kqbot,n)
+            x_qflx(n)  = avstrm%rAttr(kqbot,n)
+            x_tclim(n) = avstrm%rAttr(ktclim,n)
             x_mld(n)   = avstrm%rAttr(kh,n)
+            
+            x_sum = x_sum +  x_tclim(n) * x_tclim(n)
 
           end if
         end do
+        print *, "Sum of T^2 : ", x_sum
         
         call copy_into_blob(x_blob_send, lsize, 1, x_qflx) 
-        call copy_into_blob(x_blob_send, lsize, 2, x_mld) 
-        call copy_into_blob(x_blob_send, lsize, 3, x_nswflx) 
-        call copy_into_blob(x_blob_send, lsize, 4, x_swflx) 
-        call copy_into_blob(x_blob_send, lsize, 5, x_taux) 
-        call copy_into_blob(x_blob_send, lsize, 6, x_tauy) 
-        call copy_into_blob(x_blob_send, lsize, 7, x_ifrac) 
-        call copy_into_blob(x_blob_send, lsize, 8, x_frwflx) 
+        call copy_into_blob(x_blob_send, lsize, 2, x_tclim) 
+        call copy_into_blob(x_blob_send, lsize, 3, x_mld) 
+        call copy_into_blob(x_blob_send, lsize, 4, x_nswflx) 
+        call copy_into_blob(x_blob_send, lsize, 5, x_swflx) 
+        call copy_into_blob(x_blob_send, lsize, 6, x_taux) 
+        call copy_into_blob(x_blob_send, lsize, 7, x_tauy) 
+        call copy_into_blob(x_blob_send, lsize, 8, x_ifrac) 
+        call copy_into_blob(x_blob_send, lsize, 9, x_frwflx) 
  
         call stop_if_bad(ptm_sendData(x_PTI, x_msg, x_nullbin),  "RUN_SEND")
         call stop_if_bad(ptm_sendData(x_PTI, "DATA", x_blob_send), "RUN_SEND_DATA")
