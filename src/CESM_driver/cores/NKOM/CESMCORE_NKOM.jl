@@ -123,7 +123,7 @@ module CESMCORE_NKOM
             "IFRAC"  => in_flds.ifrac,
             "FRWFLX" => in_flds.frwflx,
             "QFLX"   => in_flds.qflx,
-            "SST"    => in_flds.sst,
+            "T"      => in_flds.sst,
             "MLD"    => in_flds.h_ML,
         )
 

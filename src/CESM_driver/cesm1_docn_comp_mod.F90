@@ -131,7 +131,7 @@ module docn_comp_mod
   integer :: x_iostat, x_fds(8)
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
-                           x_ifrac(:), x_q(:), x_frwflx(:), x_qflx(:), x_sst(:), &
+                           x_ifrac(:), x_q(:), x_frwflx(:), x_qflx(:), x_t(:), &
                            x_mld(:), x_mask(:) 
 
   !--- formats   ---
@@ -704,7 +704,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
 
         allocate(x_qflx(lsize))
-        allocate(x_sst(lsize))
+        allocate(x_t(lsize))
         allocate(x_mld(lsize))
         allocate(x_nswflx(lsize))
         allocate(x_swflx(lsize))
@@ -721,7 +721,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 !            end if
 
             x_qflx(n)    = 0.0_R8
-            x_sst(n)     = 0.0_R8
+            x_t(n)     = 0.0_R8
             x_mld(n)     = 0.0_R8
             x_q(n)       = 0.0_R8 
             x_nswflx(n)  = 0.0_R8
@@ -752,7 +752,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
 
         write(x_msg, '(A, i8, A)') "LSIZE:", lsize, ";"
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
-        x_msg = trim(x_msg)//"VAR2D:QFLX,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
+        x_msg = trim(x_msg)//"VAR2D:QFLX,T,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
         if (read_restart) then
             x_msg = trim(x_msg)//"READ_RESTART:TRUE;"
         else
@@ -819,7 +819,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_ifrac(n) = x2o%rAttr(kifrac,n)
 
             x_qflx(n)  = avstrm%rAttr(kqbot,n)
-            x_sst(n)   = avstrm%rAttr(kt,n)
+            x_t(n)     = avstrm%rAttr(kt,n)
             x_mld(n)   = avstrm%rAttr(kh,n)
 
           end if
@@ -828,7 +828,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         call stop_if_bad(ptm_sendText(x_TS, x_msg), "RUN_SEND")
                 
         call stop_if_bad(ptm_sendBinary(x_TS, x_qflx,   lsize), "SEND_QFLX")
-        call stop_if_bad(ptm_sendBinary(x_TS, x_sst,    lsize), "SEND_SST")
+        call stop_if_bad(ptm_sendBinary(x_TS, x_t,      lsize), "SEND_T")
         call stop_if_bad(ptm_sendBinary(x_TS, x_mld,    lsize), "SEND_MLD")
         call stop_if_bad(ptm_sendBinary(x_TS, x_nswflx, lsize), "SEND_NSWFLX")
         call stop_if_bad(ptm_sendBinary(x_TS, x_swflx,  lsize), "SEND_SWFLX")
