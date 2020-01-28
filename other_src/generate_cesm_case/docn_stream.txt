@@ -26,6 +26,7 @@
             dhdy  dhdy
             hblt  h
             qdp   qbot
+            Tclim tclim
          </variableNames>
          <filePath>
             $FORCING_DIR 
