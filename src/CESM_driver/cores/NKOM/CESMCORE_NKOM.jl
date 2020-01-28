@@ -256,6 +256,7 @@ module CESMCORE_NKOM
             rad_scheme    = MD.configs[:radiation_scheme],
             adv_scheme    = MD.configs[:advection_scheme],
             qflx_scheme   = MD.configs[:Qflux_scheme],
+            qflx_finding  = MD.configs[:Qflux_finding],
         )
 
         
