@@ -54,9 +54,13 @@ function parse_commandline()
             default = "deg"
 
         "--mask-value"
-            help = "Mask value."
+            help = "Mask value. Active grids will be set to 1. Inactive grids will be set to 0."
             arg_type = Float64
             required = true
+    
+        "--all-active"
+            action = :store_true
+
     end
 
     return parse_args(ARGS, s)
@@ -87,10 +91,14 @@ Dataset(parsed["input-file"]) do ds
     global grid_size = reduce(*, grid_dims)
 
 
-    _grid_imask = copy(grid_imask)
-    grid_imask[_grid_imask .== parsed["mask-value"]] .= 1.0
-    grid_imask[_grid_imask .!= parsed["mask-value"]] .= 0.0
-
+    if parsed["all-active"]
+        println("--all-active is on.")
+        grid_imask .= 1.0
+    else
+        _grid_imask = copy(grid_imask)
+        grid_imask[_grid_imask .== parsed["mask-value"]] .= 1.0
+        grid_imask[_grid_imask .!= parsed["mask-value"]] .= 0.0
+    end
 end
 
 println(grid_dims)

@@ -7,7 +7,8 @@ julia generate_SCRIP_format.jl \
     --center-lon=xc     \
     --center-lat=yc     \
     --corner-lon=xv     \
-    --corner-lat=yv
+    --corner-lat=yv     \
+    --mask-value=1.0    
 
 julia generate_SCRIP_format.jl \
     --input-file=/seley/tienyiah/CESM_domains/domain.lnd.fv4x5_gx3v7.091218.nc    \
@@ -16,7 +17,7 @@ julia generate_SCRIP_format.jl \
     --center-lat=yc     \
     --corner-lon=xv     \
     --corner-lat=yv     \
-    --mask-flip
+    --mask-value=0.0    
 
 #ESMF_RegridWeightGen -s domain.ocn.gx3v7.120323.SCRIP.nc -d domain.lnd.fv4x5_gx3v7.091218.SCRIP.nc -m conserve -w w.nc --user_areas --check
 #ESMF_Scrip2Unstruct domain.ocn.gx3v7.120323.SCRIP.nc        domain.ocn.gx3v7.120323.ESMF.nc       0 ESMF

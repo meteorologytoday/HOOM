@@ -28,13 +28,31 @@ if [ ! -f flag_notrans_atm ] ; then
             if [ ! -f "$concat_dir/$new_file" ]; then 
                 ((i=i%4)); ((i++==0)) && wait
                 echo "$new_file does not exist, need to transform."
-                ncwa -a lon -v T,U,V,UU,VV,VU,VT $atm_hist_dir/$old_file $concat_dir/$new_file
+                #ncwa -O -a lon -v T,U,V,UU,VV,VU,VT,ilev $atm_hist_dir/$old_file $concat_dir/$new_file
+                ncwa -O -a lon -v U,V,ilev $atm_hist_dir/$old_file $concat_dir/$new_file
             fi
-
-
 
         done
     done
+
+    flag_do_psi="no"
+    for y in $( seq $diag_beg_year $diag_end_year ); do
+        for m in $( seq 1 12 ); do
+            if [ ! -f $( printf "$concat_dir/$casename.cam_extra3_streamfunction.h0.%04d-%02d.nc" $y $m ) ]; then
+                flag_do_psi="yes"
+                break
+            fi
+        done
+        
+        if [ "$flag_do_psi" == "yes" ]; then
+            echo "Missing some streamfunction files. Do transforming..."
+            break
+        fi
+    done
+
+    if [ "$flag_do_psi" == "yes" ]; then
+        julia $script_analysis_dir/streamfunction.jl --input-data-file-prefix="$concat_dir/$casename.cam_extra2_zonal_mean.h0." --output-data-file-prefix="$concat_dir/$casename.cam_extra3_streamfunction.h0." --domain-file=$atm_domain --beg-year=$diag_beg_year --end-year=$diag_end_year --V-varname=V
+    fi
 
 fi
 

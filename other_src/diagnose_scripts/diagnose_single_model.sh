@@ -95,6 +95,8 @@ export atm_analysis8=$diag_dir/atm_analysis8_PDO.nc
 export atm_analysis9=$diag_dir/atm_analysis9_EN34.nc
 export atm_analysis10=$diag_dir/atm_analysis10_T.nc
 export atm_analysis11=$diag_dir/atm_analysis11_U.nc
+export atm_analysis12=$diag_dir/atm_analysis12_psi.nc
+export atm_analysis12a=$diag_dir/atm_analysis12a_psi.nc
 
 
 
@@ -120,6 +122,7 @@ export ocn_analysis9b_rg=$diag_dir/ocn_analysis9b_rg_oiet_avg.nc
 export ocn_analysis10_rg=$diag_dir/ocn_analysis10_rg.nc
 export ocn_analysis10a_rg=$diag_dir/ocn_analysis10a_rg.nc
 export ocn_analysis11_rg=$diag_dir/ocn_analysis11_rg_EN34.nc
+export ocn_analysis12_rg=$diag_dir/ocn_analysis12_rg_energy.nc
 
 
 export ocn_mstat_rg=$diag_dir/ocn_mstat_rg.nc
@@ -151,7 +154,14 @@ if [ ! -f flag_noconcat ]; then
 
 
     # Pull out `lev` of atm files
-    ncap2 -v -O -s "lev=lev;" $atm_hist_dir/$casename.cam.h0.$diag_beg_year-01.nc $diag_dir/atm_lev.nc
+
+    if [ ! -f "$diag_dir/atm_lev.nc" ]; then
+        ncap2 -v -O -s "lev=lev;" $atm_hist_dir/$casename.cam.h0.$diag_beg_year-01.nc $diag_dir/atm_lev.nc
+    fi
+
+    if [ ! -f "$diag_dir/atm_ilev.nc" ]; then
+        ncap2 -v -O -s "ilev=ilev;" $atm_hist_dir/$casename.cam.h0.$diag_beg_year-01.nc $diag_dir/atm_ilev.nc
+    fi
 
 fi
 printf "Phase 1 takes %d seconds\n" $(( $SECONDS - $begin_t ))
@@ -172,21 +182,23 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
 
     echo "Diagnose atm..."
 
+    if [ ] ; then
     # Meridional averaged U
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$concat_dir/$casename.cam_extra2_zonal_mean.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis11 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=U --dims=YZT
 
-    # TODO :: Streamfunction
-    # Global Average Temperature analysis
-    julia $script_analysis_dir/atm_temperature.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis7 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    # Streamfunction
+    julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$concat_dir/$casename.cam_extra3_streamfunction.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis12 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=psi --dims=YZ
+    ncwa -h -O -a Nx $atm_analysis12 $atm_analysis12a
 
-   # Surface temperature (TREFHT) monthly mean and anomaly
+
+    # Surface temperature (TREFHT) monthly mean and anomaly
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis2 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=TREFHT --dims=XYT
 
-    ncwa -h -O -a months,Nx $atm_analysis2 $atm_analysis2a
+    ncwa -h -O -a Nx $atm_analysis2 $atm_analysis2a
 
     # Total precipitation
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$concat_dir/$casename.cam_extra.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PREC_TOTAL --dims=XYT 
-    ncwa -h -O -a months,Nx $atm_analysis4 $atm_analysis4a
+    ncwa -h -O -a Nx $atm_analysis4 $atm_analysis4a
 
     # Sea-level Pressure monthly mean and anomaly
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PSL --output-monthly-anomalies --dims=XYT
@@ -194,17 +206,22 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
     # Sea-ice monthly mean and anomaly
     #julia $script_analysis_dir/mean_anomaly.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis6 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=ICEFRAC
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis6 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=ICEFRAC --dims=XYT
-    ncwa -h -O -a months,Nx $atm_analysis6 $atm_analysis6a
+    ncwa -h -O -a Nx $atm_analysis6 $atm_analysis6a
+    
+    fi
 
+
+    # Global Average Temperature analysis
+    julia $script_analysis_dir/atm_temperature.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis7 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    
+
+    if [ ] ; then
     # IAET : Implied Atmospheric Energy Transport
     #julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
     julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
-    
-    # IET : Implied Energy Transport of atm, ocn, lnd
-    #julia $script_analysis_dir/implied_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
-
+    fi
     # Downstream data. No need to specify --beg-year --end-year
-    julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5 --sparsity=$PCA_sparsity
+    #julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5 --sparsity=$PCA_sparsity
 
 fi
 
@@ -215,16 +232,18 @@ if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
     # Need to specify --beg-year --end-year
     #julia $script_analysis_dir/SST_correlation.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --SST=T_ML --beg-year=$diag_beg_year --end-year=$diag_end_year
 
+    julia $script_analysis_dir/ocn_energy_balance.jl --data-file-prefix="$concat_dir/$casename.ocn_rg.h.monthly." --data-file-timestamp-form=YEAR --domain-file=$atm_domain --output-file=$ocn_analysis12_rg --beg-year=$diag_beg_year --end-year=$diag_end_year
+    
+
     ### Variability ###
 
     # SST
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$concat_dir/$casename.ocn_rg.h.monthly." --data-file-timestamp-form=YEAR --domain-file=$atm_domain --output-file=$ocn_analysis1_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=T_ML --output-monthly-anomalies --dims=XYT
-    ncwa -h -O -a months,Nx $ocn_analysis1_rg $ocn_analysis1a_rg
+    ncwa -O -b -a Nx -B "mask==0" $ocn_analysis1_rg $ocn_analysis1a_rg
 
     # MLT
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$concat_dir/$casename.ocn_rg.h.monthly." --data-file-timestamp-form=YEAR --domain-file=$atm_domain --output-file=$ocn_analysis3_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=h_ML --dims=XYT
-    ncwa -h -O -a months,Nx $ocn_analysis3_rg $ocn_analysis3a_rg
- 
+    ncwa -O -b -a Nx -B "mask==0" $ocn_analysis3_rg $ocn_analysis3a_rg
  
     # Entrainment
 #    julia $script_analysis_dir/mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis4_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=dTdt_ent
@@ -252,12 +271,13 @@ if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
 #    julia $script_analysis_dir/ocn_energy_analysis.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis10_rg --beg-year=$diag_beg_year --end-year=$diag_end_year
 #    ncwa -h -O -a time $ocn_analysis10_rg $ocn_analysis10a_rg
 
-
+    if [ ] ; then
 
     # Downstream data. No need to specify --beg-year --end-year
     julia $script_analysis_dir/PDO.jl --data-file=$ocn_analysis1_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg
     julia $script_analysis_dir/EN34.jl --data-file=$ocn_analysis1_rg --domain-file=$atm_domain --output-file=$ocn_analysis11_rg --sparsity=$PCA_sparsity 
 
+    fi
 fi
 
 if [ -f flag_diag_all ] || [ -f flag_diag_ice ] ; then
@@ -276,7 +296,6 @@ if [ -f flag_plot_sm_all ] || [ -f flag_plot_sm_atm ]; then
     # Zonal mean U
     python3 $script_plot_dir/plot_atm_meridional_mean_std.py --data-file=$atm_analysis11 --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename --varname-mean=U_SM --varname-std=U_SASTD --title="[$casename] Seasonal analysis of zonal wind" --colormap-mean=PuBuGn --colormap-std=hot_r --cmin-mean=0 --cmax-mean=75 --cmax-std=5 --clevs=15 --tick-levs-mean=15 --tick-levs-std=5 --scale="1"  --extra-filename="U" --idx-x=0 --clabel-mean="Mean [ \$ \\mathrm{m} \, \\mathrm{s}^{-1} \$ ]" --clabel-std="Standard deviation [ \$ \\mathrm{m} \, \\mathrm{s}^{-1} \$ ]" --lev-file="$diag_dir/atm_lev.nc" --subtitles="MAM,JJA,SON,DJF"
 
-    exit
     # PSL
     python3 $script_plot_dir/plot_4seasons_contourf.py --data-file=$atm_analysis1 --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename --varname-mean=PSL_MM --varname-var=PSL_MAVAR --title="[$casename] Seasonal analysis of mixed-layer thickness" --colormap-mean=PuBuGn --colormap-std=hot_r --cmin-mean=950 --cmax-mean=1050 --cmax-std=10 --clevs=20 --tick-levs-mean=10 --tick-levs-std=10 --scale="100.0" --extra-filename="PSL" --idx-z=0 --clabel-mean="Mean [ \$ \\mathrm{hPa} \$ ]" --clabel-std="Standard deviation [ \$ \\mathrm{hPa} \$ ]"
     
@@ -289,8 +308,6 @@ if [ -f flag_plot_sm_all ] || [ -f flag_plot_sm_atm ]; then
     # MLD
     python3 $script_plot_dir/plot_4seasons_contourf.py --data-file=$ocn_analysis3_rg --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename --varname-mean=h_ML_MM --varname-var=h_ML_MAVAR --title="[$casename] Seasonal analysis of mixed-layer thickness" --colormap-mean=PuBuGn --colormap-std=hot_r --cmin-mean=0.0 --cmax-mean=400 --cmax-std=500 --clevs=20 --tick-levs-mean=10 --tick-levs-std=10 --scale="1.0" --extra-filename="MLT" --idx-z=0 --clabel-mean="Mean [ \$ \\mathrm{m} \$ ]" --clabel-std="Standard deviation [ \$ \\mathrm{m} \$ ]"
 
-
-    exit
     python3 $script_plot_dir/plot_SST.py --data-file=$atm_concat --domain-file=$atm_domain --output-dir=$graph_dir --casename=$casename
     python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_dir --res=$res --casenames=$casename --data-file=$(basename $atm_analysis3) --varname=IAET_mean --ylabel="Energy flux [ \$ \\times 10^{15} \\, \\mathrm{W} \$ ]" --yscale="1e15" --domain-file=$atm_domain --colors="#000000"
     python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_dir --res=$res --casenames=$casename --data-file=$(basename $atm_analysis4) --varname=total_precip_ZM --ylabel="Precipitation [ \$ \\mathrm{mm} \, \\mathrm{yr}^{-1} \$ ]" --yscale="3.171e-11" --domain-file=$atm_domain --colors="#000000"

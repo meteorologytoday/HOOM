@@ -64,6 +64,9 @@ end
 avg_qflux = 0.0
 mask_idx = (mask .== 1)
 for t=1:12
+    if any( isnan.(qflux[:,:,t][mask_idx]) )
+        throw(ErrorException("Qflux contains NaN"))
+    end
     global avg_qflux += sum( (area .* view(qflux, :, :, t))[mask_idx] )
 end
 avg_qflux /= 12.0 * sum(area[mask_idx])

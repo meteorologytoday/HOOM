@@ -160,6 +160,10 @@ Dataset(output_file, "c") do ds
     defDim(ds, "time", Inf)
     defDim(ds, "Nx", Nx)
     defDim(ds, "Ny", Ny)
+
+    ds.attrib["TREFHT_GLB_mean"] = Float64(mean(TREFHT_GLB))
+    ds.attrib["TREFHT_OCN_mean"] = Float64(mean(TREFHT_OCN))
+    ds.attrib["TREFHT_LND_mean"] = Float64(mean(TREFHT_LND))
     
     for (varname, vardata, vardim, attrib) in [
         ("TREFHTA",    TREFHTA,    ("Nx", "Ny", "time"), Dict()),
@@ -193,4 +197,5 @@ Dataset(output_file, "c") do ds
         var[rng...] = vardata
 
     end
+
 end

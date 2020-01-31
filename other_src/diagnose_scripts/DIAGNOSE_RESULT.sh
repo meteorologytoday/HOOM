@@ -11,6 +11,8 @@ echo "script_coordtrans_dir=$script_coordtrans_dir"
 
 lopts=(
     case-settings
+    stop-after-phase1
+    plot-mc-only
 )
 
 options=$(getopt -o '' --long $(printf "%s:," "${lopts[@]}") -- "$@")
@@ -131,31 +133,46 @@ if [ ! -f "wgt_file.nc" ]; then
 fi
 
 
+if [ "$plot_mc_only" == "" ]; then
 
+    for casename in "${casenames[@]}"; do
 
-for casename in "${casenames[@]}"; do
+        ((i=i%ptasks)); ((i++==0)) && wait
 
-    ((i=i%ptasks)); ((i++==0)) && wait
+        echo "Case: $casename"
 
-    echo "Case: $casename"
+        full_casename=${label}_${res}_${casename}
+        $script_dir/diagnose_single_model.sh \
+            --casename=$casename                \
+            --sim-data-dir=$sim_data_dir        \
+            --concat-data-dir=$concat_data_dir  \
+            --diag-data-dir=$diag_data_dir      \
+            --graph-data-dir=$graph_data_dir    \
+            --diag-beg-year=$diag_beg_year      \
+            --diag-end-year=$diag_end_year      \
+            --atm-domain=$atm_domain            \
+            --ocn-domain=$ocn_domain            \
+            --stop-after-phase1=$stop_after_phase1 \
+            --PCA-sparsity=$PCA_sparsity        & 
+    done
 
-    full_casename=${label}_${res}_${casename}
-    $script_dir/diagnose_single_model.sh \
-        --casename=$casename                \
-        --sim-data-dir=$sim_data_dir        \
-        --concat-data-dir=$concat_data_dir  \
-        --diag-data-dir=$diag_data_dir      \
-        --graph-data-dir=$graph_data_dir    \
-        --diag-beg-year=$diag_beg_year      \
-        --diag-end-year=$diag_end_year      \
-        --atm-domain=$atm_domain            \
-        --ocn-domain=$ocn_domain            \
-        --PCA-sparsity=$PCA_sparsity        & 
-done
+    wait
 
-wait
+fi
 
 echo "Start doing model comparison..."
+
+$script_dir/diagnose_mc_txt.sh     \
+    --casenames=$( join_by , "${casenames[@]}") \
+    --legends=$( join_by , "${legends[@]}") \
+    --sim-data-dir=$sim_data_dir                \
+    --diag-data-dir=$diag_data_dir              \
+    --graph-data-dir=$graph_data_dir            \
+    --atm-domain=$atm_domain                    \
+    --ocn-domain=$ocn_domain                    \
+    --diag-beg-year=$diag_beg_year      \
+    --diag-end-year=$diag_end_year      \
+
 
 $script_dir/diagnose_mc.sh     \
     --casenames=$( join_by , "${casenames[@]}") \

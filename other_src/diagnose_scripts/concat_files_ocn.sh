@@ -21,7 +21,8 @@ if [ ! -f flag_notrans_ocn ] ; then
 
     if [ "$old_files" != "" ] ; then
 
-        julia $script_coordtrans_dir/transform_data.jl --s-file=$old_files --d-file=$new_files --w-file=wgt_file.nc --vars=h_ML,T_ML,dTdt_ent,swflx,nswflx,TFLUX_DIV_implied,qflx,qflx2atm,SFLUX_DIV_implied --x-dim=Nx --y-dim=Ny --z-dim=Nz_bone --t-dim=time --s-dir=$ocn_hist_dir --d-dir=$concat_dir
+        #julia $script_coordtrans_dir/transform_data.jl --s-file=$old_files --d-file=$new_files --w-file=wgt_file.nc --vars=h_ML,T_ML,dTdt_ent,swflx,nswflx,TFLUX_DIV_implied,qflx,qflx2atm,SFLUX_DIV_implied,TSAS_clim,SSAS_clim,TFLUX_bot --x-dim=Nx --y-dim=Ny --z-dim=Nz_bone --t-dim=time --s-dir=$ocn_hist_dir --d-dir=$concat_dir
+        julia $script_coordtrans_dir/transform_data.jl --s-file=$old_files --d-file=$new_files --w-file=wgt_file.nc --vars=h_ML,T_ML --x-dim=Nx --y-dim=Ny --z-dim=Nz_bone --t-dim=time --s-dir=$ocn_hist_dir --d-dir=$concat_dir
     else
         echo "All files are transformed. Nothing to do here."
     fi

@@ -65,6 +65,8 @@ parser.add_argument('--linestyles', type=str)
 parser.add_argument('--t-offset', type=float, default=0.0)
 parser.add_argument('--y-offset', type=float, default=0.0)
 parser.add_argument('--indexing', default=":")
+parser.add_argument('--yrng', type=str, default="")
+
 
 args = parser.parse_args()
 
@@ -74,6 +76,10 @@ casenames = args.casenames.split(",")
 legends   = args.legends.split(",")
 colors = args.colors.split(",")
 linestyles = args.linestyles.split(",")
+
+if args.yrng != "":
+    yrng = eval(args.yrng)
+
 
 indices = []
 print("Constructing indexing")
@@ -129,6 +135,10 @@ ax.set_ylabel(args.ylabel)
 ax.grid()
 for i, (casename, legend, color, linestyle) in enumerate(casenames): 
     ax.plot(time, tss[i], linewidth=2, label=legend, color=color, linestyle=linestyle)
+
+
+if yrng != "":
+    ax.set_ylim(yrng)
 
 ax.legend(loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
 fig.subplots_adjust(right=0.7, bottom=0.2)

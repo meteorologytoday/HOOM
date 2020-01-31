@@ -1,5 +1,4 @@
 import cartopy.crs as ccrs
-
 import matplotlib as mplt
 mplt.use('Agg')
 
@@ -147,7 +146,6 @@ proj2 = ccrs.PlateCarree(central_longitude=0.0)
 
 
 fig, ax = plt.subplots(nrows=2, ncols=4, subplot_kw={'projection': proj1, 'aspect': 1.5}, figsize=(20,8))
-
 fig.suptitle(args.title)
 
 for s in range(4):

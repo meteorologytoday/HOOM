@@ -41,6 +41,7 @@ source "$case_settings"
 
 function join_by { local IFS="$1"; shift; echo "$*"; }
 
+if [ ] ; then
 casenames=()
 legends=()
 colors=()
@@ -49,6 +50,7 @@ linestyles=()
 
 ref_casenames=()
 ref_legends=()
+
 
 for i in $(seq 1 $((${#compare_cases[@]}/4))); do
     
@@ -62,10 +64,8 @@ for i in $(seq 1 $((${#compare_cases[@]}/4))); do
     colors+=($color)
     linestyles+=($linestyle)
 
-
-
-    ref_casename=${ref_casenames[$((4*(i-1)))]}
-    ref_legend=${ref_casenames[$((4*(i-1)+1))]}
+    ref_casename=${ref_cases[$((4*(i-1)))]}
+    ref_legend=${ref_cases[$((4*(i-1)+1))]}
     
     ref_casenames+=($ref_casename)
     ref_legends+=($ref_legend)
@@ -83,9 +83,228 @@ if [ ! -f flag_no_cal_diffcase ] ; then
          
     done
 fi
+fi
 
-if [ -f flag_plot_diffcase ]; then
-    mkdir -p $graph_dir    
+mkdir -p $graph_dir
+
+if [ -f flag_plot_diffcase ] || [ -f flag_plot_diffcase_Y ]; then
+
+    # Diff IAET
+    python3 $script_plot_dir/plot_diffcase_meridional_mean_std.py     \
+        --data-dir=$A_dir                                             \
+        --ref-data-dir=$B_dir                                         \
+        --data-file=atm_analysis3_energy.nc                           \
+        --casenames=$( join_by , "${casenames[@]}")                   \
+        --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+        --legends=$( join_by , "${legends[@]}")                       \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_dir                                       \
+        --varname-mean=IAET_AM                                        \
+        --varname-std=IAET_AMSTD                                      \
+        --title="[ $scenario minus $ref_scenario ] IAET change      " \
+        --colormap-mean-diff=bwr                                      \
+        --colormap-std-diff=bwr                                       \
+        --ymax-mean-diff=5                                            \
+        --ymax-std-diff=0.5                                           \
+        --tick-levs-mean-diff=10                                      \
+        --tick-levs-std-diff=10                                       \
+        --scale-mean="1e15"                                           \
+        --scale-std="1e13"                                            \
+        --extra-filename="IAET"                                       \
+        --idx-z=0                                                     \
+        --clabel-mean-diff=" Mean difference [ \$ \\mathrm{PW} \$ ]"        \
+        --clabel-std-diff=" Standard deviation difference [ \$ \\times 10^{2} \, \\mathrm{PW} \$ ]"        \
+        --figsize=8,6
+
+
+
+fi
+
+
+if [ -f flag_plot_diffcase ] || [ -f flag_plot_diffcase_XY ]; then
+
+
+    # Diff SST
+    python3 $script_plot_dir/plot_diffcase_map_mean_std.py \
+        --data-dir=$A_dir                                             \
+        --ref-data-dir=$B_dir                                         \
+        --data-file=ocn_analysis1_SST_anomalies_rg.nc                 \
+        --casenames=$( join_by , "${casenames[@]}")                   \
+        --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+        --legends=$( join_by , "${legends[@]}")                       \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_dir                                       \
+        --varname-mean=T_ML_SM                                           \
+        --varname-std=T_ML_SASTD                                         \
+        --title="[ $scenario minus $ref_scenario ] Seasonal analysis of sea surface temperature" \
+        --colormap-mean-diff=bwr                                      \
+        --colormap-std-diff=bwr                                       \
+        --cmax-mean-diff=2.0                                          \
+        --cmax-std-diff=0.5                                           \
+        --clevs-mean-diff=10                                          \
+        --clevs-std-diff=10                                           \
+        --tick-levs-mean-diff=10                                      \
+        --tick-levs-std-diff=10                                        \
+        --scale="1"                                                   \
+        --extra-filename="SST"                                        \
+        --idx-z=0                                                     \
+        --clabel-mean-diff="Mean diff [ \$ { }^\\circ\\mathrm{C} \$ ]"        \
+        --clabel-std-diff="Standard deviation diff [ \$ { }^\\circ\\mathrm{C} \$ ]"  \
+        --subtitles="MAM,JJA,SON,DJF"                                 \
+        --figsize=20,20
+
+    # Diff PSL
+    python3 $script_plot_dir/plot_diffcase_map_mean_std.py \
+        --data-dir=$A_dir                                             \
+        --ref-data-dir=$B_dir                                         \
+        --data-file=atm_analysis1.nc                               \
+        --casenames=$( join_by , "${casenames[@]}")                   \
+        --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+        --legends=$( join_by , "${legends[@]}")                       \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_dir                                       \
+        --varname-mean=PSL_SM                                           \
+        --varname-std=PSL_SASTD                                         \
+        --title="[ $scenario minus $ref_scenario ] Seasonal analysis of sea surface pressure" \
+        --colormap-mean-diff=bwr                                      \
+        --colormap-std-diff=bwr                                       \
+        --cmax-mean-diff=5                                           \
+        --cmax-std-diff=1                                             \
+        --clevs-mean-diff=10                                          \
+        --clevs-std-diff=4                                            \
+        --tick-levs-mean-diff=10                                      \
+        --tick-levs-std-diff=4                                        \
+        --scale="100"                                                   \
+        --extra-filename="PSL"                                          \
+        --idx-z=0                                                     \
+        --clabel-mean-diff="Mean diff [ \$ \\mathrm{hPa} \$ ]"        \
+        --clabel-std-diff="Standard deviation diff [ \$ \\mathrm{hPa} \$ ]"  \
+        --subtitles="MAM,JJA,SON,DJF"                                 \
+        --figsize=20,20
+
+
+    # Diff PRECIP
+    python3 $script_plot_dir/plot_diffcase_map_mean_std.py \
+        --data-dir=$A_dir                                             \
+        --ref-data-dir=$B_dir                                         \
+        --data-file=atm_analysis4_precip.nc                           \
+        --casenames=$( join_by , "${casenames[@]}")                   \
+        --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+        --legends=$( join_by , "${legends[@]}")                       \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_dir                                       \
+        --varname-mean=PREC_TOTAL_SM                                           \
+        --varname-std=PREC_TOTAL_SASTD                                         \
+        --title="[ $scenario minus $ref_scenario ] Seasonal analysis of zonal wind" \
+        --colormap-mean-diff=BrBG                                     \
+        --colormap-std-diff=bwr                                       \
+        --cmax-mean-diff=500                                          \
+        --cmax-std-diff=200                                           \
+        --clevs-mean-diff=10                                          \
+        --clevs-std-diff=10                                           \
+        --tick-levs-mean-diff=10                                      \
+        --tick-levs-std-diff=10                                       \
+        --scale="1/86400/365/1000"                                    \
+        --extra-filename="PREC_TOTAL"                                 \
+        --idx-z=0                                                     \
+        --clabel-mean-diff="Mean diff [ \$ \\mathrm{mm} \, \\mathrm{yr}^{-1} \$ ]"               \
+        --clabel-std-diff="Standard deviation diff [ \$ \\mathrm{mm} \, \\mathrm{yr}^{-1} \$ ]"  \
+        --lev-file="$A_dir/${casenames[0]}/atm_lev.nc"                \
+        --subtitles="MAM,JJA,SON,DJF"                                 \
+        --figsize=20,20
+
+    # Diff h_ML
+    python3 $script_plot_dir/plot_diffcase_map_mean_std.py \
+        --data-dir=$A_dir                                             \
+        --ref-data-dir=$B_dir                                         \
+        --data-file=ocn_analysis3_rg_MLD.nc                           \
+        --casenames=$( join_by , "${casenames[@]}")                   \
+        --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+        --legends=$( join_by , "${legends[@]}")                       \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_dir                                       \
+        --varname-mean=h_ML_SM                                           \
+        --varname-std=h_ML_SASTD                                         \
+        --title="[ $scenario minus $ref_scenario ] Seasonal analysis of mixed-layer thickness" \
+        --colormap-mean-diff=bwr                                      \
+        --colormap-std-diff=bwr                                       \
+        --cmax-mean-diff=20                                           \
+        --cmax-std-diff=5                                             \
+        --clevs-mean-diff=10                                          \
+        --clevs-std-diff=10                                           \
+        --tick-levs-mean-diff=10                                      \
+        --tick-levs-std-diff=10                                       \
+        --scale="1"                                                   \
+        --extra-filename="MLT"                                        \
+        --idx-z=0                                                     \
+        --clabel-mean-diff="Mean diff [ \$ \\mathrm{m} \$ ]"        \
+        --clabel-std-diff="Standard deviation diff [ \$ \\mathrm{m} \$ ]"  \
+        --subtitles="MAM,JJA,SON,DJF"                                 \
+        --figsize=20,40
+
+    # Diff streamfunction
+    python3 $script_plot_dir/plot_diffcase_atm_meridional_mean_std.py \
+        --data-dir=$A_dir                                             \
+        --ref-data-dir=$B_dir                                         \
+        --data-file=atm_analysis12_psi.nc                               \
+        --casenames=$( join_by , "${casenames[@]}")                   \
+        --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+        --legends=$( join_by , "${legends[@]}")                       \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_dir                                       \
+        --varname-mean=psi_SM                                           \
+        --varname-std=psi_SASTD                                         \
+        --title="[ $scenario minus $ref_scenario ] Seasonal analysis of zonal wind" \
+        --colormap-mean-diff=bwr                                      \
+        --colormap-std-diff=bwr                                       \
+        --cmax-mean-diff=5                                            \
+        --cmax-std-diff=0.5                                           \
+        --clevs-mean-diff=20                                          \
+        --clevs-std-diff=10                                           \
+        --tick-levs-mean-diff=20                                      \
+        --tick-levs-std-diff=10                                       \
+        --scale="1e8"                                                 \
+        --extra-filename="psi"                                          \
+        --idx-x=0                                                     \
+        --clabel-mean-diff="Mean diff [ \$ 1 \\times 10^8 \, \\mathrm{kg} \, \\mathrm{s}^{-1} \$ ]"               \
+        --clabel-std-diff="Standard deviation diff [ \$ 1 \\times 10^8 \, \\mathrm{kg} \, \\mathrm{s}^{-1} \$ ]"  \
+        --lev-file="$A_dir/${casenames[0]}/atm_ilev.nc"                \
+        --lev-varname="ilev"                \
+        --subtitles="MAM,JJA,SON,DJF"                                 \
+        --figsize=20,40
+
+
+    # Diff U
+    python3 $script_plot_dir/plot_diffcase_atm_meridional_mean_std.py \
+        --data-dir=$A_dir                                             \
+        --ref-data-dir=$B_dir                                         \
+        --data-file=atm_analysis11_U.nc                               \
+        --casenames=$( join_by , "${casenames[@]}")                   \
+        --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+        --legends=$( join_by , "${legends[@]}")                       \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_dir                                       \
+        --varname-mean=U_SM                                           \
+        --varname-std=U_SASTD                                         \
+        --title="[ $scenario minus $ref_scenario ] Seasonal analysis of zonal wind" \
+        --colormap-mean-diff=bwr                                      \
+        --colormap-std-diff=bwr                                       \
+        --cmax-mean-diff=5                                           \
+        --cmax-std-diff=0.5                                             \
+        --clevs-mean-diff=10                                          \
+        --clevs-std-diff=10                                            \
+        --tick-levs-mean-diff=10                                      \
+        --tick-levs-std-diff=10                                        \
+        --scale="1"                                                   \
+        --extra-filename="U"                                          \
+        --idx-x=0                                                     \
+        --clabel-mean-diff="Mean diff [ \$ \\mathrm{m} \, \\mathrm{s}^{-1} \$ ]"               \
+        --clabel-std-diff="Standard deviation diff [ \$ \\mathrm{m} \, \\mathrm{s}^{-1} \$ ]"  \
+        --lev-file="$A_dir/${casenames[0]}/atm_lev.nc"                \
+        --subtitles="MAM,JJA,SON,DJF"                                 \
+        --figsize=20,40
+    exit
+    if [ ] ; then
     for i in $(seq 1 $((${#casenames[@]}))); do
         
         casename=${casenames[$((i-1))]}
@@ -98,7 +317,7 @@ if [ -f flag_plot_diffcase ]; then
         ref_legend=${ref_legends[$((i-1))]}
  
         # Diff U 
-        python3 $script_plot_dir/plot_atm_meridional_mean_std_casediff.py \
+        python3 $script_plot_dir/plot_atm_meridional_mean_std_diffcase.py \
             --data-file-1=$A_casename_dir/atm_analysis11_U.nc             \
             --data-file-2=$B_casename_dir/atm_analysis11_U.nc             \
             --domain-file=$atm_domain                                     \
@@ -135,106 +354,8 @@ if [ -f flag_plot_diffcase ]; then
     
     
     done
+    fi
 fi
 
 
 exit;
-if [ ! -d "$sim_data_dir" ] ; then
-    echo "Error: sim_data_dir='$sim_data_dir' does not exist. "
-    exit 1
-fi
-
-result_dir=$( printf "%s/result" `pwd`)
-concat_data_dir=$( printf "%s/concat" $result_dir )
-diag_data_dir=$( printf "%s/%04d-%04d/diag" $result_dir $diag_beg_year $diag_end_year )
-graph_data_dir=$( printf "%s/%04d-%04d/graph" $result_dir $diag_beg_year $diag_end_year )
-
-if [ ! -f "$atm_domain" ] ; then
-    echo "Error: atm_domain="$atm_domain" does not exists."
-    exit 1
-fi
-
-if [ ! -f "$ocn_domain" ] ; then
-    echo "Error: atm_domain="$ocn_domain" does not exists."
-    exit 1
-fi
-
-
-# Parallel loop : https://unix.stackexchange.com/questions/103920/parallelize-a-bash-for-loop
-
-if (( ptasks == 0 )); then
-    ptasks=1
-fi
-
-echo "### Parallization (ptasks) in batch of $ptasks ###"
-
-# Transform ocn grid to atm grid
-if [ ! -f "wgt_file.nc" ]; then
-    echo "Weight file \"wgt_file.nc\" does not exist, I am going to generate one..."
-    julia -p 4  $script_coordtrans_dir/generate_weight.jl --s-file=$ocn_domain --d-file=$atm_domain --w-file="wgt_file.nc" --s-mask-value=1.0 --d-mask-value=0.0
-
-#    julia $script_coordtrans_dir/generate_SCRIP_format.jl \
-#        --input-file=$ocn_domain    \
-#        --output-file=SCRIP_${ocn_domain}    \
-#        --center-lon=xc     \
-#        --center-lat=yc     \
-#        --corner-lon=xv     \
-#        --corner-lat=yv
-
-#    julia $script_coordtrans_dir/generate_SCRIP_format.jl \
-#        --input-file=$atm_domain    \
-#        --output-file=SCRIP_${atm_domain}    \
-#        --center-lon=xc     \
-#        --center-lat=yc     \
-#        --corner-lon=xv     \
-#        --corner-lat=yv     \
-#        --mask-flip
-
-    #ESMF_RegridWeightGen -s SCRIP_${ocn_domain} -d SCRIP_${atm_domain} -m conserve2nd -w $wgt_file --user_areas
-#    ESMF_RegridWeightGen -s SCRIP_${ocn_domain} -d SCRIP_${atm_domain} -m neareststod -w $wgt_file --user_areas
-fi
-
-
-
-
-for casename in "${casenames[@]}"; do
-
-    ((i=i%ptasks)); ((i++==0)) && wait
-
-    echo "Case: $casename"
-
-    full_casename=${label}_${res}_${casename}
-    $script_dir/diagnose_single_model.sh \
-        --casename=$casename                \
-        --sim-data-dir=$sim_data_dir        \
-        --concat-data-dir=$concat_data_dir  \
-        --diag-data-dir=$diag_data_dir      \
-        --graph-data-dir=$graph_data_dir    \
-        --diag-beg-year=$diag_beg_year      \
-        --diag-end-year=$diag_end_year      \
-        --atm-domain=$atm_domain            \
-        --ocn-domain=$ocn_domain            \
-        --PCA-sparsity=$PCA_sparsity        & 
-done
-
-wait
-
-echo "Start doing model comparison..."
-
-$script_dir/diagnose_mc.sh     \
-    --casenames=$( join_by , "${casenames[@]}") \
-    --legends=$( join_by , "${legends[@]}") \
-    --sim-data-dir=$sim_data_dir                \
-    --diag-data-dir=$diag_data_dir              \
-    --graph-data-dir=$graph_data_dir            \
-    --atm-domain=$atm_domain                    \
-    --ocn-domain=$ocn_domain                    \
-    --diag-beg-year=$diag_beg_year      \
-    --diag-end-year=$diag_end_year      \
-    --colors=$( join_by , "${colors[@]}")       \
-    --linestyles=$( join_by , "${linestyles[@]}"),     # The comma at the end is necessary. Argparse does not parse "--" as a string however it thinks "--," is a string. 
-
-wait
-
-echo "Done."
-

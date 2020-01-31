@@ -9,10 +9,12 @@ module CESMReader
     mutable struct FileHandler
         filename_format :: String
         form   :: Symbol
+        LENS_benchmark :: Bool
 
         function FileHandler(;
             filename_format :: String,
             form        :: Symbol = :YEAR_MONTH,
+            LENS_benchmark :: Bool = false,
         )
 
             if ! (form in [:YEAR, :YEAR_MONTH]  )
@@ -22,6 +24,7 @@ module CESMReader
             return new(
                 filename_format,
                 form,
+                LENS_benchmark,
             )
         end
 

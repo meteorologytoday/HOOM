@@ -100,11 +100,19 @@ let
 
     global (Ny, Nt) = size(FFLX_TOA)
 
+    if mod(Nt, 12) != 0
+        throw(ErrorException("Time should be a multiple of 12."))
+    end
+
+    global nyears = Int64(Nt / 12)
+    println(format("We got {:d} years of data.", nyears))
 end
 
 
 IAET       = zeros(Float64, Ny, Nt)
 EFLX_CONV  = zeros(Float64, Ny, Nt)
+
+IAET_AM    = zeros(Float64, Ny, nyears)
 
 for t = 1:Nt
 
@@ -115,6 +123,11 @@ for t = 1:Nt
     IAET[:, t] = integrate(y, EFLX_CONV[:, t])
 
 end
+
+for j = 1:Ny, t = 1:nyears
+    IAET_AM[j, t] = mean(IAET[j, (t-1)*12+1:t*12])
+end
+
 
 Dataset(parsed["output-file"], "c") do ds
 
@@ -131,7 +144,8 @@ Dataset(parsed["output-file"], "c") do ds
         ("FFLX_SFC_mean",  mean(FFLX_SFC, dims=(2,))[:, 1],  ("Ny", ), Dict()),
         ("HFLX_SFC_mean",  mean(HFLX_SFC, dims=(2,))[:, 1],  ("Ny", ), Dict()),
         ("EFLX_CONV_mean", mean(EFLX_CONV, dims=(2,))[:, 1], ("Ny", ), Dict()),
-        ("IAET_mean",      mean(IAET, dims=(2,))[:, 1],      ("Ny", ), Dict()),
+        ("IAET_AM",        mean(IAET_AM, dims=(2,))[:, 1],   ("Ny", ), Dict()),
+        ("IAET_AMSTD",     std( IAET_AM, dims=(2,))[:, 1],   ("Ny", ), Dict()),
     ]
 
         println("Doing var: ", varname)
