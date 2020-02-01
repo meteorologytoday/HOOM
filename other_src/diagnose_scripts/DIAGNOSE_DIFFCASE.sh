@@ -123,6 +123,37 @@ fi
 
 if [ -f flag_plot_diffcase ] || [ -f flag_plot_diffcase_XY ]; then
 
+    # Diff PRECIP
+    python3 $script_plot_dir/plot_diffcase_map_mean_std.py \
+        --data-dir=$A_dir                                             \
+        --ref-data-dir=$B_dir                                         \
+        --data-file=atm_analysis6_icefrac.nc                          \
+        --casenames=$( join_by , "${casenames[@]}")                   \
+        --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+        --legends=$( join_by , "${legends[@]}")                       \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_dir                                       \
+        --varname-mean=ICEFRAC_SM                                     \
+        --varname-std=ICEFRAC_SASTD                                   \
+        --title="[ $scenario minus $ref_scenario ] Seasonal analysis of sea-ice concentration" \
+        --colormap-mean-diff=BrBG                                     \
+        --colormap-std-diff=bwr                                       \
+        --cmax-mean-diff=50                                           \
+        --cmax-std-diff=25                                            \
+        --clevs-mean-diff=20                                          \
+        --clevs-std-diff=10                                           \
+        --tick-levs-mean-diff=20                                      \
+        --tick-levs-std-diff=10                                       \
+        --scale="1e-2"                                                \
+        --extra-filename="ICEFRAC"                                    \
+        --idx-z=0                                                     \
+        --clabel-mean-diff="Mean diff [ \$ \\% \$ ]"                  \
+        --clabel-std-diff="Standard deviation diff [ \$ \\% \$ ]"     \
+        --lev-file="$A_dir/${casenames[0]}/atm_lev.nc"                \
+        --subtitles="MAM,JJA,SON,DJF"                                 \
+        --figsize=20,20
+
+
 
     # Diff SST
     python3 $script_plot_dir/plot_diffcase_map_mean_std.py \

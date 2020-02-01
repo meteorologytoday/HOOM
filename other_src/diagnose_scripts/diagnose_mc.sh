@@ -65,6 +65,34 @@ fi
 
 
 if [ -f flag_plot_mc ] || [ -f flag_plot_mc_XY ]; then
+    
+    # ICEFRAC
+    python3 $script_plot_dir/plot_mc_map_mean_std.py \
+        --data-dir=$diag_data_dir                                     \
+        --data-file=atm_analysis6_icefrac.nc                          \
+        --casenames=$casenames                                        \
+        --legends=$legends                                            \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_data_dir                                  \
+        --varname-mean=ICEFRAC_SM                                     \
+        --varname-std=ICEFRAC_SASTD                                   \
+        --title="Seasonal analysis of sea-ice concentration"          \
+        --colormap-mean=GnBu                                          \
+        --colormap-std=hot_r                                          \
+        --cmax-mean=100                                               \
+        --cmin-mean=15                                                \
+        --cmax-std=50                                                 \
+        --clevs-mean=18                                               \
+        --clevs-std=10                                                \
+        --tick-levs-mean=18                                           \
+        --tick-levs-std=10                                            \
+        --scale="1e-2"                                                \
+        --extra-filename="ICEFRAC"                                    \
+        --idx-z=0                                                     \
+        --clabel-mean="Mean [ \$ \\% \$ ]"                            \
+        --clabel-std="Standard deviation [ \$ \\% \$ ]"               \
+        --subtitles="MAM,JJA,SON,DJF"                                 \
+        --figsize=20,40
 
     # PSL
     python3 $script_plot_dir/plot_mc_map_mean_std.py \
@@ -150,6 +178,8 @@ if [ -f flag_plot_mc ] || [ -f flag_plot_mc_XY ]; then
         --clabel-std="Standard deviation [ \$ \\mathrm{mm} \, \\mathrm{yr}^{-1} \$ ]"  \
         --subtitles="MAM,JJA,SON,DJF"                                 \
         --figsize=20,40
+
+
 fi
 
 if [ -f flag_plot_mc ] || [ -f flag_plot_mc_YZ ]; then

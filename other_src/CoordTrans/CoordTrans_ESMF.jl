@@ -4,6 +4,11 @@ module CoordTrans_ESMF
     using SharedArrays
     using Formatting
 
+
+    # This is a toolbox for integrate general grid to gaussian grid using ESMF_RegridWeiGen
+    # The transformation refers to
+    # [Section 12.9.3] of http://www.earthsystemmodeling.org/esmf_releases/public/ESMF_8_0_0/ESMF_refdoc/node3.html
+
     mutable struct WeightInfo
         n_a            :: Integer
         n_b            :: Integer

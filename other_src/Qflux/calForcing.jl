@@ -89,7 +89,7 @@ end
 
 
 Dataset(in_SST, "r") do ds
-    global SST = replace(ds["SST"][:, :, 1, :], missing=>NaN)
+    global SST = replace(ds["SST"][:, :, :], missing=>NaN)
     global Nx, Ny, Nt = size(SST)
 
     (Nt%12 == 0) || throw(ErrorException("Time is not multiple of 12"))
@@ -107,14 +107,13 @@ Dataset(in_SHF, "r") do ds
     global SHF = replace(ds["SHF"][:], missing=>NaN)
 end
 
-
-#Dataset(in_HMXL, "r") do ds
-#    global HMXL = replace(ds["HMXL"][:], missing=>NaN) / 100.0
-#end
-
-Dataset(in_HBLT, "r") do ds
-    global HBLT = replace(ds["HBLT"][:], missing=>NaN) / 100.0
+Dataset(in_HMXL, "r") do ds
+    global HMXL = replace(ds["HMXL"][:], missing=>NaN) / 100.0
 end
+
+#Dataset(in_HBLT, "r") do ds
+#    global HBLT = replace(ds["HBLT"][:], missing=>NaN) / 100.0
+#end
 
 
 Dataset(in_TAUX, "r") do ds
@@ -319,7 +318,7 @@ for i=1:Nx, j=1:Ny
         continue
     end 
     
-    hs[i, j, :] = mean(reshape(view(HBLT, i, j, :), 12, :), dims=2)[:, 1]
+    hs[i, j, :] = mean(reshape(view(HMXL, i, j, :), 12, :), dims=2)[:, 1]
 
 end
 
@@ -361,7 +360,7 @@ for t = 13:Nt - 12
     for i=1:Nx, j=1:Ny
         isnan(SST[i, j, 1]) && continue
 
-        h = (HBLT[i, j, t] + HBLT[i, j, t+1] ) / 2.0
+        h = (HMXL[i, j, t] + HMXL[i, j, t+1] ) / 2.0
         s̃ = ϵs[i, j] + fs[i, j] * im
         H̃ = √(K_v / s̃)
         H = abs(H̃)
@@ -449,12 +448,12 @@ for t = 13:Nt - 12
 
         isnan(SST[i, j, 1]) && continue
         
-        # Using the time-variate of HBLT to estimate h_mean
+        # Using the time-variate of HMXL to estimate h_mean
         #  is problematic because lacking of time resolution
         # making entrainment a source of energy to the ocean
-        h_mean = (HBLT[i, j, t] + HBLT[i, j, t+1]) / 2.0
+        h_mean = (HMXL[i, j, t] + HMXL[i, j, t+1]) / 2.0
 
-        #h_mean = mean(HBLT[i, j, :]) 
+        #h_mean = mean(HMXL[i, j, :]) 
 
         # Temperature change
         tmp_dTdts = (SST[i, j, t+1] - SST[i, j, t]) / Δts[m]
@@ -472,22 +471,22 @@ for t = 13:Nt - 12
         var_Fs[i, j, m] += tmp_Fs^2.0
 
         # Entrainment
-        Δh = HBLT[i, j, t+1] - HBLT[i, j, t]
+        Δh = HMXL[i, j, t+1] - HMXL[i, j, t]
 
         tmp_Ents = 0.0
         if Δh > 0.0
 #=
             Ents[i, j, m] += - ρ * c_p * (
-                (SST[i, j, t+1] - getTd(-HBLT[i, j, t+1]-ent_thickness, i, j, TEMP_1, BOT_TEMP_1))
-              + (SST[i, j, t  ] - getTd(-HBLT[i, j, t  ]-ent_thickness, i, j, TEMP_0, BOT_TEMP_0))
+                (SST[i, j, t+1] - getTd(-HMXL[i, j, t+1]-ent_thickness, i, j, TEMP_1, BOT_TEMP_1))
+              + (SST[i, j, t  ] - getTd(-HMXL[i, j, t  ]-ent_thickness, i, j, TEMP_0, BOT_TEMP_0))
             ) * Δh  / 2.0 / Δts[m] / h_mean
 =#
 #            tmp_Ents = - (
-#                (SST[i, j, t] - getTd(-HBLT[i, j, t+1], i, j, TEMP_0, BOT_TEMP_0))
+#                (SST[i, j, t] - getTd(-HMXL[i, j, t+1], i, j, TEMP_0, BOT_TEMP_0))
 #            ) * Δh  / Δts[m] / h_mean
 
             tmp_Ents = - (
-                integrate(-HBLT[i, j, t+1], -HBLT[i, j, t], zs, SST[i, j, t] .- TEMP_0[i, j, :])
+                integrate(-HMXL[i, j, t+1], -HMXL[i, j, t], zs, SST[i, j, t] .- TEMP_0[i, j, :])
             )  / Δts[m] / h_mean
 
 
@@ -499,8 +498,8 @@ for t = 13:Nt - 12
 
         # Ekman advection
         tmp_T_vadvs = - tmp_DIV[i, j] * (
-                (SST[i, j, t+1] - getTd(-HBLT[i, j, t+1]-ent_thickness, i, j, TEMP_1, BOT_TEMP_1))
-              + (SST[i, j, t  ] - getTd(-HBLT[i, j, t  ]-ent_thickness, i, j, TEMP_0, BOT_TEMP_0))
+                (SST[i, j, t+1] - getTd(-HMXL[i, j, t+1]-ent_thickness, i, j, TEMP_1, BOT_TEMP_1))
+              + (SST[i, j, t  ] - getTd(-HMXL[i, j, t  ]-ent_thickness, i, j, TEMP_0, BOT_TEMP_0))
         ) / 2.0
 
         T_hadvs[i, j, m] += tmp_T_hadvs[i ,j]
@@ -554,7 +553,7 @@ for t = 13:Nt - 12
 
 
         # calculate Q1, Q3 qflux
-        h_mean = mean(HBLT[i, j, :]) 
+        h_mean = mean(HMXL[i, j, :]) 
         tmp_dTdts = (SST[i, j, t+1] - SST[i, j, t]) / Δts[m]
         tmp_Fs    = (SURF[i, j, t] + SURF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p 
         
