@@ -7,6 +7,28 @@ using NCDatasets
 using Statistics
 using SharedArrays
 
+using ArgParse
+using JSON
+
+function parse_commandline()
+
+    s = ArgParseSettings()
+    @add_arg_table s begin
+
+        "--years"
+            help = "Processed years."
+            arg_type = Int64
+            default = -1
+     
+    end
+
+    return parse_args(ARGS, s)
+end
+
+parsed = parse_commandline()
+print(json(parsed, 4))
+
+
 ent_thickness = 10.0
 ρ    = 1026.0  # kg / m^3
 c_p  = 3996.0  # J / kg / K
@@ -24,6 +46,7 @@ in_SHF  = "b.e11.B1850C5CN.f09_g16.005.pop.h.SHF.100001-109912.nc"
 in_TAUX = "b.e11.B1850C5CN.f09_g16.005.pop.h.TAUX.100001-109912.nc"
 in_TAUY = "b.e11.B1850C5CN.f09_g16.005.pop.h.TAUY.100001-109912.nc"
 in_HMXL = "b.e11.B1850C5CN.f09_g16.005.pop.h.HMXL.100001-109912.nc"
+in_HBLT = "b.e11.B1850C5CN.f09_g16.005.pop.h.HBLT.100001-109912.nc"
 in_TEMP = "b.e11.B1850C5CN.f09_g16.005.pop.h.TEMP.100001-109912.nc"
 in_QFLUX = "b.e11.B1850C5CN.f09_g16.005.pop.h.QFLUX.100001-109912.nc"
 in_MELTH_F = "b.e11.B1850C5CN.f09_g16.005.pop.h.MELTH_F.100001-109912.nc"
@@ -36,7 +59,6 @@ in_zcoord = "b.e11.B1850C5CN.f09_g16.005.pop.h.TEMP.100001-109912.nc"
 gridinfo_file = "domain.ocn.gx3v7.120323.nc"
 gridinfo_file = "domain.ocn.gx1v6.090206.nc"
 
-out_file = "forcing.gx3v7.nc"
 out_file = "forcing.gx1v6.nc"
 
 missing_value = 1e20
@@ -67,24 +89,32 @@ end
 
 
 Dataset(in_SST, "r") do ds
-    global SST = replace(ds["SST"][:, :, 1, :], missing=>NaN)
+    global SST = replace(ds["SST"][:, :, :], missing=>NaN)
     global Nx, Ny, Nt = size(SST)
 
     (Nt%12 == 0) || throw(ErrorException("Time is not multiple of 12"))
-    Nt=48
+
+    if parsed["years"] > 0
+        Nt = parsed["years"] * 12
+    end
 
     global nyears = Int(Nt / 12)
 
+    println("YEARS: ", nyears)
 end
 
 Dataset(in_SHF, "r") do ds
     global SHF = replace(ds["SHF"][:], missing=>NaN)
 end
 
-
 Dataset(in_HMXL, "r") do ds
     global HMXL = replace(ds["HMXL"][:], missing=>NaN) / 100.0
 end
+
+#Dataset(in_HBLT, "r") do ds
+#    global HBLT = replace(ds["HBLT"][:], missing=>NaN) / 100.0
+#end
+
 
 Dataset(in_TAUX, "r") do ds
     global TAUX = replace(ds["TAUX"][:], missing=>NaN) / 10.0
@@ -107,6 +137,7 @@ Dataset(in_SSH, "r") do ds
 end
 
 
+SURF = SHF + QFLUX
 
 SEAICE_HFLX = QFLUX + MELTH_F
 
@@ -189,7 +220,7 @@ function integrate(zb, zt, zs, Ts)
 end
 
 mi = ModelMap.MapInfo{Float64}(gridinfo_file)
-gi = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv; angle_unit=:deg)
+gi = DisplacedPoleCoordinate.GridInfo(Re, mi.nx, mi.ny, mi.xc, mi.yc, mi.xv, mi.yv, mi.area; angle_unit=:deg)
 
 
 ϵs = mi.xc * 0.0 .+ 1e-5
@@ -417,7 +448,12 @@ for t = 13:Nt - 12
 
         isnan(SST[i, j, 1]) && continue
         
+        # Using the time-variate of HMXL to estimate h_mean
+        #  is problematic because lacking of time resolution
+        # making entrainment a source of energy to the ocean
         h_mean = (HMXL[i, j, t] + HMXL[i, j, t+1]) / 2.0
+
+        #h_mean = mean(HMXL[i, j, :]) 
 
         # Temperature change
         tmp_dTdts = (SST[i, j, t+1] - SST[i, j, t]) / Δts[m]
@@ -429,8 +465,8 @@ for t = 13:Nt - 12
         sea_ices[i, j, m] += tmp_sea_ices
         var_sea_ices[i, j, m] += tmp_sea_ices^2.0
 
-        # Surface downward heat flux heat flux
-        tmp_Fs = (SHF[i, j, t] + SHF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p
+        # Surface downward heat flux 
+        tmp_Fs = (SURF[i, j, t] + SURF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p
         Fs[i, j, m] += tmp_Fs
         var_Fs[i, j, m] += tmp_Fs^2.0
 
@@ -519,7 +555,7 @@ for t = 13:Nt - 12
         # calculate Q1, Q3 qflux
         h_mean = mean(HMXL[i, j, :]) 
         tmp_dTdts = (SST[i, j, t+1] - SST[i, j, t]) / Δts[m]
-        tmp_Fs    = (SHF[i, j, t] + SHF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p 
+        tmp_Fs    = (SURF[i, j, t] + SURF[i, j, t+1]) / 2.0 / h_mean / ρ / c_p 
         
         tmp_Q1s = - ( tmp_dTdts - tmp_Fs )
         Q1s[i, j, m]     += tmp_Q1s
@@ -557,7 +593,6 @@ needed_vars = (
     var_Ents,
     var_Fs,
     var_sea_ices,
-    var_diffs,
     var_T_hadvs,
     var_T_vadvs,
     var_T_gadvs,
@@ -764,7 +799,7 @@ Dataset(out_file, "c") do ds
 
         ], [
             "Fs", Fs, ("Nx", "Ny", "time"), Dict(
-            "long_name"=>"SHF flux",
+            "long_name"=>"SURF flux",
             "units"=>"K / s",
             )
         ], [
@@ -790,7 +825,7 @@ Dataset(out_file, "c") do ds
             )
         ], [
             "var_Fs", var_Fs, ("Nx", "Ny", "time"), Dict(
-            "long_name"=>"SHF flux",
+            "long_name"=>"SURF flux",
             "units"=>"K / s",
             )
         ], [

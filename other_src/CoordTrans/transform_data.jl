@@ -15,12 +15,12 @@ function parse_commandline()
             required = true
 
         "--s-file"
-            help = "Input source file."
+            help = "Input source file. Filenames separated by commas."
             arg_type = String
             required = true
        
         "--d-file"
-            help = "Output destination file."
+            help = "Output destination file. Filenames separated by commas."
             arg_type = String
             required = true
 
@@ -47,6 +47,18 @@ function parse_commandline()
             arg_type = String
             default = "time"
 
+        "--s-dir"
+            help = "Source files directory. If unset then this variable will not be applied. Convinent when working with multiple files"
+            arg_type = String
+            default = ""
+
+        "--d-dir"
+            help = "Destination files directory. If unset then this variable will not be applied. Convinent when working with multiple files"
+            arg_type = String
+            default = ""
+
+
+
     end
 
     return parse_args(ARGS, s)
@@ -58,18 +70,35 @@ parsed = parse_commandline()
 print(json(parsed, 4))
 
 if parsed["vars"] != nothing
-    varnames=collect(split(parsed["vars"], ","; keepempty=false))
+    varnames = collect(split(parsed["vars"], ","; keepempty=false))
 else
-    varnames=nothing
+    varnames = nothing
 end
 
-CoordTrans.convertFile(
-    parsed["s-file"],
-    parsed["d-file"],
-    parsed["w-file"],
-    varnames=varnames;
-    xdim = parsed["x-dim"],
-    ydim = parsed["y-dim"],
-    zdim = parsed["z-dim"],
-    tdim = parsed["t-dim"],
-)
+s_files = collect(split(parsed["s-file"], ","; keepempty=false))
+d_files = collect(split(parsed["d-file"], ","; keepempty=false))
+
+if length(s_files) != length(d_files)
+    throw(ErrorException("Numbers of source files and destination files do not match."))
+
+end
+            
+wi = CoordTrans.readWeightInfo(parsed["w-file"])
+
+for i in 1:length(s_files)
+
+    s_file = ( parsed["s-dir"] == "" ) ? s_files[i] : joinpath(parsed["s-dir"], s_files[i])
+    d_file = ( parsed["d-dir"] == "" ) ? d_files[i] : joinpath(parsed["d-dir"], d_files[i])
+    println("Trasform: ", s_file, " => ", d_file)
+
+    CoordTrans.convertFile(
+        s_file,
+        d_file,
+        wi,
+        varnames=varnames;
+        xdim = parsed["x-dim"],
+        ydim = parsed["y-dim"],
+        zdim = parsed["z-dim"],
+        tdim = parsed["t-dim"],
+    )
+end

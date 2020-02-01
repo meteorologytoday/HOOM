@@ -5,6 +5,9 @@ using Statistics
 using JSON
 
 include("constants.jl")
+include("CESMReader.jl")
+
+using .CESMReader
 
 function mreplace(x)
     return replace(x, missing=>NaN)
@@ -24,12 +27,17 @@ function parse_commandline()
 
     s = ArgParseSettings()
     @add_arg_table s begin
-
-        "--data-file"
-            help = "Atm data file."
+ 
+        "--data-file-prefix"
+            help = "Data filename prefix including folder and path until the timestamp. File extension `nc` is assumed."
             arg_type = String
             required = true
  
+        "--data-file-timestamp-form"
+            help = "Data filename timestamp form. Either `YEAR` or `YEAR_MONTH`."
+            arg_type = String
+            required = true
+
         "--output-file"
             help = "Output file."
             arg_type = String
@@ -58,6 +66,7 @@ end
 parsed = parse_commandline()
 print(json(parsed, 4))
 
+ 
 Dataset(parsed["domain-file"], "r") do ds
     global mask = ds["mask"][:] |> mreplace
     global lat = ds["yc"][1, :] |> mreplace
@@ -68,23 +77,42 @@ Dataset(parsed["domain-file"], "r") do ds
     mask[mask.!=0] .= 1
 end
 
-Dataset(parsed["data-file"], "r") do ds
- 
+let
+
+    if parsed["data-file-timestamp-form"] == "YEAR"
+        filename_format = format("{:s}{{:04d}}.nc", joinpath(parsed["data-file-prefix"]))
+        form = :YEAR
+    elseif parsed["data-file-timestamp-form"] == "YEAR_MONTH"
+        filename_format = format("{:s}{{:04d}}-{{:02d}}.nc", joinpath(parsed["data-file-prefix"]))
+        form = :YEAR_MONTH
+    end
+   
+    fh = FileHandler(filename_format=filename_format, form=form)
+
     beg_t = (parsed["beg-year"] - 1) * 12 + 1
     end_t = (parsed["end-year"] - 1) * 12 + 12
-    rng = (:,:,beg_t:end_t) 
+ 
+    FSNT, FLNT, FSNS, FLNS, SHFLX, LHFLX = getData(fh, ["FSNT", "FLNT", "FSNS", "FLNS", "SHFLX", "LHFLX"], (parsed["beg-year"], parsed["end-year"]), (:, :))
     
-    global FFLX_TOA = ( - mean(ds["FSNT"][rng...], dims=(1, ))  + mean(ds["FLNT"][rng...],  dims=(1, )) )[1, :, :]
-    global FFLX_SFC = ( - mean(ds["FSNS"][rng...], dims=(1, ))  + mean(ds["FLNS"][rng...],  dims=(1, )) )[1, :, :]
-    global HFLX_SFC = (   mean(ds["SHFLX"][rng...], dims=(1, )) + mean(ds["LHFLX"][rng...], dims=(1, )) )[1, :, :]
+    global FFLX_TOA = ( - mean(FSNT, dims=(1, ))  + mean(FLNT,  dims=(1, )) )[1, :, :]
+    global FFLX_SFC = ( - mean(FSNS, dims=(1, ))  + mean(FLNS,  dims=(1, )) )[1, :, :]
+    global HFLX_SFC = (   mean(SHFLX, dims=(1, )) + mean(LHFLX, dims=(1, )) )[1, :, :]
 
     global (Ny, Nt) = size(FFLX_TOA)
 
+    if mod(Nt, 12) != 0
+        throw(ErrorException("Time should be a multiple of 12."))
+    end
+
+    global nyears = Int64(Nt / 12)
+    println(format("We got {:d} years of data.", nyears))
 end
 
 
 IAET       = zeros(Float64, Ny, Nt)
 EFLX_CONV  = zeros(Float64, Ny, Nt)
+
+IAET_AM    = zeros(Float64, Ny, nyears)
 
 for t = 1:Nt
 
@@ -95,6 +123,11 @@ for t = 1:Nt
     IAET[:, t] = integrate(y, EFLX_CONV[:, t])
 
 end
+
+for j = 1:Ny, t = 1:nyears
+    IAET_AM[j, t] = mean(IAET[j, (t-1)*12+1:t*12])
+end
+
 
 Dataset(parsed["output-file"], "c") do ds
 
@@ -111,7 +144,8 @@ Dataset(parsed["output-file"], "c") do ds
         ("FFLX_SFC_mean",  mean(FFLX_SFC, dims=(2,))[:, 1],  ("Ny", ), Dict()),
         ("HFLX_SFC_mean",  mean(HFLX_SFC, dims=(2,))[:, 1],  ("Ny", ), Dict()),
         ("EFLX_CONV_mean", mean(EFLX_CONV, dims=(2,))[:, 1], ("Ny", ), Dict()),
-        ("IAET_mean",      mean(IAET, dims=(2,))[:, 1],      ("Ny", ), Dict()),
+        ("IAET_AM",        mean(IAET_AM, dims=(2,))[:, 1],   ("Ny", ), Dict()),
+        ("IAET_AMSTD",     std( IAET_AM, dims=(2,))[:, 1],   ("Ny", ), Dict()),
     ]
 
         println("Doing var: ", varname)
