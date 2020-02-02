@@ -12,15 +12,24 @@ function parse_commandline()
             arg_type = String
             required = true
 
+        "--Qflux-blank"
+            help = "If turned on then --Qflux-varname is ignored and output qflux = 0.0 field."
+            action = :store_true
+
         "--Qflux-varname"
             help = "Qflux variable name in file"
             arg_type = String
-            required = true
+            default  = ""
 
         "--MLD-varname"
             help = "MLD variable name in file"
             arg_type = String
             required = true
+
+        "--Tclim-varname"
+            help = "Tclim variable name in file"
+            arg_type = String
+            default  = ""
 
         "--domain-file"
             help = "Domain file."
@@ -36,8 +45,6 @@ function parse_commandline()
             help = "Whether the 12 data points are the beginning of the month or the middle of the month."
             arg_type = String
             required = true
-
-
 
     end
 
@@ -59,11 +66,23 @@ Dataset(parsed["domain-file"], "r") do ds
 end
 
 Dataset(parsed["input-file"], "r") do ds
-    global qflux = ds[parsed["Qflux-varname"]][:] |> nomissing
+    global qflux, Tclim
+
+    if parsed["Qflux-blank"] 
+        qflux = zeros(Float64, ni, nj , 12)
+    else
+        qflux = ds[parsed["Qflux-varname"]][:] |> nomissing
+    end
+
+    if parsed["Tclim-varname"] == "" 
+        Tclim = zeros(Float64, ni, nj , 12)
+    else
+        Tclim = ds[parsed["Tclim-varname"]][:] |> nomissing
+    end
+
+
     global h     = ds[parsed["MLD-varname"]][:] |> nomissing
 end 
-
-println(size(qflux))
 
 dom = convert(Array{Float64}, [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31])
 time = zeros(Float64, 12)
@@ -125,6 +144,12 @@ Dataset(parsed["output-file"], "c") do ds
             "units"     => "W/m^2",
             "long_name" => "ocean heat flux convergence",
         )),
+
+        ("Tclim", Tclim, ("ni", "nj", "time"), Dict(  
+            "units"     => "K",
+            "long_name" => "Climatology of SST.",
+        )),
+
 
         ("hblt", h, ("ni", "nj", "time"), Dict(
             "units"     => "m",

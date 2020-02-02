@@ -25,13 +25,13 @@ function calQflux_correction!(
     @loop_hor ocn i j let
        
         # Euler backward method
-
+        #=
         if (i, j) == (50, 50)
             println("ocn.in_flds.sst[i, j] = ", ocn.in_flds.sst[i, j])
             println("ocn.T_ML[i, j] = ", ocn.T_ML[i, j])
             println("ΔT = ", r * (ocn.in_flds.sst[i, j] - ocn.T_ML[i, j]) / (1.0 + r))
         end
-
+        =#
 
         T_ML = ocn.T_ML[i, j]
         FLDO = ocn.FLDO[i, j]
@@ -47,10 +47,11 @@ function calQflux_correction!(
 
         ocn.qflx_correction[i, j] = - ΔT * ocn.h_ML[i, j] * ρc / Δt   # neg => warming
 
+        #=
         if (i, j) == (50, 50)
             println("qflx_correction = ",  ocn.qflx_correction[i, j])
         end
-
+        =#
 
     end
 
