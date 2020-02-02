@@ -9,9 +9,18 @@ module PCA
 
 
         dim, N = size(X)
+
+
         Σ = Symmetric(X * X')
         
-        F = eigen(Σ)
+        println("Dimension of Σ : ", size(Σ))
+        println("Any missing data? ", any(isnan.(Σ))) 
+
+        if any(isnan.(Σ))
+            throw(ErrorException("Data contains NaN!"))
+        end        
+
+        @time F = eigen(Σ)
 
         #println(F.values)
         #println(length(F.values))

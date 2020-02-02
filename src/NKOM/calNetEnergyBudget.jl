@@ -10,7 +10,7 @@ function calNetTEMPBudget!(
 
     TFLUX_DIV_implied  = ocn.TFLUX_DIV_implied
     qflx2atm           = ocn.qflx2atm
-    TFLUX_bot             = ocn.TFLUX_bot
+    TFLUX_bot          = ocn.TFLUX_bot
     TSAS_clim          = ocn.TSAS_clim
     dTEMPdt            = ocn.dTEMPdt
 

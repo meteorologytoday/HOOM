@@ -1,7 +1,29 @@
 import matplotlib as mplt
 mplt.use('Agg')
 
+from matplotlib import rc
+
+default_linewidth = 2.0;
+default_ticksize = 10.0;
+
+mplt.rcParams['lines.linewidth'] =   default_linewidth;
+mplt.rcParams['axes.linewidth'] =    default_linewidth;
+mplt.rcParams['xtick.major.size'] =  default_ticksize;
+mplt.rcParams['xtick.major.width'] = default_linewidth;
+mplt.rcParams['ytick.major.size'] =  default_ticksize;
+mplt.rcParams['ytick.major.width'] = default_linewidth;
+
+#rc('font', **{'family':'sans-serif', 'serif': 'Bitstream Vera Serif', 'sans-serif': 'MS Reference Sans Serif', 'size': 20.0});
+rc('font', **{'size': 20.0});
+rc('axes', **{'labelsize': 20.0});
+rc('mathtext', **{'fontset':'stixsans'});
+rc(('xtick.major','ytick.major'), pad=20)
+
+#import matplotlib.font_manager as fm;
+#print("%s: %d"%(fm.FontProperties().get_name(),fm.FontProperties().get_weight()));
+
 import matplotlib.pyplot as plt
+
 import sys, argparse
 from netCDF4 import Dataset
 import numpy as np
@@ -27,6 +49,7 @@ parser.add_argument('--linestyles', type=str)
 parser.add_argument('--y-offset', type=float, default=0.0)
 parser.add_argument('--y-range-mean', type=str, default="")
 parser.add_argument('--y-range-std', type=str, default="")
+parser.add_argument('--invert-y-axis', action="store_true")
 
 args = parser.parse_args()
 
@@ -64,6 +87,8 @@ new_casenames = []
 mean_datas = []
 std_datas = []
 for i in range(len(casenames)):
+    
+    print("Loading casename: %s" % (casenames[i],))
 
     try:
 
@@ -76,11 +101,11 @@ for i in range(len(casenames)):
 
         continue
     
-    
+
     print("Dimension:", f.variables[args.varname_var])
     new_casenames.append([casenames[i], legends[i], colors[i], linestyles[i]])
     mean_datas.append((f.variables[args.varname_mean][indices] - args.y_offset) / args.yscale)
-    std_datas.append(np.sqrt(f.variables[args.varname_var][indices]) / args.yscale)
+    std_datas.append(np.sqrt(f.variables[args.varname_var][indices]) / abs(args.yscale))
     
     f.close()
 
@@ -103,7 +128,10 @@ for i, (casename, legend, color, linestyle) in enumerate(casenames):
     ax1.plot(lat, mean_datas[i], linewidth=2, label=legend, color=color, linestyle=linestyle)
     ax2.plot(lat, std_datas[i],  linewidth=2, label=legend, color=color, linestyle=linestyle)
 
-ax1.legend()
+ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
+fig.subplots_adjust(right=0.7, bottom=0.2)
+
+
 
 ax1.grid(True)
 ax2.grid(True)
@@ -113,6 +141,10 @@ if args.y_range_mean != "":
 
 if args.y_range_std != "":
     ax2.set_ylim(args.y_range_std)
+
+if args.invert_y_axis == True:
+    ax1.invert_yaxis()
+
 
 
 fig.savefig("%s/mc_meridional_mean_std_%s_%s%s.png" % (args.output_dir, args.varname_mean, args.varname_var, args.extra_filename), dpi=200)

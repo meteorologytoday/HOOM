@@ -56,7 +56,7 @@ end
 
 Dataset(parsed["data-file"], "r") do ds
     
-    global SSTA  = replace(ds["SSTA"][:], missing=>NaN)
+    global SSTA  = replace(ds["T_ML_MA"][:, :, 1, :], missing=>NaN)
     global months  = ds.dim["time"]
     
     global EOF_input = zeros(Float64, length(valid_grids), months)
@@ -67,7 +67,9 @@ end
 
 modes = 2
 
+println("Solving for PCA...")
 eigen_vectors = PCA.findPCAs(EOF_input, num=modes)
+println("done.")
 
 PCAs = zeros(Float64, Nx, Ny, modes)
 PCAs .= NaN

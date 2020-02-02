@@ -84,6 +84,23 @@ Dataset(parsed["input-file"], "r") do ds
     global h     = ds[parsed["MLD-varname"]][:] |> nomissing
 end 
 
+avg_qflux = 0.0
+mask_idx = (mask .== 1)
+for t=1:12
+    if any( isnan.(qflux[:,:,t][mask_idx]) )
+        throw(ErrorException("Qflux contains NaN"))
+    end
+    global avg_qflux += sum( (area .* view(qflux, :, :, t))[mask_idx] )
+end
+avg_qflux /= 12.0 * sum(area[mask_idx])
+
+qflux .-= avg_qflux
+
+println("# Pre-adjustment avg qflux : ", avg_qflux)
+
+
+println(size(qflux))
+
 dom = convert(Array{Float64}, [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31])
 time = zeros(Float64, 12)
 
@@ -108,6 +125,8 @@ Dataset(parsed["output-file"], "c") do ds
     defDim(ds, "ni", ni)
     defDim(ds, "nj", nj)
     defDim(ds, "time", length(time))
+
+    ds.attrib["imbalanced_qflux"] = avg_qflux
 
     empty = zeros(Float64, ni, nj, length(time))
 
