@@ -15,10 +15,10 @@ function parse_commandline()
             required = true
 
         "--s-file"
-            help = "Input source file."
+            help = "Input source file. Filenames separated by commas."
             arg_type = String
             required = true
-       
+ 
         "--d-file"
             help = "Output destination file."
             arg_type = String
@@ -46,6 +46,17 @@ function parse_commandline()
             help = "Variable name of time-dimension."
             arg_type = String
             default = "time"
+
+        "--s-dir"
+            help = "Source files directory. If unset then this variable will not be applied. Convinent when working with multiple files"
+            arg_type = String
+            default = ""
+
+        "--d-dir"
+            help = "Destination files directory. If unset then this variable will not be applied. Convinent when working with multiple files"
+            arg_type = String
+            default = ""
+
 
     end
 
