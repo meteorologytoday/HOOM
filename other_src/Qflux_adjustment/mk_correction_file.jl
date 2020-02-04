@@ -1,5 +1,3 @@
-include("../diagnose_scripts/analysis/CESMReader.jl")
-using .CESMReader
 using NCDatasets
 using ArgParse
 using JSON
@@ -29,6 +27,19 @@ function parse_commandline()
             help = "Output file name."
             arg_type = String
             required = true
+
+        "--beg-year"
+            help = "Begin year of the data."
+            arg_type = Int64
+            required = true
+
+        "--end-year"
+            help = "End year of the data."
+            arg_type = Int64
+            required = true
+
+
+
 
     end
 
