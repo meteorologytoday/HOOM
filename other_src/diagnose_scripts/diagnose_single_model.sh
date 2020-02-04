@@ -15,6 +15,7 @@ lopts=(
     AO-file
     PCA-sparsity
     stop-after-phase1
+    wgt-dir
 )
 
 options=$(getopt -o '' --long $(printf "%s:," "${lopts[@]}") -- "$@")
@@ -123,6 +124,7 @@ export ocn_analysis10_rg=$diag_dir/ocn_analysis10_rg.nc
 export ocn_analysis10a_rg=$diag_dir/ocn_analysis10a_rg.nc
 export ocn_analysis11_rg=$diag_dir/ocn_analysis11_rg_EN34.nc
 export ocn_analysis12_rg=$diag_dir/ocn_analysis12_rg_energy.nc
+export ocn_analysis13_rg=$diag_dir/ocn_analysis13_rg_IOET.nc
 
 
 export ocn_mstat_rg=$diag_dir/ocn_mstat_rg.nc
@@ -212,11 +214,10 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
     julia $script_analysis_dir/atm_temperature.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis7 --beg-year=$diag_beg_year --end-year=$diag_end_year
     
 
-    if [ ] ; then
     # IAET : Implied Atmospheric Energy Transport
     #julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file=$atm_concat --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
     julia $script_analysis_dir/implied_atm_energy_transport.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
-    fi
+    
     # Downstream data. No need to specify --beg-year --end-year
     #julia $script_analysis_dir/AO.jl --data-file=$atm_analysis1 --domain-file=$atm_domain --output-file=$atm_analysis5 --sparsity=$PCA_sparsity
 
@@ -226,11 +227,13 @@ if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
 
     echo "Diagnose ocn..."
     
+    julia $script_analysis_dir/implied_ocn_energy_transport.jl --data-file-prefix="$concat_dir/$casename.ocn_rg2.h.monthly." --data-file-timestamp-form=YEAR --domain-file=$atm_domain --output-file=$ocn_analysis13_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --ESMF-wgt-file=$wgt_dir/wgt.conserve2nd.nc
     # Need to specify --beg-year --end-year
     #julia $script_analysis_dir/SST_correlation.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --SST=T_ML --beg-year=$diag_beg_year --end-year=$diag_end_year
 
-    julia $script_analysis_dir/ocn_energy_balance.jl --data-file-prefix="$concat_dir/$casename.ocn_rg.h.monthly." --data-file-timestamp-form=YEAR --domain-file=$atm_domain --output-file=$ocn_analysis12_rg --beg-year=$diag_beg_year --end-year=$diag_end_year
+    #julia $script_analysis_dir/ocn_energy_balance.jl --data-file-prefix="$concat_dir/$casename.ocn_rg.h.monthly." --data-file-timestamp-form=YEAR --domain-file=$atm_domain --output-file=$ocn_analysis12_rg --beg-year=$diag_beg_year --end-year=$diag_end_year
     
+    if [ ] ; then
 
     ### Variability ###
 
@@ -268,7 +271,7 @@ if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
 #    julia $script_analysis_dir/ocn_energy_analysis.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis10_rg --beg-year=$diag_beg_year --end-year=$diag_end_year
 #    ncwa -h -O -a time $ocn_analysis10_rg $ocn_analysis10a_rg
 
-    if [ ] ; then
+
 
     # Downstream data. No need to specify --beg-year --end-year
     julia $script_analysis_dir/PDO.jl --data-file=$ocn_analysis1_rg --domain-file=$atm_domain --output-file=$ocn_analysis2_rg

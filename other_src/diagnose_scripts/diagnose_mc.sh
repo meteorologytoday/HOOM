@@ -258,12 +258,16 @@ fi
 
 if [ -f flag_plot_mc ] || [ -f flag_plot_mc_Y ]; then
     
-    # Ocean energy analysis
-    python3 $script_plot_dir/plot_mc_ocn_energy.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ocn_analysis12_rg_energy.nc --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles" --legends=$legends
+    # Implied Oceanic Energy Transport (IOET) 
+    python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ocn_analysis13_rg_IOET.nc --varname=IOET_AM --ylabel="Energy flux [ \$ \\times 10^{15} \\, \\mathrm{W} \$ ]" --yscale="1e15" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles" --legends=$legends
+#    python3 $script_plot_dir/plot_mc_ocn_energy.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ocn_analysis12_rg_energy.nc --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles" --legends=$legends
 
     #python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis3_energy.nc --varname=IAET_mean --ylabel="Energy flux [ \$ \\times 10^{15} \\, \\mathrm{W} \$ ]" --yscale="1e15" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles" --legends=$legends
+   
+    # Implied Atmospheric Energy Transport (IAET) 
+    python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis3_energy.nc --varname=IAET_AM --ylabel="Energy flux [ \$ \\times 10^{15} \\, \\mathrm{W} \$ ]" --yscale="1e15" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles" --legends=$legends
     
-    python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis3_energy.nc --varname=IAET_mean --ylabel="Energy flux [ \$ \\times 10^{15} \\, \\mathrm{W} \$ ]" --yscale="1e15" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles" --legends=$legends
+
 #    python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ocn_analysis9b_rg_oiet_avg.nc --varname=IET_OCN_ZONAL_MEAN --ylabel="Energy flux [ \$ \\times 10^{15} \\, \\mathrm{W} \$ ]" --yscale="1e15" --domain-file=$atm_domain --colors="$colors" --indexing="0,:" --linestyles="$linestyles" --legends=$legends
 
 #    python3 $script_plot_dir/plot_mc_meridional.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=atm_analysis3_energy.nc --varname=L_IET --ylabel="Energy flux [ \$ \\times 10^{15} \\, \\mathrm{W} \$ ]" --yscale="1e15" --domain-file=$atm_domain --colors="$colors" --linestyles="$linestyles" --legends=$legends

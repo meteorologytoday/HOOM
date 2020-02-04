@@ -1,6 +1,8 @@
 include(joinpath(@__DIR__, "..", "CoordTrans", "CoordTrans.jl"))
+include(joinpath(@__DIR__, "..", "CoordTrans", "CoordTrans_ESMF.jl"))
 
 using .CoordTrans
+using .CoordTrans_ESMF
 using ArgParse
 using JSON
 
@@ -57,7 +59,10 @@ function parse_commandline()
             arg_type = String
             default = ""
 
-
+        "--algo"
+            help = "Type of algorithm. Valid values: `XTT`, `ESMF`."
+            arg_type = String
+            default = "ESMF"
 
     end
 
@@ -82,8 +87,13 @@ if length(s_files) != length(d_files)
     throw(ErrorException("Numbers of source files and destination files do not match."))
 
 end
-            
-wi = CoordTrans.readWeightInfo(parsed["w-file"])
+
+
+if parsed["algo"] == "XTT"
+    wi = CoordTrans.readWeightInfo(parsed["w-file"])
+elseif parsed["algo"] == "ESMF"
+    wi = CoordTrans_ESMF.readWeightInfo(parsed["w-file"])
+end
 
 for i in 1:length(s_files)
 
@@ -91,14 +101,33 @@ for i in 1:length(s_files)
     d_file = ( parsed["d-dir"] == "" ) ? d_files[i] : joinpath(parsed["d-dir"], d_files[i])
     println("Trasform: ", s_file, " => ", d_file)
 
-    CoordTrans.convertFile(
-        s_file,
-        d_file,
-        wi,
-        varnames=varnames;
-        xdim = parsed["x-dim"],
-        ydim = parsed["y-dim"],
-        zdim = parsed["z-dim"],
-        tdim = parsed["t-dim"],
-    )
+    if parsed["algo"] == "XTT"
+
+        println("### Algo: XTT ###")
+        CoordTrans.convertFile(
+            s_file,
+            d_file,
+            wi,
+            varnames=varnames;
+            xdim = parsed["x-dim"],
+            ydim = parsed["y-dim"],
+            zdim = parsed["z-dim"],
+            tdim = parsed["t-dim"],
+        )
+
+    elseif parsed["algo"] == "ESMF"
+        println("### Algo: ESMF ###")
+
+        CoordTrans_ESMF.convertFile(
+            s_file,
+            d_file,
+            wi,
+            varnames=varnames;
+            xdim = parsed["x-dim"],
+            ydim = parsed["y-dim"],
+            zdim = parsed["z-dim"],
+            tdim = parsed["t-dim"],
+        )
+
+    end
 end

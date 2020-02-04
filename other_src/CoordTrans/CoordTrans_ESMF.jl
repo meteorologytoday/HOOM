@@ -104,7 +104,7 @@ module CoordTrans_ESMF
     function convertFile(
         in_filename   :: AbstractString,
         out_filename  :: AbstractString,
-        wgt_filename  :: AbstractString;
+        wgt_filename  :: Union{AbstractString, WeightInfo};
         varnames      :: Union{Nothing, Array} = nothing,
         xydim         :: AbstractString = "grid",
         xdim          :: AbstractString = "lon",
@@ -115,7 +115,12 @@ module CoordTrans_ESMF
         ydim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         zdim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
     )
-        wi = readWeightInfo(wgt_filename)
+        if typeof(wgt_filename) <: AbstractString
+            wi = readWeightInfo(wgt_filename)
+        else
+            wi = wgt_filename
+        end
+
 #        sNx, sNy = wi.src_grid_dims    
         dNx, dNy = wi.dst_grid_dims    
 

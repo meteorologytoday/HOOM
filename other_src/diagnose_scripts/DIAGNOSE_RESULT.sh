@@ -57,7 +57,6 @@ chmod +x kill_process.sh
 function join_by { local IFS="$1"; shift; echo "$*"; }
 
 
-
 casenames=()
 legends=()
 colors=()
@@ -107,29 +106,25 @@ fi
 echo "### Parallization (ptasks) in batch of $ptasks ###"
 
 # Transform ocn grid to atm grid
-if [ ! -f "wgt_file.nc" ]; then
+
+source $script_dir/lib_filename.sh
+
+wgt_dir="wgt_$( filename $ocn_domain )_to_$( filename $atm_domain )"
+
+$script_coordtrans_dir/generate_weight.sh    \
+    --s-file=$ocn_domain                     \
+    --d-file=$atm_domain                     \
+    --output-dir="$wgt_dir"                  \
+    --s-mask-value=1.0                       \
+    --d-mask-value=0.0
+
+
+
+# Old code for self-written coordinate transformation codes
+if [ ] && [ ! -f "wgt_file.nc" ]; then
     echo "Weight file \"wgt_file.nc\" does not exist, I am going to generate one..."
     julia -p 4  $script_coordtrans_dir/generate_weight.jl --s-file=$ocn_domain --d-file=$atm_domain --w-file="wgt_file.nc" --s-mask-value=1.0 --d-mask-value=0.0
 
-#    julia $script_coordtrans_dir/generate_SCRIP_format.jl \
-#        --input-file=$ocn_domain    \
-#        --output-file=SCRIP_${ocn_domain}    \
-#        --center-lon=xc     \
-#        --center-lat=yc     \
-#        --corner-lon=xv     \
-#        --corner-lat=yv
-
-#    julia $script_coordtrans_dir/generate_SCRIP_format.jl \
-#        --input-file=$atm_domain    \
-#        --output-file=SCRIP_${atm_domain}    \
-#        --center-lon=xc     \
-#        --center-lat=yc     \
-#        --corner-lon=xv     \
-#        --corner-lat=yv     \
-#        --mask-flip
-
-    #ESMF_RegridWeightGen -s SCRIP_${ocn_domain} -d SCRIP_${atm_domain} -m conserve2nd -w $wgt_file --user_areas
-#    ESMF_RegridWeightGen -s SCRIP_${ocn_domain} -d SCRIP_${atm_domain} -m neareststod -w $wgt_file --user_areas
 fi
 
 
@@ -152,6 +147,7 @@ if [ "$plot_mc_only" == "" ]; then
             --diag-end-year=$diag_end_year      \
             --atm-domain=$atm_domain            \
             --ocn-domain=$ocn_domain            \
+            --wgt-dir=$wgt_dir                  \
             --stop-after-phase1=$stop_after_phase1 \
             --PCA-sparsity=$PCA_sparsity        & 
     done
