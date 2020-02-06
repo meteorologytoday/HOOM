@@ -18,6 +18,8 @@ function calQflux_correction!(
     cfgs...
 )
 
+    do_convadjust = cfgs[:do_convadjust]
+
     Δt = cfgs[:Δt]
     r = Δt / τ
     rr = r / (1.0 + r)
@@ -47,6 +49,7 @@ function calQflux_correction!(
 
         ocn.qflx_correction[i, j] = - ΔT * ocn.h_ML[i, j] * ρc / Δt   # neg => warming
 
+        OC_updateB!(ocn, i, j)
         #=
         if (i, j) == (50, 50)
             println("qflx_correction = ",  ocn.qflx_correction[i, j])
@@ -54,5 +57,19 @@ function calQflux_correction!(
         =#
 
     end
+
+    if do_convadjust
+#        println("DO ADJUSTMENT IN QFLUX")
+        @loop_hor ocn i j let
+            OC_doConvectiveAdjustment!(ocn, i, j;)
+
+#            old_FLDO=ocn.FLDO[i,j]
+#            Δb = (old_FLDO == -1 ) ? 0.0 : ocn.b_ML[i, j] - ocn.bs[old_FLDO, i, j]
+#            if Δb < -3e-6
+#                println(format("[QfluxCorrection] At {:d}, {:d}: Δb = {:f}. Even after adjustment.", i, j, Δb))
+#            end
+        end
+    end
+
 
 end

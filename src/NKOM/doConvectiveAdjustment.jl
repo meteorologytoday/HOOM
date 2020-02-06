@@ -94,7 +94,7 @@ function doConvectiveAdjustment!(;
 
                 Δb = bs[i] - ((i==FLDO) ? new_b_ML : bs[i-1])
                 #println("FLDO:", FLDO, "; i:", i, "; Δb:", Δb)
-                if Δb > 0.0
+                if Δb > 0.0  # Instability
                     if_adjust = true
                     stage = :search_top_layer
                     peak_layer = i
@@ -238,8 +238,10 @@ function doConvectiveAdjustment!(;
 
 
                 else
+                   
                     Ts[top_layer:bot_layer] .= mixed_T
                     Ss[top_layer:bot_layer] .= mixed_S
+
                 end 
 
                 # update buoyancy
