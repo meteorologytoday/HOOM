@@ -103,6 +103,19 @@ function stepOcean_MLDynamics!(
                 Δb = 0.0
             end
 
+            #=
+            if Δb < -3e-6
+                println(format("[MLDynamics] At {:d}, {:d}: Δb = {:f}. FLDO = {:d}", i, j, Δb, old_FLDO))
+                println("See if T_ML and Ts are inconsistent: ")
+                println("T_ML: ", ocn.T_ML[i, j])
+                println("Ts  : ", ocn.Ts[:, i, j])
+                println(format("ΔT  : {:e}", ocn.T_ML[i, j] - ocn.Ts[1, i, j]))
+                println("See if S_ML and Ss are inconsistent: ")
+                println("S_ML: ", ocn.S_ML[i, j])
+                println("Ss  : ", ocn.Ss[:, i, j])
+                println(format("ΔS  : {:e}", ocn.S_ML[i, j] - ocn.Ss[1, i, j]))
+            end
+=#
 #            if Δb < 0.0
 #                FLDO = ocn.FLDO[i, j]
 
