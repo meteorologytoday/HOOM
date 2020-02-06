@@ -18,6 +18,8 @@ function calQflux_correction!(
     cfgs...
 )
 
+    do_convadjust = cfgs[:do_convadjust]
+
     Δt = cfgs[:Δt]
     r = Δt / τ
     rr = r / (1.0 + r)
@@ -54,5 +56,12 @@ function calQflux_correction!(
         =#
 
     end
+
+    if do_convadjust
+        @loop_hor ocn i j let
+            OC_doConvectiveAdjustment!(ocn, i, j;)
+        end
+    end
+
 
 end
