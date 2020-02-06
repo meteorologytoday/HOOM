@@ -58,6 +58,7 @@ function calQflux_correction!(
     end
 
     if do_convadjust
+        println("DO ADJUSTMENT IN QFLUX")
         @loop_hor ocn i j let
             OC_doConvectiveAdjustment!(ocn, i, j;)
         end
