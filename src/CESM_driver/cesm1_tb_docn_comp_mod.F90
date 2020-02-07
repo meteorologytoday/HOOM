@@ -93,7 +93,10 @@ module docn_comp_mod
 
   integer(IN)   :: kt,ks,ku,kv,kdhdx,kdhdy,kq  ! field indices
   integer(IN)   :: kswnet,klwup,klwdn,ksen,klat,kmelth,ksnow,kioff
-  integer(IN)   :: kh,kqbot
+
+  ! ===== XTT MODIFIED BEGIN =====
+  integer(IN)   :: kh, kqbot_t, kqbot_s
+  ! ===== XTT MODIFIED END =====
 
   type(shr_strdata_type) :: SDOCN
   type(mct_rearr) :: rearr
@@ -104,27 +107,29 @@ module docn_comp_mod
   ! ===== XTT MODIFIED BEGIN =====
   ! OLD code ! character(len=*),parameter :: flds_strm = 'strm_h:strm_qbot'
 
-  character(len=*),parameter :: flds_strm = 'strm_h:strm_qbot:strm_tclim:strm_sclim'
+  character(len=*),parameter :: flds_strm = 'strm_h:strm_qbot_t:strm_qbot_s:strm_tclim:strm_sclim'
 
 
 
   ! OLD code ktrans = 28, (without tclim, strm_tclim, sclim, strm_sclim)
 
-  integer(IN),parameter :: ktrans = 30
+  integer(IN),parameter :: ktrans = 31
   character(12),parameter  :: avifld(1:ktrans) = &
      (/ "ifrac       ","pslv        ","duu10n      ","taux        ","tauy        ", &
         "swnet       ","lat         ","sen         ","lwup        ","lwdn        ", &
         "melth       ","salt        ","prec        ","snow        ","rain        ", &
         "evap        ","meltw       ","roff        ","ioff        ",                &
         "t           ","u           ","v           ","dhdx        ","dhdy        ", &
-        "s           ","q           ","h           ","qbot        ","tclim       ", "sclim"  /)
+        "s           ","q           ","h           ","qbot_t      ","qbot_s      ", &
+        "tclim       ","sclim       "  /)
   character(12),parameter  :: avofld(1:ktrans) = &
      (/ "Si_ifrac    ","Sa_pslv     ","So_duu10n   ","Foxx_taux   ","Foxx_tauy   ", &
         "Foxx_swnet  ","Foxx_lat    ","Foxx_sen    ","Foxx_lwup   ","Faxa_lwdn   ", &
         "Fioi_melth  ","Fioi_salt   ","Faxa_prec   ","Faxa_snow   ","Faxa_rain   ", &
         "Foxx_evap   ","Fioi_meltw  ","Forr_roff   ","Forr_ioff   ",                &
         "So_t        ","So_u        ","So_v        ","So_dhdx     ","So_dhdy     ", &
-        "So_s        ","Fioo_q      ","strm_h      ","strm_qbot   ","strm_tclim  ", "strm_sclim"  /)
+        "So_s        ","Fioo_q      ","strm_h      ","strm_qbot_t ","strm_qbot_s ", &
+        "strm_tclim  ","strm_sclim  "  /)
 
 
   ! ===== XTT MODIFIED END =====
@@ -140,7 +145,8 @@ module docn_comp_mod
   integer :: x_iostat, x_fds(2)
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
-                           x_ifrac(:), x_q(:), x_frwflx(:), x_qflx(:), x_tclim(:), x_sclim(:) &
+                           x_ifrac(:), x_q(:), x_frwflx(:), x_qflx_t(:), x_qflx_s(:), &
+                           x_tclim(:), x_sclim(:) &
                            x_mld(:), x_mask(:) 
 
   real(R8), pointer     :: x_blob_send(:), x_blob_recv(:)
@@ -456,11 +462,13 @@ subroutine docn_comp_init( EClock, cdata, x2o, o2x, NLFilename )
     call mct_aVect_zero(avstrm)
 
     kh      = mct_aVect_indexRA(avstrm,'strm_h')
-    kqbot   = mct_aVect_indexRA(avstrm,'strm_qbot')
+
 
 
     ! ===== XTT MODIFIED BEGIN =====
     
+    kqbot_t = mct_aVect_indexRA(avstrm,'strm_qbot_t')
+    kqbot_s = mct_aVect_indexRA(avstrm,'strm_qbot_s')
     ktclim  = mct_aVect_indexRA(avstrm,'strm_tclim')
     ksclim  = mct_aVect_indexRA(avstrm,'strm_sclim')
     
@@ -727,7 +735,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         kevap  = mct_aVect_indexRA(x2o,'Foxx_evap')
 
 
-        allocate(x_qflx(lsize))
+        allocate(x_qflx_t(lsize))
+        allocate(x_qflx_s(lsize))
         allocate(x_tclim(lsize))
         allocate(x_sclim(lsize))
         allocate(x_mld(lsize))
@@ -740,7 +749,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         allocate(x_mask(lsize))
         allocate(x_frwflx(lsize))
 
-        allocate(x_blob_send(lsize*10))
+        allocate(x_blob_send(lsize*11))
         allocate(x_blob_recv(lsize*2))
 
         do n = 1,lsize
@@ -748,7 +757,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                 somtp(n) = o2x%rAttr(kt,n) + TkFrz
             end if
 
-            x_qflx(n)    = 0.0_R8
+            x_qflx_t(n)    = 0.0_R8
+            x_qflx_s(n)    = 0.0_R8
             x_tclim(n)   = 0.0_R8
             x_sclim(n)   = 0.0_R8
             x_mld(n)     = 0.0_R8
@@ -778,7 +788,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
    
         ! Variable order matters
-        x_msg = trim(x_msg)//"VAR2D:QFLX,TCLIM,SCLIM,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
+        x_msg = trim(x_msg)//"VAR2D:QFLX_T,QFLX_S,TCLIM,SCLIM,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
         if (read_restart) then
             x_msg = trim(x_msg)//"READ_RESTART:TRUE;"
         else
@@ -848,7 +858,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_tauy(n)  = x2o%rAttr(ktauy,n)
             x_ifrac(n) = x2o%rAttr(kifrac,n)
 
-            x_qflx(n)  = avstrm%rAttr(kqbot,n)
+            x_qflx_t(n)  = avstrm%rAttr(kqbot_t,n)
+            x_qflx_s(n)  = avstrm%rAttr(kqbot_s,n)
             x_tclim(n) = avstrm%rAttr(ktclim,n)
             x_sclim(n) = avstrm%rAttr(ksclim,n)
             x_mld(n)   = avstrm%rAttr(kh,n)
@@ -856,16 +867,17 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
           end if
         end do
         
-        call copy_into_blob(x_blob_send, lsize, 1, x_qflx) 
-        call copy_into_blob(x_blob_send, lsize, 2, x_tclim) 
-        call copy_into_blob(x_blob_send, lsize, 3, x_sclim) 
-        call copy_into_blob(x_blob_send, lsize, 4, x_mld) 
-        call copy_into_blob(x_blob_send, lsize, 5, x_nswflx) 
-        call copy_into_blob(x_blob_send, lsize, 6, x_swflx) 
-        call copy_into_blob(x_blob_send, lsize, 7, x_taux) 
-        call copy_into_blob(x_blob_send, lsize, 8, x_tauy) 
-        call copy_into_blob(x_blob_send, lsize, 9, x_ifrac) 
-        call copy_into_blob(x_blob_send, lsize, 10, x_frwflx) 
+        call copy_into_blob(x_blob_send, lsize, 1, x_qflx_t) 
+        call copy_into_blob(x_blob_send, lsize, 2, x_qflx_s) 
+        call copy_into_blob(x_blob_send, lsize, 3, x_tclim) 
+        call copy_into_blob(x_blob_send, lsize, 4, x_sclim) 
+        call copy_into_blob(x_blob_send, lsize, 5, x_mld) 
+        call copy_into_blob(x_blob_send, lsize, 6, x_nswflx) 
+        call copy_into_blob(x_blob_send, lsize, 7, x_swflx) 
+        call copy_into_blob(x_blob_send, lsize, 8, x_taux) 
+        call copy_into_blob(x_blob_send, lsize, 9, x_tauy) 
+        call copy_into_blob(x_blob_send, lsize, 10, x_ifrac) 
+        call copy_into_blob(x_blob_send, lsize, 11, x_frwflx) 
  
         call stop_if_bad(ptm_sendData(x_PTI, x_msg, x_nullbin),  "RUN_SEND")
         call stop_if_bad(ptm_sendData(x_PTI, "DATA", x_blob_send), "RUN_SEND_DATA")
@@ -924,7 +936,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                 x2o%rAttr(ksen  ,n) + &  ! sensible
                 x2o%rAttr(klat  ,n) + &  ! latent
                 x2o%rAttr(kmelth,n) - &  ! ice melt
-                avstrm%rAttr(kqbot ,n) - &  ! flux at bottom
+                avstrm%rAttr(kqbot_t ,n) - &  ! flux at bottom
                 (x2o%rAttr(ksnow,n)+x2o%rAttr(kioff,n))*latice) * &  ! latent by prec and roff
                 dt/(cpsw*rhosw*hn)
              !--- compute ice formed or melt potential ---

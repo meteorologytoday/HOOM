@@ -122,8 +122,10 @@ module CESMCORE_NKOM
             "TAUY"   => in_flds.tauy,
             "IFRAC"  => in_flds.ifrac,
             "FRWFLX" => in_flds.frwflx,
-            "QFLX"   => in_flds.qflx,
+            "QFLX_T" => in_flds.qflx_T,
+            "QFLX_S" => in_flds.qflx_S,
             "TCLIM"  => in_flds.sst,
+            "SCLIM"  => in_flds.sss,
             "MLD"    => in_flds.h_ML,
         )
 
