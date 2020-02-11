@@ -91,10 +91,12 @@ module docn_comp_mod
   real(R8),parameter :: latice  = shr_const_latice  ! latent heat of fusion
   real(R8),parameter :: ocnsalt = shr_const_ocn_ref_sal  ! ocean reference salinity
 
-  integer(IN)   :: kt,ks,ku,kv,kdhdx,kdhdy,kq  ! field indices
-  integer(IN)   :: kswnet,klwup,klwdn,ksen,klat,kmelth,ksnow,kioff
-
   ! ===== XTT MODIFIED BEGIN =====
+
+  integer(IN)   :: kt,ks,ku,kv,kdhdx,kdhdy,kq  ! field indices
+  integer(IN)   :: kswnet,klwup,klwdn,ksen,klat,kmelth,ksnow,kioff,kmeltw
+
+
   integer(IN)   :: kh, kqbot_t, kqbot_s
   ! ===== XTT MODIFIED END =====
 
@@ -455,6 +457,7 @@ subroutine docn_comp_init( EClock, cdata, x2o, o2x, NLFilename )
     ksen   = mct_aVect_indexRA(x2o,'Foxx_sen')
     klat   = mct_aVect_indexRA(x2o,'Foxx_lat')
     kmelth = mct_aVect_indexRA(x2o,'Fioi_melth')
+    kmeltw = mct_aVect_indexRA(x2o,'Fioi_meltw')
     ksnow  = mct_aVect_indexRA(x2o,'Faxa_snow')
     kioff  = mct_aVect_indexRA(x2o,'Forr_ioff')
 
@@ -851,7 +854,8 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
  
             ! fresh water flux in unit of kg / m^2 / s.
             ! Positive means upward (evap), negative means downward (precip)
-            x_frwflx(n) =  x2o%rAttr(kevap, n) - x2o%rAttr(kprec, n)
+            x_frwflx(n) =  x2o%rAttr(kevap, n) - x2o%rAttr(kprec, n) &
+                         - x2o%rAttr(kmeltw, n)
                        
             x_taux(n)  = x2o%rAttr(ktaux,n)
             x_tauy(n)  = x2o%rAttr(ktauy,n)
