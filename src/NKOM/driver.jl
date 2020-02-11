@@ -451,8 +451,7 @@ function run!(
 
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
 
-            # 2020/01/23 Q-flux mode
-            if cfgs[:qflx_finding] == :on
+            if cfgs[:do_qflx_finding]
                 calQflux_correction!(subocn.worker_ocn; Δt = Δt, cfgs...)
             end
 

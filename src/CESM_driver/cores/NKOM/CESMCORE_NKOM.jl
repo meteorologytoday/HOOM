@@ -124,8 +124,8 @@ module CESMCORE_NKOM
             "FRWFLX" => in_flds.frwflx,
             "QFLX_T" => in_flds.qflx_T,
             "QFLX_S" => in_flds.qflx_S,
-            "TCLIM"  => in_flds.sst,
-            "SCLIM"  => in_flds.sss,
+            "TCLIM"  => in_flds.Tclim,
+            "SCLIM"  => in_flds.Sclim,
             "MLD"    => in_flds.h_ML,
         )
 

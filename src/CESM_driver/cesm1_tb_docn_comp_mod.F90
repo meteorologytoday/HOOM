@@ -144,10 +144,10 @@ module docn_comp_mod
 
   integer :: x_iostat, x_fds(2)
 
-  real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:), &
-                           x_ifrac(:), x_q(:), x_frwflx(:), x_qflx_t(:), x_qflx_s(:), &
-                           x_tclim(:), x_sclim(:) &
-                           x_mld(:), x_mask(:) 
+  real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:),  &
+                           x_ifrac(:), x_q(:), x_frwflx(:),                &
+                           x_qflx_t(:), x_qflx_s(:),                       &
+                           x_tclim(:),  x_sclim(:), x_mld(:), x_mask(:) 
 
   real(R8), pointer     :: x_blob_send(:), x_blob_recv(:)
   real(R8)              :: x_nullbin(1) = (/ 0.0 /)
@@ -849,10 +849,9 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                         - (   x2o%rAttr(ksnow,n) & 
                             + x2o%rAttr(kioff,n) ) * latice ! latent by snow and roff
  
-            ! fresh water flux in terms of m / s. Positive means upward (evap),
-            ! negative means downward (precip)
-            x_frwflx(n) = ( x2o%rAttr(kevap, n) - &
-                            x2o%rAttr(kprec, n) ) / SHR_CONST_RHOFW 
+            ! fresh water flux in unit of kg / m^2 / s.
+            ! Positive means upward (evap), negative means downward (precip)
+            x_frwflx(n) =  x2o%rAttr(kevap, n) - x2o%rAttr(kprec, n)
                        
             x_taux(n)  = x2o%rAttr(ktaux,n)
             x_tauy(n)  = x2o%rAttr(ktauy,n)

@@ -18,15 +18,17 @@
       </domainInfo>
       <fieldInfo>
          <variableNames>
-            T     t
-            S     s
-            U     u
-            V     v
-            dhdx  dhdx
-            dhdy  dhdy
-            hblt  h
-            qdp   qbot
-            Tclim tclim
+            T       t
+            S       s
+            U       u
+            V       v
+            dhdx    dhdx
+            dhdy    dhdy
+            hblt    h
+            qflux_T qbot_t
+            qflux_S qbot_s
+            Tclim   tclim
+            Sclim   sclim
          </variableNames>
          <filePath>
             $FORCING_DIR 

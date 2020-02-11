@@ -6,7 +6,7 @@ function calNetTEMPBudget!(
     swflx    = ocn.in_flds.swflx
     nswflx   = ocn.in_flds.nswflx
     frwflx   = ocn.in_flds.frwflx
-    qflx     = ocn.in_flds.qflx
+    qflx_T   = ocn.in_flds.qflx_T
 
     TFLUX_DIV_implied  = ocn.TFLUX_DIV_implied
     qflx2atm           = ocn.qflx2atm
@@ -19,9 +19,9 @@ function calNetTEMPBudget!(
         TFLUX_DIV_implied[i, j] =  ( - ( nswflx[i, j] + swflx[i, j] ) + max(qflx2atm[i, j], 0.0) ) / ρc + TSAS_clim[i, j] + TFLUX_bot[i, j] - dTEMPdt[i, j]
     end
 
-    if cfgs[:qflx_scheme] == :energy_flux
+    if cfgs[:do_qflx]
         @loop_hor ocn i j let
-            TFLUX_DIV_implied[i, j] +=  - qflx[i, j] / ρc
+            TFLUX_DIV_implied[i, j] +=  - qflx_T[i, j] / ρc
         end
     end
 
@@ -37,9 +37,18 @@ function calNetSALTBudget!(
     SFLUX_bot             = ocn.SFLUX_bot
     SSAS_clim          = ocn.SSAS_clim
     dSALTdt            = ocn.dSALTdt
+    
+    qflx_S   = ocn.in_flds.qflx_S
 
     @loop_hor ocn i j let
         SFLUX_DIV_implied[i, j] = SSAS_clim[i, j] - SFLUX_top[i, j] + SFLUX_bot[i, j] - dSALTdt[i, j]
     end
+
+    if cfgs[:do_qflx]
+        @loop_hor ocn i j let
+            SFLUX_DIV_implied[i, j] +=  - qflx_S[i, j] / ρ
+        end
+    end
+
 
 end
