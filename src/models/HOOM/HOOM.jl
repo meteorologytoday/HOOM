@@ -38,10 +38,10 @@ end
     end
 
 
-    @hinclude("../share/DisplacedPoleCoordinate.jl")
-    @hinclude("../share/MapInfo.jl")
+    @hinclude("../../share/DisplacedPoleCoordinate.jl")
+    @hinclude("../../share/MapInfo.jl")
        
-    @hinclude("../share/constants.jl")
+    @hinclude("../../share/constants.jl")
     @hinclude("InputFields.jl")
     @hinclude("AccumulativeVariables.jl")
     @hinclude("SpeedUpMtx3D.jl")
