@@ -18,6 +18,8 @@ function calQflux_correction!(
     cfgs...
 )
 
+    do_convadjust = cfgs[:do_convadjust]
+
     Δt = cfgs[:Δt]
     r = Δt / τ
     rr = r / (1.0 + r)
@@ -25,34 +27,37 @@ function calQflux_correction!(
     @loop_hor ocn i j let
        
         # Euler backward method
-        #=
-        if (i, j) == (50, 50)
-            println("ocn.in_flds.sst[i, j] = ", ocn.in_flds.sst[i, j])
-            println("ocn.T_ML[i, j] = ", ocn.T_ML[i, j])
-            println("ΔT = ", r * (ocn.in_flds.sst[i, j] - ocn.T_ML[i, j]) / (1.0 + r))
-        end
-        =#
 
         T_ML = ocn.T_ML[i, j]
+        S_ML = ocn.S_ML[i, j]
         FLDO = ocn.FLDO[i, j]
  
-        ΔT = rr * (ocn.in_flds.sst[i, j] - T_ML)
+        ΔT = rr * (ocn.in_flds.Tclim[i, j] - T_ML)
+        ΔS = rr * (ocn.in_flds.Sclim[i, j] - S_ML)
         T_ML += ΔT
+        S_ML += ΔS
         ocn.T_ML[i, j] = T_ML
+        ocn.S_ML[i, j] = S_ML
         if FLDO > 1
             ocn.Ts[1:FLDO-1, i, j] .= T_ML
+            ocn.Ss[1:FLDO-1, i, j] .= S_ML
         elseif FLDO == -1
             ocn.Ts[1:ocn.Nz[i, j], i, j] .= T_ML
+            ocn.Ss[1:ocn.Nz[i, j], i, j] .= S_ML
         end
 
-        ocn.qflx_correction[i, j] = - ΔT * ocn.h_ML[i, j] * ρc / Δt   # neg => warming
+        ocn.qflx_T_correction[i, j] = - ΔT * ocn.h_ML[i, j] * ρc / Δt   # neg => warming
+        ocn.qflx_S_correction[i, j] = - ΔS * ocn.h_ML[i, j] * ρ  / Δt   # neg => warming
 
-        #=
-        if (i, j) == (50, 50)
-            println("qflx_correction = ",  ocn.qflx_correction[i, j])
-        end
-        =#
+        OC_updateB!(ocn, i, j)
 
     end
+
+    if do_convadjust
+        @loop_hor ocn i j let
+            OC_doConvectiveAdjustment!(ocn, i, j;)
+        end
+    end
+
 
 end

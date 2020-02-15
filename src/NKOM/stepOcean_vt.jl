@@ -6,7 +6,7 @@ function stepOcean_MLDynamics!(
 )
 
     # Unpacking
-    qflx_scheme   = cfgs[:qflx_scheme]
+    do_qflx       = cfgs[:do_qflx]
     use_h_ML      = cfgs[:use_h_ML]
     Δt            = cfgs[:Δt]
     do_convadjust = cfgs[:do_convadjust]
@@ -21,7 +21,8 @@ function stepOcean_MLDynamics!(
     swflx   = ocn.in_flds.swflx
     nswflx  = ocn.in_flds.nswflx
     frwflx  = ocn.in_flds.frwflx
-    qflx    = ocn.in_flds.qflx
+    qflx_T  = ocn.in_flds.qflx_T
+    qflx_S  = ocn.in_flds.qflx_S
 
 #=
     println("get in hz ##### Ts: ", ocn.Ts[1:5, 48, 89])
@@ -53,11 +54,10 @@ function stepOcean_MLDynamics!(
         #       conservation of buoyancy in water column
 
 
-        #surf_Tnswflx = ( nswflx[i, j] + ( ( use_qflx ) ? qflx[i, j] : 0.0 )) / (ρ*c_p) 
         surf_Tnswflx = nswflx[i, j] / (ρ*c_p) 
         surf_Tswflx  = swflx[i, j] / (ρ*c_p)
         surf_Jflx    = g * α * surf_Tswflx
-        surf_Sflx    = - frwflx[i, j] * ocn.S_ML[i, j]
+        surf_Sflx    = - frwflx[i, j] * ocn.S_ML[i, j] / ρ 
         surf_bflx    = g * ( α * surf_Tnswflx - β * surf_Sflx )
         
         ocn.SFLUX_top[i, j] = surf_Sflx
@@ -103,6 +103,19 @@ function stepOcean_MLDynamics!(
                 Δb = 0.0
             end
 
+            #=
+            if Δb < -3e-6
+                println(format("[MLDynamics] At {:d}, {:d}: Δb = {:f}. FLDO = {:d}", i, j, Δb, old_FLDO))
+                println("See if T_ML and Ts are inconsistent: ")
+                println("T_ML: ", ocn.T_ML[i, j])
+                println("Ts  : ", ocn.Ts[:, i, j])
+                println(format("ΔT  : {:e}", ocn.T_ML[i, j] - ocn.Ts[1, i, j]))
+                println("See if S_ML and Ss are inconsistent: ")
+                println("S_ML: ", ocn.S_ML[i, j])
+                println("Ss  : ", ocn.Ss[:, i, j])
+                println(format("ΔS  : {:e}", ocn.S_ML[i, j] - ocn.Ss[1, i, j]))
+            end
+=#
 #            if Δb < 0.0
 #                FLDO = ocn.FLDO[i, j]
 
@@ -173,7 +186,7 @@ function stepOcean_MLDynamics!(
         ocn.dSdt_ent[i, j] = (if_entrainment) ? (new_S_ML - old_S_ML) / Δt : 0.0
 
         # Add in external surface flux effect on SSS
-        new_S_ML = max( (new_int_S_ML - surf_Sflx * Δt) / new_h_ML, 0.0)
+        new_S_ML = (new_int_S_ML - surf_Sflx * Δt) / new_h_ML
 
         # Calculate the effect of entrainment on SST
         new_int_T_ML = OC_getIntegratedTemperature(ocn, i, j; target_z = -new_h_ML)
@@ -184,12 +197,11 @@ function stepOcean_MLDynamics!(
         new_T_ML = (new_int_T_ML - surf_Tnswflx * Δt) / new_h_ML
 
         # Q-flux 
-        if qflx_scheme == :energy_flux
+        if do_qflx
 
-            new_T_ML -= qflx[i, j] * Δt / (ρ * c_p * new_h_ML)
+            new_T_ML -= qflx_T[i, j] * Δt / (ρ * c_p * new_h_ML)
+            new_S_ML -= qflx_S[i, j] * Δt / (ρ       * new_h_ML)
 
-        elseif qflx_scheme == :temperature_flux
-            new_T_ML -= qflx[i, j] * Δt
         end
 
         # Update mixed-layer

@@ -42,7 +42,7 @@ module CESMCORE_NKOM
             (:init_file,                    false, (nothing, String,),          nothing),
             (:advection_scheme,              true, (:static, :ekman_all_in_ML, :ekman_simple_partition, :ekman_codron2012_partition,),  nothing),
             (:MLD_scheme,                    true, (:prognostic, :datastream,), nothing),
-            (:Qflux_scheme,                  true, (:energy_flux, :temperature_flux, :none),                nothing),
+            (:Qflux_scheme,                  true, (:on, :off,),                nothing),
             (:Qflux_finding,                 true, (:on, :off,),                nothing),
             (:vertical_diffusion_scheme,     true, (:on, :off,),                nothing),
             (:horizontal_diffusion_scheme,   true, (:on, :off,),                nothing),
@@ -122,8 +122,10 @@ module CESMCORE_NKOM
             "TAUY"   => in_flds.tauy,
             "IFRAC"  => in_flds.ifrac,
             "FRWFLX" => in_flds.frwflx,
-            "QFLX"   => in_flds.qflx,
-            "TCLIM"  => in_flds.sst,
+            "QFLX_T" => in_flds.qflx_T,
+            "QFLX_S" => in_flds.qflx_S,
+            "TCLIM"  => in_flds.Tclim,
+            "SCLIM"  => in_flds.Sclim,
             "MLD"    => in_flds.h_ML,
         )
 
@@ -246,17 +248,17 @@ module CESMCORE_NKOM
 
         NKOM.run!(
             MD.ocn;
-            substeps      = MD.configs[:substeps],
-            use_h_ML      = MD.configs[:MLD_scheme] == :datastream,
-            Δt            = Δt,
-            do_vert_diff  = MD.configs[:vertical_diffusion_scheme] == :on,
-            do_horz_diff  = MD.configs[:horizontal_diffusion_scheme] == :on,
-            do_relaxation = MD.configs[:relaxation_scheme] == :on,
-            do_convadjust = MD.configs[:convective_adjustment_scheme] == :on,
-            rad_scheme    = MD.configs[:radiation_scheme],
-            adv_scheme    = MD.configs[:advection_scheme],
-            qflx_scheme   = MD.configs[:Qflux_scheme],
-            qflx_finding  = MD.configs[:Qflux_finding],
+            substeps         = MD.configs[:substeps],
+            use_h_ML         = MD.configs[:MLD_scheme] == :datastream,
+            Δt               = Δt,
+            do_vert_diff     = MD.configs[:vertical_diffusion_scheme] == :on,
+            do_horz_diff     = MD.configs[:horizontal_diffusion_scheme] == :on,
+            do_relaxation    = MD.configs[:relaxation_scheme] == :on,
+            do_convadjust    = MD.configs[:convective_adjustment_scheme] == :on,
+            rad_scheme       = MD.configs[:radiation_scheme],
+            adv_scheme       = MD.configs[:advection_scheme],
+            do_qflx          = MD.configs[:Qflux_scheme] == :on,
+            do_qflx_finding  = MD.configs[:Qflux_finding] == :on,
         )
 
         
