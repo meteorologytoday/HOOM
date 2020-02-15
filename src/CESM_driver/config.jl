@@ -51,15 +51,10 @@ if !(@isdefined OMMODULE)
         throw(ErrorException("Core ocean module is not provided. Please set --core option, or define OMMODULE in configuration file."))
     else
         module_name = "CESMCORE_" * core_name
-        #module_symb = Symbol(module_name)
-        core_file = joinpath(dirname(@__FILE__), "cores", core_name, module_name * ".jl")
+        
+        core_file = joinpath(dirname(@__FILE__), "..", "models", core_name, module_name * ".jl")
         println("Selected core: ", core_name, " => ", core_file )
-        #=
-        for pid in procs()
-            remotecall_fetch(include, pid, core_file)
-            remotecall_fetch(eval, pid, :(using .$(module_symb))) 
-        end
-        =#
+        
         include(core_file)
         OMMODULE = getfield(Main, Symbol(module_name))
     end 
