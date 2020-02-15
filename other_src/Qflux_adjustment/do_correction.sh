@@ -32,8 +32,8 @@ for lopt in "${lopts[@]}"; do
 done
 
 cp $old_qflux_file tmp.nc
-ncks -A qflx_correction_mean $correction_file tmp.nc
+ncks -A -v qflx_correction_mean $correction_file tmp.nc
 ncap2 -O -s 'qdp = qdp + qflx_correction_mean' tmp.nc tmp.nc
-ncks -x -v qflx_correction_mean $new_qflux_file
+ncks -O -x -v qflx_correction_mean tmp.nc $new_qflux_file
 
 

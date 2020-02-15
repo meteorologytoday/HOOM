@@ -2,6 +2,7 @@ using NCDatasets
 using ArgParse
 using JSON
 using Statistics
+using Formatting
 
 function parse_commandline()
 
@@ -52,7 +53,7 @@ print(json(parsed, 4))
 dom = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 doy = sum(dom)
 
-fday = zeros(12)
+fday = zeros(Int64, 12)
 fday[1] = 1
 for m=2:12
     fday[m] = fday[m-1] + dom[m-1]
@@ -84,6 +85,9 @@ let
     global cnt = zeros(Float64, doy)  # this is nece
 
     for m=1:12
+
+        println(format("Doing month : {:02d}", m))
+
         for y=parsed["beg-year"]:parsed["end-year"]
 
             Dataset(format("{:s}{:04d}-{:02d}.nc", parsed["data-file-prefix"], y, m)) do ds
@@ -92,14 +96,14 @@ let
                 _, _, ndays = size(qflx_correction)
 
                 if m == 1
-                    if ndays != 31 && ( ! ndays in (29, 30) )
+                    if ndays != 31 && ( ! (ndays in (29, 30) ))
                         throw( ErrorException("January does not contains expected days. (Not 29, 30, or 31 days)") )
                     end
                     
                     wedge_size = 31 - ndays
                     beg_day = wedge_size+1
                     end_day = 31
-                    qflux_correction_mean[:, :, beg_day:end_day ] += qflx_correction
+                    qflx_correction_mean[:, :, beg_day:end_day ] += qflx_correction
                     cnt[beg_day:end_day] .+= 1.0
                     
                 else
@@ -110,7 +114,7 @@ let
                     
                     beg_day = fday[m]
                     end_day = beg_day + dom[m] - 1
-                    qflux_correction_mean[:, :, beg_day:end_day ] += qflx_correction
+                    qflx_correction_mean[:, :, beg_day:end_day ] += qflx_correction
                     cnt[beg_day:end_day] .+= 1.0
  
                 end
@@ -123,9 +127,16 @@ let
  
     for d=1:doy
         if cnt[d] != 0.0
-            qflux_correction_mean[:, :, d] ./= cnt[d]
+            qflx_correction_mean[:, :, d] ./= cnt[d]
         end
     end
+
+    # Apply mask
+    idx = mask .== 0.0
+    for d=1:doy
+        view(qflx_correction_mean, :, :, d)[idx] .= NaN
+    end
+
 
 end
 
