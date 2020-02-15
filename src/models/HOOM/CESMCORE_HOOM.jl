@@ -1,9 +1,9 @@
-include(joinpath(@__DIR__, "..", "..", "..", "HOOM", "HOOM.jl"))
+include(joinpath(@__DIR__, "HOOM.jl"))
 module CESMCORE_HOOM
 
-    include(joinpath(@__DIR__, "..", "..", "..", "share", "RecordTool.jl"))
-    include(joinpath(@__DIR__, "..", "..", "..", "share", "CheckDict.jl"))
-    include(joinpath(@__DIR__, "..", "..", "..", "share", "AppendLine.jl"))
+    include(joinpath(@__DIR__, "..", "..", "share", "RecordTool.jl"))
+    include(joinpath(@__DIR__, "..", "..", "share", "CheckDict.jl"))
+    include(joinpath(@__DIR__, "..", "..", "share", "AppendLine.jl"))
 
     using Formatting
     using ..NetCDFIO

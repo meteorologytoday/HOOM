@@ -51,8 +51,8 @@ if !(@isdefined OMMODULE)
         throw(ErrorException("Core ocean module is not provided. Please set --core option, or define OMMODULE in configuration file."))
     else
         module_name = "CESMCORE_" * core_name
-        
-        core_file = joinpath(dirname(@__FILE__), "..", "models", core_name, module_name * ".jl")
+        println("BASE: " * @__FILE__) 
+        core_file = normpath(joinpath(dirname(@__FILE__), "..", "models", core_name, module_name * ".jl"))
         println("Selected core: ", core_name, " => ", core_file )
         
         include(core_file)
