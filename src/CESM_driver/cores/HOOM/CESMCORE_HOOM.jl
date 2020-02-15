@@ -1,5 +1,5 @@
-include(joinpath(@__DIR__, "..", "..", "..", "NKOM", "NKOM.jl"))
-module CESMCORE_NKOM
+include(joinpath(@__DIR__, "..", "..", "..", "HOOM", "HOOM.jl"))
+module CESMCORE_HOOM
 
     include(joinpath(@__DIR__, "..", "..", "..", "share", "RecordTool.jl"))
     include(joinpath(@__DIR__, "..", "..", "..", "share", "CheckDict.jl"))
@@ -7,18 +7,18 @@ module CESMCORE_NKOM
 
     using Formatting
     using ..NetCDFIO
-    using ..NKOM
+    using ..HOOM
     using NCDatasets
     using .RecordTool
 
-    name = "NKOM"
+    name = "HOOM"
 
     days_of_mon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
-    mutable struct NKOM_DATA
+    mutable struct HOOM_DATA
         casename    :: AbstractString
         map         :: NetCDFIO.MapInfo
-        ocn         :: NKOM.Ocean
+        ocn         :: HOOM.Ocean
 
         x2o         :: Dict
         o2x         :: Dict
@@ -93,7 +93,7 @@ module CESMCORE_NKOM
         if typeof(init_file) <: AbstractString
 
             println("Initial ocean with profile: ", init_file)
-            ocn = NKOM.loadSnapshot(init_file)
+            ocn = HOOM.loadSnapshot(init_file)
         
         else
 
@@ -102,7 +102,7 @@ module CESMCORE_NKOM
         end
 
         println("Initializing parallization...")
-        NKOM.init(ocn)
+        HOOM.init(ocn)
 
         in_flds = ocn.in_flds
 
@@ -136,7 +136,7 @@ module CESMCORE_NKOM
         )
         
         recorders = Dict()
-        complete_variable_list = NKOM.getCompleteVariableList(ocn)
+        complete_variable_list = HOOM.getCompleteVariableList(ocn)
 
         for rec_key in [:daily_record, :monthly_record]
     
@@ -172,7 +172,7 @@ module CESMCORE_NKOM
                
         end
 
-        return NKOM_DATA(
+        return HOOM_DATA(
             casename,
             map,
             ocn,
@@ -185,7 +185,7 @@ module CESMCORE_NKOM
     end
 
     function run(
-        MD            :: NKOM_DATA;
+        MD            :: HOOM_DATA;
         t             :: AbstractArray{Integer},
         t_cnt         :: Integer,
         t_flags       :: Dict,
@@ -246,7 +246,7 @@ module CESMCORE_NKOM
         end
 
 
-        NKOM.run!(
+        HOOM.run!(
             MD.ocn;
             substeps         = MD.configs[:substeps],
             use_h_ML         = MD.configs[:MLD_scheme] == :datastream,
@@ -264,7 +264,7 @@ module CESMCORE_NKOM
         
         if write_restart
             restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
-            NKOM.takeSnapshot(MD.ocn, restart_file)
+            HOOM.takeSnapshot(MD.ocn, restart_file)
              
             open(MD.configs[:rpointer_file], "w") do file
                 write(file, restart_file)
@@ -276,7 +276,7 @@ module CESMCORE_NKOM
 
     end
 
-    function final(MD::NKOM_DATA)
+    function final(MD::HOOM_DATA)
         
     end
 

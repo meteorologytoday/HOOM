@@ -9,7 +9,6 @@ configs = Dict(
     :enable_short_term_archive => false,
     :enable_long_term_archive  => false,
     :daily_record              => [],
-#    :daily_record            => ["T", "S", "b", "T_ML", "S_ML", "dTdt_ent", "dSdt_ent", "TSAS_clim", "SSAS_clim", "wT_bot", "wS_bot", "wS_top", "TFLUX_DIV_implied", "SFLUX_DIV_implied", "qflx2atm", "h_ML", "nswflx", "swflx", "frwflx", "qflx", "TEMP", "dTEMPdt", "SALT", "dSALTdt", "fric_u", "taux", "tauy", "TFLUX_DEN_z", "SFLUX_DEN_z", "div", "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV"],
     :monthly_record            => ["T", "S", "b", "T_ML", "S_ML", "dTdt_ent", "dSdt_ent", "TSAS_clim", "SSAS_clim", "wT_bot", "wS_bot", "wS_top", "TFLUX_DIV_implied", "SFLUX_DIV_implied", "qflx2atm", "h_ML", "nswflx", "swflx", "frwflx", "qflx", "TEMP", "dTEMPdt", "SALT", "dSALTdt", "fric_u", "taux", "tauy", "TFLUX_DEN_z", "SFLUX_DEN_z", "div", "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV"],
     :short_term_archive_list   => "SMARTSLAB_short_term_archive_list.txt",
     :rpointer_file             => "rpointer.ssm_ocn",
