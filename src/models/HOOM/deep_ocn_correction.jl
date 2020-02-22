@@ -1,4 +1,4 @@
-function OC_doNewtonianRelaxation_T!(
+function OC_doDeepOcnCorrectionOfT!(
     ocn :: Ocean,
     i   :: Integer,
     j   :: Integer;
@@ -6,7 +6,7 @@ function OC_doNewtonianRelaxation_T!(
     τ   :: Float64 = ocn.Ts_clim_relax_time,
 )
 
-    return doNewtonianRelaxation!(
+    return doDeepOcnCorrection!(
         h_ML    = ocn.h_ML[i, j],
         qs      = ocn.cols.Ts[i, j],
         qs_clim = ocn.cols.Ts_clim[i, j],
@@ -20,14 +20,14 @@ function OC_doNewtonianRelaxation_T!(
 
 end
 
-function OC_doNewtonianRelaxation_S!(
+function OC_doDeepOcnCorrectionOfS!(
     ocn :: Ocean,
     i   :: Integer,
     j   :: Integer;
     Δt  :: Float64,
 )
 
-    return doNewtonianRelaxation!(
+    return doDeepOcnCorrection!(
         h_ML    = ocn.h_ML[i, j],
         qs      = ocn.cols.Ss[i, j],
         qs_clim = ocn.cols.Ss_clim[i, j],
@@ -50,7 +50,7 @@ end
     Also, Euler backward integration scheme is used.
 
 """
-function doNewtonianRelaxation!(;
+function doDeepOcnCorrection!(;
     h_ML       :: Float64,
     qs         :: AbstractArray{Float64, 1},
     qs_clim    :: AbstractArray{Float64, 1},

@@ -12,7 +12,7 @@ function doFluxCorrection!(;
 end
 =#
 
-function calQflux_correction!(
+function calFlxCorrection!(
     ocn :: Ocean;
     τ   :: Float64 = 15 * 86400.0,
     cfgs...

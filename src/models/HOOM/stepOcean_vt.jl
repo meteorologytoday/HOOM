@@ -262,8 +262,8 @@ function stepOcean_slowprocesses!(
     # Climatology relaxation
     if do_relaxation
         @loop_hor ocn i j let
-            ocn.TSAS_clim[i, j] = OC_doNewtonianRelaxation_T!(ocn, i, j; Δt=Δt)
-            ocn.SSAS_clim[i, j] = OC_doNewtonianRelaxation_S!(ocn, i, j; Δt=Δt)
+            ocn.TSAS_clim[i, j] = OC_doDeepOcnCorrectionOfT!(ocn, i, j; Δt=Δt)
+            ocn.SSAS_clim[i, j] = OC_doDeepOcnCorrectionOfS!(ocn, i, j; Δt=Δt)
         end
     end
     

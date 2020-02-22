@@ -47,9 +47,8 @@ end
     @hinclude("SpeedUpMtx3D.jl")
     @hinclude("Ocean.jl")
 
-    @hinclude("qflx2atm.jl")
-    @hinclude("calNetEnergyBudget.jl")
-    @hinclude("calH.jl")
+    @hinclude("latent_heat_release_of_freezing.jl")
+    @hinclude("columnwise_budget.jl")
     @hinclude("trivial_functions.jl")
 
     @hinclude("calNewMLD.jl")
@@ -58,9 +57,9 @@ end
     @hinclude("mixUnmix.jl")
     @hinclude("calFLDOPartition.jl")
     @hinclude("getIntegratedBuoyancy.jl")
-    @hinclude("doNewtonianRelaxation.jl")
-    @hinclude("doShortwaveRadiation.jl")
-    @hinclude("calQfluxCorrection.jl")
+    @hinclude("deep_ocn_correction.jl")
+    @hinclude("shortwave_radiation.jl")
+    @hinclude("flx_correction.jl")
     
     @hinclude("stepOcean_prepare.jl")
     @hinclude("stepOcean_hz.jl")

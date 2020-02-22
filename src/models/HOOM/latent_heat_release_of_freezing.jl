@@ -8,7 +8,7 @@ function cleanQflx2atm!(ocn::Ocean)
 
 end
 
-function calQflx2atm!(ocn::Ocean; Δt::Float64)
+function calLatentHeatReleaseOfFreezing!(ocn::Ocean; Δt::Float64)
 
     @loop_hor ocn i j let
 

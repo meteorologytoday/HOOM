@@ -421,7 +421,6 @@ function run!(
     sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :τx, :τy, :TSAS_clim, :SSAS_clim, :TFLUX_DIV_implied, :SFLUX_DIV_implied, :TEMP, :dTEMPdt, :SALT, :dSALTdt, :dTdt_ent, :dSdt_ent, :TFLUX_bot, :SFLUX_bot, :SFLUX_top, :qflx_T_correction, :qflx_S_correction)
     sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :TFLUX_CONV, :SFLUX_CONV, :TFLUX_DEN_z, :SFLUX_DEN_z, :div)
 
-
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
     #accumulative_vars3 = (:TFLUX_CONV, :T_vflux_ML, :SFLUX_CONV, :S_vflux_ML)
 
@@ -452,18 +451,17 @@ function run!(
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
 
             if cfgs[:do_qflx_finding]
-                calQflux_correction!(subocn.worker_ocn; Δt = Δt, cfgs...)
+                calFlxCorrection!(subocn.worker_ocn; Δt = Δt, cfgs...)
             end
 
-            calQflx2atm!(subocn.worker_ocn; Δt=Δt)
+            calLatentHeatReleaseOfFreezing!(subocn.worker_ocn; Δt=Δt)
 
             avg_accumulate!(subocn.worker_ocn; count=substeps)
 
-            calTEMP_dTEMPdt!(subocn.worker_ocn; Δt=Δt)
-            calSALT_dSALTdt!(subocn.worker_ocn; Δt=Δt)
-            calNetTEMPBudget!(subocn.worker_ocn; cfgs...)
-            calNetSALTBudget!(subocn.worker_ocn; cfgs...)
-
+            calDirect∂TEMP∂t!(subocn.worker_ocn; Δt=Δt)
+            calDirect∂SALT∂t!(subocn.worker_ocn; Δt=Δt)
+            calImplied∂TEMP∂t!(subocn.worker_ocn; cfgs...)
+            calImplied∂SALT∂t!(subocn.worker_ocn; cfgs...)
 
             syncToMaster!(
                 subocn;
