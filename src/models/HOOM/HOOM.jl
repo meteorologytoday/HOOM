@@ -38,32 +38,34 @@ end
     end
 
 
+    @hinclude("../../share/constants.jl")
+
+    # classes
     @hinclude("../../share/DisplacedPoleCoordinate.jl")
     @hinclude("../../share/MapInfo.jl")
-       
-    @hinclude("../../share/constants.jl")
     @hinclude("InputFields.jl")
     @hinclude("AccumulativeVariables.jl")
     @hinclude("SpeedUpMtx3D.jl")
     @hinclude("Ocean.jl")
 
+    # functions
     @hinclude("latent_heat_release_of_freezing.jl")
     @hinclude("columnwise_budget.jl")
     @hinclude("trivial_functions.jl")
 
-    @hinclude("calNewMLD.jl")
-    @hinclude("doConvectiveAdjustment.jl")
-    @hinclude("doDiffusion.jl")
+    @hinclude("mld_calculation.jl")
+    @hinclude("convective_adjustment.jl")
+    @hinclude("diffusion.jl")
     @hinclude("mixUnmix.jl")
     @hinclude("calFLDOPartition.jl")
-    @hinclude("getIntegratedBuoyancy.jl")
+    @hinclude("columnwise_integration.jl")
     @hinclude("deep_ocn_correction.jl")
     @hinclude("shortwave_radiation.jl")
     @hinclude("flx_correction.jl")
     
-    @hinclude("stepOcean_prepare.jl")
-    @hinclude("stepOcean_hz.jl")
-    @hinclude("stepOcean_vt.jl")
+    @hinclude("step_ocean_prepare.jl")
+    @hinclude("step_ocean_hz.jl")
+    @hinclude("step_ocean_vt.jl")
     @hinclude("advection.jl")
 
 

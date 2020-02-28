@@ -1,8 +1,8 @@
 include(joinpath("..", "load_files.jl"))
-include(joinpath(src, "NKOM", "NKOM.jl"))
-using .NKOM
+include(joinpath(src, "HOOM", "HOOM.jl"))
+using .HOOM
 
-ocn = NKOM.Ocean(
+ocn = HOOM.Ocean(
     gridinfo_file = parsed["domain-file"],
     Nx       = Nx,
     Ny       = Ny,
@@ -24,6 +24,6 @@ ocn = NKOM.Ocean(
     do_convective_adjustment = true,
 )
 
-NKOM.takeSnapshot(ocn, parsed["output-file"])
+HOOM.takeSnapshot(ocn, parsed["output-file"])
 
 

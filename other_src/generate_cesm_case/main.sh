@@ -26,8 +26,8 @@ lopts=(
     compset
     machine
     project-code
-    model
-    flow-scheme
+    vt-scheme
+    hz-scheme
     ocn-ncpu
     ocn-branch
     qflux-file
@@ -86,15 +86,15 @@ $wk_dir/make_init.sh                            \
     --output-zdomain-file=$zdomain_file
 
 
-echo "Making initial files for a specific model"
+echo "Making initial files for a specific vt_scheme"
 
 if [ -z "$casename" ]; then
-    casename=${label}_${resolution}_${model}_${flow_scheme}_${relaxation_time}
+    casename=${label}_${resolution}_${vt_scheme}_${hz_scheme}_${relaxation_time}
 fi
 
 init_file=$init_files_dir/init_${casename}.nc
 
-$wk_dir/make_init_each_model.sh                 \
+$wk_dir/make_init_each_vt_scheme.sh                 \
     --output-file=$init_file                    \
     --label=$label                              \
     --data-clim-T-file=$new_data_clim_T_file    \
@@ -105,8 +105,8 @@ $wk_dir/make_init_each_model.sh                 \
     --T-unit=$T_unit                            \
     --S-unit=$S_unit                            \
     --forcing-file=$qflux_file                  \
-    --model=$model                              \
-    --flow-scheme=$flow_scheme                  \
+    --vt-scheme=$vt_scheme                              \
+    --hz-scheme=$hz_scheme                  \
     --relaxation-time=$relaxation_time
 
 
@@ -125,7 +125,7 @@ $wk_dir/make_cesm_sugar_script.sh           \
     --cesm-create-newcase=$cesm_create_newcase \
     --cesm-env=$cesm_env                    \
     --user-namelist-dir=$user_namelist_dir  \
-    --model=$model                          \
+    --vt-scheme=$vt_scheme                  \
     --ocn-ncpu=$ocn_ncpu                    \
     --qflux-file=$qflux_file                \
     --seaice-file=$seaice_file              \

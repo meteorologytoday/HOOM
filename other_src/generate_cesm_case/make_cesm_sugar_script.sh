@@ -17,8 +17,8 @@ lopts=(
     cesm-create-newcase
     cesm-env
     user-namelist-dir
-    model
-    flow-scheme
+    vt-scheme
+    hz-scheme
     ocn-ncpu
     qflux-file
     seaice-file
@@ -168,7 +168,7 @@ end
 XEOFX
 
 cat << XEOFX >> config.jl
-$( cat $wk_dir/init_code/${model}_${flow_scheme}/config.jl )
+$( cat $wk_dir/init_code/${vt_scheme}_${hz_scheme}/config.jl )
 XEOFX
 
 
@@ -185,7 +185,7 @@ cat << XEOFX > \$casename.ocn.run
 #PBS -m abe
 #PBS -M meteorologytoday@gmail.com
 
-### Run the ocean model ###
+### Run the ocean vt_scheme ###
 
 LID="\\\$(date +%y%m%d-%H%M)"
 ocn_code="\$caseroot/SMARTSLAB-main/src/CESM_driver/run.jl"
@@ -230,7 +230,7 @@ else
     # Single job Run (Experimental. Currently may only works on a single node because CESM 
     # was designed to take all the resources of each nodes. This scripts needs "env_mach_pes.xml"
     # configured correctly. If a single node got N cores. It would be M cores for cesm and (N-M)
-    # cores for ocn model.
+    # cores for ocn vt_scheme.
     
     cat << XEOFX > \${casename}.run
 #PBS -A \${PROJECT}

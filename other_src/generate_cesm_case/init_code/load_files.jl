@@ -3,7 +3,7 @@ using NCDatasets
 using ArgParse
 using JSON
 
-src = normpath(joinpath(@__DIR__, "..", "..", "..", "src"))
+src = normpath(joinpath(@__DIR__, "..", "..", "..", "src", "HOOM"))
 
 function parse_commandline()
     s = ArgParseSettings()
