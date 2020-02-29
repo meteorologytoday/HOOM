@@ -203,7 +203,7 @@ module CESMCORE_HOOM
             in_flds.frwflx .= 0.0
         end
 
-        if MD.configs[:enable_short_term_archive]
+        if MD.configs[:enable_archive]
 
             if length(MD.configs[:daily_record]) != 0
  
@@ -213,12 +213,20 @@ module CESMCORE_HOOM
                 )
                
                 if t_flags[:new_month]
+
                         filename = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
                         RecordTool.setNewNCFile!(
                             MD.recorders[:daily_record],
-                            joinpath(MD.configs[:short_term_archive_dir], filename)
+                            joinpath(MD.configs[:caserun], filename)
                         )
-                        appendLine(MD.configs[:short_term_archive_list], filename)
+
+                        appendLine(MD.configs[:archive_list], 
+                            format("mv,{:s},{:s},{:s}",
+                                filename,
+                                MD.configs[:caserun],
+                                joinpath(MD.configs[:archive_root], "ocn", "hist"),
+                            )
+                        )
                 end
 
 
@@ -231,13 +239,22 @@ module CESMCORE_HOOM
                     avg_and_output = ( t_flags[:new_month] && t_cnt != 1)
                 )
 
-                if t_flags[:new_year]
-                        filename = format("{}.ocn.h.monthly.{:04d}.nc", MD.casename, t[1])
+                if t_flags[:new_month]
+
+                        filename = format("{}.ocn.h.monthly.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
                         RecordTool.setNewNCFile!(
                             MD.recorders[:monthly_record],
-                            joinpath(MD.configs[:short_term_archive_dir], filename)
+                            joinpath(MD.configs[:caserun], filename)
                         )
-                        appendLine(MD.configs[:short_term_archive_list], filename)
+
+                        appendLine(MD.configs[:archive_list], 
+                            format("mv,{:s},{:s},{:s}",
+                                filename,
+                                MD.configs[:caserun],
+                                joinpath(MD.configs[:archive_root], "ocn", "hist"),
+                            )
+                        )
+
                 end
 
 
@@ -272,6 +289,27 @@ module CESMCORE_HOOM
 
             println("(Over)write restart pointer file: ", MD.configs[:rpointer_file])
             println("Output restart file: ", restart_file)
+
+            src_dir = MD.configs[:caserun]
+            dst_dir = joinpath(MD.configs[:archive_root], "rest", format("{:04d}-{:02d}-{:02d}-{:05d}", t[1], t[2], t[3], t[4]))
+
+            appendLine(MD.configs[:archive_list], 
+                format("cp,{:s},{:s},{:s}",
+                    restart_file,
+                    src_dir,
+                    dst_dir,
+                )
+            )
+
+            appendLine(MD.configs[:archive_list], 
+                format("cp,{:s},{:s},{:s}",
+                    MD.configs[:rpointer_file],
+                    src_dir,
+                    dst_dir,
+                )
+            )
+
+
         end
 
     end

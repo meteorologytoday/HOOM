@@ -24,11 +24,11 @@
             V       v
             dhdx    dhdx
             dhdy    dhdy
-            hblt    h
-            qflux_T qbot_t
-            qflux_S qbot_s
-            Tclim   tclim
-            Sclim   sclim
+            MLD     MLD
+            Qflx_T  Qflx_T
+            Qflx_S  Qflx_S
+            T_clim   T_clim
+            S_clim   S_clim
          </variableNames>
          <filePath>
             $FORCING_DIR 

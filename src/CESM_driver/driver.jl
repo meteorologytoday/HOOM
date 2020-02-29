@@ -28,23 +28,10 @@ output_vars = Dict()
 
 stage = :INIT
 
-# Need to find a way to avoid receiving the msg
-# from last run
-
 PTI = ProgramTunnelInfo(
     reverse_role  = true,
     recv_channels = 2,
 )
-
-#=
-PTI = ProgramTunnelInfo(
-    path             = configs[:tmp_folder],
-    timeout          = configs[:timeout],
-    buffer           = 0.1,
-    recv_first_sleep = 0.1,
-    reverseRole      = true,
-)
-=#
 
 map = NetCDFIO.MapInfo{Float64}(configs[:domain_file])
 
@@ -62,8 +49,6 @@ ocn_run_N    = 0
 
 overall_run_time = 0.0
 overall_run_N    = 0
-
-
 
 println("===== ", OMMODULE.name, " IS READY =====")
 
@@ -113,7 +98,7 @@ while true
         global send_data_list = Array{Float64}[OMDATA.o2x["SST"], OMDATA.o2x["QFLX2ATM"]]
         global recv_data_list = Array{Float64}[]
      
-        rm(configs[:short_term_archive_list], force=true)
+        rm(configs[:archive_list], force=true)
 
         global x2o_available_varnames  = split(msg["VAR2D"], ",")
         global x2o_wanted_varnames = keys(OMDATA.x2o)
@@ -180,25 +165,57 @@ while true
     elseif stage == :RUN && msg["MSG"] == "END"
 
         # move short_term_archive_files to long term archive directory
-        if configs[:enable_long_term_archive]
-            println("===== Long term archiving files BEGIN =====")
-            sdir = configs[:short_term_archive_dir]
-            ldir = configs[:long_term_archive_dir]
-            mkpath(ldir)
-            for fname in eachline(configs[:short_term_archive_list])
-                src = joinpath(sdir, fname)
-                dst = joinpath(ldir, fname)
-                
-                if isfile(src)
-                    mv(src, dst, force=true)
-                    println("Long term archiving file: ", fname)
-                else
-                    println("File does not exist: ", fname)
+        println("===== Archiving files BEGIN =====")
+        sdir = configs[:caseroot]
+        ldir = configs[:archive_root]
+        mkpath(ldir)
+        for line in eachline(configs[:archive_list])
+
+            args = split(line, ",")
+
+            if length(args) == 0
+                continue
+            end
+          
+            action = args[1]
+            args = args[2:end]
+
+            if action in ["mv", "cp"]
+
+                fname, src_dir, dst_dir = args
+
+                if ! isdir(dst_dir)
+                    mkpath(dst_dir)
                 end
+     
+                src_file = joinpath(src_dir, fname)
+                dst_file = joinpath(dst_dir, fname)
+
+                if isfile(src_file)
+
+                    if action == "mv"
+                        mv(src_file, dst_file, force=true)
+                        println(format("Moving file: {:s} ( {:s} => {:s} )", fname, src_dir, dst_dir))
+                    elseif action == "cp"
+                        cp(src_file, dst_file, force=true)
+                        println(format("Copying file: {:s} ( {:s} => {:s} )", fname, src_dir, dst_dir))
+                    end
+
+                else
+                    println("File does not exist: ", src_file)
+                end
+
+            elseif action == "rm"
+                fname, fdir = args
+                rm(joinpath(fdir, fname), force=true)
+                println(format("Removing file: {:s} in {:s}", fname, fdir))
+            else
+                throw(ErrorException(format("Unknown action in archive list: {:s}", action)))
             end
 
-            println("===== Long term archiving files END =====")
         end
+
+        println("===== Archiving files END =====")
 
         OMMODULE.final(OMDATA) 
         

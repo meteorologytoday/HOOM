@@ -24,7 +24,7 @@ lopts=(
 
 source $wk_dir/getopt_helper.sh
 
-gen_code="$wk_dir/init_code/${vt_scheme}_${hz_scheme}/make_init.jl"
+gen_code="$wk_dir/init_code/HOOM_${vt_scheme}_${hz_scheme}/make_init.jl"
 printf "[%s] => [%s] : [%s]\n" $vt_scheme $hz_scheme $relaxation_time $gen_code
 
 if [ ! -f $output_file ]; then

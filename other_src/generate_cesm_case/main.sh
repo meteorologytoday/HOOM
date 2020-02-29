@@ -94,7 +94,7 @@ fi
 
 init_file=$init_files_dir/init_${casename}.nc
 
-$wk_dir/make_init_each_vt_scheme.sh                 \
+$wk_dir/make_init_each_model.sh                 \
     --output-file=$init_file                    \
     --label=$label                              \
     --data-clim-T-file=$new_data_clim_T_file    \
