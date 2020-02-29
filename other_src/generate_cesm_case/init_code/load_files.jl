@@ -40,7 +40,7 @@ function parse_commandline()
             required = true
 
         "--forcing-file"
-            help = "Qflux forcing file. Contains varnames: hblt and qdp."
+            help = "Qflux forcing file. Contains varnames: Qflux_T, Qflux_S, MLD."
             arg_type = String
             required = false
 
@@ -106,7 +106,7 @@ end
 if haskey(parsed, "forcing-file")
     if isfile(parsed["forcing-file"]) 
         Dataset(parsed["forcing-file"], "r") do ds
-            global h_ML = replace(ds["hblt"][:], missing => NaN)
+            global h_ML = replace(ds["MLD"][:], missing => NaN)
         end
     else
         println("Cannot find forcing file: ", parsed["forcing-file"],  ". Gonna skip it.")
