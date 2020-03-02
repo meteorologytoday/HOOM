@@ -8,51 +8,54 @@ function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin
 
-        "--input-file"
-            help = "Qflux file"
+        "--input-Qflx-file"
+            help     = "If not specified, then output Qflx_S = Qflx_T = 0.0"
+            arg_type = String
+            default  = ""
+
+        "--input-MLD-file"
+            help     = "If not specified, then output MLD = 0.0"
+            arg_type = String
+            default  = ""
+
+        "--input-clim-file"
+            help     = "If not specified, then output T_clim = S_clim = 0.0"
+            arg_type = String
+            default  = ""
+
+        "--domain-file"
+            help = "Domain file. Must contain variables: xc, yc, area, mask"
             arg_type = String
             required = true
 
-        "--Qflux-blank"
-            help = "If turned on then --Qflux-varname is ignored and output qflux = 0.0 field."
-            action = :store_true
-
-        "--Qflux-T-varname"
-            help = "T Qflux variable name in file"
+        "--Qflx_T-varname"
+            help = "T Qflux variable name in Qflx file."
             arg_type = String
-            default  = ""
+            default  = "Qflx_T"
 
-        "--Qflux-S-varname"
-            help = "S Qflux variable name in file"
+        "--Qflx_S-varname"
+            help = "S Qflux variable name in Qflx file."
             arg_type = String
-            default  = ""
+            default  = "Qflx_S"
 
+        "--T_clim-varname"
+            help = "T_clim variable name in clim file."
+            arg_type = String
+            default  = "T_clim"
+
+        "--S_clim-varname"
+            help = "S_clim variable name in clim file."
+            arg_type = String
+            default  = "S_clim"
 
         "--MLD-varname"
-            help = "MLD variable name in file"
+            help = "MLD variable name in MLD file."
             arg_type = String
-            required = true
+            default = "MLD"
 
         "--MLD-average"
             help = "Make MLD constant as average."
             action = :store_true
-
-
-        "--Tclim-varname"
-            help = "Tclim variable name in file"
-            arg_type = String
-            default  = ""
-
-        "--Sclim-varname"
-            help = "Sclim variable name in file"
-            arg_type = String
-            default  = ""
-
-
-        "--domain-file"
-            help = "Domain file."
-            arg_type = String
-            required = true
 
         "--output-file"
             help = "Output file name."
@@ -100,7 +103,6 @@ Dataset(parsed["domain-file"], "r") do ds
     yc   = ds["yc"][:]   |> nomissing
     area = ds["area"][:] |> nomissing
     ni, nj = size(area)
-
 end
 
 empty = zeros(Float64, ni, nj, length(time))
@@ -108,66 +110,81 @@ for t=1:length(time)
     view(empty,:,:,t)[mask .== 0] .= NaN
 end
 
+if parsed["input-Qflx-file"] == ""
 
-Dataset(parsed["input-file"], "r") do ds
-    global qflux_T, qflux_S, Tclim, Sclim
+    Qflx_T = empty
+    Qflx_S = empty
 
-    if parsed["Qflux-blank"] 
-        qflux_T = empty
-        qflux_S = empty
-    else
-        qflux_T = ds[parsed["Qflux-T-varname"]][:] |> nomissing
-        qflux_S = ds[parsed["Qflux-S-varname"]][:] |> nomissing
+else
+
+    Dataset(parsed["input-Qflx-file"], "r") do ds
+
+        global Qflx_T, Qflx_S
+
+        Qflx_T = ds[parsed["Qflx_T-varname"]][:] |> nomissing
+        Qflx_S = ds[parsed["Qflx_S-varname"]][:] |> nomissing
+
     end
-
-    if parsed["Tclim-varname"] == "" 
-        Tclim = empty
-    else
-        Tclim = ds[parsed["Tclim-varname"]][:] |> nomissing
-    end
-
-    if parsed["Sclim-varname"] == "" 
-        Sclim = empty
-    else
-        Sclim = ds[parsed["Sclim-varname"]][:] |> nomissing
-    end
+end
 
 
-    global h     = ds[parsed["MLD-varname"]][:] |> nomissing
-    if parsed["MLD-average"] 
-        for i=1:ni, j=1:nj
-            h[i, j, :] .= mean(h[i, j, :])
+if parsed["input-MLD-file"] == ""
+    
+    MLD = empty
+    
+else
+
+    Dataset(parsed["input-MLD-file"], "r") do ds
+
+        global MLD = ds[parsed["MLD-varname"]][:] |> nomissing
+        if parsed["MLD-average"] 
+            for i=1:ni, j=1:nj
+                MLD[i, j, :] .= mean(MLD[i, j, :])
+            end
         end
+
     end
+ 
+end
 
-end 
 
-avg_qflux_T = 0.0
-avg_qflux_S = 0.0
+if parsed["input-clim-file"] == ""
+
+    T_clim = empty
+    S_clim = empty
+
+else
+
+    Dataset(parsed["input-clim-file"], "r") do ds
+
+        global T_clim, S_clim
+
+        T_clim = ds[parsed["T_clim-varname"]][:] |> nomissing
+        S_clim = ds[parsed["S_clim-varname"]][:] |> nomissing
+
+    end
+end
+
+avg_Qflx_T = 0.0
+avg_Qflx_S = 0.0
 mask_idx = (mask .== 1)
 for t=1:12
-    if any( isnan.(qflux_T[:,:,t][mask_idx]) )
+    if any( isnan.(Qflx_T[:,:,t][mask_idx]) )
         throw(ErrorException("T Qflux contains NaN"))
     end
 
-    if any( isnan.(qflux_S[:,:,t][mask_idx]) )
+    if any( isnan.(Qflx_S[:,:,t][mask_idx]) )
         throw(ErrorException("S Qflux contains NaN"))
     end
 
-    global avg_qflux_T += sum( (area .* view(qflux_T, :, :, t))[mask_idx] )
-    global avg_qflux_S += sum( (area .* view(qflux_S, :, :, t))[mask_idx] )
+    global avg_Qflx_T += sum( (area .* view(Qflx_T, :, :, t))[mask_idx] )
+    global avg_Qflx_S += sum( (area .* view(Qflx_S, :, :, t))[mask_idx] )
 end
-avg_qflux_T /= 12.0 * sum(area[mask_idx])
-avg_qflux_S /= 12.0 * sum(area[mask_idx])
+avg_Qflx_T /= 12.0 * sum(area[mask_idx])
+avg_Qflx_S /= 12.0 * sum(area[mask_idx])
 
-#qflux .-= avg_qflux
-
-#println("# Pre-adjustment avg qflux : ", avg_qflux)
-
-println("# Avg qflux_T : ", avg_qflux_T)
-println("# Avg qflux_S : ", avg_qflux_S)
-
-
+println("# Avg Qflx_T : ", avg_Qflx_T)
+println("# Avg Qflx_S : ", avg_Qflx_S)
 
 Dataset(parsed["output-file"], "c") do ds
 
@@ -175,8 +192,8 @@ Dataset(parsed["output-file"], "c") do ds
     defDim(ds, "nj", nj)
     defDim(ds, "time", length(time))
 
-    ds.attrib["avg_qflux_T"] = avg_qflux_T
-    ds.attrib["avg_qflux_S"] = avg_qflux_S
+    ds.attrib["avg_Qflx_T"] = avg_Qflx_T
+    ds.attrib["avg_Qflx_S"] = avg_Qflx_S
 
     for (varname, vardata, vardim, attrib) in [
 
@@ -196,41 +213,37 @@ Dataset(parsed["output-file"], "c") do ds
             "long_name" => "domain mask",
         )),
 
-
         ("xc", xc, ("ni", "nj"), Dict(
             "units"     => "degrees east",
-            "long_name" => "longitude of grid cell center",
+            "long_name" => "Longitude of grid cell center",
         )),
 
         ("yc", yc, ("ni", "nj"), Dict(
             "units"     => "degrees north",
-            "long_name" => "latitude of grid cell center",
+            "long_name" => "Latitude of grid cell center",
         )),
 
-        ("qflux_T", qflux_T, ("ni", "nj", "time"), Dict(  
-            "units"     => "W/m^2",
-            "long_name" => "ocean heat flux correction",
+        ("Qflx_T", Qflx_T, ("ni", "nj", "time"), Dict(  
+            "units"     => "W / m^2",
+            "long_name" => "Ocean heat flux correction",
         )),
 
-        ("qflux_S", qflux_S, ("ni", "nj", "time"), Dict(  
-            "units"     => "kg / s",
-            "long_name" => "ocean salt flux correction",
+        ("Qflx_S", Qflx_S, ("ni", "nj", "time"), Dict(  
+            "units"     => "kg / s / m^2",
+            "long_name" => "Ocean salt flux correction",
         )),
 
-
-        ("Tclim", Tclim, ("ni", "nj", "time"), Dict(  
+        ("T_clim", T_clim, ("ni", "nj", "time"), Dict(  
             "units"     => "K",
             "long_name" => "Climatology of SST.",
         )),
 
-        ("Sclim", Sclim, ("ni", "nj", "time"), Dict(  
-            "units"     => "g/kg",
+        ("S_clim", S_clim, ("ni", "nj", "time"), Dict(  
+            "units"     => "g / kg",
             "long_name" => "Climatology of SSS.",
         )),
 
-
-
-        ("hblt", h, ("ni", "nj", "time"), Dict(
+        ("MLD", MLD, ("ni", "nj", "time"), Dict(
             "units"     => "m",
             "long_name" => "Mixed-layer depth",
         )),
@@ -241,6 +254,7 @@ Dataset(parsed["output-file"], "c") do ds
         ("V",    empty , ("ni", "nj", "time"), Dict()),
         ("dhdx", empty , ("ni", "nj", "time"), Dict()),
         ("dhdy", empty , ("ni", "nj", "time"), Dict()),
+
     ]
 
         var = defVar(ds, varname, Float64, vardim)
