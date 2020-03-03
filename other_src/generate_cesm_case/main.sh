@@ -66,9 +66,10 @@ fi
 
 echo "Making initial files..."
 
-
-new_data_clim_T_file=$init_files_dir/${label}_${resolution}_$( basename $data_clim_T_file ".nc" ).nc
-new_data_clim_S_file=$init_files_dir/${label}_${resolution}_$( basename $data_clim_S_file ".nc" ).nc
+new_data_clim_T_file=$init_files_dir/clim_T_${label}_${resolution}_$( basename $data_clim_T_file ".nc" ).nc
+new_data_clim_S_file=$init_files_dir/clim_S_${label}_${resolution}_$( basename $data_clim_S_file ".nc" ).nc
+new_data_init_T_file=$init_files_dir/init_T_${label}_${resolution}_$( basename $data_init_T_file ".nc" ).nc
+new_data_init_S_file=$init_files_dir/init_S_${label}_${resolution}_$( basename $data_init_S_file ".nc" ).nc
 new_topo_file=$init_files_dir/${label}_${resolution}_$( basename $topo_file ".nc" ).nc
 
 zdomain_file=$init_files_dir/zdomain.nc
@@ -78,9 +79,13 @@ $wk_dir/make_init.sh                            \
     --label=$label                              \
     --input-clim-T-file=$data_clim_T_file       \
     --input-clim-S-file=$data_clim_S_file       \
+    --input-init-T-file=$data_init_T_file       \
+    --input-init-S-file=$data_init_S_file       \
     --input-topo-file=$topo_file                \
     --output-clim-T-file=$new_data_clim_T_file  \
     --output-clim-S-file=$new_data_clim_S_file  \
+    --output-init-T-file=$new_datu_init_T_file  \
+    --output-init-S-file=$new_data_init_S_file  \
     --output-topo-file=$new_topo_file           \
     --old-domain-file=$old_domain_file          \
     --new-domain-file=$new_domain_file          \
@@ -101,6 +106,8 @@ $wk_dir/make_init_each_model.sh                 \
     --label=$label                              \
     --data-clim-T-file=$new_data_clim_T_file    \
     --data-clim-S-file=$new_data_clim_S_file    \
+    --data-init-T-file=$new_data_init_T_file    \
+    --data-init-S-file=$new_data_init_S_file    \
     --domain-file=$new_domain_file              \
     --zdomain-file=$zdomain_file                \
     --topo-file=$new_topo_file                  \

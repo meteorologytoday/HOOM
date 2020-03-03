@@ -11,9 +11,13 @@ lopts=(
     label
     input-clim-T-file
     input-clim-S-file
+    input-init-T-file
+    input-init-S-file
     input-topo-file
     output-clim-T-file
     output-clim-S-file
+    output-init-T-file
+    output-init-S-file
     output-topo-file
     old-domain-file
     new-domain-file
@@ -46,6 +50,8 @@ fi
 data_files=(
     TEMP $input_clim_T_file $output_clim_T_file
     SALT $input_clim_S_file $output_clim_S_file
+    TEMP $input_init_T_file $output_init_T_file
+    SALT $input_init_S_file $output_init_S_file
 )
 
 for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
