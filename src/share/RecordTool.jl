@@ -34,7 +34,9 @@ module RecordTool
         dims     :: Dict    # A dictionary of dimension name mapping to its length
         sobjs    :: Dict
 
-        function Recorder(dims, vars)
+        desc     :: Dict
+
+        function Recorder(dims, vars, desc)
 
             sobjs = Dict()
 
@@ -53,7 +55,7 @@ module RecordTool
                 sobjs[varname] = StatObj(varname, varref, dimnames)
             end
 
-            return new(nothing, 1, dims, sobjs)
+            return new(nothing, 1, dims, sobjs, desc)
         end
 
     end
@@ -140,6 +142,12 @@ module RecordTool
             for (varname, sobj) in rec.sobjs
                 ds_var = defVar(ds, varname, Float64, (sobj.dimnames..., "time"))
                 ds_var.attrib["_FillValue"] = missing_value
+
+                if haskey(rec.desc, varname)
+                    for (k, v) in rec.desc[varname]
+                        ds_var.attrib[k] = v
+                    end
+                end
             end 
         end
         
