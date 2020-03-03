@@ -73,7 +73,7 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
         
         ncwa -O -a time $data_file $tmp1
         ncks -O -3 $tmp1 $tmp1
-        ncrename -d nlat,Ny -d nlon,Nx -d z_t,Nz $tmp1
+        ncrename -d .nlat,Ny -d .nlon,Nx -d .z_t,Nz -d .ni,Nx -d .nj,Ny $tmp1
         ncks -O -4 $tmp1 $tmp1
 
         # Horizontal resolution
@@ -107,7 +107,7 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
         echo "Transforming variable: $varname"
 
         ncks -O -3 $data_file $tmp
-        ncrename -d ni,Nx -d nj,Ny $tmp 
+        ncrename -d .nlat,Ny -d .nlon,Nx -d .z_t,Nz -d .ni,Nx -d .nj,Ny $tmp
         ncks -O -4 $tmp $tmp
      
 
