@@ -69,6 +69,8 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
 
     if [ ! -f $new_data_file ]; then
         
+        echo "Transforming variable: $varname"
+        
         ncwa -O -a time $data_file $tmp1
         ncks -O -3 $tmp1 $tmp1
         ncrename -d nlat,Ny -d nlon,Nx -d z_t,Nz $tmp1
@@ -90,7 +92,7 @@ done
 
 # Convert 2D variable: MLD, TOPO
 data_files=(
-    MLD    $input_init_MLD_file $output_init_MLD_file
+    HMXL   $input_init_MLD_file $output_init_MLD_file
     depth  $input_topo_file $output_topo_file
 )
 
@@ -101,6 +103,8 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
 
     tmp=$tmp_dir/${label}_$( basename ${data_file} ".nc" ).tmp.nc
     if [ ! -f "$new_data_file" ]; then
+
+        echo "Transforming variable: $varname"
 
         ncks -O -3 $data_file $tmp
         ncrename -d ni,Nx -d nj,Ny $tmp 
