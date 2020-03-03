@@ -1,3 +1,18 @@
+function getAdditionalVariableList(ocn::Ocean)
+
+        return Dict(
+            "area"               => ( ocn.mi.area,                   ("Nx", "Ny") ),
+            "mask"               => ( ocn.mi.mask,                   ("Nx", "Ny") ),
+            "frac"               => ( ocn.mi.frac,                   ("Nx", "Ny") ),
+            "c_lon"              => ( ocn.mi.xc,                     ("Nx", "Ny") ),
+            "c_lat"              => ( ocn.mi.yc,                     ("Nx", "Ny") ),
+            "zs_bone"            => ( ocn.zs_bone,                   ("zs_bone",) ),
+        )
+
+end
+
+
+
 function getCompleteVariableList(ocn::Ocean)
 
         return Dict(

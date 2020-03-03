@@ -136,7 +136,8 @@ module CESMCORE_HOOM
         )
         
         recorders = Dict()
-        complete_variable_list = HOOM.getCompleteVariableList(ocn)
+        complete_variable_list   = HOOM.getCompleteVariableList(ocn)
+        additional_variable_list = HOOM.getAdditionalVariableList(ocn)
 
         for rec_key in [:daily_record, :monthly_record]
     
@@ -161,13 +162,23 @@ module CESMCORE_HOOM
                 end
             end
 
+            # additional variables
+            add_var_list = []
+            for (k, v) in additional_variable_list
+               push!(add_var_list, ( k, v... ) )
+            end
+
+ 
             recorders[rec_key] = RecordTool.Recorder(
                 Dict(
                     "Nx" => ocn.Nx,
                     "Ny" => ocn.Ny,
                     "Nz_bone" => ocn.Nz_bone,
                     "zs_bone" => length(ocn.zs_bone),
-                ), var_list
+                ),
+                var_list,
+                HOOM.var_desc;
+                other_vars=add_var_list
             )
                
         end
