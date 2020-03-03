@@ -4,7 +4,7 @@ merge!(overwrite_configs, Dict(
     :Qflux_finding                => :off,
     :vertical_diffusion_scheme    => :off,
     :horizontal_diffusion_scheme  => :off,
-    :relaxation_scheme            => :on,
+    :relaxation_scheme            => :off,
     :convective_adjustment_scheme => :off,
     :radiation_scheme             => :step,
     :advection_scheme             => :static,
