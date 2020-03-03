@@ -189,7 +189,14 @@ ocn_code="\$caseroot/SMARTSLAB-main/src/CESM_driver/run.jl"
 config_file="\$caseroot/config.jl"
 ocn_ncpu=$ocn_ncpu
 
-julia -p \\\$ocn_ncpu \\\$ocn_code --config="\\\$config_file" --core=HOOM | tee -a SMARTSLAB.log.\\\$LID
+logfile="HOOM.log.\\\$LID"
+logarchivedir="\${dout_s_root}/ocn/logs"
+
+julia -p \\\$ocn_ncpu \\\$ocn_code --config="\\\$config_file" --core=HOOM | tee -a \${caserun}/\\\${logfile}
+
+mkdir -p \\\$logarchivedir
+mv \${caserun}/\\\${logfile} \\\${logarchivedir}
+gzip \\\${logarchivedir}/\\\${logfile}
 
 XEOFX
 

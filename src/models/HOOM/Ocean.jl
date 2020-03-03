@@ -4,7 +4,7 @@ mutable struct Ocean
     
     gi       :: Union{DisplacedPoleCoordinate.GridInfo, Nothing}
     gi_file  :: Union{AbstractString, Nothing}
-#    mi       :: Union{ModelMap.MapInfo, Nothing}
+    mi       :: Union{ModelMap.MapInfo, Nothing}
 
     Nx       :: Integer           # Number of columns in i direction
     Ny       :: Integer           # Number of columns in j direction
@@ -850,7 +850,7 @@ mutable struct Ocean
             id,
             gridinfo,
             gridinfo_file,
-            #mi,
+            mi,
             Nx, Ny, Nz_bone,
             zs_bone, _topo, zs, Nz,
             K_v, Dh_T, Dv_T, Dh_S, Dv_S,
