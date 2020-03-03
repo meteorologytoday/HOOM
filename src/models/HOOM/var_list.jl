@@ -45,3 +45,8 @@ function getCompleteVariableList(ocn::Ocean)
         )
 
 end
+
+function getVarDesc(varname)
+    return haskey(HOOM.var_desc, varname) ? HOOM.var_desc[varname] : Dict()
+end
+

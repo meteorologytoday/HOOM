@@ -114,6 +114,11 @@ function takeSnapshot(
 
         _write2NCFile(ds, "fs", ("Nx", "Ny"), ocn.fs, missing_value)
         _write2NCFile(ds, "epsilons", ("Nx", "Ny"), ocn.ϵs, missing_value)
+        
+        # Additional 
+        _write2NCFile(ds, "area", ("Nx", "Ny",), ocn.mi.area, missing_value)
+        _write2NCFile(ds, "xc",   ("Nx", "Ny",), ocn.mi.xc,   missing_value)
+        _write2NCFile(ds, "yc",   ("Nx", "Ny",), ocn.mi.yc,   missing_value)
 
     end
 
@@ -152,8 +157,16 @@ function _write2NCFile(
     #println("Write : ", varname)
 
     ds_var = defVar(ds, varname, eltype(var_data), dim)
+
     ds_var.attrib["_FillValue"] = missing_value
+    for (k, v) in getVarDesc(varname)
+        ds_var.attrib[k] = v
+    end
+
+
     ds_var[:] = var_data
+
+
 end
 
 """
