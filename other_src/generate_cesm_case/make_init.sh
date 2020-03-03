@@ -13,11 +13,13 @@ lopts=(
     input-clim-S-file
     input-init-T-file
     input-init-S-file
+    input-init-MLD-file
     input-topo-file
     output-clim-T-file
     output-clim-S-file
     output-init-T-file
     output-init-S-file
+    output-init-MLD-file
     output-topo-file
     old-domain-file
     new-domain-file
@@ -47,6 +49,7 @@ else
 fi
 
 
+# Convert 3D variable: TEMP, SALT
 data_files=(
     TEMP $input_clim_T_file $output_clim_T_file
     SALT $input_clim_S_file $output_clim_S_file
@@ -85,21 +88,32 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
 done
 
 
-# Make topography
-tmp=$tmp_dir/${label}_$( basename ${input_topo_file} ".nc" ).tmp.nc
-if [ ! -f $output_topo_file ]; then
+# Convert 2D variable: MLD, TOPO
+data_files=(
+    MLD    $input_init_MLD_file $output_init_MLD_file
+    depth  $input_topo_file $output_topo_file
+)
 
-    ncks -O -3 ${topo_file[0]} $tmp
-    ncrename -d ni,Nx -d nj,Ny $tmp 
-    ncks -O -4 $tmp $tmp
- 
+for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
+    varname=${data_files[$((3*(i-1)))]}
+    data_file=${data_files[$((3*(i-1)+1))]}
+    new_data_file=${data_files[$((3*(i-1)+2))]}
 
-    if [ "$wgt_file" != "X" ]; then
-        julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp --d-file=$output_topo_file --w-file=${wgt_dir}/wgt.bilinear.nc --vars=depth --x-dim=Nx --y-dim=Ny --algo=ESMF
-    else
-        mv $tmp $output_topo_file
+    tmp=$tmp_dir/${label}_$( basename ${data_file} ".nc" ).tmp.nc
+    if [ ! -f "$new_data_file" ]; then
+
+        ncks -O -3 $data_file $tmp
+        ncrename -d ni,Nx -d nj,Ny $tmp 
+        ncks -O -4 $tmp $tmp
+     
+
+        if [ "$wgt_file" != "X" ]; then
+            julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp --d-file=$new_data_file --w-file=${wgt_dir}/wgt.bilinear.nc --vars=$varname --x-dim=Nx --y-dim=Ny --algo=ESMF
+        else
+            mv $tmp $new_data_file
+        fi
     fi
-fi
+done
 
 # Make z-coordinate file
 if [ ! -f $output_zdomain_file ]; then

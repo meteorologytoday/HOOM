@@ -28,9 +28,14 @@ function parse_commandline()
             help = "Initial temperature data file and its varname separated by comma. Supposed to be 3D."
             arg_type = String
             required = true
- 
+  
         "--data-init-S-file"
             help = "Initial salinity data file and its varname separated by comma. Supposed to be 3D."
+            arg_type = String
+            required = true
+ 
+        "--data-init-MLD-file"
+            help = "Initial mixed-layer depth data file and its varname separated by comma. Supposed to be 2D."
             arg_type = String
             required = true
  
@@ -116,12 +121,18 @@ Dataset(parsed["data-init-S-file"], "r") do ds
     global Ss_init = replace(ds["SALT"][:, :, :, 1], missing=>NaN)
 end
 
+Dataset(parsed["data-init-MLD-file"], "r") do ds
+    global h_ML = replace(ds["MLD"][:, :, :, 1], missing=>NaN)
+end
+
+
 
 Dataset(parsed["topo-file"], "r") do ds
     global topo = zeros(Float64, 1, 1)
     topo = - replace(ds["depth"][:], missing => NaN)
 end
 
+#=
 if haskey(parsed, "forcing-file")
     if isfile(parsed["forcing-file"]) 
         Dataset(parsed["forcing-file"], "r") do ds
@@ -131,6 +142,7 @@ if haskey(parsed, "forcing-file")
         println("Cannot find forcing file: ", parsed["forcing-file"],  ". Gonna skip it.")
     end
 end
+=#
 
 if parsed["T-unit"] == "K"
     Ts_clim .-= 273.15
