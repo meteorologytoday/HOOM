@@ -122,7 +122,7 @@ Dataset(parsed["data-init-S-file"], "r") do ds
 end
 
 Dataset(parsed["data-init-MLD-file"], "r") do ds
-    global h_ML = replace(ds["MLD"][:, :, :, 1], missing=>NaN)
+    global h_ML = replace(ds["HMXL"][:, :, :, 1], missing=>NaN)
 end
 
 
