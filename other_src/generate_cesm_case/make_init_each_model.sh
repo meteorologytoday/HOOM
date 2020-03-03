@@ -11,6 +11,8 @@ lopts=(
     label
     data-clim-T-file
     data-clim-S-file
+    data-init-T-file
+    data-init-S-file
     domain-file
     zdomain-file
     topo-file
@@ -33,6 +35,8 @@ if [ ! -f $output_file ]; then
         --output-file=$output_file                  \
         --data-clim-T-file=$data_clim_T_file        \
         --data-clim-S-file=$data_clim_S_file        \
+        --data-init-T-file=$data_init_T_file        \
+        --data-init-S-file=$data_init_S_file        \
         --topo-file=$topo_file                      \
         --domain-file=$domain_file                  \
         --zdomain-file=$zdomain_file                \
