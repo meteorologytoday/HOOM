@@ -84,7 +84,7 @@ $wk_dir/make_init.sh                            \
     --input-topo-file=$topo_file                \
     --output-clim-T-file=$new_data_clim_T_file  \
     --output-clim-S-file=$new_data_clim_S_file  \
-    --output-init-T-file=$new_datu_init_T_file  \
+    --output-init-T-file=$new_data_init_T_file  \
     --output-init-S-file=$new_data_init_S_file  \
     --output-topo-file=$new_topo_file           \
     --old-domain-file=$old_domain_file          \
