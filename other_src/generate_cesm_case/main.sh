@@ -12,6 +12,8 @@ lopts=(
     walltime
     data-clim-T-file
     data-clim-S-file
+    data-init-T-file
+    data-init-S-file
     topo-file
     varname-T
     varname-S

@@ -31,12 +31,17 @@ if [ "$old_domain_file" == "$new_domain_file" ]; then
     wgt_file="X"
 else
     wgt_file=$( basename $old_domain_file ".nc" )_$( basename $new_domain_file ".nc" ).nc
+    
+    wgt_dir="wgt_$( filename $ocn_domain )_to_$( filename $atm_domain )"
+    $script_coordtrans_dir/generate_weight.sh    \
+        --s-file=$old_domain_file                \
+        --d-file=$new_domain_file                \
+        --output-dir="$wgt_dir"                  \
+        --s-mask-value=1.0                       \
+        --d-mask-value=1.0
+
 fi
 
-if [ "$wgt_file" != "X" ] && [ ! -f "$wgt_file" ]; then
-    echo "Weight file \"$wgt_file\" does not exist, I am going to generate one..."
-    julia -p 4  $script_coordtrans_dir/generate_weight.jl --s-file=$old_domain_file --d-file=$new_domain_file --w-file=$wgt_file --s-mask-value=1.0 --d-mask-value=1.0
-fi
 
 data_files=(
     TEMP $input_clim_T_file $output_clim_T_file
@@ -62,7 +67,7 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
 
         # Horizontal resolution
         if [ "$wgt_file" != "X" ]; then
-            julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp1 --d-file=$tmp2 --w-file=$wgt_file --vars=$varname --x-dim=Nx --y-dim=Ny --z-dim=Nz
+            julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp1 --d-file=$tmp2 --w-file=${wgt_dir}/wgt.bilinear.nc --vars=$varname --x-dim=Nx --y-dim=Ny --z-dim=Nz --algo=ESMF
         else
             mv $tmp1 $tmp2
         fi
@@ -84,7 +89,7 @@ if [ ! -f $output_topo_file ]; then
  
 
     if [ "$wgt_file" != "X" ]; then
-        julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp --d-file=$output_topo_file --w-file=$wgt_file --vars=depth --x-dim=Nx --y-dim=Ny 
+        julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp --d-file=$output_topo_file --w-file=${wgt_dir}/wgt.bilinear.nc --vars=depth --x-dim=Nx --y-dim=Ny --algo=ESMF
     else
         mv $tmp $output_topo_file
     fi

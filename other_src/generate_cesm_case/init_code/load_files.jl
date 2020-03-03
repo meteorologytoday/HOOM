@@ -24,6 +24,16 @@ function parse_commandline()
             arg_type = String
             required = true
  
+        "--data-init-T-file"
+            help = "Initial temperature data file and its varname separated by comma. Supposed to be 3D."
+            arg_type = String
+            required = true
+ 
+        "--data-init-S-file"
+            help = "Initial salinity data file and its varname separated by comma. Supposed to be 3D."
+            arg_type = String
+            required = true
+ 
         "--domain-file"
             help = "Domain file, dimension names of lon, lat and varname of mask. Separated by comma. Ex: xxx.nc,ni,nj,mask"
             arg_type = String
@@ -97,6 +107,15 @@ end
 Dataset(parsed["data-clim-S-file"], "r") do ds
     global Ss_clim = replace(ds["SALT"][:, :, :, 1], missing=>NaN)
 end
+
+Dataset(parsed["data-init-T-file"], "r") do ds
+    global Ts_init = replace(ds["TEMP"][:, :, :, 1], missing=>NaN)
+end
+
+Dataset(parsed["data-init-S-file"], "r") do ds
+    global Ss_init = replace(ds["SALT"][:, :, :, 1], missing=>NaN)
+end
+
 
 Dataset(parsed["topo-file"], "r") do ds
     global topo = zeros(Float64, 1, 1)
