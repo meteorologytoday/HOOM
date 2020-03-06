@@ -2,7 +2,7 @@ using NCDatasets
 using ArgParse
 using JSON
 using Statistics
-
+using Formatting
 function parse_commandline()
 
     s = ArgParseSettings()
@@ -110,19 +110,25 @@ for t=1:length(time)
     view(empty,:,:,t)[mask .== 0] .= NaN
 end
 
-if parsed["input-Qflx-file"] == ""
+global Qflx_T = empty
+global Qflx_S = empty
 
-    Qflx_T = empty
-    Qflx_S = empty
 
-else
+if parsed["input-Qflx-file"] != ""
+
 
     Dataset(parsed["input-Qflx-file"], "r") do ds
+        if haskey(ds, parsed["Qflx_T-varname"])
+            global Qflx_T = ds[parsed["Qflx_T-varname"]][:] |> nomissing
+        else
+            println(format("Variable {:s} does not exist. Skip it.", parsed["Qflx_T-varname"]))
+        end
 
-        global Qflx_T, Qflx_S
-
-        Qflx_T = ds[parsed["Qflx_T-varname"]][:] |> nomissing
-        Qflx_S = ds[parsed["Qflx_S-varname"]][:] |> nomissing
+        if haskey(ds, parsed["Qflx_S-varname"])
+            global Qflx_S = ds[parsed["Qflx_S-varname"]][:] |> nomissing
+        else
+            println(format("Variable {:s} does not exist. Skip it.", parsed["Qflx_S-varname"]))
+        end
 
     end
 end
