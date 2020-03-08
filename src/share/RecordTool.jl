@@ -55,7 +55,7 @@ module RecordTool
 
         desc     :: Dict
 
-        function Recorder(dims, vars, desc; other_vars)
+        function Recorder(dims, vars, desc; other_vars = nothing)
 
             sobjs  = Dict()
             nsobjs = Dict()
@@ -75,6 +75,8 @@ module RecordTool
                 sobjs[varname] = StatObj(varname, varref, dimnames)
             end
 
+            if other_vars == nothing
+            else
             for (varname, varref, dimnames) in other_vars
 
                 for dimname in dimnames
@@ -85,7 +87,7 @@ module RecordTool
 
                 nsobjs[varname] = NonStatObj(varname, varref, dimnames)
             end
-
+            end
 
             return new(nothing, 1, dims, sobjs, nsobjs, desc)
         end

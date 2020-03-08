@@ -210,9 +210,9 @@ module CESMCORE_HOOM
         in_flds.nswflx .*= -1.0
         in_flds.swflx  .*= -1.0
 
-        if MD.configs[:turn_off_frwflx]
-            in_flds.frwflx .= 0.0
-        end
+#        if MD.configs[:turn_off_frwflx]
+#            in_flds.frwflx .= 0.0
+#        end
 
         if MD.configs[:enable_archive]
 
