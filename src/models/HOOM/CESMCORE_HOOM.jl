@@ -122,6 +122,7 @@ module CESMCORE_HOOM
             "TAUY"   => in_flds.tauy,
             "IFRAC"  => in_flds.ifrac,
             "FRWFLX" => in_flds.frwflx,
+            "VSFLX"  => in_flds.vsflx,
             "QFLX_T" => in_flds.qflx_T,
             "QFLX_S" => in_flds.qflx_S,
             "T_CLIM"  => in_flds.Tclim,

@@ -21,6 +21,7 @@ function stepOcean_MLDynamics!(
     swflx   = ocn.in_flds.swflx
     nswflx  = ocn.in_flds.nswflx
     frwflx  = ocn.in_flds.frwflx
+    vsflx   = ocn.in_flds.vsflx
     qflx_T  = ocn.in_flds.qflx_T
     qflx_S  = ocn.in_flds.qflx_S
 
@@ -57,7 +58,8 @@ function stepOcean_MLDynamics!(
         surf_Tnswflx = nswflx[i, j] / (ρ*c_p) 
         surf_Tswflx  = swflx[i, j] / (ρ*c_p)
         surf_Jflx    = g * α * surf_Tswflx
-        surf_Sflx    = - frwflx[i, j] * ocn.S_ML[i, j] / ρ_fw 
+        #surf_Sflx    = - frwflx[i, j] * ocn.S_ML[i, j] / ρ_fw 
+        surf_Sflx    = vsflx[i, j] * 1000.0 # Convert to PSU / s / m^2
         surf_bflx    = g * ( α * surf_Tnswflx - β * surf_Sflx )
         
         ocn.SFLUX_top[i, j] = surf_Sflx

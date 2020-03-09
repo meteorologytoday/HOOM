@@ -94,7 +94,7 @@ module docn_comp_mod
   ! ===== XTT MODIFIED BEGIN =====
 
   integer(IN)   :: kt,ks,ku,kv,kdhdx,kdhdy,kq  ! field indices
-  integer(IN)   :: kswnet,klwup,klwdn,ksen,klat,kmelth,ksnow,kioff,kmeltw
+  integer(IN)   :: kswnet,klwup,klwdn,ksen,klat,kmelth,ksnow,kioff,kmeltw,kvsflx
 
 
   integer(IN)   :: kmld, kqflx_t, kqflx_s
@@ -147,7 +147,7 @@ module docn_comp_mod
   integer :: x_iostat, x_fds(2)
 
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:),  &
-                           x_ifrac(:), x_q(:), x_frwflx(:),                &
+                           x_ifrac(:), x_q(:), x_frwflx(:), x_vsflx(:),    &
                            x_qflx_t(:), x_qflx_s(:),                       &
                            x_t_clim(:),  x_s_clim(:), x_mld(:), x_mask(:) 
 
@@ -464,12 +464,14 @@ subroutine docn_comp_init( EClock, cdata, x2o, o2x, NLFilename )
     call mct_aVect_init(avstrm, rList=flds_strm, lsize=lsize)
     call mct_aVect_zero(avstrm)
 
-    kmld      = mct_aVect_indexRA(avstrm,'strm_MLD')
-
-
 
     ! ===== XTT MODIFIED BEGIN =====
     
+
+    ! Virtual Salt Flux in kg/s/m^2 (varname in CESM SFWF)
+    kvsflx = mct_aVect_indexRA(x2o,'Fioi_salt')
+    
+    kmld      = mct_aVect_indexRA(avstrm,'strm_MLD')
     kqflx_t = mct_aVect_indexRA(avstrm,'strm_Qflx_T')
     kqflx_s = mct_aVect_indexRA(avstrm,'strm_Qflx_S')
     kt_clim  = mct_aVect_indexRA(avstrm,'strm_T_clim')
@@ -751,8 +753,9 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         allocate(x_q(lsize))
         allocate(x_mask(lsize))
         allocate(x_frwflx(lsize))
+        allocate(x_vsflx(lsize))
 
-        allocate(x_blob_send(lsize*11))
+        allocate(x_blob_send(lsize*12))
         allocate(x_blob_recv(lsize*2))
 
         do n = 1,lsize
@@ -772,6 +775,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_tauy(n)    = 0.0_R8
             x_ifrac(n)   = 0.0_R8
             x_frwflx(n)  = 0.0_R8
+            x_vsflx(n)  = 0.0_R8
             x_mask(n)    = 0.0_R8
 
             o2x%rAttr(kt,n) = somtp(n)
@@ -791,7 +795,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
    
         ! Variable order matters
-        x_msg = trim(x_msg)//"VAR2D:QFLX_T,QFLX_S,T_CLIM,S_CLIM,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX;"
+        x_msg = trim(x_msg)//"VAR2D:QFLX_T,QFLX_S,T_CLIM,S_CLIM,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX,VSFLX;"
         if (read_restart) then
             x_msg = trim(x_msg)//"READ_RESTART:TRUE;"
         else
@@ -856,6 +860,10 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             ! Positive means upward (evap), negative means downward (precip)
             x_frwflx(n) =  x2o%rAttr(kevap, n) - x2o%rAttr(kprec, n) &
                          - x2o%rAttr(kmeltw, n)
+ 
+            ! Virtual salt flux in unit of kg / m^2 / s.
+            ! Positive means upward, negative means downward
+            x_vsflx(n) =  x2o%rAttr(kvsflx, n)
                        
             x_taux(n)  = x2o%rAttr(ktaux,n)
             x_tauy(n)  = x2o%rAttr(ktauy,n)
@@ -881,6 +889,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         call copy_into_blob(x_blob_send, lsize, 9, x_tauy) 
         call copy_into_blob(x_blob_send, lsize, 10, x_ifrac) 
         call copy_into_blob(x_blob_send, lsize, 11, x_frwflx) 
+        call copy_into_blob(x_blob_send, lsize, 12, x_vsflx) 
  
         call stop_if_bad(ptm_sendData(x_PTI, x_msg, x_nullbin),  "RUN_SEND")
         call stop_if_bad(ptm_sendData(x_PTI, "DATA", x_blob_send), "RUN_SEND_DATA")

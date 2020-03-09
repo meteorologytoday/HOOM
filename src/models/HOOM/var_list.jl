@@ -36,6 +36,7 @@ function getCompleteVariableList(ocn::Ocean)
             "nswflx"             => ( ocn.in_flds.nswflx,           ("Nx", "Ny") ),
             "swflx"              => ( ocn.in_flds.swflx,            ("Nx", "Ny") ),
             "frwflx"             => ( ocn.in_flds.frwflx,           ("Nx", "Ny") ),
+            "vsflx"              => ( ocn.in_flds.vsflx,            ("Nx", "Ny") ),
             "qflx_T"             => ( ocn.in_flds.qflx_T,           ("Nx", "Ny") ),
             "qflx_S"             => ( ocn.in_flds.qflx_S,           ("Nx", "Ny") ),
             "qflx_T_correction"  => ( ocn.qflx_T_correction,        ("Nx", "Ny") ),

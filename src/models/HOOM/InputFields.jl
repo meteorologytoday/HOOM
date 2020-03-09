@@ -6,6 +6,7 @@ mutable struct InputFields
     sumflx :: AbstractArray{Float64, 2}
     ifrac  :: AbstractArray{Float64, 2}
     frwflx :: AbstractArray{Float64, 2}
+    vsflx  :: AbstractArray{Float64, 2}
     qflx_T :: AbstractArray{Float64, 2}
     qflx_S :: AbstractArray{Float64, 2}
     Tclim  :: AbstractArray{Float64, 2}
@@ -16,6 +17,7 @@ end
 function InputFields(datakind::Symbol, Nx::Integer, Ny::Integer)
 
     return InputFields(
+        allocate(datakind, Float64, Nx, Ny),
         allocate(datakind, Float64, Nx, Ny),
         allocate(datakind, Float64, Nx, Ny),
         allocate(datakind, Float64, Nx, Ny),
@@ -43,6 +45,7 @@ function SubInputFields(
         view( in_flds.sumflx,          rngs...), 
         view( in_flds.ifrac,           rngs...), 
         view( in_flds.frwflx,          rngs...), 
+        view( in_flds.vsflx,           rngs...), 
         view( in_flds.qflx_T,          rngs...), 
         view( in_flds.qflx_S,          rngs...), 
         view( in_flds.Tclim,           rngs...), 
@@ -56,7 +59,7 @@ function copyfrom!(
     src::InputFields,
 )
 
-    for fld in [:taux, :tauy, :nswflx, :swflx, :sumflx, :ifrac, :frwflx, :qflx_T, :qflx_S, :Tclim, :Sclim, :h_ML]
+    for fld in [:taux, :tauy, :nswflx, :swflx, :sumflx, :ifrac, :frwflx, :vsflx, :qflx_T, :qflx_S, :Tclim, :Sclim, :h_ML]
         getfield(dst, fld)[:] = getfield(src, fld)
     end
 
