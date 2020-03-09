@@ -50,8 +50,10 @@ Dataset(parsed["domain-file"], "r") do ds
     xc   = ds["xc"][:]   |> nomissing
     yc   = ds["yc"][:]   |> nomissing
     area = ds["area"][:] |> nomissing
-    ni, nj = size(area)
+    ni, nj = size(area)i
+
 end
+
 
 let
 
@@ -74,6 +76,8 @@ let
                 SSAS +=  nomissing( ds["SSAS_clim"][:, :, 1] )
             end
         end
+
+
     end
    
     nyears = parsed["end-year"] - parsed["beg-year"] + 1 
@@ -109,8 +113,6 @@ println("avg_Qflx_T_correction: ", avg_Qflx_T_correction )
 println("avg_Qflx_S_correction: ", avg_Qflx_S_correction )
 println("avg_TSAS: ", avg_TSAS )
 println("avg_SSAS: ", avg_SSAS )
-
-
 
 Dataset(parsed["output-file"], "c") do ds
 

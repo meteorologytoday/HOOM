@@ -10,11 +10,6 @@ var_desc = Dict(
         "units"     => "g / kg",
     ),
 
-    "T" => Dict(
-        "long_name" => "Temperature",
-        "units"     => "degC",
-    ),
-
 )
 
 
