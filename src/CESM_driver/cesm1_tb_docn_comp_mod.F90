@@ -874,7 +874,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                          
             ! Virtual salt flux in unit of kg / m^2 / s.
             ! Positive means upward (loss), negative means downward (gain)
-            x_vsflx(n) =  x2o%rAttr(kvsflx, n) + x_frwflx(n) * ocnsalt / rhofw 
+            x_vsflx(n) =  - ( x2o%rAttr(kvsflx, n) + x_frwflx(n) * ocnsalt / rhofw )
             
             ! ===================================================================
                        
