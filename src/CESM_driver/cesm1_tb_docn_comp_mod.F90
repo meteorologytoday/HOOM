@@ -86,6 +86,7 @@ module docn_comp_mod
 
   real(R8),parameter :: cpsw    = shr_const_cpsw    ! specific heat of sea h2o ~ J/kg/K
   real(R8),parameter :: rhosw   = shr_const_rhosw   ! density of sea water ~ kg/m^3
+  real(R8),parameter :: rhofw   = shr_const_rhofw   ! density of fresh water ~ kg/m^3
   real(R8),parameter :: TkFrz   = shr_const_TkFrz   ! freezing point, fresh water (Kelvin)
   real(R8),parameter :: TkFrzSw = shr_const_TkFrzSw ! freezing point, sea   water (Kelvin)
   real(R8),parameter :: latice  = shr_const_latice  ! latent heat of fusion
@@ -856,14 +857,25 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
                         - (   x2o%rAttr(ksnow,n) & 
                             + x2o%rAttr(kioff,n) ) * latice ! latent by snow and roff
  
+            ! ===================================================================
+            ! The info is given from:
+            !   (1) ocn/pop2/source/forcing_coupled.F90 [Line 800]
+            !   (2) ocn/pop2/source/constants.F90
+            !   (3) ocn/pop2/drivers/cpl_mct/ocn_comp_mct.F90
+            !
             ! fresh water flux in unit of kg / m^2 / s.
-            ! Positive means upward (evap), negative means downward (precip)
-            x_frwflx(n) =  x2o%rAttr(kevap, n) - x2o%rAttr(kprec, n) &
-                         - x2o%rAttr(kmeltw, n)
- 
+            ! Positive means upward (loss), negative means downward (gain)
+            x_frwflx(n) = - ( x2o%rAttr(kevap, n)  &
+                            + x2o%rAttr(kprec, n)  &
+                            + x2o%rAttr(kmeltw, n) &
+                            + x2o%rAttr(kroff, n)  &
+                            + x2o%rAttr(kioff, n) )
+                         
             ! Virtual salt flux in unit of kg / m^2 / s.
-            ! Positive means upward, negative means downward
-            x_vsflx(n) =  x2o%rAttr(kvsflx, n)
+            ! Positive means upward (loss), negative means downward (gain)
+            x_vsflx(n) =  x2o%rAttr(kvsflx, n) + x_frwflx(n) * ocnsalt / rhofw 
+            
+            ! ===================================================================
                        
             x_taux(n)  = x2o%rAttr(ktaux,n)
             x_tauy(n)  = x2o%rAttr(ktauy,n)
