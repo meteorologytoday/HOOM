@@ -7,7 +7,7 @@ var_desc = Dict(
 
     "S" => Dict(
         "long_name" => "Salinity",
-        "units"     => "g / kg",
+        "units"     => "kg / m^3",
     ),
 
 )

@@ -202,7 +202,7 @@ function stepOcean_MLDynamics!(
         if do_qflx
 
             new_T_ML -= qflx_T[i, j] * Δt / (ρ * c_p * new_h_ML)
-            new_S_ML -= qflx_S[i, j] * Δt / (ρ_fw    * new_h_ML)
+            new_S_ML -= qflx_S[i, j] * Δt / new_h_ML
 
         end
 
