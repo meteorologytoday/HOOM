@@ -95,7 +95,7 @@ module docn_comp_mod
   ! ===== XTT MODIFIED BEGIN =====
 
   integer(IN)   :: kt,ks,ku,kv,kdhdx,kdhdy,kq  ! field indices
-  integer(IN)   :: kswnet,klwup,klwdn,ksen,klat,kmelth,ksnow,kioff,kmeltw,kvsflx
+  integer(IN)   :: kswnet,klwup,klwdn,ksen,klat,kmelth,ksnow,kroff,kioff,kmeltw,kvsflx
 
 
   integer(IN)   :: kmld, kqflx_t, kqflx_s
@@ -461,6 +461,7 @@ subroutine docn_comp_init( EClock, cdata, x2o, o2x, NLFilename )
     kmeltw = mct_aVect_indexRA(x2o,'Fioi_meltw')
     ksnow  = mct_aVect_indexRA(x2o,'Faxa_snow')
     kioff  = mct_aVect_indexRA(x2o,'Forr_ioff')
+    kroff  = mct_aVect_indexRA(x2o,'Forr_roff')
 
     call mct_aVect_init(avstrm, rList=flds_strm, lsize=lsize)
     call mct_aVect_zero(avstrm)
