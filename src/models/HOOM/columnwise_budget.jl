@@ -22,7 +22,7 @@ function calImplied∂TEMP∂t!(
 
     if cfgs[:do_qflx]
         @loop_hor ocn i j let
-            TFLUX_DIV_implied[i, j] +=  - qflx_T[i, j] / ρc
+            TFLUX_DIV_implied[i, j] +=  qflx_T[i, j] / ρc
         end
     end
 
@@ -47,7 +47,7 @@ function calImplied∂SALT∂t!(
 
     if cfgs[:do_qflx]
         @loop_hor ocn i j let
-            SFLUX_DIV_implied[i, j] +=  - qflx_S[i, j] / ρ_fw
+            SFLUX_DIV_implied[i, j] += qflx_S[i, j]
         end
     end
 
