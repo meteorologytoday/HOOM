@@ -39,6 +39,7 @@ end
 
 
     @hinclude("../../share/constants.jl")
+    @hinclude("../../share/ocean_state_function.jl")
 
     # classes
     @hinclude("../../share/DisplacedPoleCoordinate.jl")

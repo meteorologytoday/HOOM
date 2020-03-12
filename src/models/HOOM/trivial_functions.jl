@@ -139,10 +139,6 @@ function getFricU(;
     return √(getWindStress(u10=ua) / ρ)
 end
 
-function TS2b(T::Float64, S::Float64)
-    return g * (α * (T - T_ref) - β * (S - S_ref))
-end
-
 function OC_updateB!(
     ocn :: Ocean,
     i   :: Integer,

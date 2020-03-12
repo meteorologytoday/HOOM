@@ -54,20 +54,22 @@ function stepOcean_MLDynamics!(
         # p.s.: Need to examine carefully about the
         #       conservation of buoyancy in water column
 
+        old_FLDO = ocn.FLDO[i, j]
+        old_h_ML = ocn.h_ML[i, j]
+        old_T_ML = ocn.T_ML[i, j]
+        old_S_ML = ocn.S_ML[i, j]
 
-        surf_Tnswflx = nswflx[i, j] / (ρ*c_p) 
-        surf_Tswflx  = swflx[i, j] / (ρ*c_p)
+        α = TS2α(old_T_ML, old_S_ML) 
+        β = TS2β(old_T_ML, old_S_ML) 
+
+        surf_Tnswflx = nswflx[i, j] / ρc 
+        surf_Tswflx  = swflx[i, j] / ρc
         surf_Jflx    = g * α * surf_Tswflx
         #surf_Sflx    = - frwflx[i, j] * ocn.S_ML[i, j] / ρ_fw 
         surf_Sflx    = vsflx[i, j]
         surf_bflx    = g * ( α * surf_Tnswflx - β * surf_Sflx )
         
         ocn.SFLUX_top[i, j] = surf_Sflx
-
-        old_FLDO = ocn.FLDO[i, j]
-        old_h_ML = ocn.h_ML[i, j]
-        old_T_ML = ocn.T_ML[i, j]
-        old_S_ML = ocn.S_ML[i, j]
 
         new_h_ML = old_h_ML
 
@@ -201,7 +203,7 @@ function stepOcean_MLDynamics!(
         # Q-flux 
         if do_qflx
 
-            new_T_ML += qflx_T[i, j] * Δt / (ρ * c_p * new_h_ML)
+            new_T_ML += qflx_T[i, j] * Δt / (ρc * new_h_ML)
             new_S_ML += qflx_S[i, j] * Δt / new_h_ML
 
         end
