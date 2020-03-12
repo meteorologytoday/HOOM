@@ -454,7 +454,7 @@ function run!(
                 calFlxCorrection!(subocn.worker_ocn; Δt = Δt, cfgs...)
             end
 
-            calLatentHeatReleaseOfFreezing!(subocn.worker_ocn; Δt=Δt)
+            calLatentHeatReleaseOfFreezing!(subocn.worker_ocn; Δt=Δt, do_convadjust=cfg[:do_convadjust])
 
             avg_accumulate!(subocn.worker_ocn; count=substeps)
 
