@@ -66,6 +66,8 @@ mutable struct Ocean
     FLDO_ratio_bot :: AbstractArray{Float64,   2}
 
     qflx2atm         :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
+    qflx2atm_pos     :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
+    qflx2atm_neg     :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
     TEMP             :: AbstractArray{Float64, 2} # Total heat content
     dTEMPdt          :: AbstractArray{Float64, 2} # Total heat content change rate
     SALT             :: AbstractArray{Float64, 2} # Total salt
@@ -395,6 +397,8 @@ mutable struct Ocean
         _FLDO_ratio_top = allocate(datakind, Float64, Nx, Ny)
         _FLDO_ratio_bot = allocate(datakind, Float64, Nx, Ny)
         _qflx2atm  = allocate(datakind, Float64, Nx, Ny)
+        _qflx2atm_pos = allocate(datakind, Float64, Nx, Ny)
+        _qflx2atm_neg = allocate(datakind, Float64, Nx, Ny)
         _TEMP         = allocate(datakind, Float64, Nx, Ny)
         _dTEMPdt      = allocate(datakind, Float64, Nx, Ny)
         _SALT      = allocate(datakind, Float64, Nx, Ny)
@@ -865,7 +869,8 @@ mutable struct Ocean
             _TFLUX_DIV_implied, _SFLUX_DIV_implied,
             _bs,   _Ts,   _Ss,
             _FLDO, _FLDO_ratio_top, _FLDO_ratio_bot,
-            _qflx2atm, _TEMP, _dTEMPdt, _SALT, _dSALTdt,
+            _qflx2atm, _qflx2atm_pos, _qflx2atm_neg,
+            _TEMP, _dTEMPdt, _SALT, _dSALTdt,
             _qflx_T_correction, _qflx_S_correction,
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,

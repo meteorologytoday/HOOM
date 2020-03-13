@@ -31,6 +31,8 @@ function getCompleteVariableList(ocn::Ocean)
             "TFLUX_DIV_implied"  => ( ocn.TFLUX_DIV_implied,        ("Nx", "Ny") ),
             "SFLUX_DIV_implied"  => ( ocn.SFLUX_DIV_implied,        ("Nx", "Ny") ),
             "qflx2atm"           => ( ocn.qflx2atm,                 ("Nx", "Ny") ),
+            "qflx2atm_pos"       => ( ocn.qflx2atm_pos,             ("Nx", "Ny") ),
+            "qflx2atm_neg"       => ( ocn.qflx2atm_neg,             ("Nx", "Ny") ),
             "h_ML"               => ( ocn.h_ML,                     ("Nx", "Ny") ),
             "h_MO"               => ( ocn.h_MO,                     ("Nx", "Ny") ),
             "nswflx"             => ( ocn.in_flds.nswflx,           ("Nx", "Ny") ),
@@ -59,10 +61,53 @@ function getCompleteVariableList(ocn::Ocean)
             "TFLUX_CONV"         => ( toXYZ(ocn.TFLUX_CONV, :zxy),  ("Nx", "Ny", "Nz_bone") ),
             "SFLUX_CONV"         => ( toXYZ(ocn.SFLUX_CONV, :zxy),  ("Nx", "Ny", "Nz_bone") ),
         )
-
 end
 
 function getVarDesc(varname)
     return haskey(HOOM.var_desc, varname) ? HOOM.var_desc[varname] : Dict()
 end
+
+function getSubVariableList(ocn::Ocean, keyword::Symbol)
+
+        all_varlist = getCompleteVariableList(ocn)
+
+        output_varnames = []
+
+
+        if keyword == :ALL
+
+            append!(output_varnames, keys(all_varlist))
+
+        elseif keyword == :ESSENTIAL
+            
+            append!(output_varnames, [
+                "T", "S", "T_ML", "S_ML",
+                "TSAS_clim", "SSAS_clim",
+                "TFLUX_bot", "SFLUX_bot",
+                "SFLUX_top",
+                "TFLUX_DIV_implied", "SFLUX_DIV_implied",
+                "qflx2atm_pos", "qflx2atm_neg",
+                "h_ML",
+                "nswflx", "swflx", "frwflx", "vsflx",
+                "qflx_T", "qflx_S",
+                "qflx_T_correction", "qflx_S_correction",
+                "Tclim_feeded", "Sclim_feeded",
+                "TEMP", "dTEMPdt", "SALT", "dSALTdt",
+                "fric_u", "taux", "tauy",
+                "TFLUX_DEN_z", "SFLUX_DEN_z",
+                "div",
+                "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV",
+            ])
+
+        end
+
+        output_varlist = Dict()
+        for varname in output_varnames
+            output_varlist[varname] = all_varlist[varname]
+        end
+
+        return output_varlist
+end
+
+
 

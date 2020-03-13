@@ -148,6 +148,10 @@ module CESMCORE_HOOM
            
             if configs[rec_key] == :ALL
                 configs[rec_key] = keys(complete_variable_list)
+            elseif configs[rec_key] == :ESSENTIAL
+                configs[rec_key] = keys(HOOM.getSubVariableList(ocn, :ESSENTIAL))
+            else
+                println("Using customized output variables.")
             end
 
  
