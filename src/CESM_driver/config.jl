@@ -3,7 +3,7 @@ overwrite_configs = Dict()
 configs = Dict(
     :substeps    => 8,                 # This controls how many steps will occur for each CESM coupling. Example: ocean couple to atmosphere every 24 hours but itself steps every 3 hours. This means we would expect `Δt` = 86400, and we set `substeps` = 8.
     :daily_record              => [],
-    :monthly_record            => :ALL,
+    :monthly_record            => :ESSENTIAL,
     :enable_archive            => true,
     :archive_list              => "archive_list.txt",
     :rpointer_file             => "rpointer.hoom",
