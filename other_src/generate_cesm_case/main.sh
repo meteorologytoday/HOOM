@@ -37,6 +37,7 @@ lopts=(
     seaice-file
     single-job
     relaxation-time
+    vertical-resolution
 )
 
 source $wk_dir/getopt_helper.sh
@@ -74,7 +75,7 @@ new_data_init_S_file=$init_files_dir/init_S_${label}_${resolution}_$( basename $
 new_data_init_MLD_file=$init_files_dir/init_MLD_${label}_${resolution}_$( basename $data_init_MLD_file ".nc" ).nc
 new_topo_file=$init_files_dir/${label}_${resolution}_$( basename $topo_file ".nc" ).nc
 
-zdomain_file=$init_files_dir/zdomain.nc
+zdomain_file=$init_files_dir/HOOM_zdomain.nc
 
 $wk_dir/make_init.sh                            \
     --output-dir=$init_files_dir                \
@@ -94,7 +95,8 @@ $wk_dir/make_init.sh                            \
     --old-domain-file=$old_domain_file          \
     --new-domain-file=$new_domain_file          \
     --T-unit=$T_unit                            \
-    --output-zdomain-file=$zdomain_file
+    --output-zdomain-file=$zdomain_file         \
+    --output-resolution=$vertical_resolution
 
 
 echo "Making initial files for a specific vt_scheme"

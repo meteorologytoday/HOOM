@@ -25,6 +25,7 @@ lopts=(
     new-domain-file
     T-unit
     output-zdomain-file
+    output-resolution
 )
 
 source $wk_dir/getopt_helper.sh
@@ -34,7 +35,7 @@ mkdir -p $tmp_dir
 
 # Make z-coordinate file for input coordinate
 input_zdomain_file=$output_dir/input_zdomain.nc
-ncks -v z_t $input_clim_T_file $input_zdomain_file
+ncks -O -v z_t $input_clim_T_file $input_zdomain_file
 ncap2 -O -s 'zs=-z_t/100.0;' $input_zdomain_file $input_zdomain_file
 ncatted -a units,zs,m,c,"meter"                                              \
         -a long_name,zs,m,c,"z-coordinate from surface to midpoint of layer" \
@@ -42,7 +43,9 @@ ncatted -a units,zs,m,c,"meter"                                              \
 
 # Make z-coordinate file for output coordinate
 if [ ! -f $output_zdomain_file ]; then
-    julia $script_coordtrans_dir/mk_HOOM_zdomain.jl --output-file=$output_zdomain_file --resolution=Standard
+    julia $script_coordtrans_dir/mk_HOOM_zdomain.jl \
+        --output-file=$output_zdomain_file          \
+        --resolution=$output_resolution
 fi
 
 
@@ -107,6 +110,7 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
             --output-file=$new_data_file                    \
             --output-zdomain-file=$output_zdomain_file      \
             --output-zdomain-varname=zs                     \
+            --input-zdomain-type=midpoints                  \
             --varname=$varname
             
         

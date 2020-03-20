@@ -44,7 +44,12 @@ function parse_commandline()
             help = "Variable name"
             arg_type = String
             required = true
- 
+
+        "--input-zdomain-type" 
+            help = "Currently accept: endpoints, midpoints"
+            arg_type = String
+            required = true
+
     end
 
     return parse_args(ARGS, s)
@@ -62,9 +67,18 @@ Dataset(parsed["output-zdomain-file"], "r") do ds
     global zs_o = ds[parsed["output-zdomain-varname"]][:] |> nomissing
 end
 
-zs_i_mid = (zs_i[2:end] + zs_i[1:end-1] ) / 2.0
-zs_o_mid = (zs_o[2:end] + zs_o[1:end-1] ) / 2.0
+if parsed["input-zdomain-type"] == "endpoints"
+    println("Input zdomain use endpoints. Take average.")
+    zs_i_mid = (zs_i[2:end] + zs_i[1:end-1] ) / 2.0
+elseif parsed["input-zdomain-type"] == "midpoints"
+    println("Input zdomain use midpoints. Do nothing.")
+    zs_i_mid = copy(zs_i)
+    # do nothing
+else
+    throw(ErrorException("Unknown zdomain type: " * string(parsed["input-zdomain-type"])))
+end
 
+zs_o_mid = (zs_o[2:end] + zs_o[1:end-1] ) / 2.0
 
 missing_value = 1e20
 
@@ -82,7 +96,7 @@ defDim(ds_o, "zs", length(zs_o))
 defDim(ds_o, "time", Inf)
 
 for (varname, vardata, dims) in (
-    ("zs", zs, ("zs",)),
+    ("zs", zs_o, ("zs",)),
 )
     println("varname: ", varname)
     v = defVar(ds_o, varname, Float64, dims)
@@ -92,12 +106,15 @@ end
 old_data = replace(ds_i[parsed["varname"]][:], missing=>NaN)
 new_data = zeros(Float64, Nx, Ny, Nz_o)
 
+println("size of old_data: ", size(old_data))
+println("size of new_data: ", size(new_data))
+
 new_data .= NaN
 
 # interpolation function needs
 # monotonic increasing function
-depth_i = - zs_mid_i
-depth_o = - zs_mid_o
+depth_i = - zs_i_mid
+depth_o = - zs_o_mid
 
 
 for i=1:Nx, j=1:Ny
@@ -117,7 +134,8 @@ for i=1:Nx, j=1:Ny
     else
 
         new_data[i, j, :] = interpolate(
-            depth_i[1:valid_data_cnt], old_data[i, j, 1:valid_data_cnt],
+            depth_i[1:valid_data_cnt],
+            old_data[i, j, 1:valid_data_cnt],
             depth_o;
             left_copy=true,
             right_copy=true,

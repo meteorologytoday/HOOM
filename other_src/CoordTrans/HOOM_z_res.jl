@@ -38,7 +38,8 @@ function getHOOMResolution(
 
         zs = collect(Float64, 0:-25:-500)[1:end-1]
         zs = vcat(zs, collect(Float64, -500:-50:-1000))
-        if length(zs) != 30
+        if length(zs) != 31
+            println(zs)
             throw(ErrorException("Not expected zs. Please check."))
         end
 
