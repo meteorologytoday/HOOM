@@ -42,11 +42,12 @@ julia $script_dir/mk_correction_file_monthly.jl        \
     --end-year=$end_year                   \
     --domain-file=$domain_file             \
     --data-file-prefix="$data_file_prefix" \
+    --input-file="$old_qflx_file"          \
     --output-file="$correction_file"       
 
 cp $old_qflx_file tmp.nc
-ncks -A -v Qflx_T_correction,Qflx_S_correction $correction_file tmp.nc
-ncap2 -O -s 'Qflx_T=Qflx_T+Qflx_T_correction-avg_Qflx_T_correction;Qflx_S=Qflx_S+Qflx_S_correction-avg_Qflx_S_correction' tmp.nc tmp.nc
-ncks -O -x -v Qflx_T_correction,Qflx_S_correction tmp.nc $new_qflx_file
+ncks -A -v Qflx_T_new,Qflx_S_new $correction_file tmp.nc
+ncap2 -O -s 'Qflx_T=Qflx_T_new;Qflx_S=Qflx_S_new;' tmp.nc tmp.nc
+ncks -O -x -v Qflx_T_new,Qflx_S_new tmp.nc $new_qflx_file
 
 
