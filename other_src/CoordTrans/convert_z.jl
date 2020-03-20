@@ -1,46 +1,103 @@
 using NCDatasets
+using ArgParse
+using JSON
 using Formatting
 
-include("./SSM_z_res.jl")
 include("./interpolate.jl")
 
-fn_i    = ARGS[1]
-fn_o    = ARGS[2]
-varname = ARGS[3]
+function parse_commandline()
+
+    s = ArgParseSettings()
+    @add_arg_table s begin
+ 
+        "--input-file"
+            help = "Input file."
+            arg_type = String
+            required = true
+
+        "--output-file"
+            help = "Output file."
+            arg_type = String
+            required = true
+
+        "--input-zdomain-file"
+            help = "Resolution keywords. Currently accept: POP2, Standard."
+            arg_type = String
+            required = true
+
+        "--input-zdomain-varname"
+            help = "Resolution keywords. Currently accept: POP2, Standard."
+            arg_type = String
+            required = true
+
+        "--output-zdomain-file"
+            help = "Resolution keywords. Currently accept: POP2, Standard."
+            arg_type = String
+            required = true
+
+        "--output-zdomain-varname"
+            help = "Resolution keywords. Currently accept: POP2, Standard."
+            arg_type = String
+            required = true
+
+        "--varname"
+            help = "Variable name"
+            arg_type = String
+            required = true
+ 
+    end
+
+    return parse_args(ARGS, s)
+end
+
+parsed = parse_commandline()
+print(json(parsed, 4))
+
+
+Dataset(parsed["input-zdomain-file"], "r") do ds
+    global zs_i = ds[parsed["input-zdomain-varname"]][:] |> nomissing
+end
+
+Dataset(parsed["output-zdomain-file"], "r") do ds
+    global zs_o = ds[parsed["output-zdomain-varname"]][:] |> nomissing
+end
+
+zs_i_mid = (zs_i[2:end] + zs_i[1:end-1] ) / 2.0
+zs_o_mid = (zs_o[2:end] + zs_o[1:end-1] ) / 2.0
 
 
 missing_value = 1e20
 
-ds_i    = Dataset(fn_i, "r")
-ds_o    = Dataset(fn_o, "c")
+ds_i    = Dataset(parsed["input-file"], "r")
+ds_o    = Dataset(parsed["output-file"], "c")
 
 Nx = ds_i.dim["Nx"]
 Ny = ds_i.dim["Ny"]
-Nz_SSM = length(zs_SSM) - 1
+Nz_o = length(zs_o) - 1
 
 defDim(ds_o, "Nx", Nx)
 defDim(ds_o, "Ny", Ny)
-defDim(ds_o, "Nz", Nz_SSM)
-defDim(ds_o, "zs", length(zs_SSM))
+defDim(ds_o, "Nz", Nz_o)
+defDim(ds_o, "zs", length(zs_o))
 defDim(ds_o, "time", Inf)
 
 for (varname, vardata, dims) in (
-    ("zs", zs_SSM, ("zs",)),
+    ("zs", zs, ("zs",)),
 )
     println("varname: ", varname)
     v = defVar(ds_o, varname, Float64, dims)
     v[:] = vardata
 end
 
-old_data = replace(ds_i[varname][:], missing=>NaN)
-new_data = zeros(Float64, Nx, Ny, Nz_SSM)
+old_data = replace(ds_i[parsed["varname"]][:], missing=>NaN)
+new_data = zeros(Float64, Nx, Ny, Nz_o)
 
 new_data .= NaN
 
 # interpolation function needs
 # monotonic increasing function
-depth_NCAR_LENS = - zs_mid_NCAR_LENS
-depth_SSM     = - zs_mid_SSM
+depth_i = - zs_mid_i
+depth_o = - zs_mid_o
 
 
 for i=1:Nx, j=1:Ny
@@ -60,8 +117,8 @@ for i=1:Nx, j=1:Ny
     else
 
         new_data[i, j, :] = interpolate(
-            depth_NCAR_LENS[1:valid_data_cnt], old_data[i, j, 1:valid_data_cnt],
-            depth_SSM;
+            depth_i[1:valid_data_cnt], old_data[i, j, 1:valid_data_cnt],
+            depth_o;
             left_copy=true,
             right_copy=true,
         )
@@ -70,7 +127,7 @@ for i=1:Nx, j=1:Ny
 
 end
 
-new_var = defVar(ds_o, varname, Float64, ("Nx", "Ny", "Nz", "time"))
+new_var = defVar(ds_o, parsed["varname"], Float64, ("Nx", "Ny", "Nz", "time"))
 new_var.attrib["_FillValue"] = missing_value
 new_var[:, :, :, 1] = new_data
 

@@ -32,7 +32,23 @@ source $wk_dir/getopt_helper.sh
 mkdir -p $output_dir
 mkdir -p $tmp_dir
 
-# First generate correct transformed  coordinate files
+# Make z-coordinate file for input coordinate
+input_zdomain_file=$output_dir/input_zdomain.nc
+ncks -v z_t $input_clim_T_file $input_zdomain_file
+ncap2 -O -s 'zs=-z_t/100.0;' $input_zdomain_file $input_zdomain_file
+ncatted -a units,zs,m,c,"meter"                                              \
+        -a long_name,zs,m,c,"z-coordinate from surface to midpoint of layer" \
+        $input_zdomain_file
+
+# Make z-coordinate file for output coordinate
+if [ ! -f $output_zdomain_file ]; then
+    julia $script_coordtrans_dir/mk_HOOM_zdomain.jl --output-file=$output_zdomain_file --resolution=Standard
+fi
+
+
+
+
+# Generate correct transformed  coordinate files
 if [ "$old_domain_file" == "$new_domain_file" ]; then
     wgt_file="X"
 else
@@ -47,6 +63,7 @@ else
         --d-mask-value=1.0
 
 fi
+
 
 
 # Convert 3D variable: TEMP, SALT
@@ -83,7 +100,15 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
             mv $tmp1 $tmp2
         fi
 
-        julia $script_coordtrans_dir/convert_z.jl $tmp2 $new_data_file $varname
+        julia $script_coordtrans_dir/convert_z.jl           \
+            --input-file=$tmp2                              \
+            --input-zdomain-file=$input_zdomain_file        \
+            --input-zdomain-varname=zs                      \
+            --output-file=$new_data_file                    \
+            --output-zdomain-file=$output_zdomain_file      \
+            --output-zdomain-varname=zs                     \
+            --varname=$varname
+            
         
 #        rm -f $tmp1 $tmp2
     fi
@@ -118,11 +143,6 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
         fi
     fi
 done
-
-# Make z-coordinate file
-if [ ! -f $output_zdomain_file ]; then
-    julia $script_coordtrans_dir/SSM_mk_zdomain.jl $output_zdomain_file
-fi
 
 
 
