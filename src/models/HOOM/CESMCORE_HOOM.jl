@@ -40,6 +40,7 @@ module CESMCORE_HOOM
 
         checkDict!(configs, [
             (:init_file,                    false, (nothing, String,),          nothing),
+            (:domain_file,                  false, (nothing, String,),          nothing),
             (:advection_scheme,              true, (:static, :ekman_all_in_ML, :ekman_simple_partition, :ekman_codron2012_partition,),  nothing),
             (:MLD_scheme,                    true, (:prognostic, :datastream,), nothing),
             (:Qflux_scheme,                  true, (:on, :off,),                nothing),
@@ -60,7 +61,8 @@ module CESMCORE_HOOM
         end
 
 
-        init_file = configs[:init_file]
+        init_file   = configs[:init_file]
+        domain_file = configs[:domain_file]
 
         # If `read_restart` is true then read restart file: configs[:rpointer_file]
         # If not then initialize ocean with default profile if `initial_file`
@@ -93,7 +95,7 @@ module CESMCORE_HOOM
         if typeof(init_file) <: AbstractString
 
             println("Initial ocean with profile: ", init_file)
-            ocn = HOOM.loadSnapshot(init_file)
+            ocn = HOOM.loadSnapshot(init_file; gridinfo_file=domain_file)
         
         else
 
@@ -296,7 +298,7 @@ module CESMCORE_HOOM
 
         
         if write_restart
-            restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
+            restart_file = format("{}.ocn.r.{:04d}{:02d}{:02d}_{:05d}.nc", MD.casename, t[1], t[2], t[3], t[4])
             HOOM.takeSnapshot(MD.ocn, restart_file)
              
             open(MD.configs[:rpointer_file], "w") do file

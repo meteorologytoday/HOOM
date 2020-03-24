@@ -20,7 +20,7 @@ lopts=(
     vt-scheme
     hz-scheme
     ocn-ncpu
-    qflux-file
+    qflx-file
     seaice-file
     ocn-branch
     single-job
@@ -50,7 +50,7 @@ machine=$machine
 compset=$compset
 user_namelist_dir=$user_namelist_dir
 init_file=$init_file
-qflux_file="$qflux_file"
+qflx_file="$qflx_file"
 seaice_file="$seaice_file"
 
 walltime="${walltime}"
@@ -97,13 +97,13 @@ fi
 cd \$casename
 
 
-if [ ! -z "\$qflux_file" ]; then
+if [ ! -z "\$qflx_file" ]; then
 
-    echo "Qflux file nonempty. Now setting user-defined qflux."
-    setXML "env_run.xml" "DOCN_SOM_FILENAME" "\$qflux_file"
+    echo "Qflux file nonempty. Now setting user-defined qflx."
+    setXML "env_run.xml" "DOCN_SOM_FILENAME" "\$qflx_file"
  
-    FORCING_DIR=\$( dirname \$qflux_file )
-    FORCING_FILENAME=\$( basename \$qflux_file )
+    FORCING_DIR=\$( dirname \$qflx_file )
+    FORCING_FILENAME=\$( basename \$qflx_file )
 
     cat << XEOFX > user_docn.streams.txt.som
     $( echo "$( cat $wk_dir/docn_stream.txt )" )

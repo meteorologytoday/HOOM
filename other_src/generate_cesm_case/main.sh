@@ -4,6 +4,7 @@ export wk_dir=$( dirname $0 )
 #echo "wk_dir: $wk_dir"
 
 lopts=(
+    init-file
     casename
     code-output-dir
     init-files-dir
@@ -33,7 +34,7 @@ lopts=(
     hz-scheme
     ocn-ncpu
     ocn-branch
-    qflux-file
+    qflx-file
     seaice-file
     single-job
     relaxation-time
@@ -65,66 +66,73 @@ if [ -z "$ocn_branch" ] ; then
     ocn_branch=master
 fi
 
-
-echo "Making initial files..."
-
-new_data_clim_T_file=$init_files_dir/clim_T_${label}_${resolution}_$( basename $data_clim_T_file ".nc" ).nc
-new_data_clim_S_file=$init_files_dir/clim_S_${label}_${resolution}_$( basename $data_clim_S_file ".nc" ).nc
-new_data_init_T_file=$init_files_dir/init_T_${label}_${resolution}_$( basename $data_init_T_file ".nc" ).nc
-new_data_init_S_file=$init_files_dir/init_S_${label}_${resolution}_$( basename $data_init_S_file ".nc" ).nc
-new_data_init_MLD_file=$init_files_dir/init_MLD_${label}_${resolution}_$( basename $data_init_MLD_file ".nc" ).nc
-new_topo_file=$init_files_dir/${label}_${resolution}_$( basename $topo_file ".nc" ).nc
-
-zdomain_file=$init_files_dir/HOOM_zdomain.nc
-
-$wk_dir/make_init.sh                            \
-    --output-dir=$init_files_dir                \
-    --label=$label                              \
-    --input-clim-T-file=$data_clim_T_file       \
-    --input-clim-S-file=$data_clim_S_file       \
-    --input-init-T-file=$data_init_T_file       \
-    --input-init-S-file=$data_init_S_file       \
-    --input-init-MLD-file=$data_init_MLD_file       \
-    --input-topo-file=$topo_file                \
-    --output-clim-T-file=$new_data_clim_T_file  \
-    --output-clim-S-file=$new_data_clim_S_file  \
-    --output-init-T-file=$new_data_init_T_file  \
-    --output-init-S-file=$new_data_init_S_file  \
-    --output-init-MLD-file=$new_data_init_MLD_file  \
-    --output-topo-file=$new_topo_file           \
-    --old-domain-file=$old_domain_file          \
-    --new-domain-file=$new_domain_file          \
-    --T-unit=$T_unit                            \
-    --output-zdomain-file=$zdomain_file         \
-    --output-resolution=$vertical_resolution
-
-
-echo "Making initial files for a specific vt_scheme"
-
 if [ -z "$casename" ]; then
     casename=${label}_${resolution}_${vt_scheme}_${hz_scheme}_${relaxation_time}
 fi
 
-init_file=$init_files_dir/init_${casename}.nc
+if [ ! -z "$init_file" ] ; then
 
-$wk_dir/make_init_each_model.sh                 \
-    --output-file=$init_file                    \
-    --label=$label                              \
-    --data-clim-T-file=$new_data_clim_T_file    \
-    --data-clim-S-file=$new_data_clim_S_file    \
-    --data-init-T-file=$new_data_init_T_file    \
-    --data-init-S-file=$new_data_init_S_file    \
-    --data-init-MLD-file=$new_data_init_MLD_file    \
-    --domain-file=$new_domain_file              \
-    --zdomain-file=$zdomain_file                \
-    --topo-file=$new_topo_file                  \
-    --T-unit=$T_unit                            \
-    --S-unit=$S_unit                            \
-    --forcing-file=$qflux_file                  \
-    --vt-scheme=$vt_scheme                              \
-    --hz-scheme=$hz_scheme                  \
-    --relaxation-time=$relaxation_time
+    echo "Init file provided. Will not self-generating init file."
+    echo "Init file: $init_file"
 
+else
+
+    init_file=$init_files_dir/init_${casename}.nc
+
+    echo "Making initial files..."
+
+    new_data_clim_T_file=$init_files_dir/clim_T_${label}_${resolution}_$( basename $data_clim_T_file ".nc" ).nc
+    new_data_clim_S_file=$init_files_dir/clim_S_${label}_${resolution}_$( basename $data_clim_S_file ".nc" ).nc
+    new_data_init_T_file=$init_files_dir/init_T_${label}_${resolution}_$( basename $data_init_T_file ".nc" ).nc
+    new_data_init_S_file=$init_files_dir/init_S_${label}_${resolution}_$( basename $data_init_S_file ".nc" ).nc
+    new_data_init_MLD_file=$init_files_dir/init_MLD_${label}_${resolution}_$( basename $data_init_MLD_file ".nc" ).nc
+    new_topo_file=$init_files_dir/${label}_${resolution}_$( basename $topo_file ".nc" ).nc
+
+    zdomain_file=$init_files_dir/HOOM_zdomain.nc
+
+
+    $wk_dir/make_init.sh                            \
+        --output-dir=$init_files_dir                \
+        --label=$label                              \
+        --input-clim-T-file=$data_clim_T_file       \
+        --input-clim-S-file=$data_clim_S_file       \
+        --input-init-T-file=$data_init_T_file       \
+        --input-init-S-file=$data_init_S_file       \
+        --input-init-MLD-file=$data_init_MLD_file       \
+        --input-topo-file=$topo_file                \
+        --output-clim-T-file=$new_data_clim_T_file  \
+        --output-clim-S-file=$new_data_clim_S_file  \
+        --output-init-T-file=$new_data_init_T_file  \
+        --output-init-S-file=$new_data_init_S_file  \
+        --output-init-MLD-file=$new_data_init_MLD_file  \
+        --output-topo-file=$new_topo_file           \
+        --old-domain-file=$old_domain_file          \
+        --new-domain-file=$new_domain_file          \
+        --T-unit=$T_unit                            \
+        --output-zdomain-file=$zdomain_file         \
+        --output-resolution=$vertical_resolution
+
+
+    echo "Making initial files for a specific vt_scheme"
+    $wk_dir/make_init_each_model.sh                  \
+        --output-file=$init_file                     \
+        --label=$label                               \
+        --data-clim-T-file=$new_data_clim_T_file     \
+        --data-clim-S-file=$new_data_clim_S_file     \
+        --data-init-T-file=$new_data_init_T_file     \
+        --data-init-S-file=$new_data_init_S_file     \
+        --data-init-MLD-file=$new_data_init_MLD_file \
+        --domain-file=$new_domain_file               \
+        --zdomain-file=$zdomain_file                 \
+        --topo-file=$new_topo_file                   \
+        --T-unit=$T_unit                             \
+        --S-unit=$S_unit                             \
+        --forcing-file=$qflx_file                   \
+        --vt-scheme=$vt_scheme                       \
+        --hz-scheme=$hz_scheme                       \
+        --relaxation-time=$relaxation_time
+
+fi
 
 echo "Generate cesm sugar scripts..."
 
@@ -143,7 +151,7 @@ $wk_dir/make_cesm_sugar_script.sh           \
     --user-namelist-dir=$user_namelist_dir  \
     --vt-scheme=$vt_scheme                  \
     --ocn-ncpu=$ocn_ncpu                    \
-    --qflux-file=$qflux_file                \
+    --qflx-file=$qflx_file                \
     --seaice-file=$seaice_file              \
     --ocn-branch=$ocn_branch                \
     --single-job=$single_job

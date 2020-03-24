@@ -64,7 +64,7 @@ casenames=()
 
 for i in $(seq 1 $((${#models[@]}/2))); do
     model=${models[$((2*(i-1)))]}
-    qflux_file=${models[$((2*(i-1)+1))]}
+    qflx_file=${models[$((2*(i-1)+1))]}
 
     for j in $(seq 1 $((${#flow_schemes[@]}/1))); do
         flow_scheme=${flow_schemes[$((1*(j-1)))]}
@@ -96,7 +96,7 @@ for i in $(seq 1 $((${#models[@]}/2))); do
                 --cesm-env=$cesm_env                            \
                 --ocn-ncpu=$ocn_ncpu                            \
                 --project-code=$project_code                    \
-                --qflux-file=$qflux_file                        \
+                --qflx-file=$qflx_file                        \
                 --ocn-branch=$ocn_branch                        \
                 --single-job="$single_job"                      \
                 --relaxation-time=$relaxation_time                      \
