@@ -11,21 +11,24 @@ lopts=(
     label
     data-clim-T-file
     data-clim-S-file
+    data-init-T-file
+    data-init-S-file
+    data-init-MLD-file
     domain-file
     zdomain-file
     topo-file
     T-unit
     S-unit
-    model
-    flow-scheme
+    vt-scheme
+    hz-scheme
     relaxation-time
     forcing-file
 )
 
 source $wk_dir/getopt_helper.sh
 
-gen_code="$wk_dir/init_code/${model}_${flow_scheme}/make_init.jl"
-printf "[%s] => [%s] : [%s]\n" $model $flow_scheme $relaxation_time $gen_code
+gen_code="$wk_dir/init_code/HOOM_${vt_scheme}_${hz_scheme}/make_init.jl"
+printf "[%s] => [%s] : [%s]\n" $vt_scheme $hz_scheme $relaxation_time $gen_code
 
 if [ ! -f $output_file ]; then
 
@@ -33,6 +36,9 @@ if [ ! -f $output_file ]; then
         --output-file=$output_file                  \
         --data-clim-T-file=$data_clim_T_file        \
         --data-clim-S-file=$data_clim_S_file        \
+        --data-init-T-file=$data_init_T_file        \
+        --data-init-S-file=$data_init_S_file        \
+        --data-init-MLD-file=$data_init_MLD_file        \
         --topo-file=$topo_file                      \
         --domain-file=$domain_file                  \
         --zdomain-file=$zdomain_file                \

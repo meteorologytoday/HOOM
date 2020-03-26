@@ -1,21 +1,31 @@
 overwrite_configs = Dict()
+
 configs = Dict(
-    :casename    => "casename",
-    :substeps    => 1,                 # This controls how many steps will occur for each CESM coupling. Example: ocean couple to atmosphere every 24 hours but itself steps every 3 hours. This means we would expect `Δt` = 86400, and we set `substeps` = 8.
-    :caseroot                  => pwd(),
-    :domain_file               => "/home/tienyiah/cesm_inputdata/cesm1/share/domains/domain.ocn.gx3v7.120323.nc",
-    :short_term_archive_dir    => pwd(),
-    :long_term_archive_dir     => pwd(),
-    :enable_short_term_archive => false,
-    :enable_long_term_archive  => false,
+    :substeps    => 8,                 # This controls how many steps will occur for each CESM coupling. Example: ocean couple to atmosphere every 24 hours but itself steps every 3 hours. This means we would expect `Δt` = 86400, and we set `substeps` = 8.
     :daily_record              => [],
-#    :daily_record            => ["T", "S", "b", "T_ML", "S_ML", "dTdt_ent", "dSdt_ent", "TSAS_clim", "SSAS_clim", "wT_bot", "wS_bot", "wS_top", "TFLUX_DIV_implied", "SFLUX_DIV_implied", "qflx2atm", "h_ML", "nswflx", "swflx", "frwflx", "qflx", "TEMP", "dTEMPdt", "SALT", "dSALTdt", "fric_u", "taux", "tauy", "TFLUX_DEN_z", "SFLUX_DEN_z", "div", "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV"],
-    :monthly_record            => ["T", "S", "b", "T_ML", "S_ML", "dTdt_ent", "dSdt_ent", "TSAS_clim", "SSAS_clim", "wT_bot", "wS_bot", "wS_top", "TFLUX_DIV_implied", "SFLUX_DIV_implied", "qflx2atm", "h_ML", "nswflx", "swflx", "frwflx", "qflx", "TEMP", "dTEMPdt", "SALT", "dSALTdt", "fric_u", "taux", "tauy", "TFLUX_DEN_z", "SFLUX_DEN_z", "div", "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV"],
-    :short_term_archive_list   => "SMARTSLAB_short_term_archive_list.txt",
-    :rpointer_file             => "rpointer.ssm_ocn",
-    :wdir                      => pwd(),
+    :monthly_record            => :ESSENTIAL,
+    :enable_archive            => true,
+    :archive_list              => "archive_list.txt",
+    :rpointer_file             => "rpointer.hoom",
     :timeout                   => 60.0 * 20, 
 )
+
+#=
+configs = Dict(
+    :casename    => "casename",
+    :substeps    => 8,                 # This controls how many steps will occur for each CESM coupling. Example: ocean couple to atmosphere every 24 hours but itself steps every 3 hours. This means we would expect `Δt` = 86400, and we set `substeps` = 8.
+    :caseroot                  => pwd(),
+    :caserun                   => pwd(),
+    :domain_file               => "/home/tienyiah/cesm_inputdata/cesm1/share/domains/domain.ocn.gx3v7.120323.nc",
+    :daily_record              => [],
+    :monthly_record            => :ALL,
+    :enable_archive            => true,
+    :archive_root              => pwd(),
+    :archive_list              => "archive_list.txt",
+    :rpointer_file             => "rpointer.hoom",
+    :timeout                   => 60.0 * 20, 
+)
+=#
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -52,15 +62,10 @@ if !(@isdefined OMMODULE)
         throw(ErrorException("Core ocean module is not provided. Please set --core option, or define OMMODULE in configuration file."))
     else
         module_name = "CESMCORE_" * core_name
-        #module_symb = Symbol(module_name)
-        core_file = joinpath(dirname(@__FILE__), "cores", core_name, module_name * ".jl")
+        println("BASE: " * @__FILE__) 
+        core_file = normpath(joinpath(dirname(@__FILE__), "..", "models", core_name, module_name * ".jl"))
         println("Selected core: ", core_name, " => ", core_file )
-        #=
-        for pid in procs()
-            remotecall_fetch(include, pid, core_file)
-            remotecall_fetch(eval, pid, :(using .$(module_symb))) 
-        end
-        =#
+        
         include(core_file)
         OMMODULE = getfield(Main, Symbol(module_name))
     end 

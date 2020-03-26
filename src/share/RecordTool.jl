@@ -2,7 +2,25 @@ module RecordTool
     using NCDatasets
     using Formatting
     missing_value = 1e20
+ 
+    mutable struct NonStatObj 
+
+        varname  :: AbstractString
+        varref   :: AbstractArray{Float64}
+        
+        dimnames :: Tuple
+
+        function NonStatObj(varname, varref, dimnames)
+            if length(size(varref)) != length(dimnames)
+                ErrorException(format("Variable `{:s}` is {:d} dimensional while only {:d} dimension names are given.", varname, length(size(varref)), length(dimnames))) |> throw
+            end
+
+            return new(varname, varref, dimnames)
+        end
     
+    end
+
+   
     mutable struct StatObj
 
         varname  :: AbstractString
@@ -33,10 +51,14 @@ module RecordTool
         
         dims     :: Dict    # A dictionary of dimension name mapping to its length
         sobjs    :: Dict
+        nsobjs   :: Dict
 
-        function Recorder(dims, vars)
+        desc     :: Dict
 
-            sobjs = Dict()
+        function Recorder(dims, vars, desc; other_vars = nothing)
+
+            sobjs  = Dict()
+            nsobjs = Dict()
 
             if haskey(dims, "time")
                 ErrorException("Dimension `time` is used for record dimension. It cannot be specified in dict `dims`.") |> throw
@@ -53,7 +75,21 @@ module RecordTool
                 sobjs[varname] = StatObj(varname, varref, dimnames)
             end
 
-            return new(nothing, 1, dims, sobjs)
+            if other_vars == nothing
+            else
+            for (varname, varref, dimnames) in other_vars
+
+                for dimname in dimnames
+                    if !haskey(dims, dimname)
+                        ErrorException(format("Variable `{:s}` contains a dimension `{:s}` not specified in `dims` dict.", varname, dimname)) |> throw
+                    end
+                end
+
+                nsobjs[varname] = NonStatObj(varname, varref, dimnames)
+            end
+            end
+
+            return new(nothing, 1, dims, sobjs, nsobjs, desc)
         end
 
     end
@@ -140,7 +176,27 @@ module RecordTool
             for (varname, sobj) in rec.sobjs
                 ds_var = defVar(ds, varname, Float64, (sobj.dimnames..., "time"))
                 ds_var.attrib["_FillValue"] = missing_value
+
+                if haskey(rec.desc, varname)
+                    for (k, v) in rec.desc[varname]
+                        ds_var.attrib[k] = v
+                    end
+                end
+            end
+
+            for (varname, nsobj) in rec.nsobjs
+                ds_var = defVar(ds, varname, Float64, (nsobj.dimnames...,))
+                ds_var.attrib["_FillValue"] = missing_value
+
+                if haskey(rec.desc, varname)
+                    for (k, v) in rec.desc[varname]
+                        ds_var.attrib[k] = v
+                    end
+                end
+                ds_var[:] = nsobj.varref
             end 
+
+ 
         end
         
     end

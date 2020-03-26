@@ -3,7 +3,7 @@ using NCDatasets
 using ArgParse
 using JSON
 
-src = normpath(joinpath(@__DIR__, "..", "..", "..", "src"))
+src = normpath(joinpath(@__DIR__, "..", "..", "..", "src", "models"))
 
 function parse_commandline()
     s = ArgParseSettings()
@@ -24,6 +24,21 @@ function parse_commandline()
             arg_type = String
             required = true
  
+        "--data-init-T-file"
+            help = "Initial temperature data file and its varname separated by comma. Supposed to be 3D."
+            arg_type = String
+            required = true
+  
+        "--data-init-S-file"
+            help = "Initial salinity data file and its varname separated by comma. Supposed to be 3D."
+            arg_type = String
+            required = true
+ 
+        "--data-init-MLD-file"
+            help = "Initial mixed-layer depth data file and its varname separated by comma. Supposed to be 2D."
+            arg_type = String
+            required = true
+ 
         "--domain-file"
             help = "Domain file, dimension names of lon, lat and varname of mask. Separated by comma. Ex: xxx.nc,ni,nj,mask"
             arg_type = String
@@ -40,7 +55,7 @@ function parse_commandline()
             required = true
 
         "--forcing-file"
-            help = "Qflux forcing file. Contains varnames: hblt and qdp."
+            help = "Qflux forcing file. Contains varnames: Qflux_T, Qflux_S, MLD."
             arg_type = String
             required = false
 
@@ -98,20 +113,36 @@ Dataset(parsed["data-clim-S-file"], "r") do ds
     global Ss_clim = replace(ds["SALT"][:, :, :, 1], missing=>NaN)
 end
 
+Dataset(parsed["data-init-T-file"], "r") do ds
+    global Ts_init = replace(ds["TEMP"][:, :, :, 1], missing=>NaN)
+end
+
+Dataset(parsed["data-init-S-file"], "r") do ds
+    global Ss_init = replace(ds["SALT"][:, :, :, 1], missing=>NaN)
+end
+
+Dataset(parsed["data-init-MLD-file"], "r") do ds
+    global h_ML = replace(ds["HMXL"][:, :, :, 1], missing=>NaN)
+end
+
+
+
 Dataset(parsed["topo-file"], "r") do ds
     global topo = zeros(Float64, 1, 1)
     topo = - replace(ds["depth"][:], missing => NaN)
 end
 
+#=
 if haskey(parsed, "forcing-file")
     if isfile(parsed["forcing-file"]) 
         Dataset(parsed["forcing-file"], "r") do ds
-            global h_ML = replace(ds["hblt"][:], missing => NaN)
+            global h_ML = replace(ds["MLD"][:], missing => NaN)
         end
     else
         println("Cannot find forcing file: ", parsed["forcing-file"],  ". Gonna skip it.")
     end
 end
+=#
 
 if parsed["T-unit"] == "K"
     Ts_clim .-= 273.15
