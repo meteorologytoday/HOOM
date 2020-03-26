@@ -38,7 +38,6 @@ parser.add_argument('--casenames')
 parser.add_argument('--ref-casenames')
 parser.add_argument('--legends')
 
-parser.add_argument('--data-file')
 parser.add_argument('--domain-file')
 parser.add_argument('--indexing', default=":")
 parser.add_argument('--varname-mean')

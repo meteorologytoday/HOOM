@@ -79,6 +79,8 @@ linestyles = args.linestyles.split(",")
 
 if args.yrng != "":
     yrng = eval(args.yrng)
+else:
+    yrng = ""
 
 
 indices = []
