@@ -188,7 +188,7 @@ module CESMCORE_HOOM
                
         end
 
-        return HOOM_DATA(
+        MD = HOOM_DATA(
             casename,
             map,
             ocn,
@@ -197,6 +197,16 @@ module CESMCORE_HOOM
             configs,
             recorders,
         )
+
+        # Must record the first day
+        record!(
+            MD;
+            t                = t,
+            called_from_init = true,
+        ) 
+
+
+        return MD
 
     end
 
@@ -211,73 +221,6 @@ module CESMCORE_HOOM
 
         # process input fields before record
         in_flds = MD.ocn.in_flds
-
-        in_flds.nswflx .*= -1.0
-        in_flds.swflx  .*= -1.0
-
-#        if MD.configs[:turn_off_frwflx]
-#            in_flds.frwflx .= 0.0
-#        end
-
-        if MD.configs[:enable_archive]
-
-            if length(MD.configs[:daily_record]) != 0
- 
-                RecordTool.record!(
-                    MD.recorders[:daily_record];
-                    avg_and_output = ( t_flags[:new_day] && t_cnt != 1)
-                )
-               
-                if t_flags[:new_month]
-
-                        filename = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
-                        RecordTool.setNewNCFile!(
-                            MD.recorders[:daily_record],
-                            joinpath(MD.configs[:caserun], filename)
-                        )
-
-                        appendLine(MD.configs[:archive_list], 
-                            format("mv,{:s},{:s},{:s}",
-                                filename,
-                                MD.configs[:caserun],
-                                joinpath(MD.configs[:archive_root], "ocn", "hist"),
-                            )
-                        )
-                end
-
-
-            end
-            
-            if length(MD.configs[:monthly_record]) != 0
-
-                RecordTool.record!(
-                    MD.recorders[:monthly_record];
-                    avg_and_output = ( t_flags[:new_month] && t_cnt != 1)
-                )
-
-                if t_flags[:new_month]
-
-                        filename = format("{}.ocn.h.monthly.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
-                        RecordTool.setNewNCFile!(
-                            MD.recorders[:monthly_record],
-                            joinpath(MD.configs[:caserun], filename)
-                        )
-
-                        appendLine(MD.configs[:archive_list], 
-                            format("mv,{:s},{:s},{:s}",
-                                filename,
-                                MD.configs[:caserun],
-                                joinpath(MD.configs[:archive_root], "ocn", "hist"),
-                            )
-                        )
-
-                end
-
-
-            end
-
-        end
-
 
         HOOM.run!(
             MD.ocn;
@@ -294,8 +237,17 @@ module CESMCORE_HOOM
             do_qflx_finding  = MD.configs[:Qflux_finding] == :on,
         )
 
+
+        record!(
+            MD;
+            t       = t,
+            t_cnt   = t_cnt,
+            t_flags = t_flags,
+        ) 
+
         
         if write_restart
+
             restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
             HOOM.takeSnapshot(MD.ocn, restart_file)
              
@@ -333,5 +285,87 @@ module CESMCORE_HOOM
     function final(MD::HOOM_DATA)
         
     end
+
+
+
+
+    # Record happens at the end of day.
+    # This must be that way because CESM does not
+    # simulate the first day of a `continue` run.
+    # The first day has been simulated which is the
+    # last day of the last run. So that is exactly
+    # the restart file.
+    function record!(
+        MD               :: HOOM_DATA;
+        t                :: AbstractArray{Integer},
+        t_cnt            :: Union{Integer, Nothing} = nothing,
+        t_flags          :: Union{Dict, Nothing}    = nothing,
+        called_from_init :: Bool                    = false,
+    )
+        if MD.configs[:enable_archive]
+
+            substeps = MD.configs[:substeps]
+
+
+            # Daily record block
+            if length(MD.configs[:daily_record]) != 0
+
+                if called_from_init || t_flags[:new_month]
+
+                        filename = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
+                        RecordTool.setNewNCFile!(
+                            MD.recorders[:daily_record],
+                            joinpath(MD.configs[:caserun], filename)
+                        )
+
+                        appendLine(MD.configs[:archive_list], 
+                            format("mv,{:s},{:s},{:s}",
+                                filename,
+                                MD.configs[:caserun],
+                                joinpath(MD.configs[:archive_root], "ocn", "hist"),
+                            )
+                        )
+                end
+
+                 RecordTool.record!(
+                    MD.recorders[:daily_record];
+                    avg_and_output =  called_from_init || ( t_flags[:new_day] && t_cnt == substeps )
+                 )
+            
+            end
+            
+            # Monthly record block
+            if length(MD.configs[:monthly_record]) != 0
+
+
+                if called_from_init || t_flags[:new_month]
+
+                        filename = format("{}.ocn.h.monthly.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
+                        RecordTool.setNewNCFile!(
+                            MD.recorders[:monthly_record],
+                            joinpath(MD.configs[:caserun], filename)
+                        )
+
+                        appendLine(MD.configs[:archive_list], 
+                            format("mv,{:s},{:s},{:s}",
+                                filename,
+                                MD.configs[:caserun],
+                                joinpath(MD.configs[:archive_root], "ocn", "hist"),
+                            )
+                        )
+
+                end
+
+                RecordTool.record!(
+                    MD.recorders[:monthly_record];
+                    avg_and_output = called_from_init || ( t_flags[:new_month] && t_cnt == substeps)
+                )
+
+            end
+
+        end
+
+    end
+
 
 end

@@ -42,7 +42,11 @@ nullbin  = [zeros(Float64, 1)]
 timeinfo = zeros(Integer, 4) 
 timeinfo_old = copy(timeinfo)
 timeinfo_old .= -1
-t_flags = Dict()
+t_flags = Dict(
+    :new_year  = true,
+    :new_month = true,
+    :new_day   = true,
+)
 
 ocn_run_time = 0.0
 ocn_run_N    = 0
