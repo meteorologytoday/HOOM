@@ -498,14 +498,14 @@ end function
 integer(8) function ptm_calChecksum(dat)
     implicit none
     real(8)       :: dat(:)
-    integer(8)    :: dat_int(size(dat))
+    integer(8)    :: dat_int
     integer(8)    :: i, k
 
-    dat_int = transfer(dat, dat_int)
     ptm_calChecksum = 0
     k = 0
     do i = 1, size(dat)
-        ptm_calChecksum = XOR(ptm_calChecksum, ISHFTC(dat_int(i), k) )
+        dat_int = transfer(dat(i), dat_int)
+        ptm_calChecksum = XOR(ptm_calChecksum, ISHFTC( dat_int, k) )
         k = mod(k+1, 64)
     end do
     !print ('(Z)'), ptm_calChecksum
