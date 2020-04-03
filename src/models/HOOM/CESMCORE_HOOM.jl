@@ -8,8 +8,10 @@ module CESMCORE_HOOM
     using Formatting
     using ..NetCDFIO
     using ..HOOM
+    using ..ModelTime
     using NCDatasets
     using .RecordTool
+
 
     name = "HOOM"
 
@@ -19,6 +21,7 @@ module CESMCORE_HOOM
         casename    :: AbstractString
         map         :: NetCDFIO.MapInfo
         ocn         :: HOOM.Ocean
+        timeinfo    :: ModelTime.TimeInfo
 
         x2o         :: Dict
         o2x         :: Dict
@@ -33,7 +36,7 @@ module CESMCORE_HOOM
     function init(;
         casename     :: AbstractString,
         map          :: NetCDFIO.MapInfo,
-        t            :: AbstractArray{Integer},
+        timeinfo     :: ModelTime.TimeInfo,
         configs      :: Dict,
         read_restart :: Bool,
     )
@@ -51,7 +54,6 @@ module CESMCORE_HOOM
             (:radiation_scheme,              true, (:exponential, :step,),      nothing),
             (:daily_record,                  true, (AbstractArray, Symbol),                 []),
             (:monthly_record,                true, (AbstractArray, Symbol),                 []),
-            (:turn_off_frwflx,              false, (Bool,),                       false),
         ])
 
 
@@ -192,32 +194,53 @@ module CESMCORE_HOOM
             casename,
             map,
             ocn,
+            timeinfo,
             x2o,
             o2x,
             configs,
             recorders,
         )
 
-        # Must record the first day
-        record!(
-            MD;
-            t                = t,
-            called_from_init = true,
-        ) 
-
+        # Must create the record file first because the
+        # run of the first day is not called in CESM
+        archive_createFileIfNeeded!(MD)
+        archive_record!(MD)
 
         return MD
 
     end
 
-    function run(
+    function run!(
         MD            :: HOOM_DATA;
-        t             :: AbstractArray{Integer},
-        t_cnt         :: Integer,
-        t_flags       :: Dict,
         Δt            :: Float64,
         write_restart :: Bool,
     )
+
+        # Record (not output) happens AFTER the simulation.
+        # Output of the current simulation happens at the
+        # BEGINNING of the next simulation.
+        #
+        # Reason 1:
+        # CESM does not simulate the first day of a `continue` run.
+        # The first day has been simulated which is the last day of
+        # the last run which is exactly the restart file. This is 
+        # also why we have to call archive_record! function in the 
+        # end of initialization.
+        #
+        # Reason 2:
+        # Output happens at the beginning the next simulation. By
+        # doing this we can get rid of the problem of deciding which
+        # day is the end of month.
+        #
+        # This is also the way CAM chooses to do detect the end of
+        # current month. 
+        # See: http://www.cesm.ucar.edu/models/cesm1.0/cesm/cesmBbrowser/html_code/cam/time_manager.F90.html
+        #      is_end_curr_month
+        #
+        archive_outputIfNeeded!(MD)
+
+        # File must be created AFTER it is output.
+        archive_createFileIfNeeded!(MD)
 
         # process input fields before record
         in_flds = MD.ocn.in_flds
@@ -237,47 +260,10 @@ module CESMCORE_HOOM
             do_qflx_finding  = MD.configs[:Qflux_finding] == :on,
         )
 
-
-        record!(
-            MD;
-            t       = t,
-            t_cnt   = t_cnt,
-            t_flags = t_flags,
-        ) 
-
+        archive_record!(MD)
         
         if write_restart
-
-            restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
-            HOOM.takeSnapshot(MD.ocn, restart_file)
-             
-            open(MD.configs[:rpointer_file], "w") do file
-                write(file, restart_file)
-            end
-
-            println("(Over)write restart pointer file: ", MD.configs[:rpointer_file])
-            println("Output restart file: ", restart_file)
-
-            src_dir = MD.configs[:caserun]
-            dst_dir = joinpath(MD.configs[:archive_root], "rest", format("{:04d}-{:02d}-{:02d}-{:05d}", t[1], t[2], t[3], t[4]))
-
-            appendLine(MD.configs[:archive_list], 
-                format("cp,{:s},{:s},{:s}",
-                    restart_file,
-                    src_dir,
-                    dst_dir,
-                )
-            )
-
-            appendLine(MD.configs[:archive_list], 
-                format("cp,{:s},{:s},{:s}",
-                    MD.configs[:rpointer_file],
-                    src_dir,
-                    dst_dir,
-                )
-            )
-
-
+            writeRestart(MD)
         end
 
     end
@@ -287,85 +273,153 @@ module CESMCORE_HOOM
     end
 
 
-
-
-    # Record happens at the end of day.
-    # This must be that way because CESM does not
-    # simulate the first day of a `continue` run.
-    # The first day has been simulated which is the
-    # last day of the last run. So that is exactly
-    # the restart file.
-    function record!(
-        MD               :: HOOM_DATA;
-        t                :: AbstractArray{Integer},
-        t_cnt            :: Union{Integer, Nothing} = nothing,
-        t_flags          :: Union{Dict, Nothing}    = nothing,
-        called_from_init :: Bool                    = false,
+    function archive_createFileIfNeeded!(
+        MD :: HOOM_DATA;
     )
-        if MD.configs[:enable_archive]
 
-            substeps = MD.configs[:substeps]
+        if ! MD.configs[:enable_archive]
+            return
+        end
 
-
-            # Daily record block
-            if length(MD.configs[:daily_record]) != 0
-
-                if called_from_init || t_flags[:new_month]
-
-                        filename = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
-                        RecordTool.setNewNCFile!(
-                            MD.recorders[:daily_record],
-                            joinpath(MD.configs[:caserun], filename)
-                        )
-
-                        appendLine(MD.configs[:archive_list], 
-                            format("mv,{:s},{:s},{:s}",
-                                filename,
-                                MD.configs[:caserun],
-                                joinpath(MD.configs[:archive_root], "ocn", "hist"),
-                            )
-                        )
-                end
-
-                 RecordTool.record!(
-                    MD.recorders[:daily_record];
-                    avg_and_output =  called_from_init || ( t_flags[:new_day] && t_cnt == substeps )
-                 )
+        t_flags = MD.timeinfo.t_flags
+        t = MD.timeinfo.t
+ 
+        if (length(MD.configs[:daily_record]) != 0) && t_flags[:new_month]
+            filename = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
             
-            end
+            #println("CREATE NEW DAILY FILE:", filename)
+            RecordTool.setNewNCFile!(
+                MD.recorders[:daily_record],
+                joinpath(MD.configs[:caserun], filename)
+            )
             
-            # Monthly record block
-            if length(MD.configs[:monthly_record]) != 0
-
-
-                if called_from_init || t_flags[:new_month]
-
-                        filename = format("{}.ocn.h.monthly.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
-                        RecordTool.setNewNCFile!(
-                            MD.recorders[:monthly_record],
-                            joinpath(MD.configs[:caserun], filename)
-                        )
-
-                        appendLine(MD.configs[:archive_list], 
-                            format("mv,{:s},{:s},{:s}",
-                                filename,
-                                MD.configs[:caserun],
-                                joinpath(MD.configs[:archive_root], "ocn", "hist"),
-                            )
-                        )
-
-                end
-
-                RecordTool.record!(
-                    MD.recorders[:monthly_record];
-                    avg_and_output = called_from_init || ( t_flags[:new_month] && t_cnt == substeps)
+            appendLine(MD.configs[:archive_list], 
+                format("mv,{:s},{:s},{:s}",
+                    filename,
+                    MD.configs[:caserun],
+                    joinpath(MD.configs[:archive_root], "ocn", "hist"),
                 )
+            )
 
-            end
+
+        end
+ 
+        # Monthly record block
+        if (length(MD.configs[:monthly_record]) != 0) && t_flags[:new_month]
+
+            filename = format("{}.ocn.h.monthly.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
+            RecordTool.setNewNCFile!(
+                MD.recorders[:monthly_record],
+                joinpath(MD.configs[:caserun], filename)
+            )
+
+            appendLine(MD.configs[:archive_list], 
+                format("mv,{:s},{:s},{:s}",
+                    filename,
+                    MD.configs[:caserun],
+                    joinpath(MD.configs[:archive_root], "ocn", "hist"),
+                )
+            )
 
         end
 
+           
+    end
+
+    function archive_record!(
+        MD               :: HOOM_DATA;
+    )
+
+        if ! MD.configs[:enable_archive]
+            return
+        end
+ 
+        t_flags = MD.timeinfo.t_flags
+        t = MD.timeinfo.t
+        
+        # Daily record block
+        if length(MD.configs[:daily_record]) != 0
+
+            #println("## RECORD DAILY!")
+            RecordTool.record!(MD.recorders[:daily_record])
+        
+        end
+ 
+ 
+        if length(MD.configs[:monthly_record]) != 0
+
+            #println("## RECORD MONTHLY!")
+            RecordTool.record!(MD.recorders[:monthly_record])
+
+        end
+             
     end
 
 
+    function archive_outputIfNeeded!(
+        MD               :: HOOM_DATA;
+        force_output     :: Bool = false,
+    )
+
+        if ! MD.configs[:enable_archive]
+            return
+        end
+ 
+        t_flags = MD.timeinfo.t_flags
+        t = MD.timeinfo.t
+        
+        # Daily record block
+        if (length(MD.configs[:daily_record]) != 0) && t_flags[:new_day]
+
+            #println("##### Avg and Output DAILY!")
+            RecordTool.avgAndOutput!(MD.recorders[:daily_record])
+        
+        end
+ 
+ 
+        if (length(MD.configs[:monthly_record]) != 0) && t_flags[:new_month]
+            
+            #println("##### Avg and Output MONTHLY!")
+            RecordTool.record!(MD.recorders[:monthly_record])
+
+        end
+             
+    end
+
+    function writeRestart(
+        MD :: HOOM_DATA,
+    )
+
+        t = MD.timeinfo.t
+
+        restart_file = format("restart.ocn.{:04d}{:02d}{:02d}_{:05d}.nc", t[1], t[2], t[3], t[4])
+        HOOM.takeSnapshot(MD.ocn, restart_file)
+         
+        open(MD.configs[:rpointer_file], "w") do file
+            write(file, restart_file)
+        end
+
+        println("(Over)write restart pointer file: ", MD.configs[:rpointer_file])
+        println("Output restart file: ", restart_file)
+
+        src_dir = MD.configs[:caserun]
+        dst_dir = joinpath(MD.configs[:archive_root], "rest", format("{:04d}-{:02d}-{:02d}-{:05d}", t[1], t[2], t[3], t[4]))
+
+        appendLine(MD.configs[:archive_list], 
+            format("cp,{:s},{:s},{:s}",
+                restart_file,
+                src_dir,
+                dst_dir,
+            )
+        )
+
+        appendLine(MD.configs[:archive_list], 
+            format("cp,{:s},{:s},{:s}",
+                MD.configs[:rpointer_file],
+                src_dir,
+                dst_dir,
+            )
+        )
+
+    end
 end

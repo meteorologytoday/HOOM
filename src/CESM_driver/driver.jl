@@ -7,12 +7,13 @@ else
 end
 
 
-function parseCESMTIME!(ts::AbstractString, timeinfo::AbstractArray{Integer})
-
-    timeinfo[1] = parse(Int, ts[1:4])
-    timeinfo[2] = parse(Int, ts[5:6])
-    timeinfo[3] = parse(Int, ts[7:8])
-    timeinfo[4] = parse(Int, ts[10:17])
+function parseCESMTIME(t_str::AbstractString)
+    t = zeros(Integer, 4)
+    t[1] = parse(Int, t_str[1:4])
+    t[2] = parse(Int, t_str[5:6])
+    t[3] = parse(Int, t_str[7:8])
+    t[4] = parse(Int, t_str[10:17])
+    return t
 end
 
 function copy_list_to!(
@@ -39,15 +40,6 @@ t_cnt = 1
 output_filename = ""
 nullbin  = [zeros(Float64, 1)]
 
-timeinfo = zeros(Integer, 4) 
-timeinfo_old = copy(timeinfo)
-timeinfo_old .= -1
-t_flags = Dict(
-    :new_year  = true,
-    :new_month = true,
-    :new_day   = true,
-)
-
 ocn_run_time = 0.0
 ocn_run_N    = 0
 
@@ -60,15 +52,15 @@ beg_time = Base.time()
 end_time = Base.time()
 while true
 
-    global OMDATA, stage, t_cnt, output_filename, end_time
+    global OMDATA, stage, t_cnt, output_filename, end_time, timeinfo
 
     new_end_time = Base.time()
     exe_time = new_end_time - end_time
     end_time = new_end_time
 
     println(format("# Current real time:      : {:s}", Dates.format(now(), "yyyy/mm/dd HH:MM:SS")))
-    println(format("# Time Counter for RUN    : {:d}", t_cnt))
-    println(format("# Total execution time    : {:d} s", floor(end_time - beg_time)))
+    println(format("# Time counter for RUN    : {:d}", t_cnt))
+    println(format("# Total execution time    : {:.01f} m", (end_time - beg_time)/60.0))
     println(format("# Average execution time  : {:.2f} s", floor(end_time - beg_time) / t_cnt))
     println(format("# Last run execution time : {:.2f} s", exe_time))
     println(format("# Stage                   : {}", String(stage)))
@@ -79,18 +71,31 @@ while true
     print(json(msg, 4))
     println("==========================")
 
-    if msg["MSG"] in ["INIT", "RUN"]
-        parseCESMTIME!(msg["CESMTIME"], timeinfo)
+
+    # Update time information. It is better do it separately from 
+    # other action below to make it clear.
+    if msg["MSG"] == "INIT"
+        timeinfo = ModelTime.TimeInfo(
+            parseCESMTIME(msg["CESMTIME"])
+        )
+    elseif msg["MSG"] == "RUN"
+        ModelTime.update!(
+            timeinfo,
+            parseCESMTIME(msg["CESMTIME"])
+        )
     end
 
     if stage == :INIT && msg["MSG"] == "INIT"
+
+        println(format("Remove archive list file if it exists: {:s}", configs[:archive_list]))
+        rm(configs[:archive_list], force=true)
 
         println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
 
         OMDATA = OMMODULE.init(
             casename     = configs[:casename],
             map          = map,
-            t            = timeinfo,
+            timeinfo     = timeinfo,
             configs      = configs,
             read_restart = (msg["READ_RESTART"] == "TRUE") ? true : false,
         )
@@ -101,8 +106,6 @@ while true
  
         global send_data_list = Array{Float64}[OMDATA.o2x["SST"], OMDATA.o2x["QFLX2ATM"]]
         global recv_data_list = Array{Float64}[]
-     
-        rm(configs[:archive_list], force=true)
 
         global x2o_available_varnames  = split(msg["VAR2D"], ",")
         global x2o_wanted_varnames = keys(OMDATA.x2o)
@@ -125,12 +128,6 @@ while true
         
     elseif stage == :RUN && msg["MSG"] == "RUN"
 
-        t_flags[:new_year]  = (timeinfo[1] != timeinfo_old[1])
-        t_flags[:new_month] = (timeinfo[2] != timeinfo_old[2])
-        t_flags[:new_day]   = (timeinfo[3] != timeinfo_old[3])
-
-        timeinfo_old[:] = timeinfo
-
         recvData!(
             PTI,
             recv_data_list,
@@ -145,11 +142,8 @@ while true
 
         cost = @elapsed let
 
-            OMMODULE.run(
+            OMMODULE.run!(
                 OMDATA;
-                t             = timeinfo,
-                t_cnt         = t_cnt,
-                t_flags       = t_flags,
                 Δt            = Δt,
                 write_restart = msg["WRITE_RESTART"] == "TRUE",
             )

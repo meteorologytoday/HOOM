@@ -114,7 +114,6 @@ module RecordTool
  
     function record!(
         rec::Recorder;
-        avg_and_output::Bool
     )
 
         varnames = keys(rec.sobjs)
@@ -124,41 +123,44 @@ module RecordTool
             sobj.var .+= sobj.varref
             sobj.weight += 1.0
         end
+        
+    end
 
-        if avg_and_output
+    function avgAndOutput!(
+        rec :: Recorder
+    )
 
-            if rec.filename == nothing
-                ErrorException("Undefined record filename") |> throw
-            end
- 
-            # Do average
-            for (varname, sobj) in rec.sobjs
-                if sobj.weight == 0
-                    ErrorException(format("StatObj for variable `{:s}` has weight 0 during normalization.", varname)) |> throw
-                end
-                sobj.var /= sobj.weight
-            end
-            
-            # Output data
-            Dataset(rec.filename, "a") do ds
-                for (varname, sobj) in rec.sobjs
-                    ds_var = ds[varname]
-                    ds[varname][repeat([:,], length(sobj.dimnames))..., rec.time_ptr] = sobj.var
-                end
-            end
- 
+        if rec.filename == nothing
+            ErrorException("Undefined record filename") |> throw
+        end
 
-            # Reset StatObjs
-            for (_, sobj) in rec.sobjs
-                sobj.var .= 0.0
-                sobj.weight = 0.0
+        # Do average
+        for (varname, sobj) in rec.sobjs
+            if sobj.weight == 0
+                ErrorException(format("StatObj for variable `{:s}` has weight 0 during normalization.", varname)) |> throw
             end
-            
-            # Increment of time
-            rec.time_ptr += 1
-
+            sobj.var /= sobj.weight
         end
         
+        # Output data
+        Dataset(rec.filename, "a") do ds
+            for (varname, sobj) in rec.sobjs
+                ds_var = ds[varname]
+                ds[varname][repeat([:,], length(sobj.dimnames))..., rec.time_ptr] = sobj.var
+            end
+        end
+
+
+        # Reset StatObjs
+        for (_, sobj) in rec.sobjs
+            sobj.var .= 0.0
+            sobj.weight = 0.0
+        end
+        
+        # Increment of time
+        rec.time_ptr += 1
+
+    
     end
 
     function setNewNCFile!(rec::Recorder, filename::AbstractString)

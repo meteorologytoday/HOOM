@@ -27,14 +27,6 @@ end
             $(esc(stmts))
 
         end )
-       #= 
-        return :( for $(esc(idx1))=1:$(esc(ocn)).Nx, $(esc(idx2))=1:$(esc(ocn)).Ny
-
-            $(esc(ocn)).mask[$(esc(idx1)), $(esc(idx2))] == 0.0 && continue
-            $(esc(stmts))
-
-        end )
-        =#
     end
 
 
