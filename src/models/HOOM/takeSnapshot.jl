@@ -142,6 +142,8 @@ function takeSnapshot(
     _createNCFile(ocn, filename, missing_value)
 
     Dataset(filename, "a") do ds
+
+        ds.attrib["timestamp"] = Dates.format(now(), "yyyy-mm-dd HH:MM:SS sss")
  
         ds.attrib["gridinfo_file"] = ocn.gi_file
         ds.attrib["K_v"] = ocn.K_v

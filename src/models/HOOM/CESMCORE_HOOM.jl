@@ -257,6 +257,10 @@ module CESMCORE_HOOM
             # process input fields before record
             in_flds = MD.ocn.in_flds
 
+            #in_flds.nswflx .= MD.timeinfo.t[2] * MD.timeinfo.t[3]
+            #in_flds.swflx  .= 0.0
+            #in_flds.vsflx  .= 0.0
+
             HOOM.run!(
                 MD.ocn;
                 substeps         = MD.configs[:substeps],
