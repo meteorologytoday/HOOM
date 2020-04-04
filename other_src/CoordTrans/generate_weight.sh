@@ -49,6 +49,7 @@ done
 
 w_file_conserve2nd="${output_dir}/wgt.conserve2nd.nc"
 w_file_bilinear="${output_dir}/wgt.bilinear.nc"
+w_file_neareststod="${output_dir}/wgt.neareststod.nc"
 
 if [ ! -d "$output_dir" ] || [ ! -f "$w_file_conserve2nd" ] || [ ! -f "$w_file_bilinear" ]; then
 
@@ -82,6 +83,7 @@ if [ ! -d "$output_dir" ] || [ ! -f "$w_file_conserve2nd" ] || [ ! -f "$w_file_b
     #ESMF_RegridWeightGen -s ${s_SCRIP} -d ${d_SCRIP} -m conserve2nd -w $w_file_conserve2nd --user_areas --check --ignore_unmapped
     ESMF_RegridWeightGen -s ${s_SCRIP} -d ${d_SCRIP} -m conserve2nd -w $w_file_conserve2nd --norm_type fracarea --user_areas --check --ignore_unmapped
     ESMF_RegridWeightGen -s ${s_SCRIP} -d ${d_SCRIP} -m bilinear    -w $w_file_bilinear    --norm_type fracarea --user_areas --check --ignore_unmapped
+    ESMF_RegridWeightGen -s ${s_SCRIP} -d ${d_SCRIP} -m neareststod -w $w_file_neareststod --norm_type fracarea --user_areas --check
 
 
 else

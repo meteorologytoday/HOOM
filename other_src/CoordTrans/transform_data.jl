@@ -49,6 +49,13 @@ function parse_commandline()
             arg_type = String
             default = "time"
 
+        "--t-len"
+            help = "If this is not -1 then time will be a non-record dimension with length specified here."
+            arg_type = Int64
+            default = -1
+
+
+
         "--s-dir"
             help = "Source files directory. If unset then this variable will not be applied. Convinent when working with multiple files"
             arg_type = String
@@ -113,6 +120,7 @@ for i in 1:length(s_files)
             ydim = parsed["y-dim"],
             zdim = parsed["z-dim"],
             tdim = parsed["t-dim"],
+            tlen = parsed["t-len"]
         )
 
     elseif parsed["algo"] == "ESMF"
@@ -127,6 +135,7 @@ for i in 1:length(s_files)
             ydim = parsed["y-dim"],
             zdim = parsed["z-dim"],
             tdim = parsed["t-dim"],
+            tlen = parsed["t-len"]
         )
 
     end

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export wk_dir=$( dirname $0 )
+export wk_dir=$( dirname "$(realpath $0)" )
 #echo "wk_dir: $wk_dir"
 
 lopts=(

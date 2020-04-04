@@ -6,6 +6,8 @@ tmp_dir=tmp
 
 echo "wk_dir: $wk_dir"
 
+source "$wk_dir/lib_filename.sh"
+
 lopts=(
     output-dir
     label
@@ -57,7 +59,7 @@ if [ "$old_domain_file" == "$new_domain_file" ]; then
 else
     wgt_file=$( basename $old_domain_file ".nc" )_$( basename $new_domain_file ".nc" ).nc
     
-    wgt_dir="wgt_$( filename $ocn_domain )_to_$( filename $atm_domain )"
+    wgt_dir="wgt_$( filename $old_domain_file )_to_$( filename $new_domain_file )"
     $script_coordtrans_dir/generate_weight.sh    \
         --s-file=$old_domain_file                \
         --d-file=$new_domain_file                \
@@ -98,7 +100,7 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
 
         # Horizontal resolution
         if [ "$wgt_file" != "X" ]; then
-            julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp1 --d-file=$tmp2 --w-file=${wgt_dir}/wgt.bilinear.nc --vars=$varname --x-dim=Nx --y-dim=Ny --z-dim=Nz --algo=ESMF
+            julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp1 --d-file=$tmp2 --w-file=${wgt_dir}/wgt.neareststod.nc --vars=$varname --x-dim=Nx --y-dim=Ny --z-dim=Nz --algo=ESMF
         else
             mv $tmp1 $tmp2
         fi
@@ -141,7 +143,14 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
      
 
         if [ "$wgt_file" != "X" ]; then
-            julia $script_coordtrans_dir/transform_data.jl --s-file=$tmp --d-file=$new_data_file --w-file=${wgt_dir}/wgt.bilinear.nc --vars=$varname --x-dim=Nx --y-dim=Ny --algo=ESMF
+            julia $script_coordtrans_dir/transform_data.jl \
+                --s-file=$tmp \
+                --d-file=$new_data_file \
+                --w-file=${wgt_dir}/wgt.neareststod.nc \
+                --vars=$varname \
+                --x-dim=Nx \
+                --y-dim=Ny \
+                --algo=ESMF
         else
             mv $tmp $new_data_file
         fi

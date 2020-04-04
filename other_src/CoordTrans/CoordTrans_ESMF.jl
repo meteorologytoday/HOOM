@@ -111,6 +111,7 @@ module CoordTrans_ESMF
         ydim          :: AbstractString = "lat",
         zdim          :: Union{AbstractString, Nothing} = "lev",
         tdim          :: AbstractString = "time",
+        tlen          :: Integer = -1,
         xdim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         ydim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         zdim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
@@ -131,7 +132,7 @@ module CoordTrans_ESMF
 
         defDim(ds_out, xdim, dNx)
         defDim(ds_out, ydim, dNy)
-        defDim(ds_out, tdim, Inf)
+        defDim(ds_out, tdim, (tlen == -1) ? Inf : tlen)
 
         if zdim != nothing && zdim in ds_in.dim
             defDim(ds_out, zdim, ds_in.dim[zdim])

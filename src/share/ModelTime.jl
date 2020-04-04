@@ -61,10 +61,12 @@ module ModelTime
             throw(ErrorException("Length of `t` array must be 4."))
         end
 
-        ti.t[:] = t
+        ti.t_old .= ti.t
+        ti.t     .= t
         ti.t_flags[:new_year]  = (ti.t[1] != ti.t_old[1])
         ti.t_flags[:new_month] = (ti.t[2] != ti.t_old[2])
         ti.t_flags[:new_day]   = (ti.t[3] != ti.t_old[3])
+
 
     end
 

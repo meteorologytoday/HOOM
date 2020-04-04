@@ -163,6 +163,14 @@ while true
     elseif stage == :RUN && msg["MSG"] == "END"
 
         # move short_term_archive_files to long term archive directory
+        println("Waiting 30 seconds for CESM to create archive directory completely.")
+        println("Hacking into CESM code will not be sustainable.")
+        for t=1:30
+            print(format("\r... {:d} second(s) ...", t))
+            sleep(1)
+        end
+        println()
+        println("Waiting complete.")
         println("===== Archiving files BEGIN =====")
         sdir = configs[:caseroot]
         ldir = configs[:archive_root]
