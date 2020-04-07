@@ -1,6 +1,8 @@
 function getCompleteVariableList(ocn::Ocean)
 
         return Dict(
+
+            # RECORD
             "T"                  => ( toXYZ(ocn.Ts, :zxy),          ("Nx", "Ny", "Nz_bone") ),
             "S"                  => ( toXYZ(ocn.Ss, :zxy),          ("Nx", "Ny", "Nz_bone") ),
             "b"                  => ( toXYZ(ocn.bs, :zxy),          ("Nx", "Ny", "Nz_bone") ),
@@ -46,17 +48,31 @@ function getCompleteVariableList(ocn::Ocean)
             "TFLUX_CONV"         => ( toXYZ(ocn.TFLUX_CONV, :zxy),  ("Nx", "Ny", "Nz_bone") ),
             "SFLUX_CONV"         => ( toXYZ(ocn.SFLUX_CONV, :zxy),  ("Nx", "Ny", "Nz_bone") ),
 
-            #################################################################################
+            # COORDINATE
             "area"               => ( ocn.mi.area,                  ("Nx", "Ny") ),
             "mask"               => ( ocn.mi.mask,                  ("Nx", "Ny") ),
             "frac"               => ( ocn.mi.frac,                  ("Nx", "Ny") ),
             "c_lon"              => ( ocn.mi.xc,                    ("Nx", "Ny") ),
             "c_lat"              => ( ocn.mi.yc,                    ("Nx", "Ny") ),
             "zs_bone"            => ( ocn.zs_bone,                  ("zs_bone",) ),
+
+            # BACKGROUND
+            "Ts_clim"            => ( ocn.Ts_clim,                  ("Nx", "Ny", "Nz_bone") ),
+            "Ss_clim"            => ( ocn.Ss_clim,                  ("Nx", "Ny", "Nz_bone") ),
             "topo"               => ( ocn.topo,                     ("Nx", "Ny") ),
             "fs"                 => ( ocn.fs,                       ("Nx", "Ny") ),
-            "epsilons"           => ( ocn.epsilons,                 ("Nx", "Ny") ),
-
+            "epsilons"           => ( ocn.ϵs,                       ("Nx", "Ny") ),
+            "K_v"                => ( ocn.K_v,                      :SCALAR      ),
+            "Dh_T"               => ( ocn.Dh_T,                     :SCALAR      ),
+            "Dv_T"               => ( ocn.Dv_T,                     :SCALAR      ),
+            "Dh_S"               => ( ocn.Dh_S,                     :SCALAR      ),
+            "Dv_S"               => ( ocn.Dv_S,                     :SCALAR      ),
+            "we_max"             => ( ocn.we_max,                   :SCALAR      ),
+            "R"                  => ( ocn.R,                        :SCALAR      ),
+            "zeta"               => ( ocn.ζ,                        :SCALAR      ),
+            "Ts_clim_relax_time" => ( ocn.Ts_clim_relax_time,       :SCALAR      ),
+            "Ss_clim_relax_time" => ( ocn.Ss_clim_relax_time,       :SCALAR      ),
+            
         )
 end
 
@@ -64,116 +80,137 @@ function getVarDesc(varname)
     return haskey(HOOM.var_desc, varname) ? HOOM.var_desc[varname] : Dict()
 end
 
-function getVariableList(ocn::Ocean, keyword::Symbol)
+function getVariableList(ocn::Ocean, keywords...)
 
         all_varlist = getCompleteVariableList(ocn)
 
         output_varnames = []
 
+        for keyword in keywords
+            if keyword == :ALL
 
-        if keyword == :ALL
+                append!(output_varnames, keys(all_varlist))
 
-            append!(output_varnames, keys(all_varlist))
+            elseif keyword == :QFLX_FINDING
 
-        elseif keyword == :ESSENTIAL
-            
-            append!(output_varnames, [
-                "T", "S", "T_ML", "S_ML",
-                "TSAS_clim", "SSAS_clim",
-                "TFLUX_bot", "SFLUX_bot",
-                "SFLUX_top",
-                "TFLUX_DIV_implied", "SFLUX_DIV_implied",
-                "qflx2atm_pos", "qflx2atm_neg",
-                "h_ML",
-                "nswflx", "swflx", "frwflx", "vsflx",
-                "qflx_T", "qflx_S",
-                "qflx_T_correction", "qflx_S_correction",
-                "Tclim_feeded", "Sclim_feeded",
-                "TEMP", "dTEMPdt", "SALT", "dSALTdt",
-                "fric_u", "taux", "tauy",
-                "TFLUX_DEN_z", "SFLUX_DEN_z",
-                "div",
-                "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV",
-            ])
+                append!(output_varnames, [
+                    "T", "S", "T_ML", "S_ML",
+                    "TSAS_clim", "SSAS_clim",
+                    "h_ML",
+                    "nswflx", "swflx", "frwflx", "vsflx",
+                    "qflx_T", "qflx_S",
+                    "qflx_T_correction", "qflx_S_correction",
+                    "Tclim_feeded", "Sclim_feeded",
+                    "TEMP", "dTEMPdt", "SALT", "dSALTdt",
+                ])
 
-        elseif keyword == :COORDINATE
+            elseif keyword == :ESSENTIAL
+                
+                append!(output_varnames, [
+                    "T", "S", "T_ML", "S_ML",
+                    "TSAS_clim", "SSAS_clim",
+                    "TFLUX_bot", "SFLUX_bot",
+                    "SFLUX_top",
+                    "TFLUX_DIV_implied", "SFLUX_DIV_implied",
+                    "qflx2atm_pos", "qflx2atm_neg",
+                    "h_ML",
+                    "nswflx", "swflx", "frwflx", "vsflx",
+                    "qflx_T", "qflx_S",
+                    "TEMP", "dTEMPdt", "SALT", "dSALTdt",
+                    "fric_u", "taux", "tauy",
+                    "TFLUX_DEN_z", "SFLUX_DEN_z",
+                    "div",
+                    "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV",
+                ])
 
-            append!(output_varnames, [
-                "area",
-                "mask",
-                "frac"
-                "c_lon",
-                "c_lat",
-                "zs_bone", 
-            ])
+            elseif keyword == :COORDINATE
 
-        elseif keyword == :SNAPSHOT_COORDINATE
+                append!(output_varnames, [
+                    "area",
+                    "mask",
+                    "frac",
+                    "c_lon",
+                    "c_lat",
+                    "zs_bone", 
+                ])
 
-            append!(output_varnames, [
-                "area",
-                "mask",
-                "frac"
-                "c_lon",
-                "c_lat",
-                "zs_bone", 
-                "epsilons",
-                "fs",
-                "topo",
-            ])
+            elseif keyword == :BACKGROUND
 
-        elseif keyword == :SNAPSHOT_RECORD
-            
-            # These are variables used in snapshot in order
-            # to be restored for restart run Record.
-            
-            append!(output_varnames, [
-                "T",
-                "S",
-                "b",
-                "T_ML",
-                "S_ML",
-                "dTdt_ent",
-                "dSdt_ent",
-                "TSAS_clim",
-                "SSAS_clim",
-                "TFLUX_bot",
-                "SFLUX_bot",
-                "SFLUX_top",
-                "TFLUX_DIV_implied",
-                "SFLUX_DIV_implied",
-                "qflx2atm",
-                "qflx2atm_pos",
-                "qflx2atm_neg",
-                "h_ML",
-                "h_MO",
-                "nswflx",
-                "swflx",
-                "frwflx",
-                "vsflx",
-                "qflx_T",
-                "qflx_S",
-                "qflx_T_correction",
-                "qflx_S_correction",
-                "Tclim_feeded",
-                "Sclim_feeded",
-                "TEMP",
-                "dTEMPdt",
-                "SALT",
-                "dSALTdt",
-                "fric_u",
-                "taux",
-                "tauy",
-                "TFLUX_DEN_z",
-                "SFLUX_DEN_z",
-                "div",
-                "w_bnd",
-                "u",
-                "v",
-                "TFLUX_CONV",
-                "SFLUX_CONV",
-            ])
+                append!(output_varnames, [
+                    "Ts_clim",
+                    "Ss_clim",
+                    "topo",
+                    "fs",
+                    "epsilons",
+                    "K_v",
+                    "Dh_T",
+                    "Dv_T",
+                    "Dh_S",
+                    "Dv_S",
+                    "we_max",
+                    "R",
+                    "zeta",
+                    "Ts_clim_relax_time",
+                    "Ss_clim_relax_time",
+                ])
+
+            elseif keyword == :RECORD
+                
+                # These are variables used in snapshot in order
+                # to be restored for restart run Record.
+                
+                append!(output_varnames, [
+                    "T",
+                    "S",
+                    "b",
+                    "T_ML",
+                    "S_ML",
+                    "dTdt_ent",
+                    "dSdt_ent",
+                    "TSAS_clim",
+                    "SSAS_clim",
+                    "TFLUX_bot",
+                    "SFLUX_bot",
+                    "SFLUX_top",
+                    "TFLUX_DIV_implied",
+                    "SFLUX_DIV_implied",
+                    "qflx2atm",
+                    "qflx2atm_pos",
+                    "qflx2atm_neg",
+                    "h_ML",
+                    "h_MO",
+                    "nswflx",
+                    "swflx",
+                    "frwflx",
+                    "vsflx",
+                    "qflx_T",
+                    "qflx_S",
+                    "qflx_T_correction",
+                    "qflx_S_correction",
+                    "Tclim_feeded",
+                    "Sclim_feeded",
+                    "TEMP",
+                    "dTEMPdt",
+                    "SALT",
+                    "dSALTdt",
+                    "fric_u",
+                    "taux",
+                    "tauy",
+                    "TFLUX_DEN_z",
+                    "SFLUX_DEN_z",
+                    "div",
+                    "w_bnd",
+                    "u",
+                    "v",
+                    "TFLUX_CONV",
+                    "SFLUX_CONV",
+                ])
+            else
+
+                throw(ErrorException("Unknown keyword: " * string(keyword)))
+
+            end
         end
-
         output_varlist = Dict()
         for varname in output_varnames
             output_varlist[varname] = all_varlist[varname]

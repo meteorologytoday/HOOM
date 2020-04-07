@@ -14,7 +14,6 @@ ocn = HOOM.Ocean(
     h_ML     = h_ML[:, :, 1], 
     h_ML_min = 10.0,
     h_ML_max = 1e5,             # make it unrestricted
-    mask     = mask,
     topo     = topo,
     Ts_clim_relax_time = parsed["relaxation-time"],
     Ts_clim            = copy(Ts_clim),

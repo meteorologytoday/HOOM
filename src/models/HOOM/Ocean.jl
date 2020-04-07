@@ -193,7 +193,6 @@ mutable struct Ocean
         Ss_clim_relax_time :: Union{Float64, Nothing},
         Ts_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
         Ss_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
-        mask     :: Union{AbstractArray{Float64, 2}, Nothing},
         topo     :: Union{AbstractArray{Float64, 2}, Nothing},
         fs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
         ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = 1e-5,
@@ -204,6 +203,52 @@ mutable struct Ocean
 
         # Determine whether data should be local or shared (parallelization)
         datakind = ( id == 0 ) ? (:shared) : (:local)
+
+
+        # ===== [BEG] GridInfo =====
+
+        gridinfo = nothing
+        mi = ModelMap.MapInfo{Float64}(gridinfo_file)
+
+        if id == 0
+
+            gridinfo = DisplacedPoleCoordinate.GridInfo(
+                Re,
+                mi.nx,
+                mi.ny,
+                mi.xc,
+                mi.yc,
+                mi.xv,
+                mi.yv,
+                mi.area;
+                angle_unit=:deg,
+            )
+
+        else
+            if sub_yrng == nothing
+                thorw(ErrorException("Init worker ocean,  sub_yrng must be provided."))
+            end
+
+
+
+            gridinfo = DisplacedPoleCoordinate.GridInfo(
+                Re,
+                mi.nx,
+                mi.ny,
+                mi.xc,
+                mi.yc,
+                mi.xv,
+                mi.yv,
+                mi.area;
+                angle_unit=:deg,
+                sub_yrng=sub_yrng,
+            )
+           
+        end
+
+        # ===== [END] GridInfo =====
+
+
 
         # ===== [BEGIN] topo, mask, h_ML_min, h_ML_max =====
         # Min/max of ML is tricky because it cannot be
@@ -223,11 +268,7 @@ mutable struct Ocean
         end
        
         # mask =>   lnd = 0, ocn = 1
-        if mask == nothing
-            _mask .+= 1.0
-        else
-            _mask[:, :] = mask
-        end
+        _mask[:, :] = mi.mask
 
         mask_idx = (_mask .== 1.0)
 
@@ -483,48 +524,6 @@ mutable struct Ocean
 
 
 
-        # ===== [BEG] GridInfo =====
-
-        gridinfo = nothing
-        mi = ModelMap.MapInfo{Float64}(gridinfo_file)
-
-        if id == 0
-
-            gridinfo = DisplacedPoleCoordinate.GridInfo(
-                Re,
-                mi.nx,
-                mi.ny,
-                mi.xc,
-                mi.yc,
-                mi.xv,
-                mi.yv,
-                mi.area;
-                angle_unit=:deg,
-            )
-
-        else
-            if sub_yrng == nothing
-                thorw(ErrorException("Init worker ocean,  sub_yrng must be provided."))
-            end
-
-
-
-            gridinfo = DisplacedPoleCoordinate.GridInfo(
-                Re,
-                mi.nx,
-                mi.ny,
-                mi.xc,
-                mi.yc,
-                mi.xv,
-                mi.yv,
-                mi.area;
-                angle_unit=:deg,
-                sub_yrng=sub_yrng,
-            )
-           
-        end
-
-        # ===== [END] GridInfo =====
 
         # ===== [BEGIN] fs and ϵs =====
 
@@ -666,7 +665,7 @@ mutable struct Ocean
         end
 
         # y
-        for i=1:Nx, j=2:Ny
+        for i=1:Nx, j=2:Ny     # j=1 and Ny+1 are 0 because these are the singular points --- pole
             for k=1:Nz[i, j]
                 _noflux_y_mask3[k, i, j] = ( _mask3[k, i, j] == 0.0 || _mask3[k, i, j-1] == 0.0 || k >= Nz[i, j-1] || k == Nz[i, j] || _topo[i, j] > -300.0 || _topo[i, j-1] > -300.0) ? 0.0 : 1.0
             end

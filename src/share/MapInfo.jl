@@ -50,7 +50,7 @@ mutable struct MapInfo{T <: float}
     end
 
 end
-
+#=
 function createNCFile(
     mi::MapInfo{T},
     filename::String;
@@ -182,5 +182,5 @@ end
 
 function appendNCFile()
 end
-
+=#
 end

@@ -4,49 +4,33 @@ function takeSnapshot(
     filename::AbstractString;
     missing_value::Float64=1e20
 )
+
+    println("Outputting file: ", fileame)
+
     _createNCFile(ocn, filename, missing_value)
 
     Dataset(filename, "a") do ds
  
         ds.attrib["gridinfo_file"] = ocn.gi_file
-        ds.attrib["K_v"] = ocn.K_v
-        ds.attrib["Dh_T"] = ocn.Dh_T
-        ds.attrib["Dv_T"] = ocn.Dv_T
-        ds.attrib["Dh_S"] = ocn.Dh_S
-        ds.attrib["Dv_S"] = ocn.Dv_S
 
+        for (varname, (var, dim) ) in getVariableList(ocn, :RECORD, :BACKGROUND, :COORDINATE)
+            
+            print("Taking snapshot of variable: ", varname)
+            
+            if var == nothing
+                println("not exist, skip this one.")
+            else
 
-        ds.attrib["we_max"] = ocn.we_max
-        ds.attrib["R"]    = ocn.R
-        ds.attrib["zeta"] = ocn.ζ
+                if dim == :SCALAR
+                    ds.attrib[varname] = var
+                else 
+                    _write2NCFile(ds, varname, dim, var, missing_value)
+                end
+                println("done.")
 
-
-        if ocn.Ts_clim_relax_time != nothing
-            ds.attrib["Ts_clim_relax_time"] = ocn.Ts_clim_relax_time
-        end
- 
-        if ocn.Ss_clim_relax_time != nothing
-            ds.attrib["Ss_clim_relax_time"] = ocn.Ss_clim_relax_time
-        end
- 
-        for (varname, (var, dim) ) in getVariableList(ocn, :RECORD)
-
-            if var != nothing    
-                _write2NCFile(ds, varname, dim, var, missing_value)
             end
 
         end
-
-        _write2NCFile(ds, "mask", ("Nx", "Ny",), ocn.mask, missing_value)
-        _write2NCFile(ds, "topo", ("Nx", "Ny",), ocn.topo, missing_value)
-
-        _write2NCFile(ds, "fs", ("Nx", "Ny"), ocn.fs, missing_value)
-        _write2NCFile(ds, "epsilons", ("Nx", "Ny"), ocn.ϵs, missing_value)
-        
-        # Additional 
-        _write2NCFile(ds, "area", ("Nx", "Ny",), ocn.mi.area, missing_value)
-        _write2NCFile(ds, "xc",   ("Nx", "Ny",), ocn.mi.xc,   missing_value)
-        _write2NCFile(ds, "yc",   ("Nx", "Ny",), ocn.mi.yc,   missing_value)
 
     end
 
@@ -57,7 +41,7 @@ end
 
 function loadSnapshot(
     filename::AbstractString;
-    gridinfo_file::Union{AbstractString, Nothing} = nothing,
+    gridinfo_file::AbstractString
 )
     local ocn
 
@@ -80,38 +64,50 @@ function loadSnapshot(
         end
 
         ocn = Ocean(
-            id       = 0,
-            gridinfo_file = (gridinfo_file == nothing) ? ds.attrib["gridinfo_file"] : gridinfo_file,
-            Nx       = ds.dim["Nx"],
-            Ny       = ds.dim["Ny"],
-            zs_bone  = nomissing(ds["zs_bone"][:], NaN);
-            Ts       = toZXY( nomissing(ds["Ts"][:], NaN), :xyz),
-            Ss       = toZXY( nomissing(ds["Ss"][:], NaN), :xyz),
-            K_v      = ds.attrib["K_v"],
-            Dh_T      = ds.attrib["Dh_T"],
-            Dv_T      = ds.attrib["Dv_T"],
-            Dh_S      = ds.attrib["Dh_S"],
-            Dv_S      = ds.attrib["Dv_S"],
-            fs       = nomissing(ds["fs"][:], NaN),
-            ϵs       = nomissing(ds["epsilons"][:], NaN),
-            T_ML     = nomissing(ds["T_ML"][:], NaN),
-            S_ML     = nomissing(ds["S_ML"][:], NaN),
-            h_ML     = nomissing(ds["h_ML"][:], NaN),
-            h_ML_min = nomissing(ds["h_ML_min"][:], NaN),
-            h_ML_max = nomissing(ds["h_ML_max"][:], NaN),
-            we_max   = ds.attrib["we_max"],
-            R        = ds.attrib["R"],
-            ζ        = ds.attrib["zeta"],
+            id            = 0,
+            gridinfo_file = gridinfo_file,
+            Nx            = ds.dim["Nx"],
+            Ny            = ds.dim["Ny"],
+            zs_bone       = nomissing(ds["zs_bone"][:], NaN);
+            Ts            = toZXY( nomissing(ds["Ts"][:], NaN), :xyz),
+            Ss            = toZXY( nomissing(ds["Ss"][:], NaN), :xyz),
+            K_v           = ds.attrib["K_v"],
+            Dh_T          = ds.attrib["Dh_T"],
+            Dv_T          = ds.attrib["Dv_T"],
+            Dh_S          = ds.attrib["Dh_S"],
+            Dv_S          = ds.attrib["Dv_S"],
+            fs            = nomissing(ds["fs"][:], NaN),
+            ϵs            = nomissing(ds["epsilons"][:], NaN),
+            T_ML          = nomissing(ds["T_ML"][:], NaN),
+            S_ML          = nomissing(ds["S_ML"][:], NaN),
+            h_ML          = nomissing(ds["h_ML"][:], NaN),
+            h_ML_min      = nomissing(ds["h_ML_min"][:], NaN),
+            h_ML_max      = nomissing(ds["h_ML_max"][:], NaN),
+            we_max        = ds.attrib["we_max"],
+            R             = ds.attrib["R"],
+            ζ             = ds.attrib["zeta"],
             Ts_clim_relax_time = Ts_clim_relax_time,
             Ss_clim_relax_time = Ss_clim_relax_time,
-            Ts_clim  = Ts_clim,
-            Ss_clim  = Ss_clim,
-            mask     = nomissing(ds["mask"][:], NaN),
-            topo     = nomissing(ds["topo"][:], NaN),
-            in_flds  = nothing,
+            Ts_clim       = Ts_clim,
+            Ss_clim       = Ss_clim,
+            topo          = nomissing(ds["topo"][:], NaN),
+            in_flds       = nothing,
         )
 
+        for (varname, (var, dim) ) in getVariableList(ocn, :RECORD)
+
+            println("Restoring :RECORD variable: ", varname)
+
+            if typeof(var) <: AbstractArray
+                var .= nomissing(ds[varname][:])
+            else
+                throw(ErrorException("Non vector variable cannot be part of :RECORD variables"))
+            end
+        end
+
     end
+
+
 
     return ocn 
 end

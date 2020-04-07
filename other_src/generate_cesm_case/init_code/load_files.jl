@@ -97,7 +97,7 @@ println("Processing data...")
 Dataset(parsed["domain-file"], "r") do ds
     global Nx = ds.dim["ni"]
     global Ny = ds.dim["nj"]
-    global mask = convert(Array{Float64}, replace(ds["mask"][:], missing=>NaN))
+#    global mask = convert(Array{Float64}, replace(ds["mask"][:], missing=>NaN))
 end
 
 Dataset(parsed["zdomain-file"], "r") do ds

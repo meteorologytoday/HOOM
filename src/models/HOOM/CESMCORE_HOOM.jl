@@ -95,7 +95,8 @@ module CESMCORE_HOOM
         if typeof(init_file) <: AbstractString
 
             println("Initial ocean with profile: ", init_file)
-            ocn = HOOM.loadSnapshot(init_file)
+            println("Initial ocean with domain file: ", configs[:domain_file])
+            ocn = HOOM.loadSnapshot(init_file; gridinfo_file=configs[:domain_file])
         
         else
 
@@ -148,10 +149,8 @@ module CESMCORE_HOOM
 
             var_list = []
            
-            if configs[rec_key] == :ALL
-                configs[rec_key] = keys(complete_variable_list)
-            elseif configs[rec_key] == :ESSENTIAL
-                configs[rec_key] = keys(HOOM.getSubVariableList(ocn, :ESSENTIAL))
+            if typeof(configs[rec_key]) <: Symbol
+                configs[rec_key] = keys(HOOM.getVariableList(ocn, :ESSENTIAL))
             else
                 println("Using customized output variables.")
             end
