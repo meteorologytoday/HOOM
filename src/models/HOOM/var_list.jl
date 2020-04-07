@@ -1,18 +1,3 @@
-function getAdditionalVariableList(ocn::Ocean)
-
-        return Dict(
-            "area"               => ( ocn.mi.area,                   ("Nx", "Ny") ),
-            "mask"               => ( ocn.mi.mask,                   ("Nx", "Ny") ),
-            "frac"               => ( ocn.mi.frac,                   ("Nx", "Ny") ),
-            "c_lon"              => ( ocn.mi.xc,                     ("Nx", "Ny") ),
-            "c_lat"              => ( ocn.mi.yc,                     ("Nx", "Ny") ),
-            "zs_bone"            => ( ocn.zs_bone,                   ("zs_bone",) ),
-        )
-
-end
-
-
-
 function getCompleteVariableList(ocn::Ocean)
 
         return Dict(
@@ -60,6 +45,18 @@ function getCompleteVariableList(ocn::Ocean)
             "v"                  => ( toXYZ(ocn.v, :zxy),           ("Nx", "Ny", "Nz_bone") ),
             "TFLUX_CONV"         => ( toXYZ(ocn.TFLUX_CONV, :zxy),  ("Nx", "Ny", "Nz_bone") ),
             "SFLUX_CONV"         => ( toXYZ(ocn.SFLUX_CONV, :zxy),  ("Nx", "Ny", "Nz_bone") ),
+
+            #################################################################################
+            "area"               => ( ocn.mi.area,                  ("Nx", "Ny") ),
+            "mask"               => ( ocn.mi.mask,                  ("Nx", "Ny") ),
+            "frac"               => ( ocn.mi.frac,                  ("Nx", "Ny") ),
+            "c_lon"              => ( ocn.mi.xc,                    ("Nx", "Ny") ),
+            "c_lat"              => ( ocn.mi.yc,                    ("Nx", "Ny") ),
+            "zs_bone"            => ( ocn.zs_bone,                  ("zs_bone",) ),
+            "topo"               => ( ocn.topo,                     ("Nx", "Ny") ),
+            "fs"                 => ( ocn.fs,                       ("Nx", "Ny") ),
+            "epsilons"           => ( ocn.epsilons,                 ("Nx", "Ny") ),
+
         )
 end
 
@@ -67,7 +64,7 @@ function getVarDesc(varname)
     return haskey(HOOM.var_desc, varname) ? HOOM.var_desc[varname] : Dict()
 end
 
-function getSubVariableList(ocn::Ocean, keyword::Symbol)
+function getVariableList(ocn::Ocean, keyword::Symbol)
 
         all_varlist = getCompleteVariableList(ocn)
 
@@ -99,6 +96,82 @@ function getSubVariableList(ocn::Ocean, keyword::Symbol)
                 "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV",
             ])
 
+        elseif keyword == :COORDINATE
+
+            append!(output_varnames, [
+                "area",
+                "mask",
+                "frac"
+                "c_lon",
+                "c_lat",
+                "zs_bone", 
+            ])
+
+        elseif keyword == :SNAPSHOT_COORDINATE
+
+            append!(output_varnames, [
+                "area",
+                "mask",
+                "frac"
+                "c_lon",
+                "c_lat",
+                "zs_bone", 
+                "epsilons",
+                "fs",
+                "topo",
+            ])
+
+        elseif keyword == :SNAPSHOT_RECORD
+            
+            # These are variables used in snapshot in order
+            # to be restored for restart run Record.
+            
+            append!(output_varnames, [
+                "T",
+                "S",
+                "b",
+                "T_ML",
+                "S_ML",
+                "dTdt_ent",
+                "dSdt_ent",
+                "TSAS_clim",
+                "SSAS_clim",
+                "TFLUX_bot",
+                "SFLUX_bot",
+                "SFLUX_top",
+                "TFLUX_DIV_implied",
+                "SFLUX_DIV_implied",
+                "qflx2atm",
+                "qflx2atm_pos",
+                "qflx2atm_neg",
+                "h_ML",
+                "h_MO",
+                "nswflx",
+                "swflx",
+                "frwflx",
+                "vsflx",
+                "qflx_T",
+                "qflx_S",
+                "qflx_T_correction",
+                "qflx_S_correction",
+                "Tclim_feeded",
+                "Sclim_feeded",
+                "TEMP",
+                "dTEMPdt",
+                "SALT",
+                "dSALTdt",
+                "fric_u",
+                "taux",
+                "tauy",
+                "TFLUX_DEN_z",
+                "SFLUX_DEN_z",
+                "div",
+                "w_bnd",
+                "u",
+                "v",
+                "TFLUX_CONV",
+                "SFLUX_CONV",
+            ])
         end
 
         output_varlist = Dict()

@@ -254,9 +254,7 @@ module CESMCORE_HOOM
             # File must be created AFTER it is output.
             archive_createFileIfNeeded!(MD)
 
-            # process input fields before record
-            in_flds = MD.ocn.in_flds
-
+            #in_flds = MD.ocn.in_flds
             #in_flds.nswflx .= MD.timeinfo.t[2] * MD.timeinfo.t[3]
             #in_flds.swflx  .= 0.0
             #in_flds.vsflx  .= 0.0
