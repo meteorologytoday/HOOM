@@ -199,8 +199,8 @@ mutable struct Ocean
         in_flds  :: Union{InputFields, Nothing} = nothing,
         arrange  :: Symbol = :zxy,
         do_convective_adjustment :: Bool = false,
+        verbose  :: Bool = false,
     )
-
         # Determine whether data should be local or shared (parallelization)
         datakind = ( id == 0 ) ? (:shared) : (:local)
 
@@ -297,6 +297,9 @@ mutable struct Ocean
         end
 
 
+        #println("################ h_ML_min: ", h_ML_min)
+
+
         if typeof(h_ML_min) <: AbstractArray{Float64, 2}
             _h_ML_min[:, :] = h_ML_min
         elseif typeof(h_ML_min) <: Float64
@@ -335,24 +338,24 @@ mutable struct Ocean
             end
 
             if coord_max < hmin
-                println(format("Point ({},{}) got h_min {:.2f} which is larger than coord_max {}. Tune h_ML_min to match it.", i, j, hmin, coord_max))
+                verbose && println(format("Point ({},{}) got h_min {:.2f} which is larger than coord_max {}. Tune h_ML_min to match it.", i, j, hmin, coord_max))
                 hmin = coord_max
             end
 
             if coord_max < hmax
-                println(format("Point ({},{}) got h_max {:.2f} which is larger than coord_max {}. Tune h_ML_max to match it.", i, j, hmax, coord_max))
+                verbose && println(format("Point ({},{}) got h_max {:.2f} which is larger than coord_max {}. Tune h_ML_max to match it.", i, j, hmax, coord_max))
                 hmax = coord_max
             end
  
 
 
             if hmin > hbot
-                println(format("Point ({},{}) got depth {:.2f} which is smaller than h_ML_min {}. Tune h_ML_min/max to depth.", i, j, hbot, hmin))
+                verbose && println(format("Point ({},{}) got depth {:.2f} which is smaller than h_ML_min {}. Tune h_ML_min/max to depth.", i, j, hbot, hmin))
                 hbot = hmin
             end
 
             if hmax > hbot
-                println(format("Point ({},{}) got depth {:.2f} which is smaller than h_ML_max {}. Tune the h_ML_max to depth.", i, j, hbot, hmax))
+                verbose && println(format("Point ({},{}) got depth {:.2f} which is smaller than h_ML_max {}. Tune the h_ML_max to depth.", i, j, hbot, hmax))
                 hmax = hbot
             end
 
