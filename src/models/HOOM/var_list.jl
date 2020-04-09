@@ -3,9 +3,9 @@ function getCompleteVariableList(ocn::Ocean)
         return Dict(
 
             # RECORD
-            "T"                  => ( toXYZ(ocn.Ts, :zxy),          ("Nx", "Ny", "Nz_bone") ),
-            "S"                  => ( toXYZ(ocn.Ss, :zxy),          ("Nx", "Ny", "Nz_bone") ),
-            "b"                  => ( toXYZ(ocn.bs, :zxy),          ("Nx", "Ny", "Nz_bone") ),
+            "Ts"                 => ( toXYZ(ocn.Ts, :zxy),          ("Nx", "Ny", "Nz_bone") ),
+            "Ss"                 => ( toXYZ(ocn.Ss, :zxy),          ("Nx", "Ny", "Nz_bone") ),
+            "bs"                 => ( toXYZ(ocn.bs, :zxy),          ("Nx", "Ny", "Nz_bone") ),
             "T_ML"               => ( ocn.T_ML,                     ("Nx", "Ny") ),
             "S_ML"               => ( ocn.S_ML,                     ("Nx", "Ny") ),
             "dTdt_ent"           => ( ocn.dTdt_ent,                 ("Nx", "Ny") ),
@@ -39,10 +39,10 @@ function getCompleteVariableList(ocn::Ocean)
             "fric_u"             => ( ocn.fric_u,                   ("Nx", "Ny") ),
             "taux"               => ( ocn.τx,                       ("Nx", "Ny") ),
             "tauy"               => ( ocn.τy,                       ("Nx", "Ny") ),
-            "TFLUX_DEN_z"        => ( toXYZ(ocn.TFLUX_DEN_z, :zxy), ("Nx", "Ny", "zs_bone") ),
-            "SFLUX_DEN_z"        => ( toXYZ(ocn.SFLUX_DEN_z, :zxy), ("Nx", "Ny", "zs_bone") ),
+            "TFLUX_DEN_z"        => ( toXYZ(ocn.TFLUX_DEN_z, :zxy), ("Nx", "Ny", "NP_zs_bone") ),
+            "SFLUX_DEN_z"        => ( toXYZ(ocn.SFLUX_DEN_z, :zxy), ("Nx", "Ny", "NP_zs_bone") ),
             "div"                => ( toXYZ(ocn.div, :zxy),         ("Nx", "Ny", "Nz_bone") ),
-            "w_bnd"              => ( toXYZ(ocn.w_bnd, :zxy),       ("Nx", "Ny", "zs_bone") ),
+            "w_bnd"              => ( toXYZ(ocn.w_bnd, :zxy),       ("Nx", "Ny", "NP_zs_bone") ),
             "u"                  => ( toXYZ(ocn.u, :zxy),           ("Nx", "Ny", "Nz_bone") ),
             "v"                  => ( toXYZ(ocn.v, :zxy),           ("Nx", "Ny", "Nz_bone") ),
             "TFLUX_CONV"         => ( toXYZ(ocn.TFLUX_CONV, :zxy),  ("Nx", "Ny", "Nz_bone") ),
@@ -54,24 +54,26 @@ function getCompleteVariableList(ocn::Ocean)
             "frac"               => ( ocn.mi.frac,                  ("Nx", "Ny") ),
             "c_lon"              => ( ocn.mi.xc,                    ("Nx", "Ny") ),
             "c_lat"              => ( ocn.mi.yc,                    ("Nx", "Ny") ),
-            "zs_bone"            => ( ocn.zs_bone,                  ("zs_bone",) ),
+            "zs_bone"            => ( ocn.zs_bone,                  ("NP_zs_bone",) ),
 
             # BACKGROUND
-            "Ts_clim"            => ( ocn.Ts_clim,                  ("Nx", "Ny", "Nz_bone") ),
-            "Ss_clim"            => ( ocn.Ss_clim,                  ("Nx", "Ny", "Nz_bone") ),
+            "Ts_clim"            => ( toXYZ(ocn.Ts_clim, :zxy),     ("Nx", "Ny", "Nz_bone") ),
+            "Ss_clim"            => ( toXYZ(ocn.Ss_clim, :zxy),     ("Nx", "Ny", "Nz_bone") ),
+            "h_ML_min"           => ( ocn.h_ML_min,                 ("Nx", "Ny") ),
+            "h_ML_max"           => ( ocn.h_ML_max,                 ("Nx", "Ny") ),
             "topo"               => ( ocn.topo,                     ("Nx", "Ny") ),
             "fs"                 => ( ocn.fs,                       ("Nx", "Ny") ),
             "epsilons"           => ( ocn.ϵs,                       ("Nx", "Ny") ),
-            "K_v"                => ( ocn.K_v,                      :SCALAR      ),
-            "Dh_T"               => ( ocn.Dh_T,                     :SCALAR      ),
-            "Dv_T"               => ( ocn.Dv_T,                     :SCALAR      ),
-            "Dh_S"               => ( ocn.Dh_S,                     :SCALAR      ),
-            "Dv_S"               => ( ocn.Dv_S,                     :SCALAR      ),
-            "we_max"             => ( ocn.we_max,                   :SCALAR      ),
-            "R"                  => ( ocn.R,                        :SCALAR      ),
-            "zeta"               => ( ocn.ζ,                        :SCALAR      ),
-            "Ts_clim_relax_time" => ( ocn.Ts_clim_relax_time,       :SCALAR      ),
-            "Ss_clim_relax_time" => ( ocn.Ss_clim_relax_time,       :SCALAR      ),
+            "K_v"                => ( :K_v,                         :SCALAR      ),
+            "Dh_T"               => ( :Dh_T,                        :SCALAR      ),
+            "Dv_T"               => ( :Dv_T,                        :SCALAR      ),
+            "Dh_S"               => ( :Dh_S,                        :SCALAR      ),
+            "Dv_S"               => ( :Dv_S,                        :SCALAR      ),
+            "we_max"             => ( :we_max,                      :SCALAR      ),
+            "R"                  => ( :R,                           :SCALAR      ),
+            "zeta"               => ( :ζ,                           :SCALAR      ),
+            "Ts_clim_relax_time" => ( :Ts_clim_relax_time,          :SCALAR      ),
+            "Ss_clim_relax_time" => ( :Ss_clim_relax_time,          :SCALAR      ),
             
         )
 end
@@ -94,20 +96,15 @@ function getVariableList(ocn::Ocean, keywords...)
             elseif keyword == :QFLX_FINDING
 
                 append!(output_varnames, [
-                    "T", "S", "T_ML", "S_ML",
-                    "TSAS_clim", "SSAS_clim",
-                    "h_ML",
-                    "nswflx", "swflx", "frwflx", "vsflx",
                     "qflx_T", "qflx_S",
                     "qflx_T_correction", "qflx_S_correction",
                     "Tclim_feeded", "Sclim_feeded",
-                    "TEMP", "dTEMPdt", "SALT", "dSALTdt",
                 ])
 
             elseif keyword == :ESSENTIAL
                 
                 append!(output_varnames, [
-                    "T", "S", "T_ML", "S_ML",
+                    "Ts", "Ss", "T_ML", "S_ML",
                     "TSAS_clim", "SSAS_clim",
                     "TFLUX_bot", "SFLUX_bot",
                     "SFLUX_top",
@@ -139,6 +136,8 @@ function getVariableList(ocn::Ocean, keywords...)
                 append!(output_varnames, [
                     "Ts_clim",
                     "Ss_clim",
+                    "h_ML_min",
+                    "h_ML_max",
                     "topo",
                     "fs",
                     "epsilons",
@@ -160,9 +159,9 @@ function getVariableList(ocn::Ocean, keywords...)
                 # to be restored for restart run Record.
                 
                 append!(output_varnames, [
-                    "T",
-                    "S",
-                    "b",
+                    "Ts",
+                    "Ss",
+                    "bs",
                     "T_ML",
                     "S_ML",
                     "dTdt_ent",

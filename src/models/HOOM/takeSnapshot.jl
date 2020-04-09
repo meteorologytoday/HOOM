@@ -5,24 +5,25 @@ function takeSnapshot(
     missing_value::Float64=1e20
 )
 
-    println("Outputting file: ", fileame)
+    println("Outputting file: ", filename)
 
     _createNCFile(ocn, filename, missing_value)
 
     Dataset(filename, "a") do ds
- 
+        
+        ds.attrib["timestamp"] = Dates.format(now(), "yyyy-mm-dd HH:MM:SS sss")
         ds.attrib["gridinfo_file"] = ocn.gi_file
 
         for (varname, (var, dim) ) in getVariableList(ocn, :RECORD, :BACKGROUND, :COORDINATE)
             
-            print("Taking snapshot of variable: ", varname)
+            print("Taking snapshot of variable: ", varname, "... ")
             
             if var == nothing
                 println("not exist, skip this one.")
             else
 
                 if dim == :SCALAR
-                    ds.attrib[varname] = var
+                    ds.attrib[varname] = getfield(ocn, var)
                 else 
                     _write2NCFile(ds, varname, dim, var, missing_value)
                 end
@@ -110,73 +111,6 @@ function loadSnapshot(
 
 
     return ocn 
-end
-
-
-function takeSnapshot(
-    ocn::Ocean,
-    filename::AbstractString;
-    missing_value::Float64=1e20
-)
-    _createNCFile(ocn, filename, missing_value)
-
-    Dataset(filename, "a") do ds
-
-        ds.attrib["timestamp"] = Dates.format(now(), "yyyy-mm-dd HH:MM:SS sss")
- 
-        ds.attrib["gridinfo_file"] = ocn.gi_file
-        ds.attrib["K_v"] = ocn.K_v
-        ds.attrib["Dh_T"] = ocn.Dh_T
-        ds.attrib["Dv_T"] = ocn.Dv_T
-        ds.attrib["Dh_S"] = ocn.Dh_S
-        ds.attrib["Dv_S"] = ocn.Dv_S
-
-
-        ds.attrib["we_max"] = ocn.we_max
-        ds.attrib["R"]    = ocn.R
-        ds.attrib["zeta"] = ocn.ζ
-
-        if ocn.Ts_clim_relax_time != nothing
-            ds.attrib["Ts_clim_relax_time"] = ocn.Ts_clim_relax_time
-        end
- 
-        if ocn.Ss_clim_relax_time != nothing
-            ds.attrib["Ss_clim_relax_time"] = ocn.Ss_clim_relax_time
-        end
-       
-        _write2NCFile(ds, "zs_bone", ("NP_zs_bone",), ocn.zs_bone, missing_value)
-
-        _write2NCFile(ds, "Ts", ("Nx", "Ny", "Nz_bone"), toXYZ(ocn.Ts, :zxy), missing_value)
-        _write2NCFile(ds, "Ss", ("Nx", "Ny", "Nz_bone"), toXYZ(ocn.Ss, :zxy), missing_value)
-        _write2NCFile(ds, "bs", ("Nx", "Ny", "Nz_bone"), toXYZ(ocn.bs, :zxy), missing_value)
-        _write2NCFile(ds, "T_ML", ("Nx", "Ny",), ocn.T_ML, missing_value)
-        _write2NCFile(ds, "S_ML", ("Nx", "Ny",), ocn.S_ML, missing_value)
-        _write2NCFile(ds, "h_ML", ("Nx", "Ny",), ocn.h_ML, missing_value)
-        
-        _write2NCFile(ds, "h_ML_min", ("Nx", "Ny",), ocn.h_ML_min, missing_value)
-        _write2NCFile(ds, "h_ML_max", ("Nx", "Ny",), ocn.h_ML_max, missing_value)
-
-        if ocn.Ts_clim != nothing
-            _write2NCFile(ds, "Ts_clim", ("Nx", "Ny", "Nz_bone"), toXYZ(ocn.Ts_clim, :zxy), missing_value)
-        end
-
-        if ocn.Ss_clim != nothing
-            _write2NCFile(ds, "Ss_clim", ("Nx", "Ny", "Nz_bone"), toXYZ(ocn.Ss_clim, :zxy), missing_value)
-        end
-
-        _write2NCFile(ds, "mask", ("Nx", "Ny",), ocn.mask, missing_value)
-        _write2NCFile(ds, "topo", ("Nx", "Ny",), ocn.topo, missing_value)
-
-        _write2NCFile(ds, "fs", ("Nx", "Ny"), ocn.fs, missing_value)
-        _write2NCFile(ds, "epsilons", ("Nx", "Ny"), ocn.ϵs, missing_value)
-        
-        # Additional 
-        _write2NCFile(ds, "area", ("Nx", "Ny",), ocn.mi.area, missing_value)
-        _write2NCFile(ds, "xc",   ("Nx", "Ny",), ocn.mi.xc,   missing_value)
-        _write2NCFile(ds, "yc",   ("Nx", "Ny",), ocn.mi.yc,   missing_value)
-
-    end
-
 end
 
 function _createNCFile(

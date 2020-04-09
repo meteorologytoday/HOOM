@@ -196,7 +196,7 @@ julia -p \\\$ocn_ncpu \\\$ocn_code --config="\\\$config_file" --core=HOOM | tee 
 
 mkdir -p \\\$logarchivedir
 mv \${caserun}/\\\${logfile} \\\${logarchivedir}
-gzip \\\${logarchivedir}/\\\${logfile}
+gzip -f \\\${logarchivedir}/\\\${logfile}
 
 XEOFX
 
@@ -205,6 +205,14 @@ XEOFX
 mv \${casename}.run \${casename}.cesm.run
 
 # ===== JOB SUBMISSION BLOCK BEGIN =====
+
+
+# Create sh that removes x_tmp. This is useful when run on local machine for developing
+cat << XEOFX > \${casename}.destroy_tunnel
+#!/bin/bash
+
+rm -rf \${caserun}/x_tmp/*
+XEOFX
 
 if [ "\$single_job" != "on" ]; then
 
@@ -218,7 +226,7 @@ if [ "\$single_job" != "on" ]; then
     cat << XEOFX > \${casename}.run
 #!/bin/bash
 
-rm -rf \${caserun}/x_tmp/*
+bash \${casename}.destroy_tunnel
 qsub -A \$PROJECT -l walltime="\$walltime" \${caseroot}/\${casename}.ocn.run
 qsub -A \$PROJECT -l walltime="\$walltime" \${caseroot}/\${casename}.cesm.run 
 XEOFX
@@ -247,7 +255,7 @@ else
 
 #!/bin/bash
 
-rm -rf \${caserun}/x_tmp/*
+bash \${casename}.destroy_tunnel
 /bin/csh \${caseroot}/\${casename}.cesm.run &
 \${caseroot}/\${casename}.ocn.run &
 wait
@@ -259,6 +267,7 @@ fi
 
 chmod +x \$casename.ocn.run
 chmod +x \$casename.run
+chmod +x \$casename.destroy_tunnel
 
 # Insert code
 git clone --branch "$ocn_branch" https://github.com/meteorologytoday/SMARTSLAB-main.git

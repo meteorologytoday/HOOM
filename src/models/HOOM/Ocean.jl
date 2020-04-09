@@ -210,8 +210,14 @@ mutable struct Ocean
         gridinfo = nothing
         mi = ModelMap.MapInfo{Float64}(gridinfo_file)
 
-        if id == 0
+        _mask = allocate(datakind, Float64, Nx, Ny)
 
+        # mask =>   lnd = 0, ocn = 1
+
+
+
+        if id == 0
+            
             gridinfo = DisplacedPoleCoordinate.GridInfo(
                 Re,
                 mi.nx,
@@ -223,10 +229,11 @@ mutable struct Ocean
                 mi.area;
                 angle_unit=:deg,
             )
-
+            _mask .= mi.mask
+            
         else
             if sub_yrng == nothing
-                thorw(ErrorException("Init worker ocean,  sub_yrng must be provided."))
+                thorw(ErrorException("Init worker ocean, sub_yrng must be provided."))
             end
 
 
@@ -243,9 +250,12 @@ mutable struct Ocean
                 angle_unit=:deg,
                 sub_yrng=sub_yrng,
             )
+            
+            _mask .= view(mi.mask, :, sub_yrng)
            
         end
 
+        mask_idx = (_mask .== 1.0)
         # ===== [END] GridInfo =====
 
 
@@ -258,7 +268,7 @@ mutable struct Ocean
         _topo        = allocate(datakind, Float64, Nx, Ny)
         _h_ML_min    = allocate(datakind, Float64, Nx, Ny)
         _h_ML_max    = allocate(datakind, Float64, Nx, Ny)
-        _mask        = allocate(datakind, Float64, Nx, Ny)
+
 
 
         if topo == nothing
@@ -267,11 +277,6 @@ mutable struct Ocean
             _topo[:, :] = topo
         end
        
-        # mask =>   lnd = 0, ocn = 1
-        _mask[:, :] = mi.mask
-
-        mask_idx = (_mask .== 1.0)
-
         # Arrage like (2, cnt) instead of (cnt, 2) to
         # enhance speed through memory cache
         valid_idx = allocate(datakind, Int64, 2, sum(mask_idx))

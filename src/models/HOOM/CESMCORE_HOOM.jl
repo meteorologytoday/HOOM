@@ -140,21 +140,25 @@ module CESMCORE_HOOM
         )
         
         recorders = Dict()
-        complete_variable_list   = HOOM.getCompleteVariableList(ocn)
-        additional_variable_list = HOOM.getAdditionalVariableList(ocn)
+        complete_variable_list   = HOOM.getVariableList(ocn, :ALL)
+        additional_variable_list = HOOM.getVariableList(ocn, :COORDINATE)
 
         for rec_key in [:daily_record, :monthly_record]
     
             println("# For record key: " * string(rec_key))
 
             var_list = []
-           
+            
             if typeof(configs[rec_key]) <: Symbol
-                configs[rec_key] = keys(HOOM.getVariableList(ocn, :ESSENTIAL))
+                configs[rec_key] = HOOM.getVariableList(ocn, :ESSENTIAL) |> keys |> collect
             else
                 println("Using customized output variables.")
             end
 
+            # Qflux_finding mode requires certain output
+            if (length(configs[rec_key]) != 0 ) && (configs[:Qflux_finding] == :on)
+                append!(configs[rec_key], HOOM.getVariableList(ocn, :QFLX_FINDING) |> keys )
+            end
  
             # Load variables information as a list
             for varname in configs[rec_key]
@@ -180,7 +184,7 @@ module CESMCORE_HOOM
                     "Nx" => ocn.Nx,
                     "Ny" => ocn.Ny,
                     "Nz_bone" => ocn.Nz_bone,
-                    "zs_bone" => length(ocn.zs_bone),
+                    "NP_zs_bone" => length(ocn.zs_bone),
                 ),
                 var_list,
                 HOOM.var_desc;
@@ -394,7 +398,7 @@ module CESMCORE_HOOM
         if (length(MD.configs[:monthly_record]) != 0) && t_flags[:new_month]
             
             #println("##### Avg and Output MONTHLY!")
-            RecordTool.record!(MD.recorders[:monthly_record])
+            RecordTool.avgAndOutput!(MD.recorders[:monthly_record])
 
         end
              

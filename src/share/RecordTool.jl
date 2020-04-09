@@ -25,7 +25,7 @@ module RecordTool
 
         varname  :: AbstractString
         varref   :: AbstractArray{Float64}
-        var       :: AbstractArray{Float64}
+        var      :: AbstractArray{Float64}
 
         dimnames :: Tuple
 
@@ -66,6 +66,11 @@ module RecordTool
 
             for (varname, varref, dimnames) in vars
 
+                if dimnames == :SCALAR
+                    println("Record Tool does not support statistics of :SCALAR variable: ", varname, ". Gonna skip it.")
+                    continue
+                end
+
                 for dimname in dimnames
                     if !haskey(dims, dimname)
                         ErrorException(format("Variable `{:s}` contains a dimension `{:s}` not specified in `dims` dict.", varname, dimname)) |> throw
@@ -76,17 +81,25 @@ module RecordTool
             end
 
             if other_vars == nothing
+                
             else
-            for (varname, varref, dimnames) in other_vars
 
-                for dimname in dimnames
-                    if !haskey(dims, dimname)
-                        ErrorException(format("Variable `{:s}` contains a dimension `{:s}` not specified in `dims` dict.", varname, dimname)) |> throw
+
+                for (varname, varref, dimnames) in other_vars
+
+                    if dimnames == :SCALAR
+                        println("Record Tool does not support statistics of :SCALAR variable: ", varname, ". Gonna skip it.")
+                        continue
                     end
-                end
 
-                nsobjs[varname] = NonStatObj(varname, varref, dimnames)
-            end
+                    for dimname in dimnames
+                        if !haskey(dims, dimname)
+                            ErrorException(format("Variable `{:s}` contains a dimension `{:s}` not specified in `dims` dict.", varname, dimname)) |> throw
+                        end
+                    end
+
+                    nsobjs[varname] = NonStatObj(varname, varref, dimnames)
+                end
             end
 
             return new(nothing, 1, dims, sobjs, nsobjs, desc)

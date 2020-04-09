@@ -213,7 +213,6 @@ function makeSubOcean(;
             Ss_clim_relax_time = master_ocn.Ss_clim_relax_time,
             Ts_clim        = ( master_ocn.Ts_clim != nothing ) ? master_ocn.Ts_clim[:, :, pull_fr_rng] : nothing,
             Ss_clim        = ( master_ocn.Ss_clim != nothing ) ? master_ocn.Ss_clim[:, :, pull_fr_rng] : nothing,
-            mask           = master_ocn.mask[:, pull_fr_rng],
             topo           = master_ocn.topo[:, pull_fr_rng],
             fs             = master_ocn.fs[:, pull_fr_rng],
             ϵs             = master_ocn.ϵs[:, pull_fr_rng],
