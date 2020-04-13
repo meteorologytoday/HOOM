@@ -256,11 +256,6 @@ module CESMCORE_HOOM
             # File must be created AFTER it is output.
             archive_createFileIfNeeded!(MD)
 
-            #in_flds = MD.ocn.in_flds
-            #in_flds.nswflx .= MD.timeinfo.t[2] * MD.timeinfo.t[3]
-            #in_flds.swflx  .= 0.0
-            #in_flds.vsflx  .= 0.0
-
             HOOM.run!(
                 MD.ocn;
                 substeps         = MD.configs[:substeps],
@@ -278,7 +273,7 @@ module CESMCORE_HOOM
 
             archive_record!(MD)
             
-            if write_restart || MD.timeinfo.t_flags[:new_month]
+            if write_restart #|| MD.timeinfo.t_flags[:new_month]
                 writeRestart(MD)
             end
 
