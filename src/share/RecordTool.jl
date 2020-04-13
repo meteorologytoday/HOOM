@@ -1,6 +1,7 @@
 module RecordTool
     using NCDatasets
     using Formatting
+    using Dates
     missing_value = 1e20
  
     mutable struct NonStatObj 
@@ -187,7 +188,7 @@ module RecordTool
 
             defDim(ds, "time",   Inf)
             ds.attrib["_FillValue"] = missing_value
-            ds.attrib["timestamp"] = Dates.format(now(), "yyyy-mm-dd HH:MM:SS sss")
+            ds.attrib["timestamp"] = Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS sss")
 
             for (varname, sobj) in rec.sobjs
                 ds_var = defVar(ds, varname, Float64, (sobj.dimnames..., "time"))

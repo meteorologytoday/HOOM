@@ -117,7 +117,6 @@ mutable struct AdvectionSpeedUpMatrix
         mtx_interp_U = getSparse!(Nz_bone * (Nx+1) * Ny, Nz_bone * Nx * Ny)
 
         # y
-        idx = 1
         for i=1:Nx, j=2:Ny   # iterate through bounds
             for k=1:Nz[i, j]
                if noflux_y_mask3[k, i, j] != 0.0
@@ -128,6 +127,7 @@ mutable struct AdvectionSpeedUpMatrix
                     #v_bnd[k, i, j] = v[k, i, j-1] * (1.0 - weight_n[i, j]) + v[k, i, j] * weight_n[i, j]
                     add!(ib, ic_s, 1.0 - gi.weight_n[i, j])
                     add!(ib, ic_n, gi.weight_n[i, j])
+
                 end
 
             end
@@ -203,8 +203,14 @@ mutable struct AdvectionSpeedUpMatrix
                 ib_n   = flat_i(k, i, j+1, Nz_bone, Nx, Ny+1)
                 ib_s   = flat_i(k, i, j  , Nz_bone, Nx, Ny+1)
 
+
+                #add!(ic, ib_n,   gi.DX[i, j] / gi.dσ[i, j])
                 add!(ic, ib_n,   gi.DX[i, j+1] / gi.dσ[i, j])
                 add!(ic, ib_s, - gi.DX[i, j  ] / gi.dσ[i, j])
+
+                #add!(ic, ib_n, 0.0)#   gi.DX[i, j+1] / gi.dσ[i, j])
+                #add!(ic, ib_s, 0.0)#- gi.DX[i, j  ] / gi.dσ[i, j])
+
 
             end
         end

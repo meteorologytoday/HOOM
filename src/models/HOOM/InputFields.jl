@@ -59,7 +59,7 @@ function copyfrom!(
     src::InputFields,
 )
 
-    for fld in [:taux, :tauy, :nswflx, :swflx, :sumflx, :ifrac, :frwflx, :vsflx, :qflx_T, :qflx_S, :Tclim, :Sclim, :h_ML]
+    for fld in (:taux, :tauy, :nswflx, :swflx, :sumflx, :ifrac, :frwflx, :vsflx, :qflx_T, :qflx_S, :Tclim, :Sclim, :h_ML)
         getfield(dst, fld)[:] = getfield(src, fld)
     end
 

@@ -108,7 +108,6 @@ module CESMCORE_HOOM
         HOOM.init(ocn)
 
         in_flds = ocn.in_flds
-
         #
         # If it is "datastream", entrainment speed w_e would be 
         # calculated from h given. In fact there is no need

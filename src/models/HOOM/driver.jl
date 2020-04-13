@@ -82,7 +82,7 @@ function calParallizationRange(;
     # Adjust the first and last range (south pole and north pole)
     pull_fr_rngs[1] = (pull_fr_rngs[1][1]+L):pull_fr_rngs[1][end]
     pull_fr_rngs[end] = pull_fr_rngs[end][1]:(pull_fr_rngs[end][end]-L)
-    push_fr_rngs[1] = 1:length(push_to_rngs[1])
+    push_fr_rngs[1] = 1:length(push_fr_rngs[1])
 
 
     # Change range because to southmost boundary is trimmed
@@ -417,7 +417,7 @@ function run!(
     sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
     sync_bnd_vars3 = (:Ts,   :Ss)
 
-    sync_to_master_vars2 = (:FLDO, :T_ML, :S_ML, :h_ML, :h_MO, :fric_u, :qflx2atm, :qflx2atm_pos, :qflx2atm_neg, :τx, :τy, :TSAS_clim, :SSAS_clim, :TFLUX_DIV_implied, :SFLUX_DIV_implied, :TEMP, :dTEMPdt, :SALT, :dSALTdt, :dTdt_ent, :dSdt_ent, :TFLUX_bot, :SFLUX_bot, :SFLUX_top, :qflx_T_correction, :qflx_S_correction)
+    sync_to_master_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO, :h_MO, :fric_u, :qflx2atm, :qflx2atm_pos, :qflx2atm_neg, :τx, :τy, :TSAS_clim, :SSAS_clim, :TFLUX_DIV_implied, :SFLUX_DIV_implied, :TEMP, :dTEMPdt, :SALT, :dSALTdt, :dTdt_ent, :dSdt_ent, :TFLUX_bot, :SFLUX_bot, :SFLUX_top, :qflx_T_correction, :qflx_S_correction)
     sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :TFLUX_CONV, :SFLUX_CONV, :TFLUX_DEN_z, :SFLUX_DEN_z, :div)
 
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)

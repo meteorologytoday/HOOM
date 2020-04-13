@@ -55,6 +55,7 @@ function getCompleteVariableList(ocn::Ocean)
             "c_lon"              => ( ocn.mi.xc,                    ("Nx", "Ny") ),
             "c_lat"              => ( ocn.mi.yc,                    ("Nx", "Ny") ),
             "zs_bone"            => ( ocn.zs_bone,                  ("NP_zs_bone",) ),
+            "noflux_y_mask3"     => ( toXYZ(ocn.noflux_y_mask3, :zxy), ("Nx", "Ny", "Nz_bone") ),
 
             # BACKGROUND
             "Ts_clim"            => ( toXYZ(ocn.Ts_clim, :zxy),     ("Nx", "Ny", "Nz_bone") ),

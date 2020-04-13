@@ -662,23 +662,43 @@ mutable struct Ocean
         # x
         for i=2:Nx, j=1:Ny
             for k=1:Nz[i, j]
-                _noflux_x_mask3[k, i, j] = (  _mask3[k, i, j] == 0.0 || _mask3[k, i-1, j] == 0.0 || k >= Nz[i-1, j] || k == Nz[i, j] || _topo[i, j] > -300.0 || _topo[i-1, j] > -300.0) ? 0.0 : 1.0
+                _noflux_x_mask3[k, i, j] = ( 
+                    _mask3[k, i  , j] == 0.0
+                 || _mask3[k, i-1, j] == 0.0
+                 || k >= Nz[i-1, j]
+                 || k == Nz[i  , j]
+                 || _topo[i  , j] > -300.0
+                 || _topo[i-1, j] > -300.0
+                ) ? 0.0 : 1.0
             end
         end
         # x - periodic boundary
         for j=1:Ny
             for k=1:Nz[1, j]
-                _noflux_x_mask3[k, 1, j] = _noflux_x_mask3[k, Nx+1, j] = ( _mask3[k, 1, j] == 0.0 || _mask3[k, Nx, j] == 0.0 || k >= Nz[Nx, j] || k == Nz[1, j] || _topo[1, j] > -300.0 || _topo[Nx, j] > -300.0 ) ? 0.0 : 1.0
+                _noflux_x_mask3[k, 1, j] = _noflux_x_mask3[k, Nx+1, j] = (
+                    _mask3[k, 1, j] == 0.0
+                 || _mask3[k, Nx, j] == 0.0
+                 || k >= Nz[Nx, j]
+                 || k == Nz[1, j]
+                 || _topo[1, j] > -300.0
+                 || _topo[Nx, j] > -300.0
+                ) ? 0.0 : 1.0
             end
         end
 
         # y
         for i=1:Nx, j=2:Ny     # j=1 and Ny+1 are 0 because these are the singular points --- pole
             for k=1:Nz[i, j]
-                _noflux_y_mask3[k, i, j] = ( _mask3[k, i, j] == 0.0 || _mask3[k, i, j-1] == 0.0 || k >= Nz[i, j-1] || k == Nz[i, j] || _topo[i, j] > -300.0 || _topo[i, j-1] > -300.0) ? 0.0 : 1.0
+                _noflux_y_mask3[k, i, j] = (
+                    _mask3[k, i, j  ] == 0.0
+                 || _mask3[k, i, j-1] == 0.0
+                 || k >= Nz[i, j-1]
+                 || k == Nz[i, j  ]
+                 || _topo[i, j  ] > -300.0
+                 || _topo[i, j-1] > -300.0
+                ) ? 0.0 : 1.0
             end
         end
-
 
         #println("sum of _mask3: ", sum(_mask3))
 

@@ -251,7 +251,7 @@ struct GridInfo
         #   portion represent the south grid
         #
 
-        for j = 1:Ny
+        for j = 1:Ny  # i=1 or i=Nx+1
             weight_e[1, j] = weight_e[Nx+1, j] = dx_c[Nx, j] / (dx_c[Nx, j] + dx_c[1, j])
         end
         for i = 2:Nx, j = 1:Ny
@@ -261,7 +261,7 @@ struct GridInfo
         # Ignore the northest and the southest because information
         # is unknown
         for i = 1:Nx, j = 2:Ny
-            weight_n[i, j] = dy_s[i, j-1] / ( dy_c[i, j-1] + dy_c[i, j] )
+            weight_n[i, j] = dy_c[i, j-1] / ( dy_c[i, j-1] + dy_c[i, j] )
         end
 
 
