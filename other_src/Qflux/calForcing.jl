@@ -34,7 +34,8 @@ ent_thickness = 10.0
 c_p  = 3996.0  # J / kg / K
 
 dom = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
-sum(dom) == 365 || throw(ErrorException("Sum of dom is not 365"))
+doy = sum(dom)
+doy == 365 || throw(ErrorException("Sum of dom is not 365"))
 
 Δts = (dom + circshift(dom, -1))/2.0 * 86400.0
 
@@ -677,6 +678,14 @@ for i=1:Nx, j=1:Ny
 end
 
 
+# Fixed MLD
+h_ML_fixed = zeros(Float64, Nx, Ny, 12)
+for i=1:Nx, j=1:Ny
+    h_ML_fixed[i, j, :] .= sum(hs[i, j, :] .* dom) / doy
+end
+
+
+
 println("Output file...")
 
 Dataset(out_file, "c") do ds
@@ -692,7 +701,7 @@ Dataset(out_file, "c") do ds
             "units"=>"m",
             )
         ], [
-            "h_ML_fixed", repeat(mean(hs, dims=(3,))[:,:,1], outer=(1,1,12)), ("Nx", "Ny", "time"), Dict(
+            "h_ML_fixed", h_ML_fixed, ("Nx", "Ny", "time"), Dict(
             "long_name"=>"Mixed-layer Depth",
             "units"=>"m",
             )

@@ -12,16 +12,18 @@ new_files_conserve2nd=""
 if [ ! -f flag_notrans_ocn ] ; then
 
     for y in $( seq $diag_beg_year $diag_end_year ); do
-        old_file=$full_casename.ocn.h.monthly.$( printf "%04d" $y ).nc
-        new_file_bilinear=$( echo "$old_file" | sed -e 's/\.ocn\./.ocn_rg./' )
-        new_file_conserve2nd=$( echo "$old_file" | sed -e 's/\.ocn\./.ocn_rg2./' )
+        for m in $( seq 1 12 ); do
+            old_file=$full_casename.ocn.h.monthly.$( printf "%04d-%02d" $y $m ).nc
+            new_file_bilinear=$( echo "$old_file" | sed -e 's/\.ocn\./.ocn_rg./' )
+            new_file_conserve2nd=$( echo "$old_file" | sed -e 's/\.ocn\./.ocn_rg2./' )
 
-        if [ ! -f "$concat_dir/$new_file_bilinear" ] || [ ! -f "$concat_dir/$new_file_conserve2nd" ] ; then 
-            echo "$new_file does not exist, need to transform."
-            old_files="${old_file},${old_files}"
-            new_files_bilinear="${new_file_bilinear},${new_files_bilinear}"
-            new_files_conserve2nd="${new_file_conserve2nd},${new_files_conserve2nd}"
-        fi
+            if [ ! -f "$concat_dir/$new_file_bilinear" ] || [ ! -f "$concat_dir/$new_file_conserve2nd" ] ; then 
+                echo "$new_file does not exist, need to transform."
+                old_files="${old_file},${old_files}"
+                new_files_bilinear="${new_file_bilinear},${new_files_bilinear}"
+                new_files_conserve2nd="${new_file_conserve2nd},${new_files_conserve2nd}"
+            fi
+        done
     done
 
     if [ "$old_files" != "" ] ; then

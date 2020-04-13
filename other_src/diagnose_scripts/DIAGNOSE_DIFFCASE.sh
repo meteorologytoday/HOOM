@@ -124,6 +124,52 @@ fi
 if [ -f flag_plot_diffcase ] || [ -f flag_plot_diffcase_XY ]; then
 
     # Diff PRECIP
+    python3 $script_plot_dir/plot_diffcase_map_contourf.py \
+        --data-dir=$A_dir                                             \
+        --ref-data-dir=$B_dir                                         \
+        --data-file=atm_analysis4_precip.nc                           \
+        --casenames=$( join_by , "${casenames[@]}")                   \
+        --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+        --legends=$( join_by , "${legends[@]}")                       \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_dir                                       \
+        --varname-mean=PREC_TOTAL_AM                                           \
+        --title="[ $scenario minus $ref_scenario ] Seasonal analysis of zonal wind" \
+        --colormap-mean-diff=BrBG                                     \
+        --cmax-mean-diff=500                                          \
+        --clevs-mean-diff=10                                          \
+        --tick-levs-mean-diff=10                                      \
+        --scale="1/86400/365/1000"                                    \
+        --extra-filename="PREC_TOTAL"                          \
+        --idx-z=0                                                     \
+        --clabel-mean-diff="Mean diff [ \$ \\mathrm{mm} \, \\mathrm{yr}^{-1} \$ ]"               \
+        --figsize=20,20
+
+    # Diff SST
+    python3 $script_plot_dir/plot_diffcase_map_contourf.py \
+        --data-dir=$A_dir                                             \
+        --ref-data-dir=$B_dir                                         \
+        --data-file=ocn_analysis1_SST_anomalies_rg.nc                 \
+        --casenames=$( join_by , "${casenames[@]}")                   \
+        --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+        --legends=$( join_by , "${legends[@]}")                       \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_dir                                       \
+        --varname-mean=T_ML_AM                                           \
+        --title="[ $scenario minus $ref_scenario ] Seasonal analysis of sea surface temperature" \
+        --colormap-mean-diff=bwr                                      \
+        --cmax-mean-diff=2.0                                          \
+        --clevs-mean-diff=10                                          \
+        --tick-levs-mean-diff=10                                      \
+        --scale="1"                                                   \
+        --extra-filename="SST"                                        \
+        --idx-z=0                                                     \
+        --clabel-mean-diff="Mean diff [ \$ { }^\\circ\\mathrm{C} \$ ]"        \
+        --figsize=20,20
+
+
+
+    # Diff ICEFRAC
     python3 $script_plot_dir/plot_diffcase_map_mean_std.py \
         --data-dir=$A_dir                                             \
         --ref-data-dir=$B_dir                                         \

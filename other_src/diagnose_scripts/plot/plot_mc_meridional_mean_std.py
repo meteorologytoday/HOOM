@@ -132,7 +132,7 @@ ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5), frameon=False)
 fig.subplots_adjust(right=0.7, bottom=0.2)
 
 
-
+ax1.set_xlim([-90, 90])
 ax1.grid(True)
 ax2.grid(True)
 
