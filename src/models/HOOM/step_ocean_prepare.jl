@@ -29,48 +29,74 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
     # Transform input wind stress vector first
     DisplacedPoleCoordinate.project!(ocn.gi, ocn.in_flds.taux, ocn.in_flds.tauy, ocn.τx, ocn.τy, direction=:Forward)
 
-    if adv_scheme == :ekman_all_in_ML
-        
+    if adv_scheme == :ekman_HOOM_partition
+
+        H_ek =  50.0
+        H_rf = 250.0 
+        H_total = H_ek + H_rf
+
+        bot_lay_ek = getLayerFromDepth(
+            z  = - H_ek,
+            zs = ocn.zs_bone,  
+            Nz = ocn.Nz_bone,
+        )
+
+        bot_lay_rf = getLayerFromDepth(
+            z  = - H_total,
+            zs = ocn.zs_bone,  
+            Nz = ocn.Nz_bone,
+        )
+
         @loop_hor ocn i j let
-            
-            ϵ = ocn.ϵs[i, j]
-            f = ocn.fs[i, j]
-            
-            τx = ocn.τx[i, j]
-            τy = ocn.τy[i, j]
-            
-            h_ML = ocn.h_ML[i, j]
-            Nz   = ocn.Nz[i, j] 
-            s2ρh = ρ * h_ML * (ϵ^2.0 + f^2.0)
-            
-            ek_u = (ϵ * τx + f * τy) / s2ρh
-            ek_v = (ϵ * τy - f * τx) / s2ρh
 
-            FLDO = ocn.FLDO[i, j]
+            M̃ = (ocn.τx[i, j] + ocn.τy[i, j] * im) / (ρ * (ocn.ϵs[i, j] + ocn.fs[i, j] * im) )
 
-            if FLDO == -1
-                ocn.u[:, i, j] .= ek_u
-                ocn.v[:, i, j] .= ek_v
+            ṽ_ek =   M̃ / H_ek
+            ṽ_rf = - M̃ / H_rf
+
+            u_ek, v_ek = real(ṽ_ek), imag(ṽ_ek)
+            u_rf, v_rf = real(ṽ_rf), imag(ṽ_rf)
+
+            if bot_lay_ek == -1
+            
+                ocn.u[:, i, j] .= u_ek
+                ocn.v[:, i, j] .= v_ek
+
             else
-                ocn.u[1:FLDO-1, i, j] .= ek_u
-                ocn.v[1:FLDO-1, i, j] .= ek_v
 
-                ocn.u[FLDO:Nz, i, j] .= 0.0
-                ocn.v[FLDO:Nz, i, j] .= 0.0
-            end
-            
-        end
-    elseif adv_scheme == :testu
- 
-        @loop_hor ocn i j let
-            for k = 1:ocn.Nz[i, j]
-                ocn.u[k, i, j] = 2π/365/86400.0 * cos(ocn.gi.c_lat[i, j]) * Re
-                ocn.v[k, i, j] = 0.0
+                ocn.u[1:bot_lay_ek, i, j] .= u_ek
+                ocn.v[1:bot_lay_ek, i, j] .= v_ek
+
+                # Mix the top of RF layer
+                Δh     = ocn.hs[bot_lay_ek, i, j]
+                Δh_top = H_ek + ocn.zs[bot_lay_ek, i, j]
+                Δh_bot = Δh - Δh_top
+
+                ocn.u[bot_lay_ek, i, j] = (Δh_top * u_ek + Δh_bot * u_rf) / Δh
+                ocn.v[bot_lay_ek, i, j] = (Δh_top * v_ek + Δh_bot * v_rf) / Δh
+
+                if bot_lay_ek < ocn.Nz[i, j] # Bottom layers exists
+                    if bot_lay_rf == -1
+                       ocn.u[bot_lay_ek+1:end, i, j] .= u_rf
+                       ocn.v[bot_lay_ek+1:end, i, j] .= v_rf
+                    else
+                       ocn.u[bot_lay_ek+1:bot_lay_rf, i, j] .= u_rf
+                       ocn.v[bot_lay_ek+1:bot_lay_rf, i, j] .= v_rf
+
+                        # Mix the bottom of RF layer
+                        Δh     = ocn.hs[bot_lay_rf, i, j]
+                        Δh_top = H_total + ocn.zs[bot_lay_rf, i, j]
+                        Δh_bot = Δh - Δh_top
+
+                        ocn.u[bot_lay_rf, i, j] = Δh_top * u_rf / Δh
+                        ocn.v[bot_lay_rf, i, j] = Δh_top * v_rf / Δh
+
+                    end
+                end
+
             end
         end
 
-        #ocn.u .= 0.0
-        #ocn.v[1, :, :] .= 0.1
         
     elseif adv_scheme == :ekman_codron2012_partition
 
@@ -140,105 +166,6 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
             end
         end
 
-    elseif adv_scheme == :ekman_simple_partition
-        @loop_hor ocn i j let
-
-            h_ML = ocn.h_ML[i, j]
-            s̃ = ocn.ϵs[i, j] + ocn.fs[i, j] * im
-            H̃ = √(ocn.K_v / s̃)
-            H = abs(H̃)
-            
-            M̃ = (ocn.τx[i, j] + ocn.τy[i, j] * im) / (ρ * s̃)
-
-            depth_rf = 500.0
-
-            H_ek = max(h_ML, 2*H)
-            H_rf = max(depth_rf - H_ek, 100.0 )
-
-            ṽ_ek =   M̃ / H_ek
-            ṽ_rf = - M̃ / H_rf
-
-
-            u_ek, v_ek = real(ṽ_ek), imag(ṽ_ek)
-            u_rf, v_rf = real(ṽ_rf), imag(ṽ_rf)
-
-
-            bot_lay_ek = getLayerFromDepth(
-                z  = - H_ek,
-                zs = ocn.cols.zs[i, j],  
-                Nz = ocn.Nz[i, j],
-            )
-
-            bot_lay_rf = getLayerFromDepth(
-                z  = - H_ek - H_rf,
-                zs = ocn.cols.zs[i, j],  
-                Nz = ocn.Nz[i, j],
-            )
-
-#            if i == 1
-#                println(format("[{:03d}] H_ek={:f}, bot_layer_ek={:d}, bot_layer_rf={:d}", j, H_ek, bot_lay_ek, bot_lay_rf))
-#                println("zs: ", ocn.cols.zs[i, j][1:10])
-#            end
-#            if (i, j) == (48, 89)
-#                println("u_ek = ", u_ek, "; v_ek=", v_ek)
-#                println("u_rf = ", u_rf, "; v_rf=", v_rf)
-#            end
-            if bot_lay_ek == -1
-            
-                ocn.u[:, i, j] .= u_ek
-                ocn.v[:, i, j] .= v_ek
-
-            else
-
-                ocn.u[1:bot_lay_ek, i, j] .= u_ek
-                ocn.v[1:bot_lay_ek, i, j] .= v_ek
-
-                # Mix the top of RF layer
-                Δh     = ocn.hs[bot_lay_ek, i, j]
-                Δh_top = H_ek + ocn.zs[bot_lay_ek, i, j]
-                Δh_bot = Δh - Δh_top
-
-                ocn.u[bot_lay_ek, i, j] = (Δh_top * u_ek + Δh_bot * u_rf) / Δh
-                ocn.v[bot_lay_ek, i, j] = (Δh_top * v_ek + Δh_bot * v_rf) / Δh
-
-                if bot_lay_ek < ocn.Nz[i, j] && bot_lay_ek < bot_lay_rf
-
-                    if bot_lay_rf == -1
-                       ocn.u[bot_lay_ek+1:end, i, j] .= u_rf
-                       ocn.v[bot_lay_ek+1:end, i, j] .= v_rf
-                    else
-                       ocn.u[bot_lay_ek+1:bot_lay_rf, i, j] .= u_rf
-                       ocn.v[bot_lay_ek+1:bot_lay_rf, i, j] .= v_rf
-
-                        # Mix the bottom of RF layer
-                        Δh     = ocn.hs[bot_lay_rf, i, j]
-                        Δh_top = H_ek + H_rf + ocn.zs[bot_lay_rf, i, j]
-                        Δh_bot = Δh - Δh_top
-
-                        ocn.u[bot_lay_rf, i, j] = Δh_top * u_rf / Δh
-                        ocn.v[bot_lay_rf, i, j] = Δh_top * v_rf / Δh
-
-                    end
-                end
-
-            end
-        end
-
-    #=
-    elseif adv_scheme == :test
-        ocn.u .= 0.0
-        ocn.v .= 0.0
-    elseif adv_scheme == :testusin
-        @loop_hor ocn i j let
-            for k = 1:ocn.Nz[i, j]
-                ocn.u[k, i, j] = .1 * exp(ocn.zs[k, i, j]/50.0) * sin(ocn.gi.c_lon[i, j])
-                ocn.v[k, i, j] = .1 * exp(ocn.zs[k, i, j]/50.0) * cos(ocn.gi.c_lat[i, j])
-            end
-        end
-
-        #ocn.u .= 0.0
-        #ocn.v[1, :, :] .= 0.1
-    =#
     else
         throw(ErrorException("Unknown advection scheme: " * string(adv_scheme)))
     end
