@@ -23,7 +23,7 @@ function calLatentHeatReleaseOfFreezing!(ocn::Ocean; Δt::Float64, do_convadjust
         end
         =#
 
-        ocn.qflx2atm[i, j] = (T_sw_frz - ocn.T_ML[i, j]) * ρc * ocn.h_ML[i, j] / Δt
+        ocn.qflx2atm[i, j] = (T_sw_frz - ocn.T_ML[i, j]) * ρc_sw * ocn.h_ML[i, j] / Δt
         ocn.qflx2atm_pos[i, j] = max(ocn.qflx2atm[i,j], 0.0)
         ocn.qflx2atm_neg[i, j] = min(ocn.qflx2atm[i,j], 0.0)
 

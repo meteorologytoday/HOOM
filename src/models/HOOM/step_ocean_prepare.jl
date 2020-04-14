@@ -49,10 +49,10 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
 
         @loop_hor ocn i j let
 
-            M̃ = (ocn.τx[i, j] + ocn.τy[i, j] * im) / (ρ * (ocn.ϵs[i, j] + ocn.fs[i, j] * im) )
+            ΔM̃_half = (ocn.τx[i, j] + ocn.τy[i, j] * im) / (2.0 * ρ_sw * (ocn.ϵs[i, j] + ocn.fs[i, j] * im) )
 
-            ṽ_ek =   M̃ / H_ek
-            ṽ_rf = - M̃ / H_rf
+            ṽ_ek =   ΔM̃_half / H_ek
+            ṽ_rf = - ΔM̃_half / H_rf
 
             u_ek, v_ek = real(ṽ_ek), imag(ṽ_ek)
             u_rf, v_rf = real(ṽ_rf), imag(ṽ_rf)
@@ -118,7 +118,7 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
 
         @loop_hor ocn i j let
 
-            M̃ = (ocn.τx[i, j] + ocn.τy[i, j] * im) / (ρ * (ocn.ϵs[i, j] + ocn.fs[i, j] * im) )
+            M̃ = (ocn.τx[i, j] + ocn.τy[i, j] * im) / (ρ_sw * (ocn.ϵs[i, j] + ocn.fs[i, j] * im) )
 
             ṽ_ek =   M̃ / H_ek
             ṽ_rf = - M̃ / H_rf

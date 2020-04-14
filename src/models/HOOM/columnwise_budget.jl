@@ -17,12 +17,12 @@ function calImplied∂TEMP∂t!(
 
     @loop_hor ocn i j let
         #TFLUX_DIV_implied[i, j] = - TSAS_clim[i, j] - ( nswflx[i, j] + swflx[i, j] ) + TFLUX_bot[i, j] * ρc + max(qflx2atm[i, j], 0.0) - dTEMPdt[i, j]
-        TFLUX_DIV_implied[i, j] =  ( - ( nswflx[i, j] + swflx[i, j] ) + max(qflx2atm[i, j], 0.0) ) / ρc + TSAS_clim[i, j] + TFLUX_bot[i, j] - dTEMPdt[i, j]
+        TFLUX_DIV_implied[i, j] =  ( - ( nswflx[i, j] + swflx[i, j] ) + max(qflx2atm[i, j], 0.0) ) / ρc_sw + TSAS_clim[i, j] + TFLUX_bot[i, j] - dTEMPdt[i, j]
     end
 
     if cfgs[:do_qflx]
         @loop_hor ocn i j let
-            TFLUX_DIV_implied[i, j] +=  qflx_T[i, j] / ρc
+            TFLUX_DIV_implied[i, j] +=  qflx_T[i, j] / ρc_sw
         end
     end
 

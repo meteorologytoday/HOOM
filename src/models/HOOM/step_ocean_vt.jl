@@ -37,7 +37,7 @@ function stepOcean_MLDynamics!(
         zs = ocn.cols.zs[i, j]
         Nz = ocn.Nz[i, j]
 
-        fric_u[i, j] = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / HOOM.ρ)
+        fric_u[i, j] = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / HOOM.ρ_sw)
         weighted_fric_u = fric_u[i, j] * (1.0 - ifrac[i, j])
 
 
@@ -62,8 +62,8 @@ function stepOcean_MLDynamics!(
         α = TS2α(old_T_ML, old_S_ML) 
         β = TS2β(old_T_ML, old_S_ML) 
 
-        surf_Tnswflx = nswflx[i, j] / ρc 
-        surf_Tswflx  = swflx[i, j] / ρc
+        surf_Tnswflx = nswflx[i, j] / ρc_sw 
+        surf_Tswflx  = swflx[i, j] / ρc_sw
         surf_Jflx    = g * α * surf_Tswflx
         #surf_Sflx    = - frwflx[i, j] * ocn.S_ML[i, j] / ρ_fw 
         surf_Sflx    = vsflx[i, j]
@@ -203,7 +203,7 @@ function stepOcean_MLDynamics!(
         # Q-flux 
         if do_qflx
 
-            new_T_ML += qflx_T[i, j] * Δt / (ρc * new_h_ML)
+            new_T_ML += qflx_T[i, j] * Δt / (ρc_sw * new_h_ML)
             new_S_ML += qflx_S[i, j] * Δt / new_h_ML
 
         end
