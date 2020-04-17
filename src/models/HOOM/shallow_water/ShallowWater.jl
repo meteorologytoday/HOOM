@@ -7,8 +7,13 @@ module ShallowWater
     using ..DisplacedPoleCoordinate
 
     include("AdvectionSpeedUpMatrix.jl")
-    include("structures.jl")
-    include("advection.jl")
+    include("Env.jl")
+    include("State.jl")
+    include("TracerAdv.jl")
+    include("DynamicAdv.jl")
+    include("Model.jl")
+    include("step_tcr_adv.jl")
+    include("step_dyn_adv.jl")
 
     include("../rearrange.jl")
     include("var_list.jl")
@@ -34,53 +39,6 @@ module ShallowWater
         end
     end
 
-    function advectTracer!(
-        model   :: Model,
-        Δt      :: Float64,
-    )
-   
-        state = model.state
-        tcr_adv = model.tcr_adv
-        env = model.env
-
- 
-        calDIV!(
-            gi    = env.gi,
-            Nx    = env.Nx,
-            Ny    = env.Ny,
-            Nz    = env.Nz_av_f,
-            u_bnd = state.u_f,
-            v_bnd = state.v_f,
-            div   = tcr_adv.div,
-            mask3 = env.mask3_f,
-        )
- 
-        calVerVelBnd!(
-            gi    = env.gi,
-            Nx    = env.Nx,
-            Ny    = env.Ny,
-            Nz    = env.Nz_av_f,
-            w_bnd = state.w_f,
-            hs    = env.H_f,
-            div   = tcr_adv.div,
-            mask3 = env.mask3_f,
-        )
-       
-
-        # Pseudo code
-        # 1. calculate tracer flux
-        # 2. calculate tracer flux divergence
-        calDiffAdv_QUICK_SpeedUp!(model, Δt)
-        for x=1:env.NX
-            for i = 1:env.Nx, j=1:env.Ny
-                for k = 1:env.Nz_av_f[i, j]
-                    state.X[k, i, j, x] += Δt * tcr_adv.XFLUX_CONV[k, i, j, x]
-                end
-            end
-        end
-    
-    end
-
 
     function stepModel!(
         model :: Model,
@@ -90,8 +48,14 @@ module ShallowWater
         #setupFlow!(model.state)
         
         advectTracer!(model, Δt)
-        #advectDynamic!(model.dyn_adv, model.state, Δt)
+        advectDynamic!(model, Δt)
 
+    end
+
+
+    function advectDynamic!(model::Model, Δt::Float64)
+        # 1. derive barotropic and baroclinic flow
+        # 2. deri
     end
 
     mutable struct ABIIIObj
