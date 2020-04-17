@@ -50,7 +50,7 @@ module ShallowWater
         #setupFlow!(model.state)
         
         advectTracer!(model, Δt)
-        advectDynamic!(model, Δt)
+        #advectDynamic!(model, Δt)
 
     end
 

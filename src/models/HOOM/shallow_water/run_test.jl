@@ -94,7 +94,6 @@ model.state.T[2, :, :] .= 1.0 * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model
 recorder = RecordTool.Recorder(
     Dict(
         "NX"      => model.env.NX,
-        "Nxp1"    => model.env.Nx+1,
         "Nyp1"    => model.env.Ny+1,
         "Nz_fp1"  => model.env.Nz_f+1,
         "Nx"      => model.env.Nx,
@@ -122,7 +121,7 @@ RecordTool.avgAndOutput!(recorder)
 println(integrateT())
 
 
-model.state.u_f[:, :, :] .= .1
+model.state.u_f[1, :, :] .= 0.5 * sin.((model.env.gi.c_lon .- deg2rad(45))) .* cos.(model.env.gi.c_lat)
 for step=1:parsed["run-days"]
     println("Run day ", step)
 

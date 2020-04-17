@@ -24,10 +24,10 @@ mutable struct State
         Nz_c = env.Nz_c
         Nz_f = env.Nz_f
 
-        u_c = allocate(datakind, Float64, Nz_c, Nx+1, Ny)
+        u_c = allocate(datakind, Float64, Nz_c, Nx, Ny)
         v_c = allocate(datakind, Float64, Nz_c, Nx, Ny+1)
 
-        u_f = allocate(datakind, Float64, Nz_f, Nx+1, Ny)
+        u_f = allocate(datakind, Float64, Nz_f, Nx, Ny)
         v_f = allocate(datakind, Float64, Nz_f, Nx, Ny+1)
         w_f = allocate(datakind, Float64, Nz_f+1, Nx, Ny)
 
@@ -38,8 +38,8 @@ mutable struct State
         T = view(X, :, :, :, 1)
         S = view(X, :, :, :, 2)
 
-        U = allocate(datakind, Float64, Nx, Ny)
-        V = allocate(datakind, Float64, Nx, Ny)
+        U = allocate(datakind, Float64, Nx, Ny  )
+        V = allocate(datakind, Float64, Nx, Ny+1)
         η = allocate(datakind, Float64, Nx, Ny)
 
         return new(

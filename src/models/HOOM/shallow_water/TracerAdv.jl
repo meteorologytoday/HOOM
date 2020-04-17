@@ -32,7 +32,7 @@ mutable struct TracerAdv # Leonard 1976
         Nz = env.Nz_f
         NX = env.NX
 
-        GRAD_bnd_x   = allocate(datakind, Float64, Nz, Nx+1, Ny)
+        GRAD_bnd_x   = allocate(datakind, Float64, Nz, Nx, Ny)
         GRAD_bnd_y   = allocate(datakind, Float64, Nz, Nx, Ny+1)
         GRAD_bnd_z   = allocate(datakind, Float64, Nz+1, Nx, Ny)
 
@@ -40,7 +40,7 @@ mutable struct TracerAdv # Leonard 1976
         CURV_y       = allocate(datakind, Float64, Nz, Nx, Ny)
         CURV_z       = allocate(datakind, Float64, Nz, Nx, Ny)
 
-        XFLUX_DEN_x  = allocate(datakind, Float64, Nz, Nx+1, Ny, NX)
+        XFLUX_DEN_x  = allocate(datakind, Float64, Nz, Nx, Ny, NX)
         XFLUX_DEN_y  = allocate(datakind, Float64, Nz, Nx, Ny+1, NX)
         XFLUX_DEN_z  = allocate(datakind, Float64, Nz+1, Nx, Ny, NX)
 

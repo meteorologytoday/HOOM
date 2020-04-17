@@ -64,6 +64,7 @@ end
 struct GridInfo
 
     R     :: Float64
+    Ω     :: Float64
 
     Nx    :: Integer
     Ny    :: Integer
@@ -86,17 +87,17 @@ struct GridInfo
     ds3   :: AbstractArray{Float64, 2}
     ds4   :: AbstractArray{Float64, 2}
 
-
     dσ    :: AbstractArray{Float64, 2}
 
-    weight_e :: AbstractArray{Float64, 2}    # ( Nx+1 , Ny   )
+    weight_e :: AbstractArray{Float64, 2}    # ( Nx , Ny   )
     weight_n :: AbstractArray{Float64, 2}    # ( Nx   , Ny+1 )
     DX    :: AbstractArray{Float64, 2}       # ( Nx   , Ny+1 )   The X-side grid size.
-    DY    :: AbstractArray{Float64, 2}       # ( Nx+1 , Ny   )   The Y-side grid size.
+    DY    :: AbstractArray{Float64, 2}       # ( Nx , Ny   )   The Y-side grid size.
 
   
     function GridInfo(
         R      :: Float64,
+        Ω      :: Float64,
         Nx     :: Integer,
         Ny     :: Integer,
         c_lon  :: AbstractArray{Float64, 2},  # center longitude
@@ -137,11 +138,11 @@ struct GridInfo
         vs_lon_rad = copy(vs_lon)
         vs_lat_rad = copy(vs_lat)
         
-        weight_e = zeros(Float64, Nx+1, Ny)
+        weight_e = zeros(Float64, Nx, Ny)
         weight_n = zeros(Float64, Nx, Ny+1)
 
         DX = zeros(Float64, Nx, Ny+1)
-        DY = zeros(Float64, Nx+1, Ny)
+        DY = zeros(Float64, Nx, Ny)
 
 
 
@@ -251,8 +252,8 @@ struct GridInfo
         #   portion represent the south grid
         #
 
-        for j = 1:Ny  # i=1 or i=Nx+1
-            weight_e[1, j] = weight_e[Nx+1, j] = dx_c[Nx, j] / (dx_c[Nx, j] + dx_c[1, j])
+        for j = 1:Ny  # i=1
+            weight_e[1, j] = dx_c[Nx, j] / (dx_c[Nx, j] + dx_c[1, j])
         end
         for i = 2:Nx, j = 1:Ny
             weight_e[i, j] = dx_c[i-1, j] / (dx_c[i-1, j] + dx_c[i, j])
@@ -275,7 +276,6 @@ struct GridInfo
         for i = 1:Nx, j = 1:Ny
             DY[i, j] = ds4[i, j]
         end
-        DY[Nx+1, :] = DY[1, :]
 
         if sub_yrng == Colon()
             sub_yrng = 1:Ny
@@ -286,6 +286,7 @@ struct GridInfo
        
         return new(
             R,
+            Ω,
             Nx,
             new_Ny,
             c_lon_rad[:, sub_yrng],

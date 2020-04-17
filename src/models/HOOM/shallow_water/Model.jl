@@ -3,7 +3,7 @@ mutable struct Model
     env     :: Env
     state   :: State
     tcr_adv :: TracerAdv
-    dyn_adv :: DynamicAdv
+    dyn_adv :: Any#DynamicAdv
 
     function Model(;
         gi,
@@ -41,13 +41,13 @@ mutable struct Model
 
         state = State(env, datakind)
         tcr_adv = TracerAdv(env, state, datakind)
-        dyn_adv = DynamicAdv(env, state, datakind)
+        #dyn_adv = DynamicAdv(env, state, datakind)
 
         return new(
             env,
             state,
             tcr_adv,
-            dyn_adv,
+            nothing, #dyn_adv,
         )
 
     end

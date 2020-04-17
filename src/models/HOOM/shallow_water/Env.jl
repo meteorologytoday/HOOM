@@ -109,7 +109,7 @@ mutable struct Env
             H_f  = zeros(Float64, Nz_f, Nx, Ny)
             Δz_f = zeros(Float64, Nz_f - 1, Nx, Ny)
             mask3_f = ones(Nz_f, Nx, Ny)
-            noflux_x_mask3_f = ones(Float64, Nz_f, Nx+1, Ny)
+            noflux_x_mask3_f = ones(Float64, Nz_f, Nx, Ny)
             noflux_y_mask3_f = ones(Float64, Nz_f, Nx, Ny+1)
             Nz_f_av = allocate(datakind, Int64, Nx, Ny)
 

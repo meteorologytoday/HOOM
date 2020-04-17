@@ -9,6 +9,15 @@ function advectTracer!(
     env = model.env
 
 
+
+    calDIV!(
+        ASUM = tcr_adv.ASUM,
+        u_bnd = state.u_f,
+        v_bnd = state.v_f,
+        div   = tcr_adv.div,
+        workspace = tcr_adv.workspaces[1]
+    )
+    #=
     calDIV!(
         gi    = env.gi,
         Nx    = env.Nx,
@@ -19,6 +28,7 @@ function advectTracer!(
         div   = tcr_adv.div,
         mask3 = env.mask3_f,
     )
+    =#
 
     calVerVelBnd!(
         gi    = env.gi,
@@ -136,7 +146,7 @@ function calTotalChange!(;
     Nx         :: Integer,
     Ny         :: Integer,
     Nz         :: AbstractArray{Int64, 2},
-    FLUX_DEN_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx+1, Ny   )
+    FLUX_DEN_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx, Ny   )
     FLUX_DEN_y :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
     FLUX_DEN_z :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
     mask3      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
@@ -247,20 +257,20 @@ function calFluxDensity!(;
     Nz         :: AbstractArray{Int64, 2},
     FLUX_bot     :: AbstractArray{Float64, 2},     # ( Nx  , Ny   )
     qs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
-    u_bnd      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx+1, Ny   )
+    u_bnd      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx, Ny   )
     v_bnd      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
     w_bnd      :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
-    GRAD_bnd_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx+1, Ny   )
+    GRAD_bnd_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx, Ny   )
     GRAD_bnd_y :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
     GRAD_bnd_z :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
     CURV_x     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     CURV_y     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     CURV_z     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
-    FLUX_DEN_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx+1, Ny   )
+    FLUX_DEN_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx, Ny   )
     FLUX_DEN_y :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
     FLUX_DEN_z :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
     mask3      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
-    noflux_x_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx+1, Ny   )
+    noflux_x_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx, Ny   )
     noflux_y_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx  , Ny+1 )
     Δzs        :: AbstractArray{Float64, 3},     # ( Nz_bone-1 ,  Nx  , Ny   )
     D_hor      :: Float64,
@@ -287,14 +297,14 @@ function calFluxDensity!(;
     for j=1:Ny 
         for k=1:Nz[1, j]
             if noflux_x_mask3[k, 1, j] == 0.0
-                FLUX_DEN_x[k, 1, j] = FLUX_DEN_x[k, Nx+1, j] = 0.0
+                FLUX_DEN_x[k, 1, j] = 0.0
             else
 
                 CURV_r = ( u_bnd[k, 1, j] >= 0.0 ) ? CURV_x[k, Nx, j] : CURV_x[k, 1, j]
                 uΔt    = u_bnd[k, 1, j] * Δt
                 q_star = (qs[k, Nx, j] + qs[k, 1, j]) / 2.0 - uΔt / 2.0 * GRAD_bnd_x[k, 1, j] + ( D_hor * Δt / 2.0 - gi.dx_w[1, j]^2.0/6.0 + uΔt^2.0 / 6.0 ) * CURV_r
 
-                FLUX_DEN_x[k, 1, j] = FLUX_DEN_x[k, Nx+1, j] = u_bnd[k, 1, j] * q_star - D_hor * ( GRAD_bnd_x[k, 1, j] - uΔt / 2.0 * CURV_r )
+                FLUX_DEN_x[k, 1, j] =  u_bnd[k, 1, j] * q_star - D_hor * ( GRAD_bnd_x[k, 1, j] - uΔt / 2.0 * CURV_r )
             end
         end
     end
@@ -356,14 +366,14 @@ function calGRAD_CURV!(;
     Ny         :: Integer,
     Nz         :: AbstractArray{Int64, 2},
     qs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
-    GRAD_bnd_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx+1, Ny   )
+    GRAD_bnd_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     GRAD_bnd_y :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
     GRAD_bnd_z :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
     CURV_x     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     CURV_y     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     CURV_z     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     mask3      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
-    noflux_x_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx+1, Ny   )
+    noflux_x_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx  , Ny   )
     noflux_y_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx  , Ny+1 )
     Δzs        :: AbstractArray{Float64, 3},     # ( Nz_bone-1 ,  Nx  , Ny   )
     hs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
@@ -382,7 +392,7 @@ function calGRAD_CURV!(;
     # x - periodic
     for j=1:Ny
         for k=1:Nz[1, j]
-            GRAD_bnd_x[k, 1, j] = GRAD_bnd_x[k, Nx+1, j] = (
+            GRAD_bnd_x[k, 1, j] = (
                 ( noflux_x_mask3[k, 1, j] == 0.0 )  
                 ? 0.0 : ( qs[k, 1, j] - qs[k, Nx, j] ) / gi.dx_w[1, j]
             )
@@ -448,15 +458,38 @@ end
 
 
 function calDIV!(;
+    ASUM     ,
+    u_bnd     :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+    v_bnd     :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny+1 )
+    div       :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+    workspace :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+)
+
+    
+    mul!(view(div, :),       ASUM.mtx_DIV_X, view(u_bnd, :))
+    mul!(view(workspace, :), ASUM.mtx_DIV_Y, view(v_bnd, :))
+    div .+= workspace
+
+end
+
+#=
+function calDIV!(;
     gi       :: DisplacedPoleCoordinate.GridInfo,
     Nx       :: Integer,
     Ny       :: Integer,
     Nz       :: AbstractArray{Int64, 2},
-    u_bnd    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx+1, Ny   )
+    u_bnd    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
     v_bnd    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny+1 )
     div      :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
     mask3    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
 )
+
+    
+    mul!(view(div, :),           ASUM.mtx_DIV_X, view(u_bnd, :))
+    mul!(view(workspaces[1], :), ASUM.mtx_DIV_Y, view(v_bnd, :))
+    div .+= workspaces[1]
+
+    #=
 
 #    local tmp = tmp_σ = 0.0
     for i=1:Nx, j=1:Ny
@@ -478,9 +511,9 @@ function calDIV!(;
 
     end
 
-
+    =#
 end
-
+=#
 
 
 function calVerVelBnd!(;

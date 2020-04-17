@@ -43,27 +43,8 @@ mutable struct AdvectionSpeedUpMatrix
         Δzs            :: AbstractArray{Float64, 3},
         hs             :: AbstractArray{Float64, 3},
     )
-   # mtx_GRAD_x = spzeros(Float64, Nx * Ny * Nz_bone, (Nx+1) * Ny * Nz_bone)
-   # mtx_GRAD_y = spzeros(Float64, Nx * Ny * Nz_bone, Nx * (Ny+1) * Nz_bone)
-   # mtx_GRAD_z = spzeros(Float64, Nx * Ny * Nz_bone, Nx * Ny * (Nz_bone+1))
-    
-   # mtx_CURV :: AbstractArray{Float64, 2}
-#=     
-        mtx_interp_U = spzeros(Float64, Nz_bone * (Nx+1) * Ny    , Nz_bone     * Nx     * Ny    )
-        mtx_interp_V = spzeros(Float64, Nz_bone * Nx     * (Ny+1), Nz_bone     * Nx     * Ny    )
-        mtx_DIV_X    = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * (Nx+1) * Ny    )
-        mtx_DIV_Y    = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * Nx     * (Ny+1))
-        mtx_DIV_Z    = spzeros(Float64, Nz_bone * Nx     * Ny    , (Nz_bone+1) * Nx     * Ny    )
-        mtx_GRAD_X   = spzeros(Float64, Nz_bone * (Nx+1) * Ny    , Nz_bone     * Nx     * Ny    )
-        mtx_GRAD_Y   = spzeros(Float64, Nz_bone * Nx     * (Ny+1), Nz_bone     * Nx     * Ny    )
-        mtx_GRAD_Z   = spzeros(Float64, (Nz_bone+1) * Nx * Ny    , Nz_bone     * Nx     * Ny    )
-        mtx_CURV_X   = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * (Nx+1) * Ny    )
-        mtx_CURV_Y   = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * Nx     * (Ny+1))
-        mtx_CURV_Z   = spzeros(Float64, Nz_bone * Nx     * Ny    , (Nz_bone+1) * Nx     * Ny    )
-=#
 
-
-        elm_max = (Nz_bone+1)*(Nx+1)*(Ny+1) * 2 
+        elm_max = (Nz_bone+1)*(Nx)*(Ny+1) * 2 
         I = zeros(Int64, elm_max)
         J = zeros(Int64, elm_max)
         V = zeros(Float64, elm_max)
@@ -81,30 +62,14 @@ mutable struct AdvectionSpeedUpMatrix
             idx = 0
             return s 
         end
-
-        #=
-        mtx_interp_U = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * (Nx+1) * Ny    )
-        mtx_interp_V = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * Nx     * (Ny+1))
-
-        mtx_DIV_X    = spzeros(Float64, Nz_bone * (Nx+1) * Ny    , Nz_bone     * Nx     * Ny    )
-        mtx_DIV_Y    = spzeros(Float64, Nz_bone * Nx     * (Ny+1), Nz_bone     * Nx     * Ny    )
-        mtx_DIV_Z    = spzeros(Float64, (Nz_bone+1) * Nx     * Ny, Nz_bone     * Nx     * Ny    )
-
-        mtx_GRAD_X   = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * (Nx+1) * Ny    )
-        mtx_GRAD_Y   = spzeros(Float64, Nz_bone * Nx     * Ny    , Nz_bone     * Nx     * (Ny+1))
-        mtx_GRAD_Z   = spzeros(Float64, Nz_bone * Nx     * Ny    , (Nz_bone+1) * Nx     * Ny    )
-
-        mtx_CURV_X   = spzeros(Float64, Nz_bone * (Nx+1) * Ny    , Nz_bone     * Nx     * Ny    )
-        mtx_CURV_Y   = spzeros(Float64, Nz_bone * Nx     * (Ny+1), Nz_bone     * Nx     * Ny    )
-        mtx_CURV_Z   = spzeros(Float64, (Nz_bone+1) * Nx     * Ny, Nz_bone     * Nx     * Ny    )
-        =#
+        
         println("Making Interp Matrix")
         # ===== [BEGIN] Making interp matrix =====
         # x
-        for i=1:Nx+1, j=1:Ny  # iterate through bounds
-            for k=1:Nz[cyc(i, Nx), j]  # Bounds Nx+1 is the same as the bound 1
+        for i=1:Nx, j=1:Ny  # iterate through bounds
+            for k=1:Nz[cyc(i, Nx), j]  # Bounds Nx is the same as the bound 1
                 if noflux_x_mask3[k, i, j] != 0.0
-                    ib   = flat_i(k, i           , j, Nz_bone, Nx+1, Ny)
+                    ib   = flat_i(k, i           , j, Nz_bone, Nx, Ny)
                     ic_e = flat_i(k, cyc(i  ,Nx) , j, Nz_bone, Nx  , Ny)
                     ic_w = flat_i(k, cyc(i-1,Nx) , j, Nz_bone, Nx  , Ny)
 
@@ -114,7 +79,7 @@ mutable struct AdvectionSpeedUpMatrix
                 end
             end
         end
-        mtx_interp_U = getSparse!(Nz_bone * (Nx+1) * Ny, Nz_bone * Nx * Ny)
+        mtx_interp_U = getSparse!(Nz_bone * (Nx) * Ny, Nz_bone * Nx * Ny)
 
         # y
         for i=1:Nx, j=2:Ny   # iterate through bounds
@@ -134,37 +99,7 @@ mutable struct AdvectionSpeedUpMatrix
         end
         mtx_interp_V = getSparse!(Nz_bone * Nx * (Ny+1), Nz_bone * Nx * Ny)
 
-#=
-        for i=1:Nx+1, j=1:Ny  # iterate through bounds
-            for k=1:Nz[cyc(i, Nx), j]  # Bounds Nx+1 is the same as the bound 1
-                if noflux_x_mask3[k, i, j] != 0.0
-                    ib   = flat_i(k, i           , j, Nz_bone, Nx+1, Ny)
-                    ic_e = flat_i(k, cyc(i  ,Nx) , j, Nz_bone, Nx  , Ny)
-                    ic_w = flat_i(k, cyc(i-1,Nx) , j, Nz_bone, Nx  , Ny)
 
-                    #u_bnd[k, i, j] = u[k, i-1, j] * (1.0 - weight_e[i, j]) + u[k, i, j] * weight_e[i, j]
-                    mtx_interp_U[ic_w, ib] = 1.0 - gi.weight_e[i, j] 
-                    mtx_interp_U[ic_e, ib] = gi.weight_e[i, j]
-                end
-            end
-        end
-
-        # y
-        for i=1:Nx, j=2:Ny   # iterate through bounds
-            for k=1:Nz[i, j]
-               if noflux_y_mask3[k, i, j] != 0.0
-                    ib   = flat_i(k, i, j  , Nz_bone, Nx, Ny+1)
-                    ic_n = flat_i(k, i, j  , Nz_bone, Nx, Ny  )
-                    ic_s = flat_i(k, i, j-1, Nz_bone, Nx, Ny  )
-
-                    #v_bnd[k, i, j] = v[k, i, j-1] * (1.0 - weight_n[i, j]) + v[k, i, j] * weight_n[i, j]
-                    mtx_interp_V[ic_s, ib] = 1.0 - gi.weight_n[i, j] 
-                    mtx_interp_V[ic_n, ib] = gi.weight_n[i, j]
-                end
-
-            end
-        end
-=#
         # ===== [END] Making interp matrix =====
 
         println("Making Divergence Matrix")
@@ -179,16 +114,17 @@ mutable struct AdvectionSpeedUpMatrix
 
                 ic = flat_i(k, i, j, Nz_bone, Nx  , Ny)
 
-                # X direction
-                ib_e   = flat_i(k, i+1, j, Nz_bone, Nx+1, Ny)
-                ib_w   = flat_i(k, i  , j, Nz_bone, Nx+1, Ny)
 
-                add!(ic, ib_e,   gi.DY[i+1, j] / gi.dσ[i, j])
-                add!(ic, ib_w, - gi.DY[i  , j] / gi.dσ[i, j])
+                # X direction
+                ib_e   = flat_i(k, cyc(i+1, Nx), j, Nz_bone, Nx, Ny)
+                ib_w   = flat_i(k, cyc(i  , Nx), j, Nz_bone, Nx, Ny)
+
+                add!(ic, ib_e,   gi.DY[cyc(i+1, Nx), j] / gi.dσ[i, j])
+                add!(ic, ib_w, - gi.DY[cyc(i  , Nx), j] / gi.dσ[i, j])
 
             end
         end
-        mtx_DIV_X = getSparse!(Nz_bone * Nx * Ny, Nz_bone * (Nx+1) * Ny)
+        mtx_DIV_X = getSparse!(Nz_bone * Nx * Ny, Nz_bone * (Nx) * Ny)
 
         # y
         for i=1:Nx, j=1:Ny  # iterate through face centers
@@ -240,10 +176,10 @@ mutable struct AdvectionSpeedUpMatrix
         println("Making GRAD Matrix")
         # ===== [BEGIN] Making GRAD matrix =====
         # x
-        for i=1:Nx+1, j=1:Ny  # iterate through bounds
-            for k=1:Nz[cyc(i, Nx), j]  # Bounds Nx+1 is the same as the bound 1
+        for i=1:Nx, j=1:Ny  # iterate through bounds
+            for k=1:Nz[cyc(i, Nx), j]  # Bounds Nx is the same as the bound 1
                 if noflux_x_mask3[k, i, j] != 0.0
-                    ib   = flat_i(k, i           , j, Nz_bone, Nx+1, Ny)
+                    ib   = flat_i(k, i           , j, Nz_bone, Nx, Ny)
                     ic_e = flat_i(k, cyc(i  ,Nx) , j, Nz_bone, Nx  , Ny)
                     ic_w = flat_i(k, cyc(i-1,Nx) , j, Nz_bone, Nx  , Ny)
                     
@@ -253,7 +189,7 @@ mutable struct AdvectionSpeedUpMatrix
                 end
             end
         end
-        mtx_GRAD_X = getSparse!(Nz_bone * (Nx+1) * Ny, Nz_bone * Nx * Ny)
+        mtx_GRAD_X = getSparse!(Nz_bone * (Nx) * Ny, Nz_bone * Nx * Ny)
 
         # y
         for i=1:Nx, j=2:Ny   # iterate through bounds
@@ -270,11 +206,6 @@ mutable struct AdvectionSpeedUpMatrix
             end
         end
         mtx_GRAD_Y = getSparse!(Nz_bone * Nx * (Ny+1), Nz_bone * Nx * Ny)
-
-#        println("GRADXY")
-#        println(mtx_GRAD_Y)
-#        println(mtx_GRAD_X)
-
 
         # z
         for i=1:Nx, j=1:Ny   # iterate through bounds
@@ -327,15 +258,15 @@ mutable struct AdvectionSpeedUpMatrix
 
                 # X direction
                 # CURV_x[k, i, j] = ( GRAD_bnd_x[k, i+1, j  ] - GRAD_bnd_x[k  , i, j] ) / gi.dx_c[i, j]
-                ib_e   = flat_i(k, i+1, j, Nz_bone, Nx+1, Ny)
-                ib_w   = flat_i(k, i  , j, Nz_bone, Nx+1, Ny)
+                ib_e   = flat_i(k, cyc(i+1, Nx), j, Nz_bone, Nx, Ny)
+                ib_w   = flat_i(k, cyc(i  , Nx), j, Nz_bone, Nx, Ny)
 
                 add!(ic, ib_e,   1.0 / gi.dx_c[i, j])
                 add!(ic, ib_w, - 1.0 / gi.dx_c[i, j])
 
             end
         end
-        mtx_CURV_X = getSparse!(Nz_bone * Nx * Ny, Nz_bone * (Nx+1) * Ny)
+        mtx_CURV_X = getSparse!(Nz_bone * Nx * Ny, Nz_bone * (Nx) * Ny)
 
         for i=1:Nx, j=1:Ny
             for k=1:Nz[i, j]
