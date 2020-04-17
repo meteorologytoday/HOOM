@@ -6,6 +6,18 @@ module ShallowWater
     using LinearAlgebra    
     using ..DisplacedPoleCoordinate
 
+
+    function allocate(datakind::Symbol, dtype::DataType, dims... ; func=Main.zeros)
+        if datakind == :local
+            return func(dtype, dims...)
+        elseif datakind == :shared
+            return SharedArray{dtype}(dims...)
+        else
+            ErrorException("Unknown kind: " * string(datakind)) |> throw
+        end
+    end
+
+
     include("AdvectionSpeedUpMatrix.jl")
     include("Env.jl")
     include("State.jl")
@@ -29,16 +41,6 @@ module ShallowWater
     end
 
 
-    function allocate(datakind::Symbol, dtype::DataType, dims... ; func=Main.zeros)
-        if datakind == :local
-            return func(dtype, dims...)
-        elseif datakind == :shared
-            return SharedArray{dtype}(dims...)
-        else
-            ErrorException("Unknown kind: " * string(datakind)) |> throw
-        end
-    end
-
 
     function stepModel!(
         model :: Model,
@@ -53,26 +55,4 @@ module ShallowWater
     end
 
 
-    function advectDynamic!(model::Model, Δt::Float64)
-        # 1. derive barotropic and baroclinic flow
-        # 2. deri
-    end
-
-    mutable struct ABIIIObj
-        gi :: DisplacedPoleCoordinate.GridInfo
-        
-    
-        function ABIIIObj(
-            ShallowWater
-        )
-                        
-        end
-    end
-
-
-    function ABIII!(
-        o :: ABIIIObj
-    )
-
-    end
 end

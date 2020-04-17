@@ -1,8 +1,6 @@
 mutable struct TracerAdv # Leonard 1976
 
     ASUM :: Union{AdvectionSpeedUpMatrix, Nothing}
-    
-
 
     GRAD_bnd_x :: AbstractArray{Float64, 3}
     GRAD_bnd_y :: AbstractArray{Float64, 3}
@@ -26,6 +24,7 @@ mutable struct TracerAdv # Leonard 1976
     
     workspace_heap :: AbstractArray{Float64, 4}
     workspaces     :: Any
+
     function TracerAdv(env, state, datakind)
 
         Nx = env.Nx
@@ -54,9 +53,6 @@ mutable struct TracerAdv # Leonard 1976
 
         if env.datakind != :shared
 
-            println(size(env.noflux_x_mask3_f))
-            println(Nx,",",Ny)
-            println(env.Nz_f)
             ASUM = AdvectionSpeedUpMatrix(;
                             gi = env.gi,
                             Nx = Nx,

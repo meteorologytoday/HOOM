@@ -78,7 +78,6 @@ function calDiffAdv_QUICKEST_SpeedUp!(
      
         end
 
-   #println("FLUXDEN")
         calFluxDensity!(
             gi         = env.gi,
             Nx         = env.Nx,
