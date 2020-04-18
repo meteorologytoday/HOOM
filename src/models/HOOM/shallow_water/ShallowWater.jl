@@ -1,12 +1,12 @@
 
-include("../../../share/DisplacedPoleCoordinate.jl")
+include("../../../share/PolelikeCoordinate.jl")
 include("../../../share/constants.jl")
 include("../../../share/ocean_state_function.jl")
 
 module ShallowWater
 
     using LinearAlgebra    
-    using ..DisplacedPoleCoordinate
+    using ..PolelikeCoordinate
 
 
     function allocate(datakind::Symbol, dtype::DataType, dims... ; func=Main.zeros)

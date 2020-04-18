@@ -32,7 +32,7 @@ mutable struct AdvectionSpeedUpMatrix
     mtx_CURV_Z   :: AbstractArray{Float64, 2}
 
     function AdvectionSpeedUpMatrix(;
-        gi             :: DisplacedPoleCoordinate.GridInfo,
+        gi             :: PolelikeCoordinate.GridInfo,
         Nx             :: Int64,
         Ny             :: Int64,
         Nz_bone        :: Int64,

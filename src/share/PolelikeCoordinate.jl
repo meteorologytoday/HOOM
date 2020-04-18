@@ -1,4 +1,4 @@
-module DisplacedPoleCoordinate
+module PoleLikeCoordinate
 
 
 using LinearAlgebra: ⋅, normalize, normalize!, norm
@@ -60,8 +60,9 @@ function extend(
 
 end
 
+abstract type GridInfo end
 
-struct GridInfo
+struct CurvilinearSphericalGridInfo <: GridInfo
 
     R     :: Float64
     Ω     :: Float64
@@ -95,7 +96,7 @@ struct GridInfo
     DY    :: AbstractArray{Float64, 2}       # ( Nx , Ny   )   The Y-side grid size.
 
   
-    function GridInfo(
+    function CurvilinearSphericalGridInfo(
         R      :: Float64,
         Ω      :: Float64,
         Nx     :: Integer,
@@ -315,8 +316,8 @@ struct GridInfo
 end
 
 
-function project!(
-    gi    :: GridInfo,
+function projectSpherical!(
+    gi    :: CurvilinearSphericalGridInfo,
     ivf_e :: AbstractArray{Float64, 2},     # input vector field east
     ivf_n :: AbstractArray{Float64, 2},     # input vector field north
     ovf_e :: AbstractArray{Float64, 2},    # output vector field east
@@ -342,184 +343,121 @@ function project!(
 
 end
 
-function GRAD!(
-    gi     :: GridInfo,
-    scalar :: AbstractArray{Float64, 2},
-    vf_e   :: AbstractArray{Float64, 2},
-    vf_n   :: AbstractArray{Float64, 2},
-    mask   :: AbstractArray{Float64, 2},
-)
+struct RegularCylindrialGridInfo <: GridInfo
 
-    for i=1:gi.Nx, j=1:gi.Ny
+    R     :: Float64
+    Ω     :: Float64
+    Ly    :: Float64
 
-        if mask[i, j] == 0.0
-            vf_e[i, j] = NaN
-            vf_n[i, j] = NaN
-            continue
-        end
+    Nx    :: Integer
+    Ny    :: Integer
 
-        i_w, i_e, j_s, j_n = getCyclicNeighbors(gi.Nx, gi.Ny, i, j)
+    c_lat :: AbstractArray{Float64, 2}
+    c_lon :: AbstractArray{Float64, 2}
+    c_y   :: AbstractArray{Float64, 2}
 
-        s_c = scalar[i, j]
-        
-        if mask[i_e, j] != 0
-            if mask[i_w, j] != 0
-                # i_e = 1, i_w = 1 (Both side derivative)
-                vf_e[i, j] = ( scalar[i_e, j] - scalar[i_w, j] ) / (2.0 * gi.dx_c[i, j])
-            else
-                # i_e = 1, i_w = 0 (East side derivative)
-                vf_e[i, j] = ( scalar[i_e, j] - s_c ) / gi.dx_c[i, j]
-            end
-        elseif mask[i_w, j] != 0
-                # i_e = 0, i_w = 1 (West side derivative)
-                vf_e[i, j] = ( s_c - scalar[i_w, j] ) / gi.dx_c[i, j]
+    dx_w  :: AbstractArray{Float64, 2}
+    dx_c  :: AbstractArray{Float64, 2}
+    dx_e  :: AbstractArray{Float64, 2}
+    dy_s  :: AbstractArray{Float64, 2}
+    dy_c  :: AbstractArray{Float64, 2}
+    dy_n  :: AbstractArray{Float64, 2}
+    
+    dσ    :: AbstractArray{Float64, 2}
+
+    weight_e :: AbstractArray{Float64, 2}    # ( Nx , Ny   )
+    weight_n :: AbstractArray{Float64, 2}    # ( Nx   , Ny+1 )
+    DX    :: AbstractArray{Float64, 2}       # ( Nx   , Ny+1 )   The X-side grid size.
+    DY    :: AbstractArray{Float64, 2}       # ( Nx , Ny   )   The Y-side grid size.
+  
+    function RegularCylindricalGridInfo(;
+        R       :: Float64,
+        Ω       :: Float64,
+        Nx      :: Integer,
+        Ny      :: Integer,
+        Ly      :: Float64,
+        lat0    :: Float64 = 0,  # in degree
+        β       :: Float64 = 0,  # in degree
+        sub_yrng :: Union{Colon, UnitRange} = Colon(),
+    )
+
+        Δx = 2π * R / Nx
+        Δy = Ly     / Ny
+
+        Δλ = 2π / Nx
+        c_lon = collect(Float64, (1:Nx) .- 0.5) * Δλ
+
+        if mod(Ny, 2) == 0
+            c_y = collect(Float64, (-Ny/2+0.5:1:Ny/2-0.5)) * Δy
         else
-                # i_e = 0, i_w = 0 (0 derivative)
-                vf_e[i, j] = 0.0
+            o = (Ny-1) / 2
+            c_y = collect(Float64, (-o:1:o)) * Δy
         end
 
-        if mask[i, j_n] != 0
-            if mask[i, j_s] != 0
-                # j_n = 1, j_s = 1 (Both side derivative)
-                vf_n[i, j] = ( scalar[i, j_n] - scalar[i, j_s] ) / (2.0 * gi.dy_c[i, j])
-            else
-                # j_n = 1, j_s = 0 (North side derivative)
-                vf_n[i, j] = ( scalar[i, j_n] - s_c ) / gi.dy_c[i, j]
-            end
-        elseif mask[i, j_s] != 0
-                # j_n = 0, j_s = 1 (South side derivative)
-                vf_n[i, j] = ( s_c - scalar[i, j_s] ) / gi.dy_c[i, j]
-        else
-                # j_n = 0, j_s = 0 (0 derivative)
-                vf_n[i, j] = 0.0
+        if lat0 + Ly/2*β >= 90.0 || lat0 - Ly/2*β <= -90.0
+            throw(ErrorException("Bad choice of Ly, lat0 and β"))
         end
+        c_lat = deg2rad(c_lat0 .+ c_y * β)
 
-    end
+
+        dx_w = zeros(Float64, Nx, Ny)
+        dx_w .= Δx
         
+        dx_c = copy(dx_w)
+        dx_e = copy(dx_w)
+
+        dy_s = zeros(Float64, Nx, Ny)
+        dy_s .= Δy
+
+        dy_c = copy(dy_s)
+        dy_n = copy(dy_s)
+        
+        dσ = dx_c .* dy_c
+        
+        weight_e = zeros(Float64, Nx, Ny)
+        weight_n = zeros(Float64, Nx, Ny+1)
+
+        weight_e .= .5
+        weight_n .= .5
+
+        DX = zeros(Float64, Nx, Ny+1)
+        DY = zeros(Float64, Nx, Ny)
+
+        DX .= Δx
+        DY .= Δy
+
+        if sub_yrng == Colon()
+            sub_yrng = 1:Ny
+        end
+
+        new_Ny = length(sub_yrng)
+        sub_yrng_ext = sub_yrng[1]:sub_yrng[end]+1
+       
+        return new(
+            R,
+            Ω,
+            Ly,
+            Nx,
+            new_Ny,
+            c_lat[:, sub_yrng],
+            c_lon[:, sub_yrng],
+            c_y[:, sub_yrng],
+            dx_w[:, sub_yrng],
+            dx_c[:, sub_yrng],
+            dx_e[:, sub_yrng],
+            dy_s[:, sub_yrng],
+            dy_c[:, sub_yrng],
+            dy_n[:, sub_yrng],
+            dσ[:, sub_yrng],
+            weight_e[:, sub_yrng],
+            weight_n[:, sub_yrng_ext],
+            DX[:, sub_yrng_ext],
+            DY[:, sub_yrng],
+        )
+ 
+    end
 end
 
-
-
-
-
-function DIV!(
-    gi   :: GridInfo,
-    vf_e :: AbstractArray{Float64, 2},
-    vf_n :: AbstractArray{Float64, 2},
-    div  :: AbstractArray{Float64, 2},
-    mask :: AbstractArray{Float64, 2},
-)
-
-    for i=1:gi.Nx, j=1:gi.Ny
-
-        #if gi.mask[i, j] == 0.0
-        #    div[i, j] = NaN
-        #    continue
-        #end
-
-        i_w, i_e, j_s, j_n = getCyclicNeighbors(gi.Nx, gi.Ny, i, j)
-
-        vf_e_c = vf_e[i, j]
-        vf_n_c = vf_n[i, j]
-
-        flux_e = (mask[i_e, j  ] == 0.0) ? 0.0 : ( vf_e[i_e, j] + vf_e_c ) / 2.0 * gi.ds2[i, j]
-        flux_w = (mask[i_w, j  ] == 0.0) ? 0.0 : ( vf_e[i_w, j] + vf_e_c ) / 2.0 * gi.ds4[i, j] 
-        flux_n = (mask[i  , j_n] == 0.0) ? 0.0 : ( vf_n[i, j_n] + vf_n_c ) / 2.0 * gi.ds3[i, j]
-        flux_s = (mask[i  , j_s] == 0.0) ? 0.0 : ( vf_n[i, j_s] + vf_n_c ) / 2.0 * gi.ds1[i, j]
-
-        div[i, j] =  (  flux_e - flux_w + flux_n - flux_s ) / gi.dσ[i, j]
-
-    end
-        
-end
-
-
-
-
-
-function ∇∇!(
-    gi   :: GridInfo,
-    f    :: AbstractArray{Float64, 2},
-    ∇∇f  :: AbstractArray{Float64, 2},
-    mask :: AbstractArray{Float64, 2},
-)
-
-
-    for i=1:gi.Nx, j=1:gi.Ny
-
-        if mask[i, j] == 0.0
-            ∇∇f[i, j] = NaN
-            continue
-        end
-
-        i_w, i_e, j_s, j_n = getCyclicNeighbors(gi.Nx, gi.Ny, i, j)
-
-        f_c = f[i, j]
-
-        flux_e = (mask[i_e, j  ] == 0.0) ? 0.0 : (f[i_e, j] - f_c) / gi.dx_e[i, j]
-        flux_w = (mask[i_w, j  ] == 0.0) ? 0.0 : (f_c - f[i_w, j]) / gi.dx_w[i, j] 
-        flux_n = (mask[i  , j_n] == 0.0) ? 0.0 : (f[i, j_n] - f_c) / gi.dy_n[i, j]
-        flux_s = (mask[i  , j_s] == 0.0) ? 0.0 : (f_c - f[i, j_s]) / gi.dy_s[i, j]
-
-        ∇∇f[i, j] = ( flux_e - flux_w ) / gi.dx_c[i, j] + ( flux_n - flux_s ) / gi.dy_c[i, j]
-
-    end
-        
-end
-
-function hadv_upwind!(
-    gi    :: GridInfo,
-    hadvs :: AbstractArray{Float64, 2},
-    us    :: AbstractArray{Float64, 2},
-    vs    :: AbstractArray{Float64, 2},
-    qs    :: AbstractArray{Float64, 2},
-    mask  :: AbstractArray{Float64, 2},
-)
-
-    for i=1:gi.Nx, j=1:gi.Ny
-
-        if mask[i, j] == 0.0
-            hadvs[i, j] = NaN
-            continue
-        end
-
-        i_w, i_e, j_s, j_n = getCyclicNeighbors(gi.Nx, gi.Ny, i, j)
-        
-        hadv = 0.0
-        u = us[i, j]
-        v = vs[i, j]
-
-        if u > 0 && mask[i_w, j] != 0.0           # use point on the west
-            hadv += - u * ( qs[i, j] - qs[i_w, j] ) / gi.dx_w[i, j]
-
-        #    if qs[i, j] != qs[i_w, j]
-        #        println("[1] i,j = ", i, ", ", j)
-        #        println("qs[  i,j] = ", qs[i, j])
-        #        println("qs[i_w,j] = ", qs[i_w, j])
-        #        throw(ErrorException("!!!"))
-        #    end
-
-        elseif u <= 0 && mask[i_e, j] != 0.0      # use point on the east
-            hadv += - u * ( qs[i_e, j] - qs[i, j] ) / gi.dx_e[i, j]
-
-        #    if qs[i, j] != qs[i_e, j]
-        #        println("[2] i,j = ", i, ", ", j)
-        #        throw(ErrorException("!!!"))
-        #    end
-
-
-        end
-
-        if v > 0 && mask[i, j_s] != 0.0           # use point on the south
-            hadv += - v * ( qs[i, j] - qs[i, j_s] ) / gi.dy_s[i, j]
-        elseif v <= 0 && mask[i, j_n] != 0.0      # use point on the north
-            hadv += - v * ( qs[i, j_n] - qs[i, j] ) / gi.dy_n[i, j]
-        end
-
-        hadvs[i, j] = hadv
-    end
-
-end
 
 
 end

@@ -216,7 +216,7 @@ mutable struct DynamicAdvSpeedUpMatrix
     V_f_U      :: AbstractArray{Float64, 2}   # used to get fu on V grid
 
     function AdvectionSpeedUpMatrix(;
-        gi             :: DisplacedPoleCoordinate.GridInfo,
+        gi             :: PolelikeCoordinate.GridInfo,
         Nx             :: Int64,
         Ny             :: Int64,
         Nz             :: Int64,
