@@ -1,5 +1,7 @@
 
 include("../../../share/DisplacedPoleCoordinate.jl")
+include("../../../share/constants.jl")
+include("../../../share/ocean_state_function.jl")
 
 module ShallowWater
 
@@ -17,6 +19,15 @@ module ShallowWater
         end
     end
 
+    @inline function mul2!(
+        a :: AbstractArray{Float64},
+        b :: AbstractArray{Float64, 2},
+        c :: AbstractArray{Float64},
+    )
+
+        mul!(view(a, :), b, view(c, :))
+
+    end
 
     include("AdvectionSpeedUpMatrix.jl")
     include("Env.jl")

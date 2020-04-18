@@ -67,6 +67,16 @@ struct MatrixOperators
     V_NW_U
     V_NE_U
 
+
+    #= z related
+    T_UP_T
+    T_DN_T
+    T_UP_W
+    T_DN_W
+    W_UP_T
+    W_DN_T
+    =#
+
     function MatrixOperators(;
         Nx             :: Int64,
         Ny             :: Int64,
@@ -75,30 +85,29 @@ struct MatrixOperators
 
         # Making operator
         U_dim = (Nz, Nx, Ny)
-        V_dim = (Nz, Nx, (Ny+1))
+        V_dim = (Nz, Nx, Ny+1)
+        W_dim = (Nz+1, Nx, Ny)
         T_dim = (Nz, Nx, Ny)
 
         U_I_U = speye(Float64, reduce(*, U_dim))
         V_I_V = speye(Float64, reduce(*, V_dim))
+        W_I_W = speye(Float64, reduce(*, W_dim))
         T_I_T = speye(Float64, reduce(*, T_dim))
 
         num_U = zeros(Int64, U_dim...)
         num_V = zeros(Int64, V_dim...)
+        num_W = zeros(Int64, W_dim...)
         num_T = zeros(Int64, T_dim...)
 
         num_U[:] = 1:length(num_U)
         num_V[:] = 1:length(num_V)
+        num_W[:] = 1:length(num_W)
         num_T[:] = 1:length(num_T)
         
         U = num_U * 0
         V = num_V * 0
+        W = num_W * 0
         T = num_T * 0
-
-        U_flat = view(U, :)
-        V_flat = view(V, :)
-        T_flat = view(T, :)
-
-
 
         function build!(id_mtx, idx)
             local result = id_mtx[view(idx, :)]
@@ -126,6 +135,7 @@ struct MatrixOperators
         
         V[:, :, 1:Ny]   = view(num_V, :, :, 2:Ny+1);    V_S_V = build!(V_I_V, V)
         V[:, :, 2:Ny+1] = view(num_V, :, :, 1:Ny  );    V_N_V = build!(V_I_V, V)
+
 
         # inverse directions
         T_S_V = V_N_T' |> sparse
@@ -163,6 +173,11 @@ struct MatrixOperators
             U_NW_V, U_NE_V,
             V_SW_U, V_SE_U,
             V_NW_U, V_NE_U,
+
+            #T_UP_T, T_DN_T,
+            #T_UP_W, T_DN_W,
+            #W_UP_T, W_DN_T,
+         
         )
 
     end
@@ -195,14 +210,15 @@ mutable struct DynamicAdvSpeedUpMatrix
     U_f_V      :: AbstractArray{Float64, 2}   # used to get fv on U grid
     V_f_U      :: AbstractArray{Float64, 2}   # used to get fu on V grid
 
+
+
+
     function AdvectionSpeedUpMatrix(;
         gi             :: DisplacedPoleCoordinate.GridInfo,
         Nx             :: Int64,
         Ny             :: Int64,
         Nz             :: Int64,
         mask2          :: AbstractArray{Float64, 2},
-        noflux_x_mask2 :: AbstractArray{Float64, 2},
-        noflux_y_mask2 :: AbstractArray{Float64, 2},
     )
 
         op = MatrixOperators(Nx=Nx, Ny=Ny, Nz=Nz)
