@@ -28,7 +28,11 @@ module ShallowWater
         mul!(view(a, :), b, view(c, :))
 
     end
-
+ 
+    const α_AB = 1.0 /  2.0
+    const β_AB = 5.0 / 12.0
+    @inline ABIII = (a, aa, aaa) -> ( 1 + α_AB + β_AB ) * a - (α_AB + 2*β_AB) * aa + β_AB * aaa
+   
     include("AdvectionSpeedUpMatrix.jl")
     include("Env.jl")
     include("State.jl")

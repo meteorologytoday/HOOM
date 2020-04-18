@@ -2,13 +2,24 @@ function decompose!(;
     total   :: AbstractArray{Float64, 3},
     mean    :: AbstractArray{Float64, 2},
     anomaly :: AbstractArray{Float64, 3},
-    mtx     :: AvgSpeedUpMatrix,
     mask2   :: AbstractArray{Float64, 2},
+    mtx     :: AvgSpeedUpMatrix,
+    hor_grid :: Symbol, 
 )
 
     Nx, Ny = size(mask2)
 
-    mul2!(view(mean, :), mtx.S_avg_C, view(total, :))
+    if hor_grid == :U
+        M = mtx.SU_avg_CU
+    elseif hor_grid == :V
+        M = mtx.SV_avg_CV
+    elseif hor_grid == :T
+        M = mtx.ST_avg_CT
+    else
+        ErrorException("Unknown symbol: " * string(hor_grid))
+    end
+
+    mul2!(view(mean, :), M, view(total, :))
 
     for i=1:Nx, j=1:Ny
 
@@ -25,12 +36,71 @@ function advectDynamic!(
     model   :: Model,
     Δt      :: Float64,
 )
-    calG!(model, dyn_adv.G_idx[:now])
+    env = model.env
+    state = model.state
+    dyn_adv = model.dyn_adv
+
+    G_bt_u = dyn_adv.G_bt_u
+    G_bt_v = dyn_adv.G_bt_v
+    G_bc_u = dyn_adv.G_bc_u
+    G_bc_v = dyn_adv.G_bc_v
+
+    # Adam-Bashforth
+    calG_of_velocity!(model)
+    
+    Δt0 = dyn_adv.G_idx[:now]
+    Δt1 = dyn_adv.G_idx[:one_Δt_ago]
+    Δt2 = dyn_adv.G_idx[:two_Δt_ago]
+
+    for k=1:env.Nz_c, i=1:env.Nx, j=1:env.Ny
+        state.u_c[i, j, k] += Δt * ( 
+            ABIII(
+                G_bt_u[k, i, j, Δt0],
+                G_bt_u[k, i, j, Δt1],
+                G_bt_u[k, i, j, Δt2],
+            ) + ABIII(
+                G_bc_u[k, i, j, Δt0],
+                G_bc_u[k, i, j, Δt1],
+                G_bc_u[k, i, j, Δt2],
+            )
+        )
+    end
+
+    for k=1:env.Nz_c, i=1:env.Nx, j=1:env.Ny+1
+        state.v_c[i, j, k] += Δt * ( 
+            ABIII(
+                G_bt_v[k, i, j, Δt0],
+                G_bt_v[k, i, j, Δt1],
+                G_bt_v[k, i, j, Δt2],
+            ) + ABIII(
+                G_bc_v[k, i, j, Δt0],
+                G_bc_v[k, i, j, Δt1],
+                G_bc_v[k, i, j, Δt2],
+            )
+        )
+    end
+
+
+    # Euler backward to find updated Φ
+    
+    calNewΦ!(model)
+    for i=1:env.Nx, j=1:env.Ny
+        state.Φ[i, j] += Δt * ( 
+            ABIII(
+                G_Φ[k, i, j, Δt0],
+                G_Φ[k, i, j, Δt1],
+                G_Φ[k, i, j, Δt2],
+            )
+        )
+    end
+
+    mul2!(state.u_f, dyn_adv.AVGM.FU_project_CU, state.u_c)
+    mul2!(state.v_f, dyn_adv.AVGM.FV_project_CV, state.v_c)
+  
 end
 
-function calG!(
+function calG_of_velocity!(
     model   :: Model,
-    G_idx   :: Int64,
 )
 
     # 1. derive barotropic and baroclinic flow
@@ -106,7 +176,7 @@ function calG!(
     # ===== [ END cal (v⋅∇)v ] =====
 
     # cal G_bc
-
+    G_idx = dyn_adv.G_idx[:now]
     G_bc_u = view(dyn_adv.G_bc_u, :, :, :, G_idx)
     G_bc_v = view(dyn_adv.G_bc_v, :, :, :, G_idx)
     G_bt_u = view(dyn_adv.G_bt_u, :, :, :, G_idx)

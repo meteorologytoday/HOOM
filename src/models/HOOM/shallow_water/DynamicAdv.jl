@@ -1,5 +1,6 @@
 mutable struct DynamicAdv    # Adam Bashford
 
+
     ASUM :: Union{AdvectionSpeedUpMatrix, Nothing}
     AVGM :: Union{AvgSpeedUpMatrix, Nothing}
 
@@ -32,6 +33,8 @@ mutable struct DynamicAdv    # Adam Bashford
     v∂u∂y  :: AbstractArray{Float64, 3}   # on U grid (Nz_c, Nx, Ny)
     u∂v∂x  :: AbstractArray{Float64, 3}   # on V grid (Nz_c, Nx, Ny+1)
     v∂v∂y  :: AbstractArray{Float64, 3}   # on V grid (Nz_c, Nx, Ny+1)
+
+    DIV_Hu :: AbstractArray{Float64, 2}   # on T grid 
 
     τx_acc :: AbstractArray{Float64, 2}   # acceleration caused by stress of the first layer
     τy_acc :: AbstractArray{Float64, 2}   # acceleration caused by stress of the first layer
@@ -70,17 +73,17 @@ mutable struct DynamicAdv    # Adam Bashford
 
         #         now   Δt-ago  2Δt-ago
         G_idx = Dict(
-            :now        =>  1,
-            :one_Δt_ago =>  2,
-            :two_Δt_ago =>  3,
+            :now           =>  1,
+            :one_Δt_ago    =>  2,
+            :two_Δt_ago    =>  3,
         )
 
         new(
 
             G_idx,
 
-            zeros(Float64,     Nx, Ny,   4), # Adam-Bashforth III 
-            zeros(Float64, Nz, Nx, Ny+1, 4), # 3 past and one half-step
+            zeros(Float64,     Nx, Ny,   3), # Adam-Bashforth III 
+            zeros(Float64, Nz, Nx, Ny+1, 3), # 3 past
 
             zeros(Float64, Nz, Nx, Ny, 3),
             zeros(Float64, Nz, Nx, Ny+1, 3),
@@ -101,6 +104,8 @@ mutable struct DynamicAdv    # Adam Bashford
             zeros(Float64, Nz, Nx, Ny+1),
             zeros(Float64, Nz, Nx, Ny+1),
             
+            zeros(Float64, Nx, Ny),
+
             zeros(Float64, Nx, Ny),
             zeros(Float64, Nx, Ny+1),
         )

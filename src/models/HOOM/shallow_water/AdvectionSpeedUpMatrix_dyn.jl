@@ -191,6 +191,9 @@ mutable struct DynamicAdvSpeedUpMatrix
     #
     # U_W_T : sending variable westward from T grid to U grid
 
+    T_I_T    :: AbstractArray{Float64, 2} 
+    U_I_U    :: AbstractArray{Float64, 2} 
+    V_I_V    :: AbstractArray{Float64, 2} 
 
     U_∂x_T   :: AbstractArray{Float64, 2}   # ∇b 
     V_∂y_T   :: AbstractArray{Float64, 2}   
@@ -203,15 +206,14 @@ mutable struct DynamicAdvSpeedUpMatrix
 
     T_DIVx_U :: AbstractArray{Float64, 2}
     T_DIVy_V :: AbstractArray{Float64, 2}
-    
+ 
+    T_Lap_T  :: AbstractArray{Float64, 2}   # Need to solve Poisson equation
+
     U_interp_V :: AbstractArray{Float64, 2}  # interpolation of V grid onto U grid
     V_interp_U :: AbstractArray{Float64, 2}  # interpolation of U grid onto V grid
 
     U_f_V      :: AbstractArray{Float64, 2}   # used to get fv on U grid
     V_f_U      :: AbstractArray{Float64, 2}   # used to get fu on V grid
-
-
-
 
     function AdvectionSpeedUpMatrix(;
         gi             :: DisplacedPoleCoordinate.GridInfo,
@@ -290,12 +292,18 @@ mutable struct DynamicAdvSpeedUpMatrix
         # filter_U and filter_V have already been applied in U_f_U and V_f_V
         U_f_V = U_f_U * U_interp_V
         V_f_U = V_f_V * V_interp_U
-         
+        
+
+        # Laplacian
+        T_Lap_T = T_DIVx_U * U_∂x_T + T_DIVy_V * V_∂y_T 
+
         return new(
+            T_I_T, U_I_U, V_I_V,
             U_∂x_T, V_∂y_T,
             U_∂x_U, U_∂y_U,
             V_∂x_V, V_∂y_V,
             T_DIVx_U, T_DIVy_V,
+            T_Lap_T,
             U_interp_V, V_interp_U,
             U_f_V, V_f_U,
         )
