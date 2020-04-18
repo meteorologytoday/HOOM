@@ -16,7 +16,7 @@ end
     return mod(i-1, N) + 1
 end
 
-@inline function speye (dtype, n)
+@inline function speye(dtype, n)
     return spdiagm(0=>ones(dtype, n))
 end
 
@@ -89,10 +89,21 @@ struct MatrixOperators
         W_dim = (Nz+1, Nx, Ny)
         T_dim = (Nz, Nx, Ny)
 
-        U_I_U = speye(Float64, reduce(*, U_dim))
-        V_I_V = speye(Float64, reduce(*, V_dim))
-        W_I_W = speye(Float64, reduce(*, W_dim))
-        T_I_T = speye(Float64, reduce(*, T_dim))
+        U_pts = reduce(*, U_dim)
+        V_pts = reduce(*, V_dim)
+        W_pts = reduce(*, W_dim)
+        T_pts = reduce(*, T_dim)
+
+        U_I_U = speye(Float64, U_pts)
+        V_I_V = speye(Float64, V_pts)
+        W_I_W = speye(Float64, W_pts)
+        T_I_T = speye(Float64, T_pts)
+
+        U_I_U_expand = vcat(U_I_U, zeros(Float64, 1, U_pts))
+        V_I_V_expand = vcat(V_I_V, zeros(Float64, 1, V_pts))
+        W_I_W_expand = vcat(W_I_W, zeros(Float64, 1, W_pts))
+        T_I_T_expand = vcat(T_I_T, zeros(Float64, 1, T_pts))
+
 
         num_U = zeros(Int64, U_dim...)
         num_V = zeros(Int64, V_dim...)
@@ -109,8 +120,18 @@ struct MatrixOperators
         W = num_W * 0
         T = num_T * 0
 
-        function build!(id_mtx, idx)
-            local result = id_mtx[view(idx, :)]
+        function build!(id_mtx, idx; wipe=:none)
+            local result
+            rows = size(id_mtx)[1]
+            if wipe == :n
+                idx[:, :, end] .= rows
+            elseif wipe == :s
+                idx[:, :,   1] .= rows
+            elseif wipe != :none
+                throw(ErrorException("Wrong keyword"))
+            end
+
+            result = id_mtx[view(idx, :), :]
             dropzeros!(result)
             idx .= 0 # clean so that debug is easir when some girds are not assigned
             return result
@@ -127,14 +148,14 @@ struct MatrixOperators
         V[:] = circshift(num_V, (0,  1, 0));            V_E_V = build!(V_I_V, V)
  
         # north, south passing mtx
-        V[:, :, 1:Ny]   = num_T;                        V_S_T = build!(T_I_T, V)
-        V[:, :, 2:Ny+1] = num_T;                        V_N_T = build!(T_I_T, V)
+        V[:, :, 1:Ny]   = num_T;                        V_S_T = build!(T_I_T_expand, V; wipe=:n)
+        V[:, :, 2:Ny+1] = num_T;                        V_N_T = build!(T_I_T_expand, V; wipe=:s)
 
-        U[:, :, 1:Ny-1] = view(num_U, :, :, 2:Ny);      U_S_U = build!(U_I_U, U)
-        U[:, :, 2:Ny] = view(num_U, :, :, 1:Ny-1);      U_N_U = build!(U_I_U, U)
+        U[:, :, 1:Ny-1] = view(num_U, :, :, 2:Ny);      U_S_U = build!(U_I_U_expand, U; wipe=:n)
+        U[:, :, 2:Ny] = view(num_U, :, :, 1:Ny-1);      U_N_U = build!(U_I_U_expand, U; wipe=:s)
         
-        V[:, :, 1:Ny]   = view(num_V, :, :, 2:Ny+1);    V_S_V = build!(V_I_V, V)
-        V[:, :, 2:Ny+1] = view(num_V, :, :, 1:Ny  );    V_N_V = build!(V_I_V, V)
+        V[:, :, 1:Ny]   = view(num_V, :, :, 2:Ny+1);    V_S_V = build!(V_I_V_expand, V; wipe=:n)
+        V[:, :, 2:Ny+1] = view(num_V, :, :, 1:Ny  );    V_N_V = build!(V_I_V_expand, V; wipe=:s)
 
 
         # inverse directions
@@ -184,16 +205,14 @@ struct MatrixOperators
 end
 
 mutable struct DynamicAdvSpeedUpMatrix
+    
+    op       :: MatrixOperators
 
     # Nomenclature:
     #
     # [new-grid][function][old-grid]
     #
     # U_W_T : sending variable westward from T grid to U grid
-
-    T_I_T    :: AbstractArray{Float64, 2} 
-    U_I_U    :: AbstractArray{Float64, 2} 
-    V_I_V    :: AbstractArray{Float64, 2} 
 
     U_∂x_T   :: AbstractArray{Float64, 2}   # ∇b 
     V_∂y_T   :: AbstractArray{Float64, 2}   
@@ -215,30 +234,37 @@ mutable struct DynamicAdvSpeedUpMatrix
     U_f_V      :: AbstractArray{Float64, 2}   # used to get fv on U grid
     V_f_U      :: AbstractArray{Float64, 2}   # used to get fu on V grid
 
-    function AdvectionSpeedUpMatrix(;
+    function DynamicAdvSpeedUpMatrix(;
         gi             :: PolelikeCoordinate.GridInfo,
-        Nx             :: Int64,
-        Ny             :: Int64,
         Nz             :: Int64,
         mask2          :: AbstractArray{Float64, 2},
     )
-
+        Nx = gi.Nx
+        Ny = gi.Ny
         op = MatrixOperators(Nx=Nx, Ny=Ny, Nz=Nz)
 
         # making filter
         # define a converter to make 2D variable repeat in z direction for Nz times
-        cvt23_diagm = (x,) -> spdiagm( 0 => view(repeat(reshape(x, 1, size(x)...), outer=(Nz, 1, 1)), :) )
+        cvt23 = (x,) -> repeat(reshape(x, 1, size(x)...), outer=(Nz, 1, 1))
+        cvt23_diagm = (x,) -> spdiagm( 0 => view(cvt23(x), :) )
 
-        mask3 = mask2 |> cvt23_diagm
+        mask3_flat = view(mask2 |> cvt23, :)
         
-        if_mask_north_V = op.V_S_T * mask3
-        if_mask_south_V = op.V_N_T * mask3
-        if_mask_east_U  = op.U_W_T * mask3
-        if_mask_west_U  = op.U_E_T * mask3
+        if_mask_north_V = op.V_S_T * mask3_flat
+        if_mask_south_V = op.V_N_T * mask3_flat
+        if_mask_east_U  = op.U_W_T * mask3_flat
+        if_mask_west_U  = op.U_E_T * mask3_flat
 
-        filter_T = mask3
-        filter_V = if_mask_north_V .* if_mask_south_V
-        filter_U = if_mask_east_U  .* if_mask_west_U
+
+        #println(size(op.V_S_T))
+        #println(size(mask3_flat))
+
+        filter_T = spdiagm(0 => mask3_flat)
+        filter_V = spdiagm(0 => if_mask_north_V .* if_mask_south_V)
+        filter_U = spdiagm(0 => if_mask_east_U  .* if_mask_west_U)
+
+        #println("if_mask_north_V", size(if_mask_north_V))
+        #println("filter_V", size(filter_V))
 
         dropzeros!(filter_V)
         dropzeros!(filter_U)
@@ -249,7 +275,7 @@ mutable struct DynamicAdvSpeedUpMatrix
         U_invΔy_U = (gi.DY   |> cvt23_diagm).^(-1.0)
         
         V_invΔx_V = (gi.DX   |> cvt23_diagm).^(-1.0)
-        V_invΔy_V = (gi.dy_s |> cvt23_diagm).^(-1.0)
+        V_invΔy_V = (hcat(gi.dy_s, gi.dy_n[:, end]) |> cvt23_diagm).^(-1.0)
 
         V_Δx_V    = (gi.DX   |> cvt23_diagm)
         U_Δy_U    = (gi.DY   |> cvt23_diagm)
@@ -257,13 +283,20 @@ mutable struct DynamicAdvSpeedUpMatrix
 
         # MAGIC!!
         U_∂x_T = filter_U * U_invΔx_U * (op.U_W_T - op.U_E_T) ; dropzeros!(U_∂x_T);
+
+        #println(size(filter_V))
+        #println(size(V_invΔy_V))
+        #println(size(op.V_S_T))
+        #println(size(op.V_N_T))
+
+
         V_∂y_T = filter_V * V_invΔy_V * (op.V_S_T - op.V_N_T) ; dropzeros!(V_∂y_T);
 
         U_∂x_U = filter_U * U_invΔx_U * (op.U_W_U - op.U_E_U) / 2.0 ; dropzeros!(U_∂x_U);
-        U_∂y_U = filter U * U_invΔy_U * (op.U_S_U - op.U_N_U) / 2.0 ; dropzeros!(U_∂y_U);
+        U_∂y_U = filter_U * U_invΔy_U * (op.U_S_U - op.U_N_U) / 2.0 ; dropzeros!(U_∂y_U);
 
-        V_∂x_V = filter_V * inv_dx_VV * (op.V_W_V - op.V_E_V) / 2.0 ; dropzeros!(V_∂x_V);
-        V_∂y_V = filter_V * inv_dy_VV * (op.V_S_V - op.V_N_V) / 2.0 ; dropzeros!(V_∂y_V);
+        V_∂x_V = filter_V * V_invΔx_V * (op.V_W_V - op.V_E_V) / 2.0 ; dropzeros!(V_∂x_V);
+        V_∂y_V = filter_V * V_invΔy_V * (op.V_S_V - op.V_N_V) / 2.0 ; dropzeros!(V_∂y_V);
  
         T_DIVx_U = filter_T * T_invΔσ_T * ( op.T_W_U - op.T_E_U  ) * U_Δy_U  ; dropzeros!(T_DIVx_U);
         T_DIVy_V = filter_T * T_invΔσ_T * ( op.T_S_V - op.T_N_V  ) * V_Δx_V  ; dropzeros!(T_DIVy_V);
@@ -298,7 +331,7 @@ mutable struct DynamicAdvSpeedUpMatrix
         T_Lap_T = T_DIVx_U * U_∂x_T + T_DIVy_V * V_∂y_T 
 
         return new(
-            T_I_T, U_I_U, V_I_V,
+            op,
             U_∂x_T, V_∂y_T,
             U_∂x_U, U_∂y_U,
             V_∂x_V, V_∂y_V,

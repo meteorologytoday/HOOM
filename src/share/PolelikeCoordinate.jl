@@ -1,4 +1,4 @@
-module PoleLikeCoordinate
+module PolelikeCoordinate
 
 
 using LinearAlgebra: ⋅, normalize, normalize!, norm
@@ -343,7 +343,7 @@ function projectSpherical!(
 
 end
 
-struct RegularCylindrialGridInfo <: GridInfo
+mutable struct RegularCylindricalGridInfo <: GridInfo
 
     R     :: Float64
     Ω     :: Float64
@@ -397,7 +397,13 @@ struct RegularCylindrialGridInfo <: GridInfo
         if lat0 + Ly/2*β >= 90.0 || lat0 - Ly/2*β <= -90.0
             throw(ErrorException("Bad choice of Ly, lat0 and β"))
         end
-        c_lat = deg2rad(c_lat0 .+ c_y * β)
+
+
+
+        c_lat = repeat(reshape(deg2rad.(lat0 .+ c_y * β), 1, :), outer=(Nx, 1))
+
+        c_lon = repeat(reshape(c_lon, :, 1), outer=(1, Ny))
+        c_y   = repeat(reshape(c_y, 1, :), outer=(Nx, 1))
 
 
         dx_w = zeros(Float64, Nx, Ny)
