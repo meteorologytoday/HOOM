@@ -20,14 +20,14 @@ end
     return spdiagm(0=>ones(dtype, n))
 end
 
-@inline function dropall!(a)
-    replace!(a, NaN=>0)
-    dropzeros!(a)
-end
-
-
 # Assuming x-direction is periodic
 struct MatrixOperators
+
+    U_pts
+    V_pts
+    W_pts
+    T_pts
+
 
     # Nomenclature:
     #
@@ -38,6 +38,7 @@ struct MatrixOperators
     U_I_U
     V_I_V
     T_I_T
+#    P_I_P
 
     U_W_T
     U_E_T
@@ -67,7 +68,10 @@ struct MatrixOperators
     V_NW_U
     V_NE_U
 
-
+    T_N_T
+    T_S_T
+    T_E_T
+    T_W_T
     #= z related
     T_UP_T
     T_DN_T
@@ -83,6 +87,7 @@ struct MatrixOperators
         Nz             :: Int64,
     )
 
+       #println("Making MatrixOperators")
         # Making operator
         U_dim = (Nz, Nx, Ny)
         V_dim = (Nz, Nx, Ny+1)
@@ -121,6 +126,7 @@ struct MatrixOperators
         T = num_T * 0
 
         function build!(id_mtx, idx; wipe=:none)
+           #println("Build!")
             local result
             rows = size(id_mtx)[1]
             if wipe == :n
@@ -133,10 +139,13 @@ struct MatrixOperators
 
             result = id_mtx[view(idx, :), :]
             dropzeros!(result)
+
             idx .= 0 # clean so that debug is easir when some girds are not assigned
             return result
         end
 
+        
+       #println("Making shifting operators")
         # east, west passing mtx
         U[:, :, :] = num_T;                             U_W_T = build!(T_I_T, U)
         U[:, :, :] = circshift(num_T, (0, 1, 0));       U_E_T = build!(T_I_T, U)
@@ -151,19 +160,21 @@ struct MatrixOperators
         V[:, :, 1:Ny]   = num_T;                        V_S_T = build!(T_I_T_expand, V; wipe=:n)
         V[:, :, 2:Ny+1] = num_T;                        V_N_T = build!(T_I_T_expand, V; wipe=:s)
 
-        U[:, :, 1:Ny-1] = view(num_U, :, :, 2:Ny);      U_S_U = build!(U_I_U_expand, U; wipe=:n)
-        U[:, :, 2:Ny] = view(num_U, :, :, 1:Ny-1);      U_N_U = build!(U_I_U_expand, U; wipe=:s)
+        U[:, :, 1:Ny-1] = view(num_U, :, :, 2:Ny  );    U_S_U = build!(U_I_U_expand, U; wipe=:n)
+        U[:, :, 2:Ny]   = view(num_U, :, :, 1:Ny-1);    U_N_U = build!(U_I_U_expand, U; wipe=:s)
         
         V[:, :, 1:Ny]   = view(num_V, :, :, 2:Ny+1);    V_S_V = build!(V_I_V_expand, V; wipe=:n)
         V[:, :, 2:Ny+1] = view(num_V, :, :, 1:Ny  );    V_N_V = build!(V_I_V_expand, V; wipe=:s)
 
 
+       #println("inverse")
         # inverse directions
         T_S_V = V_N_T' |> sparse
         T_N_V = V_S_T' |> sparse
         T_W_U = U_E_T' |> sparse
         T_E_U = U_W_T' |> sparse
 
+       #println("diag pasing")
         # diagonal passing mtx        
         U_SW_V = U_W_T * T_S_V
         U_SE_V = U_E_T * T_S_V
@@ -175,8 +186,14 @@ struct MatrixOperators
         V_NW_U = V_N_T * T_W_U
         V_NE_U = V_N_T * T_E_U
 
-        return new(
+        T_N_T = T_N_V * V_N_T
+        T_S_T = T_S_V * V_S_T
+        T_E_T = T_E_U * U_E_T
+        T_W_T = T_W_U * U_W_T
 
+
+        return new(
+            U_pts, V_pts, W_pts, T_pts,
             U_I_U, V_I_V, T_I_T,
 
             U_W_T, U_E_T,
@@ -195,6 +212,9 @@ struct MatrixOperators
             V_SW_U, V_SE_U,
             V_NW_U, V_NE_U,
 
+            T_N_T, T_S_T,
+            T_E_T, T_W_T,
+
             #T_UP_T, T_DN_T,
             #T_UP_W, T_DN_W,
             #W_UP_T, W_DN_T,
@@ -212,6 +232,12 @@ mutable struct DynamicAdvSpeedUpMatrix
     #
     # [new-grid][function][old-grid]
     #
+    # U  : U grid
+    # V  : V grid
+    # T  : T grid
+    # S  : S grid
+    # RU : Reduced U grid
+    # 
     # U_W_T : sending variable westward from T grid to U grid
 
     U_∂x_T   :: AbstractArray{Float64, 2}   # ∇b 
@@ -226,25 +252,31 @@ mutable struct DynamicAdvSpeedUpMatrix
     T_DIVx_U :: AbstractArray{Float64, 2}
     T_DIVy_V :: AbstractArray{Float64, 2}
  
-    T_Lap_T  :: AbstractArray{Float64, 2}   # Need to solve Poisson equation
-
     U_interp_V :: AbstractArray{Float64, 2}  # interpolation of V grid onto U grid
     V_interp_U :: AbstractArray{Float64, 2}  # interpolation of U grid onto V grid
+
+    T_interp_U :: AbstractArray{Float64, 2}  # interpolation of U grid onto V grid
+    T_interp_V :: AbstractArray{Float64, 2}  # interpolation of U grid onto V grid
 
     U_f_V      :: AbstractArray{Float64, 2}   # used to get fv on U grid
     V_f_U      :: AbstractArray{Float64, 2}   # used to get fu on V grid
     
-    filter_T      :: AbstractArray{Float64, 2}
-    filter_U      :: AbstractArray{Float64, 2}
-    filter_V      :: AbstractArray{Float64, 2}
+    filter_T       :: AbstractArray{Float64, 2}
+    filter_U       :: AbstractArray{Float64, 2}
+    filter_V       :: AbstractArray{Float64, 2}
+    borderfilter_T :: AbstractArray{Float64, 2}
 
     function DynamicAdvSpeedUpMatrix(;
         gi             :: PolelikeCoordinate.GridInfo,
         Nz             :: Int64,
         mask2          :: AbstractArray{Float64, 2},
     )
+
+       #println("Begin")
         Nx = gi.Nx
         Ny = gi.Ny
+
+
         op = MatrixOperators(Nx=Nx, Ny=Ny, Nz=Nz)
 
         # making filter
@@ -267,11 +299,15 @@ mutable struct DynamicAdvSpeedUpMatrix
         filter_V = spdiagm(0 => if_mask_north_V .* if_mask_south_V)
         filter_U = spdiagm(0 => if_mask_east_U  .* if_mask_west_U)
 
+        borderfilter_T = spdiagm( 0 => ( 
+               (op.T_N_T * mask3_flat)
+            .* (op.T_S_T * mask3_flat)
+            .* (op.T_E_T * mask3_flat)
+            .* (op.T_W_T * mask3_flat)
+        ))
+
         #println("if_mask_north_V", size(if_mask_north_V))
         #println("filter_V", size(filter_V))
-
-        dropzeros!(filter_V)
-        dropzeros!(filter_U)
 
         # Some face area and lengths
 
@@ -285,15 +321,9 @@ mutable struct DynamicAdvSpeedUpMatrix
         U_Δy_U    = (gi.DY       |> cvt23_diagm)
         T_invΔσ_T = (gi.dσ.^(-1) |> cvt23_diagm)
 
+       #println("Making various operators")
         # MAGIC!!
         U_∂x_T = filter_U * U_invΔx_U * (op.U_W_T - op.U_E_T) ; dropzeros!(U_∂x_T);
-
-        #println(size(filter_V))
-        #println(size(V_invΔy_V))
-        #println(size(op.V_S_T))
-        #println(size(op.V_N_T))
-
-
         V_∂y_T = filter_V * V_invΔy_V * (op.V_S_T - op.V_N_T) ; dropzeros!(V_∂y_T);
 
         U_∂x_U = filter_U * U_invΔx_U * (op.U_W_U - op.U_E_U) / 2.0 ; dropzeros!(U_∂x_U);
@@ -305,23 +335,46 @@ mutable struct DynamicAdvSpeedUpMatrix
         T_DIVx_U = filter_T * T_invΔσ_T * ( op.T_W_U - op.T_E_U  ) * U_Δy_U  ; dropzeros!(T_DIVx_U);
         T_DIVy_V = filter_T * T_invΔσ_T * ( op.T_S_V - op.T_N_V  ) * V_Δx_V  ; dropzeros!(T_DIVy_V);
 
+
+        function selfDivision!(m, ones_vec)
+            local wgts = m * ones_vec
+            for (i, wgt) in enumerate(wgts)
+                if wgt != 0
+                    m[i, :] ./= wgt
+                end
+            end
+        end
+
         U_interp_V = (op.U_SW_V + op.U_SE_V + op.U_NW_V + op.U_NE_V) * filter_V     
-        U_interp_V ./= U_interp_V  # weighting. You need to think about it
-        dropall!(U_interp_V)
+        #selfDivision!(U_interp_V) # weighting. You need to think about it
+        dropzeros!(U_interp_V)
+
+        ones_U = ones(Float64, op.U_pts)
+        ones_V = ones(Float64, op.V_pts)
+        ones_T = ones(Float64, op.T_pts)
 
         V_interp_U = (op.V_SW_U + op.V_SE_U + op.V_NW_U + op.V_NE_U) * filter_U
-        V_interp_U ./= V_interp_U
-        dropall!(V_interp_U)
+        selfDivision!(V_interp_U, ones_U)
+        dropzeros!(V_interp_U)
        
         V_interp_T = (op.V_S_T + op.V_N_T) * filter_T
-        V_interp_T ./= V_interp_T
-        dropall!(V_interp_T)
+        selfDivision!(V_interp_T, ones_T)
+        dropzeros!(V_interp_T)
 
         U_interp_T = (op.U_W_T + op.U_E_T) * filter_T
-        U_interp_T ./= U_interp_T
-        dropall!(U_interp_T)
+        selfDivision!(U_interp_T, ones_T)
+        dropzeros!(U_interp_T)
  
-        f = 2.0 * gi.Ω * sin.(gi.c_lat)
+        T_interp_U = (op.T_W_U + op.T_E_U) * filter_U
+        selfDivision!(T_interp_U, ones_U)
+        dropzeros!(T_interp_U)
+ 
+        T_interp_V = (op.T_S_V + op.T_N_V) * filter_V
+        selfDivision!(T_interp_V, ones_V)
+        dropzeros!(T_interp_V)
+ 
+        #println("Making coriolis operators")
+        f = 2.0 * gi.Ω * sin.(gi.c_lat) |> cvt23
         U_f_U = filter_U * spdiagm( 0 => view(U_interp_T * view(f, :), :) )
         V_f_V = filter_V * spdiagm( 0 => view(V_interp_T * view(f, :), :) )
         
@@ -331,19 +384,17 @@ mutable struct DynamicAdvSpeedUpMatrix
         V_f_U = V_f_V * V_interp_U
         
 
-        # Laplacian
-        T_Lap_T = T_DIVx_U * U_∂x_T + T_DIVy_V * V_∂y_T 
-
         return new(
             op,
             U_∂x_T, V_∂y_T,
             U_∂x_U, U_∂y_U,
             V_∂x_V, V_∂y_V,
             T_DIVx_U, T_DIVy_V,
-            T_Lap_T,
             U_interp_V, V_interp_U,
+            T_interp_U, T_interp_V,
             U_f_V, V_f_U,
-            filter_T, filter_U, filter_V
+            filter_T, filter_U, filter_V,
+            borderfilter_T,
         )
     end
 end
