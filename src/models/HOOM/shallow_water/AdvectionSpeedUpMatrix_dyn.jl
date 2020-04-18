@@ -233,6 +233,10 @@ mutable struct DynamicAdvSpeedUpMatrix
 
     U_f_V      :: AbstractArray{Float64, 2}   # used to get fv on U grid
     V_f_U      :: AbstractArray{Float64, 2}   # used to get fu on V grid
+    
+    filter_T      :: AbstractArray{Float64, 2}
+    filter_U      :: AbstractArray{Float64, 2}
+    filter_V      :: AbstractArray{Float64, 2}
 
     function DynamicAdvSpeedUpMatrix(;
         gi             :: PolelikeCoordinate.GridInfo,
@@ -271,15 +275,15 @@ mutable struct DynamicAdvSpeedUpMatrix
 
         # Some face area and lengths
 
-        U_invΔx_U = (gi.dx_w |> cvt23_diagm).^(-1.0)
-        U_invΔy_U = (gi.DY   |> cvt23_diagm).^(-1.0)
+        U_invΔx_U = (gi.dx_w.^(-1) |> cvt23_diagm)
+        U_invΔy_U = (gi.DY.^(-1)   |> cvt23_diagm)
         
-        V_invΔx_V = (gi.DX   |> cvt23_diagm).^(-1.0)
-        V_invΔy_V = (hcat(gi.dy_s, gi.dy_n[:, end]) |> cvt23_diagm).^(-1.0)
+        V_invΔx_V = (gi.DX.^(-1)   |> cvt23_diagm)
+        V_invΔy_V = (hcat(gi.dy_s, gi.dy_n[:, end]).^(-1) |> cvt23_diagm)
 
-        V_Δx_V    = (gi.DX   |> cvt23_diagm)
-        U_Δy_U    = (gi.DY   |> cvt23_diagm)
-        T_invΔσ_T = (gi.dσ   |> cvt23_diagm).^(-1.0)
+        V_Δx_V    = (gi.DX       |> cvt23_diagm)
+        U_Δy_U    = (gi.DY       |> cvt23_diagm)
+        T_invΔσ_T = (gi.dσ.^(-1) |> cvt23_diagm)
 
         # MAGIC!!
         U_∂x_T = filter_U * U_invΔx_U * (op.U_W_T - op.U_E_T) ; dropzeros!(U_∂x_T);
@@ -339,6 +343,7 @@ mutable struct DynamicAdvSpeedUpMatrix
             T_Lap_T,
             U_interp_V, V_interp_U,
             U_f_V, V_f_U,
+            filter_T, filter_U, filter_V
         )
     end
 end
