@@ -96,7 +96,7 @@ struct CurvilinearSphericalGridInfo <: GridInfo
     DY    :: AbstractArray{Float64, 2}       # ( Nx , Ny   )   The Y-side grid size.
 
   
-    function CurvilinearSphericalGridInfo(
+    function CurvilinearSphericalGridInfo(;
         R      :: Float64,
         Ω      :: Float64,
         Nx     :: Integer,
@@ -105,7 +105,7 @@ struct CurvilinearSphericalGridInfo <: GridInfo
         c_lat  :: AbstractArray{Float64, 2},  # center latitude
         vs_lon :: AbstractArray{Float64, 3},  # vertices longitude (4, Nx, Ny)
         vs_lat :: AbstractArray{Float64, 3},  # vertices latitude  (4, Nx, Ny)
-        area   :: AbstractArray{Float64, 2};  # area in radian^2
+        area   :: AbstractArray{Float64, 2},  # area in radian^2
         angle_unit :: Symbol = :deg,
         sub_yrng :: Union{Colon, UnitRange} = Colon(),
     )

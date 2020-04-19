@@ -25,52 +25,45 @@ mutable struct TracerAdv # Leonard 1976
     workspace_heap :: AbstractArray{Float64, 4}
     workspaces     :: Any
 
-    function TracerAdv(env, state, datakind)
+    function TracerAdv(env)
 
         Nx = env.Nx
         Ny = env.Ny
         Nz = env.Nz_f
         NX = env.NX
 
-        GRAD_bnd_x   = allocate(datakind, Float64, Nz, Nx, Ny)
-        GRAD_bnd_y   = allocate(datakind, Float64, Nz, Nx, Ny+1)
-        GRAD_bnd_z   = allocate(datakind, Float64, Nz+1, Nx, Ny)
+        GRAD_bnd_x   = zeros(Float64, Nz, Nx, Ny)
+        GRAD_bnd_y   = zeros(Float64, Nz, Nx, Ny+1)
+        GRAD_bnd_z   = zeros(Float64, Nz+1, Nx, Ny)
 
-        CURV_x       = allocate(datakind, Float64, Nz, Nx, Ny)
-        CURV_y       = allocate(datakind, Float64, Nz, Nx, Ny)
-        CURV_z       = allocate(datakind, Float64, Nz, Nx, Ny)
+        CURV_x       = zeros(Float64, Nz, Nx, Ny)
+        CURV_y       = zeros(Float64, Nz, Nx, Ny)
+        CURV_z       = zeros(Float64, Nz, Nx, Ny)
 
-        XFLUX_DEN_x  = allocate(datakind, Float64, Nz, Nx, Ny, NX)
-        XFLUX_DEN_y  = allocate(datakind, Float64, Nz, Nx, Ny+1, NX)
-        XFLUX_DEN_z  = allocate(datakind, Float64, Nz+1, Nx, Ny, NX)
+        XFLUX_DEN_x  = zeros(Float64, Nz, Nx, Ny, NX)
+        XFLUX_DEN_y  = zeros(Float64, Nz, Nx, Ny+1, NX)
+        XFLUX_DEN_z  = zeros(Float64, Nz+1, Nx, Ny, NX)
 
-        XFLUX_CONV   = allocate(datakind, Float64, Nz, Nx, Ny, NX)
-        XFLUX_CONV_h = allocate(datakind, Float64, Nz, Nx, Ny, NX)
+        XFLUX_CONV   = zeros(Float64, Nz, Nx, Ny, NX)
+        XFLUX_CONV_h = zeros(Float64, Nz, Nx, Ny, NX)
         
-        XFLUX_bot    = allocate(datakind, Float64, Nx, Ny, NX)
+        XFLUX_bot    = zeros(Float64, Nx, Ny, NX)
 
-        div     = allocate(datakind, Float64, Nz, Nx, Ny)
+        div     = zeros(Float64, Nz, Nx, Ny)
 
-        if env.datakind != :shared
+        ASUM = AdvectionSpeedUpMatrix(;
+                        gi = env.gi,
+                        Nx = Nx,
+                        Ny = Ny,
+                        Nz_bone = Nz,
+                        Nz = env.Nz_av_f,
+                        mask3 = env.mask3_f,
+                        noflux_x_mask3 = env.noflux_x_mask3_f,
+                        noflux_y_mask3 = env.noflux_y_mask3_f,
+                        Δzs = env.Δz_f,
+                        hs  = env.H_f,
+        )
 
-            ASUM = AdvectionSpeedUpMatrix(;
-                            gi = env.gi,
-                            Nx = Nx,
-                            Ny = Ny,
-                            Nz_bone = Nz,
-                            Nz = env.Nz_av_f,
-                            mask3 = env.mask3_f,
-                            noflux_x_mask3 = env.noflux_x_mask3_f,
-                            noflux_y_mask3 = env.noflux_y_mask3_f,
-                            Δzs = env.Δz_f,
-                            hs  = env.H_f,
-            )
-
-        else
-
-            ASUM = nothing
-
-        end
 
         workspace_heap = zeros(Float64, Nz, Nx, Ny, 3)
         workspaces = []

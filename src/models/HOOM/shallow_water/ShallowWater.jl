@@ -1,12 +1,13 @@
 
 include("../../../share/PolelikeCoordinate.jl")
-include("../../../share/constants.jl")
-include("../../../share/ocean_state_function.jl")
-
 module ShallowWater
 
     using LinearAlgebra    
     using ..PolelikeCoordinate
+    using Statistics: mean
+    include("../../../share/constants.jl")
+    include("../../../share/ocean_state_function.jl")
+
 
 
     function allocate(datakind::Symbol, dtype::DataType, dims... ; func=Main.zeros)
@@ -31,16 +32,25 @@ module ShallowWater
  
     const α_AB = 1.0 /  2.0
     const β_AB = 5.0 / 12.0
-    @inline ABIII = (a, aa, aaa) -> ( 1 + α_AB + β_AB ) * a - (α_AB + 2*β_AB) * aa + β_AB * aaa
+    @inline function ABIII(a, aa, aaa)
+        return ( 1 + α_AB + β_AB ) * a - (α_AB + 2*β_AB) * aa + β_AB * aaa
+    end
    
+
+    include("MatrixOperators.jl")
+    include("VerticalAverager.jl")
     include("AdvectionSpeedUpMatrix.jl")
-    include("Env.jl")
-    include("State.jl")
-    include("TracerAdv.jl")
-    include("DynamicAdv.jl")
-    include("Model.jl")
-    include("step_tcr_adv.jl")
+    include("AdvectionSpeedUpMatrix_dyn.jl")
+    include("PhiSolver.jl")
+    include("Workspace.jl")
+
+
+    include("DynEnv.jl")
+    include("DynState.jl")
+    include("DynCore.jl")
+    include("DynModel.jl")
     include("step_dyn_adv.jl")
+
 
     include("../rearrange.jl")
     include("var_list.jl")
@@ -58,14 +68,13 @@ module ShallowWater
 
 
     function stepModel!(
-        model :: Model,
-        Δt    :: Float64,
+        model :: DynModel,
     )
 
         #setupFlow!(model.state)
         
-        advectTracer!(model, Δt)
-        #advectDynamic!(model, Δt)
+        #advectTracer!(model, Δt)
+        advectDynamic!(model)
 
     end
 

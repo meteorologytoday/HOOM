@@ -1,27 +1,30 @@
 
-mutable struct ΦSolver
-    M :: DynamicAdvSpeedUpMatrix
+mutable struct PhiSolver
 
-#    ccT_send_T   :: AbstractArray{Float64, 2}
-    cT_send_T   :: AbstractArray{Float64, 2}
-#    T_send_ccT   :: AbstractArray{Float64, 2}
-    T_send_cT   :: AbstractArray{Float64, 2}
- 
+    M :: DynamicAdvSpeedUpMatrix
+    α :: Float64
+
+    cT_send_T    :: AbstractArray{Float64, 2}
+    T_send_cT    :: AbstractArray{Float64, 2}
     cT_Lap_cT    :: AbstractArray{Float64, 2}
     cT_MoLap_cT  :: AbstractArray{Float64, 2}
    
     T_Lap_T
+    tool_mtx
 
-    function ΦSolver(;
+    function PhiSolver(;
         gi             :: PolelikeCoordinate.GridInfo,
         mask2          :: AbstractArray{Float64, 2},
         α              :: Float64,  # ((Δt)^2 * H)^(-1)
+        M              :: Union{DynamicAdvSpeedUpMatrix, Nothing} = nothing
     )
-        M = DynamicAdvSpeedUpMatrix(;
-            gi = gi,
-            Nz = 1,
-            mask2 = mask2,
-        )
+        if M == nothing
+            M = DynamicAdvSpeedUpMatrix(;
+                gi = gi,
+                Nz = 1,
+                mask2 = mask2,
+            )
+        end
 
         Nx = gi.Nx
         Ny = gi.Ny
@@ -59,15 +62,22 @@ mutable struct ΦSolver
         # Modified Laplacian
         cT_MoLap_cT = cT_Lap_cT - α * cT_I_cT
         
+        tool_mtx = (
+            Lap   = lu(cT_Lap_cT),
+            MoLap = lu(cT_MoLap_cT),
+        )
+        
         return new(
             M,
+            α,
         #    ccT_send_T,
             cT_send_T,
         #    T_send_ccT,
             T_send_cT,
             cT_Lap_cT,
             cT_MoLap_cT,
-            T_Lap_T
+            T_Lap_T,
+            tool_mtx,
         )
 
     end

@@ -142,7 +142,7 @@ end
 function calTotalChange!(;
     FLUX_CONV  :: AbstractArray{Float64, 3},     # ( Nz_bone,  , Nx   , Ny   )
     FLUX_CONV_h:: AbstractArray{Float64, 3},     # ( Nz_bone,  , Nx   , Ny   )
-    gi         :: DisplacedPoleCoordinate.GridInfo,
+    gi         :: PolelikeCoordinate.GridInfo,
     Nx         :: Integer,
     Ny         :: Integer,
     Nz         :: AbstractArray{Int64, 2},
@@ -251,7 +251,7 @@ function calTotalChange!(;
 end
 
 function calFluxDensity!(;
-    gi         :: DisplacedPoleCoordinate.GridInfo,
+    gi         :: PolelikeCoordinate.GridInfo,
     Nx         :: Integer,
     Ny         :: Integer,
     Nz         :: AbstractArray{Int64, 2},
@@ -361,7 +361,7 @@ end
 
 
 function calGRAD_CURV!(;
-    gi         :: DisplacedPoleCoordinate.GridInfo,
+    gi         :: PolelikeCoordinate.GridInfo,
     Nx         :: Integer,
     Ny         :: Integer,
     Nz         :: AbstractArray{Int64, 2},
@@ -474,7 +474,7 @@ end
 
 #=
 function calDIV!(;
-    gi       :: DisplacedPoleCoordinate.GridInfo,
+    gi       :: PolelikeCoordinate.GridInfo,
     Nx       :: Integer,
     Ny       :: Integer,
     Nz       :: AbstractArray{Int64, 2},
@@ -517,7 +517,7 @@ end
 
 
 function calVerVelBnd!(;
-    gi       :: DisplacedPoleCoordinate.GridInfo,
+    gi       :: PolelikeCoordinate.GridInfo,
     Nx       :: Integer,
     Ny       :: Integer,
     Nz       :: AbstractArray{Int64, 2},

@@ -1,4 +1,4 @@
-mutable struct State
+mutable struct DynState
     
     # total velocity, buoyancy
     u_c  :: AbstractArray{Float64, 3}
@@ -31,7 +31,12 @@ mutable struct State
     τx  :: AbstractArray{Float64, 2}  # on T grid
     τy  :: AbstractArray{Float64, 2}  # on T grid
 
-    function State(env, datakind)
+    # Excpetion 2
+    G_u :: AbstractArray{Float64, 4}  # G term for baroclinic mode.   (Nc_c, Nx+1, Ny, time)
+    G_v :: AbstractArray{Float64, 4}  # G term for baroclinic mode.   (Nc_c, Nx, Ny+1, time)
+
+
+    function DynState(env, datakind)
 
         Nx = env.Nx
         Ny = env.Ny
@@ -59,12 +64,15 @@ mutable struct State
         V = allocate(datakind, Float64, Nx, Ny+1)
         B = allocate(datakind, Float64, Nx, Ny)
 
-        u = copy(u_c)
-        v = copy(v_c)
-        b = copy(b_c)
+        u = allocate(datakind, Float64, Nz_c, Nx, Ny)
+        v = allocate(datakind, Float64, Nz_c, Nx, Ny+1)
+        b = allocate(datakind, Float64, Nz_c, Nx, Ny)
 
         τx = copy(Φ)
         τy = copy(Φ)
+
+        G_u = zeros(Float64, Nz_c, Nx, Ny, 3)
+        G_v = zeros(Float64, Nz_c, Nx, Ny+1, 3)
 
         return new(
             u_c, v_c, b_c,
@@ -73,6 +81,7 @@ mutable struct State
             Φ, U, V, B,
                u, v, b,
             τx, τy,
+            G_u, G_v,
         )
         
     end

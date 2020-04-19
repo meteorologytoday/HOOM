@@ -20,6 +20,8 @@ gi = PolelikeCoordinate.RegularCylindricalGridInfo(;
 
 mask2 = ones(Float64, gi.Nx, gi.Ny);
 
+#mask2[[20, 50], :] .= 0
+
 #=
 println("Making DynamicAdvSpeedUpMatrix")
 M = DynamicAdvSpeedUpMatrix(;
@@ -49,7 +51,7 @@ Lapf_true =   - f .* ( (2/ gi.R)^2 + (π/gi.Ly)^2 );
 
 f = f[:]
 
-dfdx = cM.M.T_interp_U * cM.M.U_∂x_T * f
+dfdx = cM.M.U_∂x_T * f
 dfdy = cM.M.V_∂y_T * f
 
 Lapf = cM.T_Lap_T * f
