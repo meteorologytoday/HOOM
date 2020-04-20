@@ -1,223 +1,49 @@
-function getCompleteVariableList(ocn::Ocean)
-
+function getCoordinateVariable(m::DynModel)
         return Dict(
-
-            # RECORD
-            "Ts"                 => ( toXYZ(ocn.Ts, :zxy),          ("Nx", "Ny", "Nz_bone") ),
-            "Ss"                 => ( toXYZ(ocn.Ss, :zxy),          ("Nx", "Ny", "Nz_bone") ),
-            "bs"                 => ( toXYZ(ocn.bs, :zxy),          ("Nx", "Ny", "Nz_bone") ),
-            "T_ML"               => ( ocn.T_ML,                     ("Nx", "Ny") ),
-            "S_ML"               => ( ocn.S_ML,                     ("Nx", "Ny") ),
-            "dTdt_ent"           => ( ocn.dTdt_ent,                 ("Nx", "Ny") ),
-            "dSdt_ent"           => ( ocn.dSdt_ent,                 ("Nx", "Ny") ),
-            "TSAS_clim"          => ( ocn.TSAS_clim,                ("Nx", "Ny") ),
-            "SSAS_clim"          => ( ocn.SSAS_clim,                ("Nx", "Ny") ),
-            "TFLUX_bot"          => ( ocn.TFLUX_bot,                ("Nx", "Ny") ),
-            "SFLUX_bot"          => ( ocn.SFLUX_bot,                ("Nx", "Ny") ),
-            "SFLUX_top"          => ( ocn.SFLUX_top,                ("Nx", "Ny") ),
-            "TFLUX_DIV_implied"  => ( ocn.TFLUX_DIV_implied,        ("Nx", "Ny") ),
-            "SFLUX_DIV_implied"  => ( ocn.SFLUX_DIV_implied,        ("Nx", "Ny") ),
-            "qflx2atm"           => ( ocn.qflx2atm,                 ("Nx", "Ny") ),
-            "qflx2atm_pos"       => ( ocn.qflx2atm_pos,             ("Nx", "Ny") ),
-            "qflx2atm_neg"       => ( ocn.qflx2atm_neg,             ("Nx", "Ny") ),
-            "h_ML"               => ( ocn.h_ML,                     ("Nx", "Ny") ),
-            "h_MO"               => ( ocn.h_MO,                     ("Nx", "Ny") ),
-            "nswflx"             => ( ocn.in_flds.nswflx,           ("Nx", "Ny") ),
-            "swflx"              => ( ocn.in_flds.swflx,            ("Nx", "Ny") ),
-            "frwflx"             => ( ocn.in_flds.frwflx,           ("Nx", "Ny") ),
-            "vsflx"              => ( ocn.in_flds.vsflx,            ("Nx", "Ny") ),
-            "qflx_T"             => ( ocn.in_flds.qflx_T,           ("Nx", "Ny") ),
-            "qflx_S"             => ( ocn.in_flds.qflx_S,           ("Nx", "Ny") ),
-            "qflx_T_correction"  => ( ocn.qflx_T_correction,        ("Nx", "Ny") ),
-            "qflx_S_correction"  => ( ocn.qflx_S_correction,        ("Nx", "Ny") ),
-            "Tclim_feeded"       => ( ocn.in_flds.Tclim,            ("Nx", "Ny") ),
-            "Sclim_feeded"       => ( ocn.in_flds.Sclim,            ("Nx", "Ny") ),
-            "TEMP"               => ( ocn.TEMP,                     ("Nx", "Ny") ),
-            "dTEMPdt"            => ( ocn.dTEMPdt,                  ("Nx", "Ny") ),
-            "SALT"               => ( ocn.SALT,                     ("Nx", "Ny") ),
-            "dSALTdt"            => ( ocn.dSALTdt,                  ("Nx", "Ny") ),
-            "fric_u"             => ( ocn.fric_u,                   ("Nx", "Ny") ),
-            "taux"               => ( ocn.τx,                       ("Nx", "Ny") ),
-            "tauy"               => ( ocn.τy,                       ("Nx", "Ny") ),
-            "TFLUX_DEN_z"        => ( toXYZ(ocn.TFLUX_DEN_z, :zxy), ("Nx", "Ny", "NP_zs_bone") ),
-            "SFLUX_DEN_z"        => ( toXYZ(ocn.SFLUX_DEN_z, :zxy), ("Nx", "Ny", "NP_zs_bone") ),
-            "div"                => ( toXYZ(ocn.div, :zxy),         ("Nx", "Ny", "Nz_bone") ),
-            "w_bnd"              => ( toXYZ(ocn.w_bnd, :zxy),       ("Nx", "Ny", "NP_zs_bone") ),
-            "u"                  => ( toXYZ(ocn.u, :zxy),           ("Nx", "Ny", "Nz_bone") ),
-            "v"                  => ( toXYZ(ocn.v, :zxy),           ("Nx", "Ny", "Nz_bone") ),
-            "TFLUX_CONV"         => ( toXYZ(ocn.TFLUX_CONV, :zxy),  ("Nx", "Ny", "Nz_bone") ),
-            "SFLUX_CONV"         => ( toXYZ(ocn.SFLUX_CONV, :zxy),  ("Nx", "Ny", "Nz_bone") ),
-
-            # COORDINATE
-            "area"               => ( ocn.mi.area,                  ("Nx", "Ny") ),
-            "mask"               => ( ocn.mi.mask,                  ("Nx", "Ny") ),
-            "frac"               => ( ocn.mi.frac,                  ("Nx", "Ny") ),
-            "c_lon"              => ( ocn.mi.xc,                    ("Nx", "Ny") ),
-            "c_lat"              => ( ocn.mi.yc,                    ("Nx", "Ny") ),
-            "zs_bone"            => ( ocn.zs_bone,                  ("NP_zs_bone",) ),
-            "noflux_y_mask3"     => ( toXYZ(ocn.noflux_y_mask3, :zxy), ("Nx", "Ny", "Nz_bone") ),
-
-            # BACKGROUND
-            "Ts_clim"            => ( toXYZ(ocn.Ts_clim, :zxy),     ("Nx", "Ny", "Nz_bone") ),
-            "Ss_clim"            => ( toXYZ(ocn.Ss_clim, :zxy),     ("Nx", "Ny", "Nz_bone") ),
-            "h_ML_min"           => ( ocn.h_ML_min,                 ("Nx", "Ny") ),
-            "h_ML_max"           => ( ocn.h_ML_max,                 ("Nx", "Ny") ),
-            "topo"               => ( ocn.topo,                     ("Nx", "Ny") ),
-            "fs"                 => ( ocn.fs,                       ("Nx", "Ny") ),
-            "epsilons"           => ( ocn.ϵs,                       ("Nx", "Ny") ),
-            "K_v"                => ( :K_v,                         :SCALAR      ),
-            "Dh_T"               => ( :Dh_T,                        :SCALAR      ),
-            "Dv_T"               => ( :Dv_T,                        :SCALAR      ),
-            "Dh_S"               => ( :Dh_S,                        :SCALAR      ),
-            "Dv_S"               => ( :Dv_S,                        :SCALAR      ),
-            "we_max"             => ( :we_max,                      :SCALAR      ),
-            "R"                  => ( :R,                           :SCALAR      ),
-            "zeta"               => ( :ζ,                           :SCALAR      ),
-            "Ts_clim_relax_time" => ( :Ts_clim_relax_time,          :SCALAR      ),
-            "Ss_clim_relax_time" => ( :Ss_clim_relax_time,          :SCALAR      ),
-            
+            "f"               => ( m.env.gi.c_f,                                                ("Nx", "Ny",) ),
         )
 end
 
-function getVarDesc(varname)
-    return haskey(HOOM.var_desc, varname) ? HOOM.var_desc[varname] : Dict()
+function getCompleteVariableList(m::DynModel)
+        s = m.state
+        c = m.core
+        return Dict(
+            "Phi"               => ( s.Φ,                                                ("Nx", "Ny",) ),
+            "U"                 => ( s.U,                                                ("Nx", "Ny",) ),
+            "V"                 => ( s.V,                                                ("Nx", "Nyp1",) ),
+            "u_c"               => ( s.u_c,                                              ("Nx", "Ny", "Nz_c") ),
+            "v_c"               => ( s.v_c,                                              ("Nx", "Nyp1", "Nz_c") ),
+            "u"                 => ( s.u,                                                ("Nx", "Ny", "Nz_c") ),
+            "v"                 => ( s.v,                                                ("Nx", "Nyp1", "Nz_c") ),
+            "b"                 => ( s.u,                                                ("Nx", "Ny", "Nz_c") ),
+            "fu"                 => ( c.wksp.cV[2],                                      ("Nx", "Nyp1", "Nz_c") ),
+            "fv"                 => ( c.wksp.cU[2],                                      ("Nx", "Ny", "Nz_c") ),
+
+
+
+
+#=
+            # RECORD
+            "X"                 => ( PermutedDimsArray(s.X, (2, 3, 1, 4)),             ("Nx", "Ny", "Nz_f", "NX") ),
+#            "XFLUX_bot"         => ( m.tcr_adv.XFLUX_bot,                                    ("Nx", "Ny", "NX") ),
+#            "XFLUX_DEN_x"       => ( PermutedDimsArray(m.tcr_adv.XFLUX_DEN_x, (2, 3, 1, 4)),   ("Nx", "Ny", "Nz_f", "NX") ),
+#            "XFLUX_DEN_y"       => ( PermutedDimsArray(m.tcr_adv.XFLUX_DEN_y, (2, 3, 1, 4)),   ("Nx", "Nyp1", "Nz_f", "NX") ),
+#            "XFLUX_DEN_z"       => ( PermutedDimsArray(m.tcr_adv.XFLUX_DEN_z, (2, 3, 1, 4)),   ("Nx", "Ny", "Nz_fp1", "NX") ),
+#            "div"               => ( PermutedDimsArray(m.tcr_adv.div, (2, 3, 1)),            ("Nx", "Ny", "Nz_f") ),
+            "u_f"               => ( PermutedDimsArray(s.u_f, (2, 3, 1)),              ("Nx", "Ny", "Nz_f") ),
+            "v_f"               => ( PermutedDimsArray(s.v_f, (2, 3, 1)),              ("Nx", "Nyp1", "Nz_f") ),
+            "w_f"               => ( PermutedDimsArray(s.w_f, (2, 3, 1)),              ("Nx", "Ny", "Nz_fp1") ),
+            "u_c"               => ( PermutedDimsArray(s.u_c, (2, 3, 1)),              ("Nx", "Ny", "Nz_c") ),
+            "v_c"               => ( PermutedDimsArray(s.v_c, (2, 3, 1)),              ("Nx", "Nyp1", "Nz_c") ),
+            "Phi"               => ( s.Φ,                                                ("Nx", "Ny",) ),
+            "U"               => ( s.U,                                                ("Nx", "Ny",) ),
+            "V"               => ( s.V,                                                ("Nx", "Nyp1",) ),
+            "u"               => ( PermutedDimsArray(s.u, (2, 3, 1)),              ("Nx", "Ny", "Nz_c") ),
+            "v"               => ( PermutedDimsArray(s.v, (2, 3, 1)),              ("Nx", "Nyp1", "Nz_c") ),
+            "b"               => ( PermutedDimsArray(s.b, (2, 3, 1)),              ("Nx", "Ny", "Nz_c") ),
+            "u_aux"               => ( PermutedDimsArray(c.u_aux, (2, 3, 1)),              ("Nx", "Ny", "Nz_c") ),
+            "v_aux"               => ( PermutedDimsArray(c.v_aux, (2, 3, 1)),              ("Nx", "Nyp1", "Nz_c") ),
+=#
+        )
 end
-
-function getVariableList(ocn::Ocean, keywords...)
-
-        all_varlist = getCompleteVariableList(ocn)
-
-        output_varnames = []
-
-        for keyword in keywords
-            if keyword == :ALL
-
-                append!(output_varnames, keys(all_varlist))
-
-            elseif keyword == :QFLX_FINDING
-
-                append!(output_varnames, [
-                    "qflx_T", "qflx_S",
-                    "qflx_T_correction", "qflx_S_correction",
-                    "Tclim_feeded", "Sclim_feeded",
-                ])
-
-            elseif keyword == :ESSENTIAL
-                
-                append!(output_varnames, [
-                    "Ts", "Ss", "T_ML", "S_ML",
-                    "TSAS_clim", "SSAS_clim",
-                    "TFLUX_bot", "SFLUX_bot",
-                    "SFLUX_top",
-                    "TFLUX_DIV_implied", "SFLUX_DIV_implied",
-                    "qflx2atm_pos", "qflx2atm_neg",
-                    "h_ML",
-                    "nswflx", "swflx", "frwflx", "vsflx",
-                    "qflx_T", "qflx_S",
-                    "TEMP", "dTEMPdt", "SALT", "dSALTdt",
-                    "fric_u", "taux", "tauy",
-                    "TFLUX_DEN_z", "SFLUX_DEN_z",
-                    "div",
-                    "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV",
-                ])
-
-            elseif keyword == :COORDINATE
-
-                append!(output_varnames, [
-                    "area",
-                    "mask",
-                    "frac",
-                    "c_lon",
-                    "c_lat",
-                    "zs_bone", 
-                ])
-
-            elseif keyword == :BACKGROUND
-
-                append!(output_varnames, [
-                    "Ts_clim",
-                    "Ss_clim",
-                    "h_ML_min",
-                    "h_ML_max",
-                    "topo",
-                    "fs",
-                    "epsilons",
-                    "K_v",
-                    "Dh_T",
-                    "Dv_T",
-                    "Dh_S",
-                    "Dv_S",
-                    "we_max",
-                    "R",
-                    "zeta",
-                    "Ts_clim_relax_time",
-                    "Ss_clim_relax_time",
-                ])
-
-            elseif keyword == :RECORD
-                
-                # These are variables used in snapshot in order
-                # to be restored for restart run Record.
-                
-                append!(output_varnames, [
-                    "Ts",
-                    "Ss",
-                    "bs",
-                    "T_ML",
-                    "S_ML",
-                    "dTdt_ent",
-                    "dSdt_ent",
-                    "TSAS_clim",
-                    "SSAS_clim",
-                    "TFLUX_bot",
-                    "SFLUX_bot",
-                    "SFLUX_top",
-                    "TFLUX_DIV_implied",
-                    "SFLUX_DIV_implied",
-                    "qflx2atm",
-                    "qflx2atm_pos",
-                    "qflx2atm_neg",
-                    "h_ML",
-                    "h_MO",
-                    "nswflx",
-                    "swflx",
-                    "frwflx",
-                    "vsflx",
-                    "qflx_T",
-                    "qflx_S",
-                    "qflx_T_correction",
-                    "qflx_S_correction",
-                    "Tclim_feeded",
-                    "Sclim_feeded",
-                    "TEMP",
-                    "dTEMPdt",
-                    "SALT",
-                    "dSALTdt",
-                    "fric_u",
-                    "taux",
-                    "tauy",
-                    "TFLUX_DEN_z",
-                    "SFLUX_DEN_z",
-                    "div",
-                    "w_bnd",
-                    "u",
-                    "v",
-                    "TFLUX_CONV",
-                    "SFLUX_CONV",
-                ])
-            else
-
-                throw(ErrorException("Unknown keyword: " * string(keyword)))
-
-            end
-        end
-        output_varlist = Dict()
-        for varname in output_varnames
-            output_varlist[varname] = all_varlist[varname]
-        end
-
-        return output_varlist
-end
-
-
 
