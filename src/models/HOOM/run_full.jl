@@ -1,7 +1,7 @@
 
-include("../../../share/constants.jl")
-include("../../../share/MapInfo.jl")
-include("../../../share/RecordTool.jl")
+include("../../share/constants.jl")
+include("../../share/MapInfo.jl")
+include("../../share/RecordTool.jl")
 
 include("ShallowWater.jl")
 
@@ -57,8 +57,8 @@ println("Create Gridinfo");
 gi = PolelikeCoordinate.RegularCylindricalGridInfo(;
     R = 5000e3,
     Ω = Ωe,
-    Nx = 60,
-    Ny = 30,
+    Nx = 360,
+    Ny = 180,
     Ly = 100e3 * 100,
     lat0 = 0.0 |> deg2rad,
     β    = Ωe / Re,
@@ -148,7 +148,7 @@ end
 #a = 0.1 * exp.(- (gi.c_y.^2 + gi.c_x.^2) / (σ^2.0) / 2) .* sin.(gi.c_lon*3)
 #b = 0.1 * exp.(- (gi.c_y.^2 + gi.c_x.^2) / (σ^2.0) / 2) .* cos.(gi.c_lon*3)
 a=b=0
-run_days=100
+run_days=10
 
 #model.state.v_c[:, 2:end, 1] .= 1.0 * exp.(- (gi.c_y.^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2) .* cos.(gi.c_lon*3)
 #model.state.v_c[:, 2:end, 1] .= 1.0 * exp.(- ((gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
@@ -164,7 +164,8 @@ RecordTool.avgAndOutput!(recorder)
 
 
 # 0.5 * sin.((model.env.gi.c_lon .- deg2rad(45))) .* cos.(model.env.gi.c_lat)
-for step=1:run_days
+
+@time for step=1:run_days
     println("Run day ", step)
 
     if step <= 10
@@ -181,7 +182,5 @@ for step=1:run_days
         RecordTool.avgAndOutput!(recorder)
     end
 
-
-#    println(integrateT())
 end
 

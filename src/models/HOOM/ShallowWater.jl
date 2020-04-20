@@ -1,12 +1,12 @@
 
-include("../../../share/PolelikeCoordinate.jl")
+include("../../share/PolelikeCoordinate.jl")
 module ShallowWater
     using Formatting
     using LinearAlgebra    
     using ..PolelikeCoordinate
     using Statistics: mean
-    include("../../../share/constants.jl")
-    include("../../../share/ocean_state_function.jl")
+    include("../../share/constants.jl")
+    include("../../share/ocean_state_function.jl")
 
 
 
@@ -69,7 +69,6 @@ module ShallowWater
     include("step_dyn_adv.jl")
 
 
-    include("../rearrange.jl")
     include("var_list.jl")
 
     macro loop_hor(ocn, idx1, idx2, stmts)
