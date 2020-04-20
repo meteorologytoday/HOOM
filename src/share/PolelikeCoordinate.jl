@@ -72,6 +72,7 @@ struct CurvilinearSphericalGridInfo <: GridInfo
 
     c_lon :: AbstractArray{Float64, 2}
     c_lat :: AbstractArray{Float64, 2}
+    c_f   :: AbstractArray{Float64, 2}
 
     α     :: AbstractArray{Float64, 2}
     cosα  :: AbstractArray{Float64, 2}
@@ -144,7 +145,6 @@ struct CurvilinearSphericalGridInfo <: GridInfo
 
         DX = zeros(Float64, Nx, Ny+1)
         DY = zeros(Float64, Nx, Ny)
-
 
 
         if angle_unit == :deg
@@ -222,7 +222,10 @@ struct CurvilinearSphericalGridInfo <: GridInfo
             sinα[i, j] = sin(α[i, j])
 
         end
-        
+       
+
+        c_f = 2Ω * sin.(c_lat_rad)
+ 
         for i = 1:Nx, j = 1:Ny
 
             i_w, i_e, j_s, j_n = getCyclicNeighbors(Nx, Ny, i, j)
@@ -292,6 +295,7 @@ struct CurvilinearSphericalGridInfo <: GridInfo
             new_Ny,
             c_lon_rad[:, sub_yrng],
             c_lat_rad[:, sub_yrng],
+            c_f[:, sub_yrng],
             α[:, sub_yrng],
             cosα[:, sub_yrng],
             sinα[:, sub_yrng],
@@ -348,6 +352,7 @@ mutable struct RegularCylindricalGridInfo <: GridInfo
     R     :: Float64
     Ω     :: Float64
     Ly    :: Float64
+    β      :: Float64
 
     Nx    :: Integer
     Ny    :: Integer
@@ -355,6 +360,7 @@ mutable struct RegularCylindricalGridInfo <: GridInfo
     c_lat :: AbstractArray{Float64, 2}
     c_lon :: AbstractArray{Float64, 2}
     c_y   :: AbstractArray{Float64, 2}
+    c_f   :: AbstractArray{Float64, 2}
 
     dx_w  :: AbstractArray{Float64, 2}
     dx_c  :: AbstractArray{Float64, 2}
@@ -376,8 +382,8 @@ mutable struct RegularCylindricalGridInfo <: GridInfo
         Nx      :: Integer,
         Ny      :: Integer,
         Ly      :: Float64,
-        lat0    :: Float64 = 0,  # in degree
-        β       :: Float64 = 0,  # in degree
+        lat0    :: Float64 = 0,  # in rad
+        β       :: Float64 = 0,  
         sub_yrng :: Union{Colon, UnitRange} = Colon(),
     )
 
@@ -394,17 +400,19 @@ mutable struct RegularCylindricalGridInfo <: GridInfo
             c_y = collect(Float64, (-o:1:o)) * Δy
         end
 
-        if lat0 + Ly/2*β >= 90.0 || lat0 - Ly/2*β <= -90.0
-            throw(ErrorException("Bad choice of Ly, lat0 and β"))
-        end
+#        if lat0 + Ly/2*β >= 90.0 || lat0 - Ly/2*β <= -90.0
+#            throw(ErrorException("Bad choice of Ly, lat0 and β"))
+#        end
 
 
 
-        c_lat = repeat(reshape(deg2rad.(lat0 .+ c_y * β), 1, :), outer=(Nx, 1))
+        c_lat = zeros(Float64, Nx, Ny)  # meaningless
+        c_lat .= lat0
 
         c_lon = repeat(reshape(c_lon, :, 1), outer=(1, Ny))
         c_y   = repeat(reshape(c_y, 1, :), outer=(Nx, 1))
 
+        c_f   = 2Ω * sin(lat0) .+ β * c_y
 
         dx_w = zeros(Float64, Nx, Ny)
         dx_w .= Δx
@@ -443,11 +451,13 @@ mutable struct RegularCylindricalGridInfo <: GridInfo
             R,
             Ω,
             Ly,
+            β,
             Nx,
             new_Ny,
             c_lat[:, sub_yrng],
             c_lon[:, sub_yrng],
             c_y[:, sub_yrng],
+            c_f[:, sub_yrng],
             dx_w[:, sub_yrng],
             dx_c[:, sub_yrng],
             dx_e[:, sub_yrng],

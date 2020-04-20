@@ -46,17 +46,18 @@ end
 function calAverage_f2c!(
     va    :: VerticalAverager,
     var_f :: AbstractArray{Float64, 3},
-    var_c :: AbstractArray{Float64, 3};
-    mask  :: AbstractArray{Float64, 2}, 
+    var_c :: AbstractArray{Float64, 3},
 )
-    Nx, Ny = size(mask)
-    for i=1:Nx, j=1:Ny
-        if mask[i, j] == 0
-            continue
-        end
+    Nx, Ny, _ = size(var_c)
 
+    for i=1:Nx, j=1:Ny
         for k_c = 1:va.Nz_c
-            var_c[k_c, i, j] = mean(var_f[va.rng_f2c[k_c], i, j])
+            tmp = 0.0
+            
+            for k_f in va.rng_f2c[k_c]
+                tmp += var_f[i, j, k_f] * va.wgt_f2c[k_f]
+            end
+            var_c[i, j, k_c] = tmp
         end
     end
 end
@@ -64,33 +65,30 @@ end
 function calAverage_c2s!(
     va    :: VerticalAverager,
     var_c :: AbstractArray{Float64, 3},
-    var_s :: AbstractArray{Float64, 2};
-    mask  :: AbstractArray{Float64, 2}, 
+    var_s :: AbstractArray{Float64, 2},
 )
-    Nx, Ny = size(mask)
-    for i=1:Nx, j=1:Ny
-        if mask[i, j] == 0
-            continue
-        end
+    Nx, Ny = size(var_s)
 
-        var_s[i, j] = mean(var_c[:, i, j])
+    #println(size(var_s), ";" , size(var_c))
+
+    for i=1:Nx, j=1:Ny
+        tmp = 0.0
+        for k_c=1:va.Nz_c
+            tmp += var_c[i, j, k_c] * va.wgt_c2s[k_c]
+        end
+        var_s[i, j] = tmp
     end
 end
 
 function projVertical_c2f!(
     va    :: VerticalAverager,
     var_c :: AbstractArray{Float64, 3},
-    var_f :: AbstractArray{Float64, 3};
-    mask  :: AbstractArray{Float64, 2}, 
+    var_f :: AbstractArray{Float64, 3}
 )
-    Nx, Ny = size(mask)
+    Nx, Ny, _ = size(var_c)
     for i=1:Nx, j=1:Ny
-        if mask[i, j] == 0
-            continue
-        end
-
         for k_c = 1:va.Nz_c
-            var_f[va.rng_f2c[k_c], i, j] .= var_c[k_c, i, j]
+            var_f[i, j, va.rng_f2c[k_c]] .= var_c[i, j, k_c]
         end
     end
 end

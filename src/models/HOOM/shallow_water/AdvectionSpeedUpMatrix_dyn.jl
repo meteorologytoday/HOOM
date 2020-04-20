@@ -128,13 +128,13 @@ mutable struct DynamicAdvSpeedUpMatrix
             end
         end
 
-        U_interp_V = (op.U_SW_V + op.U_SE_V + op.U_NW_V + op.U_NE_V) * filter_V     
-        #selfDivision!(U_interp_V) # weighting. You need to think about it
-        dropzeros!(U_interp_V)
-
         ones_U = ones(Float64, op.U_pts)
         ones_V = ones(Float64, op.V_pts)
         ones_T = ones(Float64, op.T_pts)
+
+        U_interp_V = (op.U_SW_V + op.U_SE_V + op.U_NW_V + op.U_NE_V) * filter_V     
+        selfDivision!(U_interp_V, ones_V)
+        dropzeros!(U_interp_V)
 
         V_interp_U = (op.V_SW_U + op.V_SE_U + op.V_NW_U + op.V_NE_U) * filter_U
         selfDivision!(V_interp_U, ones_U)
@@ -157,15 +157,19 @@ mutable struct DynamicAdvSpeedUpMatrix
         dropzeros!(T_interp_V)
  
         #println("Making coriolis operators")
-        f = 2.0 * gi.Ω * sin.(gi.c_lat) |> cvt23
+        f = gi.c_f |> cvt23
         U_f_U = filter_U * spdiagm( 0 => view(U_interp_T * view(f, :), :) )
         V_f_V = filter_V * spdiagm( 0 => view(V_interp_T * view(f, :), :) )
         
         # imagine term fv act on U grid
         # filter_U and filter_V have already been applied in U_f_U and V_f_V
-        U_f_V = U_f_U * U_interp_V
-        V_f_U = V_f_V * V_interp_U
+        U_f_V = filter_U * U_f_U * U_interp_V
+        V_f_U = filter_V * V_f_V * V_interp_U
         
+        dropzeros!(U_f_U)
+        dropzeros!(V_f_V)
+        dropzeros!(U_f_V)
+        dropzeros!(V_f_U)
 
         return new(
             op,

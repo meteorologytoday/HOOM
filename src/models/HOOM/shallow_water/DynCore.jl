@@ -25,21 +25,26 @@ mutable struct DynCore    # Adam Bashford
         )
         
         println("Making Spatial Operators")
-        s_ops = DynamicAdvSpeedUpMatrix(;
+        @time s_ops = DynamicAdvSpeedUpMatrix(;
                 gi = env.gi,
                 Nz = 1,
                 mask2 = env.mask,
         )
-        c_ops = DynamicAdvSpeedUpMatrix(;
+
+        c_ops = s_ops
+
+        #=
+        @time c_ops = DynamicAdvSpeedUpMatrix(;
                 gi = env.gi,
                 Nz = env.Nz_c,
                 mask2 = env.mask,
         )
+        =#
 
         Φ_solver = PhiSolver(
             gi    = env.gi,
             mask2 = env.mask,
-            α     = 1.0 / (env.Δt^2 * env.H_total),
+            α     = 1.0 / (env.Δt^2 * env.Φ_total),
             M     = s_ops,
         )
 
@@ -67,9 +72,9 @@ mutable struct DynCore    # Adam Bashford
             sV = 5,
         ) 
 
-        u_aux = zeros(Float64, Nz, Nx, Ny)
-        v_aux = zeros(Float64, Nz, Nx, Ny+1)
-        Φ_aux = zeros(Float64,     Nx, Ny)
+        u_aux = zeros(Float64, Nx, Ny,   Nz)
+        v_aux = zeros(Float64, Nx, Ny+1, Nz)
+        Φ_aux = zeros(Float64, Nx, Ny)
 
         new(
             c_ops,

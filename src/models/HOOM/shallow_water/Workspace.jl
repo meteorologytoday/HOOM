@@ -46,27 +46,27 @@ mutable struct Workspace
         _sV = []
 
         for i=1:fT
-            push!(_fT, zeros(Float64, Nz_f, Nx, Ny))
+            push!(_fT, zeros(Float64, Nx, Ny, Nz_f))
         end 
 
         for i=1:fU
-            push!(_fU, zeros(Float64, Nz_f, Nx, Ny))
+            push!(_fU, zeros(Float64, Nx, Ny, Nz_f))
         end 
 
         for i=1:fV
-            push!(_fV, zeros(Float64, Nz_f, Nx, Ny+1))
+            push!(_fV, zeros(Float64, Nx, Ny+1, Nz_f))
         end 
 
         for i=1:cT
-            push!(_cT, zeros(Float64, Nz_c, Nx, Ny))
+            push!(_cT, zeros(Float64, Nx, Ny, Nz_c))
         end 
 
         for i=1:cU
-            push!(_cU, zeros(Float64, Nz_c, Nx, Ny))
+            push!(_cU, zeros(Float64, Nx, Ny, Nz_c))
         end 
 
         for i=1:cV
-            push!(_cV, zeros(Float64, Nz_c, Nx, Ny+1))
+            push!(_cV, zeros(Float64, Nx, Ny+1, Nz_c))
         end 
 
         for i=1:sT

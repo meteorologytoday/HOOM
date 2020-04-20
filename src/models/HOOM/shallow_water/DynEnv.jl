@@ -34,6 +34,7 @@ mutable struct DynEnv
     H_c  :: AbstractArray{Float64, 1}
     H_f  :: AbstractArray{Float64, 1}
     H_total :: Float64
+    Φ_total :: Float64
    
     NX   :: Int64
     NX_passive :: Int64
@@ -86,6 +87,7 @@ mutable struct DynEnv
             H_c,
             H_f,
             sum(H_f),
+            g*sum(H_f),
             NX, NX_passive,
             mask,
         ) 

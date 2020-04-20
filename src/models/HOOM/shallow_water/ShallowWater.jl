@@ -1,7 +1,7 @@
 
 include("../../../share/PolelikeCoordinate.jl")
 module ShallowWater
-
+    using Formatting
     using LinearAlgebra    
     using ..PolelikeCoordinate
     using Statistics: mean
@@ -21,17 +21,34 @@ module ShallowWater
     end
 
     @inline function mul2!(
-        a :: AbstractArray{Float64},
+        a :: AbstractArray{Float64, 2},
         b :: AbstractArray{Float64, 2},
-        c :: AbstractArray{Float64},
+        c :: AbstractArray{Float64, 2},
     )
 
         mul!(view(a, :), b, view(c, :))
 
     end
  
-    const α_AB = 1.0 /  2.0
-    const β_AB = 5.0 / 12.0
+    @inline function mul3!(
+        a :: AbstractArray{Float64, 3},
+        b :: AbstractArray{Float64, 2},
+        c :: AbstractArray{Float64, 3},
+    )
+
+        for k=1:size(a)[3]
+            
+            mul!(
+                view(view(a, :, :, k), :),
+                b,
+                view(view(c, :, :, k), :),
+            )
+        end
+
+    end
+ 
+    const α_AB = 1.0 /  2.0 
+    const β_AB = 5.0 / 12.0  
     @inline function ABIII(a, aa, aaa)
         return ( 1 + α_AB + β_AB ) * a - (α_AB + 2*β_AB) * aa + β_AB * aaa
     end
