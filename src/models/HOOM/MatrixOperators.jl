@@ -4,6 +4,53 @@ using SparseArrays
     return spdiagm(0=>ones(dtype, n))
 end
 
+struct SparseMatrixBuilder
+    I :: AbstractArray{Int64, 1}
+    J :: AbstractArray{Int64, 1}
+    V :: AbstractArray{Float64, 1}
+    idx :: Int64
+    
+    function SparseMatrixBuilder(elm_max)
+        return new(
+            zeros(Int64, elm_max),
+            zeros(Int64, elm_max),
+            zeros(Float64, elm_max),
+            1
+        )
+    end
+end
+
+function getSparse!(
+    smb::SparseMatrixBuilder,
+    m::Int64,
+    n::Int64,
+)
+    mtx = sparse(
+        view(I, 1:smb.idx),
+        view(J, 1:smb.idx),
+        view(V, 1:smb.idx),
+        m, n
+    )
+    smb.idx = 1
+    return mtx 
+end
+
+
+function add!(
+    smb::SparseMatrixBuilder,
+    i::Int64,
+    j::Int64,
+    v::Float64,
+)
+    I[smb.idx] = i
+    J[smb.idx] = j
+    V[smb.idx] = v
+    smb.idx += 1
+end
+
+
+
+
 # Assuming x-direction is periodic
 struct MatrixOperators
 
@@ -116,6 +163,7 @@ struct MatrixOperators
         W = num_W * 0
         T = num_T * 0
 
+        #smb = SparseMatrixBuilder(Nx*(Ny+1)*(Nz+1)*4)
         function build!(id_mtx, idx; wipe=:none)
            #println("Build!")
             local result
@@ -131,9 +179,12 @@ struct MatrixOperators
             elseif wipe != :none
                 throw(ErrorException("Wrong keyword"))
             end
-
-            result = id_mtx[view(idx, :), :]
-            dropzeros!(result)
+           
+            # using transpose speeds up by 100 times 
+            tp = transpose(id_mtx) |> sparse
+            result = transpose(tp[:, view(idx, :)]) |> sparse
+            #result = id_mtx[view(idx, :), :]
+            #dropzeros!(result)
 
             idx .= 0 # clean so that debug is easir when some girds are not assigned
             return result

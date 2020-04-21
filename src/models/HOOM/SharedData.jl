@@ -1,26 +1,17 @@
 
 mutable struct DataMapping
-
-    # dim can be either :xyz or :zxy
+    # shape can be either :xyz or :zxy
     fr_shape  :: Symbol
     to_shape  :: Symbol
     fr      :: Symbol
     to      :: Symbol
-    
 end
 
 mutable struct DataUnit
-
     id          :: Symbol
-
-    # could be (f, c, s) x (T, U, V, W)
-    grid        :: Symbol
-
-    # could be :xy, :xyz, :zxy
-    shape         :: Symbol
- 
+    grid        :: Symbol      # could be (f, c, s) x (T, U, V, W)
+    shape       :: Symbol    # could be :xy, :xyz, :zxy
     data        :: AbstractArray
-    
 end
 
 
@@ -54,8 +45,13 @@ function regVariable!(
     data     :: Union{Nothing, SharedArray{T}} = nothing,
 ) where T
 
+
     env = sd.env
     Nx, Ny, Nz_f, Nz_c = env.Nx, env.Ny, env.Nz_f, env.Nz_c
+
+    if haskey(sd.data_units, id)
+        throw(ErrorException("Error: variable id " * String(id) *  " already exists."))
+    end
 
     dim = Dict(
         :fT => [Nx  , Ny  , Nz_f],
@@ -81,7 +77,7 @@ function regVariable!(
         end
     else
         if shape == :zxy
-            circshift!(dim, 1)
+            dim = circshift(dim, 1)
         end
     end
 

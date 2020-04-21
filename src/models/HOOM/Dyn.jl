@@ -1,6 +1,5 @@
 
-include("../../share/PolelikeCoordinate.jl")
-module ShallowWater
+module Dyn
     using Formatting
     using LinearAlgebra    
     using ..PolelikeCoordinate

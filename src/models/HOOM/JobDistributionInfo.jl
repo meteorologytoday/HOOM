@@ -18,11 +18,11 @@ mutable struct JobDistributionInfo
     dyn_slave_pid :: Int64
     
     # now assume tcr and mld share the same proc
-    y_slave_pids   :: AbstractArray{Integer, 1}
+    tmd_slave_pids   :: AbstractArray{Integer, 1}
     y_split_infos  :: AbstractArray{YSplitInfo, 1}
 
-    function JobDistributionInfo(;
-        env     :: OcnEnv,
+    function JobDistributionInfo(
+        env     :: OcnEnv;
         overlap :: Int64 = 2,
     )
             
@@ -30,9 +30,9 @@ mutable struct JobDistributionInfo
         pids  =  workers()
         dyn_slave_pid = pids[1]
         if length(pids) >= 2
-            y_slave_pids = pids[2:end]
+            tmd_slave_pids = pids[2:end]
         elseif length(pids) == 1
-            y_slave_pids = pids
+            tmd_slave_pids = pids
         else
             throw(ErrorException("No available workers!"))
         end
@@ -47,10 +47,10 @@ mutable struct JobDistributionInfo
             push_fr_rngs_bnd,
             push_to_rngs_bnd 
 
-        ) = calParallizationRange(N=env.Ny, P=length(y_slave_pids), L=overlap)
+        ) = calParallizationRange(N=env.Ny, P=length(tmd_slave_pids), L=overlap)
     
-        y_split_infos = Array{YSplitInfo}(undef, length(y_slave_pids))
-        for (i, p) in enumerate(y_slave_pids)
+        y_split_infos = Array{YSplitInfo}(undef, length(tmd_slave_pids))
+        for (i, p) in enumerate(tmd_slave_pids)
 
             y_split_infos[i] = YSplitInfo(
                 pull_fr_rngs[i],
@@ -69,7 +69,7 @@ mutable struct JobDistributionInfo
             overlap,
             pids,
             dyn_slave_pid,
-            y_slave_pids,
+            tmd_slave_pids,
             y_split_infos,
         ) 
 
