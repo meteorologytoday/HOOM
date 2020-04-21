@@ -15,11 +15,10 @@ function init!(
     slaves_init!(data_manager)
 
     if restart_file != nothing
-        load_data(restart_file, data_manager)
-
+        loadRestart(restart_file, data_manager)
     end
     
-    syncOcean(from = :master, data_manager)
+    syncOcean(from = :master, to=:all, data_manager)
 end
 
 function run!(
