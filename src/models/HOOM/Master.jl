@@ -35,8 +35,6 @@ mutable struct Master
 end
 
 
-mutable struct ParallizationInfo
-end
 
 mutable struct TcrSlave
     data_manager

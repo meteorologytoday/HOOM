@@ -50,8 +50,9 @@ function regVariable!(
     id       :: Symbol,
     grid     :: Symbol,
     shape    :: Symbol,
-    dtype    :: DataType,
-)
+    dtype    :: DataType;
+    data     :: Union{Nothing, SharedArray{T}} = nothing,
+) where T
 
     env = sd.env
     Nx, Ny, Nz_f, Nz_c = env.Nx, env.Ny, env.Nz_f, env.Nz_c
@@ -84,14 +85,29 @@ function regVariable!(
         end
     end
 
-
     if ! (dtype in (Float64, Int64))
         throw(ErrorException("Invalid data type. Only Float64 and Int64 are accepted"))
     end
+
+    if data == nothing
+        data = SharedArray{dtype}(dim...)
+    else
+
+        if Tuple(dim) != size(data)
+            println("Expect ", dim)
+            println("Get ", size(data))
+            throw(ErrorException("Provided data does not have correct dimension."))
+        end
+
+        if dtype != T
+            throw(ErrorException("dtype and provided data does not match."))
+        end
+    end
+
     sd.data_units[id] = DataUnit(
         id,
         grid,
         shape,
-        SharedArray{dtype}(dim...),
+        data,
     )
 end

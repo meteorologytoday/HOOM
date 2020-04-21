@@ -2,16 +2,22 @@ function init!(
     restart_file,
 )
 
+    # TODO
     ocn_env = readRestart(restart_file)
     
+   
     ocn_state          = OcnState(ocn_env)
-    shared_data       = create_datamanager(ocn_state)
+    shared_data        = SharedData(ocn_env)
     parallization_info = decide_partition_of_cores(ocn_env)
 
+
+    # TODO
+    register_shared_data(shared_data)
     
     dyn_slaves = create_dynslave(parallization_info, shared_data, env)
     tcr_slaves = create_tcrslave(p_info, shared_data, env)
     mld_slaves = create_mldslave(p_info, shared_data, env)
+   
     
     slaves_init!(shared_data)
 
@@ -51,7 +57,7 @@ function run!(
         end
     end
 
-    # Supposely MLD dynamics changes dyn and tcr fields vertically
+    # Supposedly MLD dynamics changes dyn and tcr fields vertically
     # so it only sync by the end of simulation and sync to
     # all other components
     for t=1:substep_mld
