@@ -23,16 +23,16 @@ mutable struct OcnEnv
     height_level_counts :: AbstractArray{Int64, 1} # how many layers in fine grid is a coarse grid layer
     
     # First two tracers are T and S. Passive tracers starts from 3.
-    NX   :: Int64                         # Number of tracers
-    NX_passive :: Int64                   # Number of passive tracers
+    NX         :: Int64              # Number of tracers
+    NX_passive :: Int64              # Number of passive tracers
 
     deep_threshold :: Float64                  # threshold where the ocean column is 'deep'
 
     Kh_m :: Float64   # Horizontal diffusion coe of momentum.
     Kv_m :: Float64   # Vertical   diffusion coe of momentum.
 
-    Kh_X :: AbstractArray{Float64, 2}  # Horizontal diffusion coe of tracers
-    Kv_X :: AbstractArray{Float64, 2}  # Vertical   diffusion coe of tracers
+    Kh_X :: AbstractArray{Float64, 1}  # Horizontal diffusion coe of tracers
+    Kv_X :: AbstractArray{Float64, 1}  # Vertical   diffusion coe of tracers
 
     # mld_min, mld_max here are just one numbers.
     # when used in mld core, they will be truncated according to each grid's topography

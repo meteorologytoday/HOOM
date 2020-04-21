@@ -35,10 +35,13 @@ function advectDynamic!(
 
     #println("calAuxV!")
     calAuxV!(model)
+
     #println("calAuxΦ!")
     calAuxΦ!(model)
+
     #println("solveΦ!")
     solveΦ!(model)
+
     #println("updateV!")
     updateV!(model)
 
@@ -70,8 +73,10 @@ function calAuxV!(
     end
 
     # cal b_c from b_f
-    calAverage_f2c!(va, state.b_f, state.b_c)
- 
+    #@time let
+    #println("cal avg f2c")
+    #calAverage_f2c!(va, state.b_f, state.b_c)
+    #end
     
     #println(format("u_c, U, u before {:.2f}, {:.2f}, {:.2f}", state.u_c[5,5,1], state.U[5,5], state.u[5,5,1]))
     # cal barotropic and baroclinic components
@@ -293,8 +298,8 @@ function updateV!(
         state.v_c[i, j, k] = core.v_aux[i, j, k] - Δt∂Φ∂y[i, j]
     end
  
-    projVertical_c2f!(core.va, state.u_c, state.u_f)
-    projVertical_c2f!(core.va, state.v_c, state.v_f)
+    #projVertical_c2f!(core.va, state.u_c, state.u_f)
+    #projVertical_c2f!(core.va, state.v_c, state.v_f)
    
 end
 
