@@ -1,77 +1,67 @@
-function init!(
-    restart_file,
-)
 
-    ocn_env = readRestart(restart_file)
+#
+# Important concepts
+#
+#
+#
+# "States" are what is managed by data_manager to sync between processes
+# Anything that does not have to share should not be in "states"
+#
+# DataManager must manage all variable in "States". 
+
+mutable struct Master
+
+    dyn_slave       # Non parallizable
+    tcr_slaves      # parallizable
+    mld_slaves      # parallizable
+
+    pid_id          # Process ids
     
-    ocn_state          = OcnState(ocn_env)
-    shared_data       = create_datamanager(ocn_state)
-    parallization_info = decide_partition_of_cores(ocn_env)
-
-    
-    dyn_slaves = create_dynslave(parallization_info, shared_data, env)
-    tcr_slaves = create_tcrslave(p_info, shared_data, env)
-    mld_slaves = create_mldslave(p_info, shared_data, env)
-    
-    slaves_init!(shared_data)
-
-    if restart_file != nothing
-        loadRestart(restart_file, shared_data)
-    end
-    
-    syncOcean(from = :master, to=:all, shared_data)
-end
-
-function run!(
-    model,
-    write_restart,
-)
-
-    load ... 
-    substep_dyn
-    substep_tcr
-    substep_mld
-
-    # Currently mld_core does not need info from
-    # dyn_core so we do not need to pass dyn fields
-    # to mld core
-    for t=1:substep_dyn
-        step_dyn(dyn_slaves)
-    end
-    syncOcean(from = :dyn_slave, to = :tcr_slave, shared_data)
- 
-    # this involves passing tracer through boundaries
-    # so need to sync every time after it evolves
-    for t=1:substep_tcr
-        step_tcr(tcr_slaves)
-        if t != substep_tcr
-            syncOcean(from = :tcr_slave, to = :tcr_slave, shared_data)
-        else
-            syncOcean(from = :tcr_slave, to = :mld_slave, shared_data)
-        end
-    end
-
-    # Supposely MLD dynamics changes dyn and tcr fields vertically
-    # so it only sync by the end of simulation and sync to
-    # all other components
-    for t=1:substep_mld
-        step_mld(mld_slaves)
-    end
-    syncOcean(from = :mld_slave, to = :all, shared_data)
+    data_manager    # manage underlying data exchange
+    data_recorder   # history file tool
    
-    if write_restart
-        writeRestart(
-            dyn_slave,
-            tcr_slave,
-            mld_slave, 
+    ocn
+ 
+    function Master(
+        
+    )
+
+
+        return new(
+            dynamic_core    
         )
     end
-     
+
 end
 
 
-
-
-
-function loadData!()
+mutable struct ParallizationInfo
 end
+
+mutable struct TcrSlave
+    data_manager
+    core 
+end
+
+mutable struct DynSlave
+    data_manager 
+    core
+end
+
+mutable struct MLDSlave
+    data_manager 
+    core
+end
+
+
+mutable struct DataManager
+    binding
+    data
+end
+
+mutable struct OceanState
+    dyn_state
+    tcr_state
+    mld_state
+end
+
