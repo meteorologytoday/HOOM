@@ -1,7 +1,5 @@
 include("HOOM.jl")
 
-Nx = 360
-Ny = 180
 Nz_f = 20
 Nz_c = 3
 

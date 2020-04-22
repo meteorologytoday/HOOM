@@ -59,7 +59,7 @@ mutable struct DynamicAdvSpeedUpMatrix
         Nx = gi.Nx
         Ny = gi.Ny
 
-        println("Build MatrixOperators")
+        #println("Build MatrixOperators")
         @time op = MatrixOperators(Nx=Nx, Ny=Ny, Nz=Nz)
 
         # making filter
@@ -67,7 +67,7 @@ mutable struct DynamicAdvSpeedUpMatrix
         cvt23 = (x,) -> repeat(reshape(x, 1, size(x)...), outer=(Nz, 1, 1))
         cvt23_diagm = (x,) -> spdiagm( 0 => view(cvt23(x), :) )
 
-        println("Build filters")
+        #println("Build filters")
         mask3_flat = view(mask2 |> cvt23, :)
         
         if_mask_north_V = op.V_S_T * mask3_flat
@@ -105,7 +105,7 @@ mutable struct DynamicAdvSpeedUpMatrix
         U_Δy_U    = (gi.DY       |> cvt23_diagm)
         T_invΔσ_T = (gi.dσ.^(-1) |> cvt23_diagm)
 
-        println("Making various operators")
+        #println("Making various operators")
         # MAGIC!!
         U_∂x_T = filter_U * U_invΔx_U * (op.U_W_T - op.U_E_T) ; dropzeros!(U_∂x_T);
         V_∂y_T = filter_V * V_invΔy_V * (op.V_S_T - op.V_N_T) ; dropzeros!(V_∂y_T);
@@ -133,7 +133,7 @@ mutable struct DynamicAdvSpeedUpMatrix
             =#
 
             # Hack into sparse matrix to speed up. Speed up like 10 times at least
-            @time for (i, wgt) in enumerate(wgts)
+            for (i, wgt) in enumerate(wgts)
                 if wgt != 0
                     _beg = m_t.colptr[i]
                     _end = m_t.colptr[i+1]-1
