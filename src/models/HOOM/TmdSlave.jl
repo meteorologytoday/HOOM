@@ -5,9 +5,13 @@ mutable struct TmdSlave
     ocn_env      :: OcnEnv
     shared_data  :: SharedData
 
-    function DynSlave(
+    sub_yrng     :: UnitRange
+
+
+    function TmdSlave(
         ocn_env      :: OcnEnv,
         shared_data  :: SharedData,
+        sub_yrng     :: UnitRange,
     )
        
         mi = ModelMap.MapInfo{Float64}(ocn_env.hrgrid_file)
@@ -22,9 +26,10 @@ mutable struct TmdSlave
             vs_lat=mi.yv,
             area=mi.area,
             angle_unit=:deg,
+            sub_yrng=sub_yrng,
         )
         
-        model = Dyn.DynModel(
+        model = Tmd.TmdModel(
             gi      = gi,
             Δt      = ocn_env.Δt,
             z_bnd_f = ocn_env.z_bnd_f,

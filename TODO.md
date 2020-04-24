@@ -4,3 +4,9 @@
 2. Data exchange manager
 3. New restart files
 4. Recorder build into HOOM
+
+
+
+# Little note
+
+1. Need to make a checkTopo function at the master
