@@ -1,6 +1,6 @@
 mutable struct TmdEnv
     
-    gi       :: Union{DisplacedPoleCoordinate.GridInfo, Nothing}
+    gi       :: Union{PolelikeCoordinate.GridInfo, Nothing}
     mi       :: Union{ModelMap.MapInfo, Nothing}
 
     Nx       :: Integer           # Number of columns in i direction
@@ -49,16 +49,17 @@ mutable struct TmdEnv
 
     Ts_clim  :: Union{AbstractArray{Float64, 3}, Nothing}
     Ss_clim  :: Union{AbstractArray{Float64, 3}, Nothing}
-    
+   
+    radiation_scheme      :: Symbol
+    convective_adjustment :: Bool
+
+ 
     function Ocean(;
-        id       :: Integer = 0,  
-        gridinfo_file :: AbstractString,
+        grid_file :: AbstractString,
         sub_yrng :: Union{UnitRange, Nothing} = nothing,
         Nx       :: Integer,
         Ny       :: Integer,
         zs_bone  :: AbstractArray{Float64, 1},
-        Ts       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
-        Ss       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
         K_v      :: Float64 = 1e-2,
         Dh_T     :: Float64 = 1e3,
         Dv_T     :: Float64 = 1e-5,
@@ -77,11 +78,6 @@ mutable struct TmdEnv
         Ts_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
         Ss_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
         topo     :: Union{AbstractArray{Float64, 2}, Nothing},
-        fs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
-        ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = 1e-5,
-        in_flds  :: Union{InputFields, Nothing} = nothing,
-        arrange  :: Symbol = :zxy,
-        do_convective_adjustment :: Bool = false,
         verbose  :: Bool = false,
     )
         # Determine whether data should be local or shared (parallelization)
