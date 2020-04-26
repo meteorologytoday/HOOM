@@ -37,7 +37,7 @@ if !isdefined(Main, :REPL)
 
 else
 
-    run_days = 2
+    run_days = 100
     output_file = "output_tmd.nc"
 
 end
@@ -57,12 +57,14 @@ gi = PolelikeCoordinate.RegularCylindricalGridInfo(;
     β    = Ωe / Re,
 );
 
-Δt = 3600.0 
+Δt = 3600.0 * 24 
 
 model = Tmd.TmdModel(
     gi = gi,
     Δt = Δt,
     z_bnd = z_bnd,
+    Kh_X  = [0.0, 0.0],
+    Kv_X  = [0.0, 0.0],
 )
 
 
@@ -85,12 +87,13 @@ end
 
 
 
-#model.state.T[1, :, :] .= 1.0 * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat)
+model.state.T[1, :, :] .= 1.0# * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat)
 #model.state.T[2, :, :] .= 1.0 * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat * 2)
 
 #model.state.Φ .= 1.0 * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat * 2)
 σ = 100e3 * 10.0
 #model.state.u_c[1, :, :] .= 1.0
+model.state.u_U[1, :, :] .= 1.0 * sin.((model.env.gi.c_lon )) .* exp.( - (model.env.gi.c_y / σ).^2.0 / 2.0 )
 
 recorder = RecordTool.Recorder(
     Dict(
@@ -110,16 +113,17 @@ RecordTool.setNewNCFile!(recorder, output_file)
 sum_dσ=sum(gi.dσ)
 function integrateT()
     s = 0.0
-    for k=1:model.env.Nz_f
-        s += sum(gi.dσ .* view(model.state.T, :, :, k))
+    for k=1:model.env.Nz
+        s += sum(gi.dσ .* view(model.state.T, k, :, :))
     end
-    return s / sum_dσ / model.env.Nz_f
+    return s / sum_dσ / model.env.Nz
 end
 
 # output initial state
 RecordTool.record!(recorder)
 RecordTool.avgAndOutput!(recorder)
 
+println(integrateT())
 
 @time for step=1:run_days
     
@@ -129,6 +133,8 @@ RecordTool.avgAndOutput!(recorder)
         Tmd.stepModel!(model)
         RecordTool.record!(recorder)
         RecordTool.avgAndOutput!(recorder)
+        
+        println(integrateT())
     end
 
 end

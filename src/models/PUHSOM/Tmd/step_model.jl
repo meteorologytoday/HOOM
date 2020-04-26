@@ -10,7 +10,6 @@ function advectTracer!(
     env   = model.env
     wksp  = core.wksp
 
-
     div   = getSpace!(wksp, :T)
     tmp_T = getSpace!(wksp, :T)
 
