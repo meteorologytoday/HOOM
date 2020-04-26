@@ -46,7 +46,9 @@ mutable struct TmdEnv
     
     radiation_scheme      :: Symbol
     convective_adjustment :: Bool
-
+    prescribed_MLT        :: Bool
+    use_Qflux             :: Bool
+    
  
     function TmdEnv(;
         gi         :: PolelikeCoordinate.GridInfo,
@@ -58,11 +60,11 @@ mutable struct TmdEnv
         we_max     :: Float64,
         R          :: Float64,  # See Paulson and Simpson (1977) Type I clear water
         ζ          :: Float64,  # See Paulson and Simpson (1977) Type I clear water
-        MLT_rng    :: AbstractArray{Float64, 2},
-        t_X_wr     :: AbstractArray{Float64, 1},
-        X_wr       :: AbstractArray{Float64, 4},
+        MLT_rng    :: AbstractArray{Float64, 1},
+        t_X_wr     :: Union{AbstractArray{Float64, 1}, Nothing},
+        X_wr       :: Union{AbstractArray{Float64, 4}, Nothing},
         NX_passive :: Int64,
-        mask2      :: AbstractArray{Float64, 2},
+        mask2      :: Union{AbstractArray{Float64, 2}, Nothing},
         radiation_scheme :: Symbol,
         convective_adjustment :: Bool,
         verbose    :: Bool = false,
@@ -70,8 +72,12 @@ mutable struct TmdEnv
        
         Nx = gi.Nx
         Ny = gi.Ny
+
+        if mask2 == nothing
+            mask2 = ones(Float64, Nx, Ny)
+        end
  
-        mask_idx = (mask .== 1.0)
+        mask_idx = (mask2 .== 1.0)
 
         # Arrage like (2, cnt) instead of (cnt, 2) to
         # enhance speed through memory cache
@@ -79,7 +85,7 @@ mutable struct TmdEnv
         
         let k = 1
             for idx in CartesianIndices((Nx, Ny))
-                if _mask2[idx] == 1.0
+                if mask2[idx] == 1.0
                     valid_idx[1, k] = idx[1]
                     valid_idx[2, k] = idx[2]
 
@@ -99,7 +105,7 @@ mutable struct TmdEnv
       
         if topo == nothing
             topo = zeros(Float64, Nx, Ny)
-            topo .= z_cnd[end]
+            topo .= z_bnd[end]
         end
         # ===== [END] topo, mask, h_ML_min, h_ML_max =====
 
@@ -109,13 +115,9 @@ mutable struct TmdEnv
 
         Nz_av    = zeros(Int64,           Nx, Ny)
         z_bnd_av = zeros(Float64, Nz + 1, Nx, Ny)
-        dz_W     = zeros(Float64, Nz    , Nx, Ny)
-        dz_T     = zeros(Float64, Nz - 1, Nx, Ny)
 
         z_bnd_av  .= NaN
         Nz_av     .= 0
-        dz_W      .= NaN
-        dz_T      .= NaN
 
         for i=1:Nx, j=1:Ny
 
@@ -130,22 +132,19 @@ mutable struct TmdEnv
             _Nz_av = Nz
             for k=2:length(z_bnd)
                 if z_bnd[k] <= topo[i, j]
-                    Nz_av = k-1
+                    _Nz_av = k-1
                     #println(format("This topo gets: z_bnd[{:d}] = {:f}, _topo[{:d},{:d}]={:f}", k, z_bnd[k], i, j, _topo[i,j]))
                     break
                 end
             end
 
-            Nz_av[i, j] = Nz_av
+            Nz_av[i, j] = _Nz_av
 
             # Construct vertical coordinate
             z_bnd_av[1:_Nz_av, i, j] = z_bnd[1:_Nz_av]
 
             z_bnd_av[_Nz_av+1, i, j] = max(topo[i, j], z_bnd[_Nz_av+1])
 
-            # Construct thickness of each layer
-            dz_W[ 1:_Nz_av,   i, j] = z_bnd_av[1:_Nz_av, i, j] - z_bnd_av[2:_Nz_av+1, i, j]
-            dz_T[1:_Nz_av-1, i, j] = (dz_W[1:_Nz_av-1, i, j] + dz_W[2:_Nz_av, i, j]) / 2.0
         end
         
         # ===== [END] z coordinate =====
@@ -159,13 +158,13 @@ mutable struct TmdEnv
             h_ML_max  = h_ML_max,
             h_ML_min  = h_ML_min,
             topo      = topo,
-            mask      = mask,
+            mask2     = mask2,
             coord_min = z_bnd[end],
         )
         
         # ===== [END] construct h_ML limits =====
 
-        NX = NX_pasive + 2
+        NX = NX_passive + 2
 
 
         if X_wr == nothing
@@ -215,7 +214,7 @@ mutable struct TmdEnv
         end
         
         # y
-        for i=1:Nx, j=2:Ny     # j=1 and Ny+1 are 0 because these are the boundaries. Need to be careful doing parallization.
+        for i=1:Nx, j=2:Ny-1     # j=1 and Ny+1 are 0 because these are the boundaries. Need to be careful doing parallization.
             j_s = j
             j_n = j+1
             for k=1:Nz_av[i, j]
@@ -257,7 +256,11 @@ mutable struct TmdEnv
         # Check if there is any hole in climatology 
        
         for x=1:NX
-            checkDataHoles3(mask3=mask3, view(X_wr, :, :, :, x), varname=format("{:02d}", x))
+            checkDataHoles3(
+                mask3   = mask3,
+                data    = view(X_wr, :, :, :, x),
+                varname = format("{:02d}", x),
+            )
         end
 
         # ===== [END] check integrity =====
@@ -324,7 +327,7 @@ function fitMLTToTopo!(;
             hmin = max_thickness
         end
 
-        if hmax > coord_max
+        if hmax > max_thickness
             verbose && println(format("Point ({},{}) got h_max {:.2f} which is larger than max_thickness {}. Tune h_ML_max to match it.", i, j, hmax, coord_max))
             hmax = max_thickness
         end

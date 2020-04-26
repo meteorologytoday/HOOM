@@ -15,10 +15,12 @@ mutable struct TmdModel
         R           = 0.58,  # See Paulson and Simpson (1977) Type I clear water
         ζ           = 23.0,  # See Paulson and Simpson (1977) Type I clear water
         MLT_rng     = [10.0, 1000.0],
-        t_wr_X      = nothing,
-        X_wr        = nothing,
         NX_passive  = 0,
-        mask        = nothing,
+        t_X_wr      = nothing,
+        X_wr        = nothing,
+        mask2       = nothing,
+        radiation_scheme = :exponential_decay,
+        convective_adjustment = true,
     )
 
         env = TmdEnv(;
@@ -33,7 +35,11 @@ mutable struct TmdModel
             ζ          = ζ,
             MLT_rng    = MLT_rng, 
             NX_passive = NX_passive,
-            mask       = mask,
+            t_X_wr     = t_X_wr,
+            X_wr       = X_wr,
+            mask2      = mask2,
+            radiation_scheme = radiation_scheme,
+            convective_adjustment = convective_adjustment,
         )
 
         state = TmdState(env)

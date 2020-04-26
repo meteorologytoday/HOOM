@@ -1,30 +1,5 @@
-mutable struct TmdEnv
+mutable struct TmdState
     
-    gi       :: Union{DisplacedPoleCoordinate.GridInfo, Nothing}
-    mi       :: Union{ModelMap.MapInfo, Nothing}
-
-    Nx       :: Integer           # Number of columns in i direction
-    Ny       :: Integer           # Number of columns in j direction
-    Nz_bone  :: Integer           # Number of layers  in k direction
-    
-    zs_bone  :: AbstractArray{Float64, 1} # Unmasked zs bone
-    topo     :: AbstractArray{Float64, 2} # Depth of the topography. Negative value if it is underwater
-    zs       :: AbstractArray{Float64, 3} # Actuall zs coordinate masked by topo
-    Nz       :: AbstractArray{Int64, 2} # Number of layers that is active
-
-    K_v      :: Float64           # Diffusion coe of momentum. Used by ekman flow calculation
-    Dh_T      :: Float64           # Horizontal diffusion coe of temperature
-    Dv_T      :: Float64           # Vertical   diffusion coe of temperature
-    Dh_S      :: Float64           # Horizontal diffusion coe of salinity
-    Dv_S      :: Float64           # Vertical   diffusion coe of salinity
-
-    mask3    :: AbstractArray{Float64, 3}
-    noflux_x_mask3  :: AbstractArray{Float64, 3}
-    noflux_y_mask3  :: AbstractArray{Float64, 3}
-    mask     :: AbstractArray{Float64, 2}
-    mask_idx  :: Any
-    valid_idx :: AbstractArray{Int64, 2}
-
     b_ML     :: AbstractArray{Float64, 2}
     T_ML     :: AbstractArray{Float64, 2}
     S_ML     :: AbstractArray{Float64, 2}
@@ -37,217 +12,57 @@ mutable struct TmdEnv
 
     h_ML     :: AbstractArray{Float64, 2}
     h_MO     :: AbstractArray{Float64, 2}
+    
     fric_u   :: AbstractArray{Float64, 2}
-    dTdt_ent    :: AbstractArray{Float64, 2}
-    dSdt_ent    :: AbstractArray{Float64, 2}
 
-    # To calculate ocean heat transport, we need the
-    # unconserved part of energy
-    TSAS_clim   :: AbstractArray{Float64, 2}
-    SSAS_clim   :: AbstractArray{Float64, 2}
-    TFLUX_bot       :: AbstractArray{Float64, 2}
-    SFLUX_bot       :: AbstractArray{Float64, 2}
-    SFLUX_top       :: AbstractArray{Float64, 2}
-    TFLUX_DIV_implied      :: AbstractArray{Float64, 2}
-    SFLUX_DIV_implied      :: AbstractArray{Float64, 2}
+    TSAS_wk   :: AbstractArray{Float64, 2}
+    SSAS_wk   :: AbstractArray{Float64, 2}
 
-    bs       :: AbstractArray{Float64, 3}
-    Ts       :: AbstractArray{Float64, 3}
-    Ss       :: AbstractArray{Float64, 3}
+    X         :: AbstractArray{Float64, 4}
+    b         :: AbstractArray{Float64, 3}
+    T         :: AbstractArray{Float64, 3}
+    S         :: AbstractArray{Float64, 3}
 
-    FLDO           :: AbstractArray{Int64,   2}
+    FLDO           :: AbstractArray{Int64,     2}
     FLDO_ratio_top :: AbstractArray{Float64,   2}
     FLDO_ratio_bot :: AbstractArray{Float64,   2}
 
     qflx2atm         :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
     qflx2atm_pos     :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
     qflx2atm_neg     :: AbstractArray{Float64, 2} # The energy flux to atmosphere if freezes
+
+    intX             :: AbstractArray{Float64, 3} # Total X content, vertical integrated quantity
+    dintXdt          :: AbstractArray{Float64, 3}
+
     TEMP             :: AbstractArray{Float64, 2} # Total heat content
     dTEMPdt          :: AbstractArray{Float64, 2} # Total heat content change rate
     SALT             :: AbstractArray{Float64, 2} # Total salt
     dSALTdt          :: AbstractArray{Float64, 2} # Total salt change rate
-    
+
     qflx_T_correction :: AbstractArray{Float64, 2}
     qflx_S_correction :: AbstractArray{Float64, 2}
-
-    h_ML_min :: AbstractArray{Float64, 2}
-    h_ML_max :: AbstractArray{Float64, 2}
-    we_max   :: Float64
-
 
     # Advection related variables
     τx       :: AbstractArray{Float64, 2}
     τy       :: AbstractArray{Float64, 2}
 
-    u        :: AbstractArray{Float64, 3}
-    v        :: AbstractArray{Float64, 3}
-    w        :: AbstractArray{Float64, 3}
+    u_T      :: AbstractArray{Float64, 3}
+    v_T      :: AbstractArray{Float64, 3}
+    w_T      :: AbstractArray{Float64, 3}
 
-    u_bnd    :: AbstractArray{Float64, 3}
-    v_bnd    :: AbstractArray{Float64, 3}
-    w_bnd    :: AbstractArray{Float64, 3}
+    u_U    :: AbstractArray{Float64, 3}
+    v_V    :: AbstractArray{Float64, 3}
+    w_W    :: AbstractArray{Float64, 3}
 
-    GRAD_bnd_x :: AbstractArray{Float64, 3}
-    GRAD_bnd_y :: AbstractArray{Float64, 3}
-    GRAD_bnd_z :: AbstractArray{Float64, 3}
-    
-    CURV_x     :: AbstractArray{Float64, 3}
-    CURV_y     :: AbstractArray{Float64, 3}
-    CURV_z     :: AbstractArray{Float64, 3}
-    
-    TFLUX_DEN_x :: AbstractArray{Float64, 3}
-    TFLUX_DEN_y :: AbstractArray{Float64, 3}
-    TFLUX_DEN_z :: AbstractArray{Float64, 3}
-
-    SFLUX_DEN_x :: AbstractArray{Float64, 3}
-    SFLUX_DEN_y :: AbstractArray{Float64, 3}
-    SFLUX_DEN_z :: AbstractArray{Float64, 3}
-
-    div           :: AbstractArray{Float64, 3}
-    TFLUX_CONV    :: AbstractArray{Float64, 3}
-    TFLUX_CONV_h  :: AbstractArray{Float64, 3}
-    SFLUX_CONV    :: AbstractArray{Float64, 3}
-    SFLUX_CONV_h  :: AbstractArray{Float64, 3}
-
-    ∇∇T      :: AbstractArray{Float64, 3}     
-    ∇∇S      :: AbstractArray{Float64, 3}     
-
-    # Radiation Scheme
-    # The parameterization is referenced to Paulson and Simpson (1977).
-    # I made assumption that ζ1→0.0 as adapted in Oberhuber (1993).
-    # This means `R` portion of the irradiance is going to be treated
-    # as surface heat fluxes (δ like absorption).
-    # 
-    # Reference: 
-    #
-    # 1. Oberhuber, J. M. (1993). Simulation of the Atlantic circulation with a coupled sea
-    #    ice-mixed layer-isopycnal general circulation model. Part I: Model description.
-    #    Journal of Physical Oceanography, 23(5), 808-829.
-    #
-    # 2. Paulson, C. A., & Simpson, J. J. (1977). Irradiance measurements in the upper ocean.
-    #    Journal of Physical Oceanography, 7(6), 952-956.
-    #
-    R               :: Float64   # Fast absorption portion of sunlight.
-    ζ               :: Float64   # Light penetration depth of DO ( = ζ2 in Paulson and Simpson (1977) )
-
-    rad_decay_coes  :: Union{AbstractArray{Float64, 3}, Nothing}
-    rad_absorp_coes :: Union{AbstractArray{Float64, 3}, Nothing}
-    
-
-    # Climatology states
-    Ts_clim_relax_time :: Union{Float64, Nothing}
-    Ss_clim_relax_time :: Union{Float64, Nothing}
-
-    Ts_clim  :: Union{AbstractArray{Float64, 3}, Nothing}
-    Ss_clim  :: Union{AbstractArray{Float64, 3}, Nothing}
-
-    # Derived quantities
-    N_ocs  :: Integer           # Number of columns
-    hs     :: AbstractArray{Float64, 3} # Thickness of layers
-    Δzs    :: AbstractArray{Float64, 3} # Δz between layers
-
-    in_flds :: InputFields
-
-    lays :: Union{Nothing, NamedTuple}
-    cols :: Union{Nothing, NamedTuple}
-
-    # Accumulative variables
-    acc_vars :: Union{AccumulativeVariables, Nothing}
-
-
-    ASUM :: Union{AdvectionSpeedUpMatrix, Nothing}
-    workspace1    :: AbstractArray{Float64, 3}
-    workspace2    :: AbstractArray{Float64, 3}
-    workspace3    :: AbstractArray{Float64, 3}
-
-
-    function Ocean(;
-        id       :: Integer = 0,  
-        gridinfo_file :: AbstractString,
-        sub_yrng :: Union{UnitRange, Nothing} = nothing,
-        Nx       :: Integer,
-        Ny       :: Integer,
-        zs_bone  :: AbstractArray{Float64, 1},
-        Ts       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
-        Ss       :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Float64},
-        K_v      :: Float64 = 1e-2,
-        Dh_T     :: Float64 = 1e3,
-        Dv_T     :: Float64 = 1e-5,
-        Dh_S     :: Float64 = 1e3,
-        Dv_S     :: Float64 = 1e-5,
-        T_ML     :: Union{AbstractArray{Float64, 2}, Float64},
-        S_ML     :: Union{AbstractArray{Float64, 2}, Float64},
-        h_ML     :: Union{AbstractArray{Float64, 2}, Float64, Nothing},
-        h_ML_min :: Union{AbstractArray{Float64, 2}, Float64} = 10.0,
-        h_ML_max :: Union{AbstractArray{Float64, 2}, Float64},
-        we_max   :: Float64 =  1e-2,
-        R        :: Float64 =  0.58,  # See Paulson and Simpson (1977) Type I clear water
-        ζ        :: Float64 = 23.00,  # See Paulson and Simpson (1977) Type I clear water
-        Ts_clim_relax_time :: Union{Float64, Nothing},
-        Ss_clim_relax_time :: Union{Float64, Nothing},
-        Ts_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
-        Ss_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
-        topo     :: Union{AbstractArray{Float64, 2}, Nothing},
-        fs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
-        ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = 1e-5,
-        in_flds  :: Union{InputFields, Nothing} = nothing,
-        arrange  :: Symbol = :zxy,
-        do_convective_adjustment :: Bool = false,
-        verbose  :: Bool = false,
+    function TmdState(
+        env :: TmdEnv,
     )
-        # Determine whether data should be local or shared (parallelization)
-        datakind = ( id == 0 ) ? (:shared) : (:local)
 
 
         # ===== [BEG] GridInfo =====
 
-        gridinfo = nothing
-        mi = ModelMap.MapInfo{Float64}(gridinfo_file)
 
-        _mask = allocate(datakind, Float64, Nx, Ny)
-
-        # mask =>   lnd = 0, ocn = 1
-
-
-
-        if id == 0
-            
-            gridinfo = DisplacedPoleCoordinate.GridInfo(
-                Re,
-                mi.nx,
-                mi.ny,
-                mi.xc,
-                mi.yc,
-                mi.xv,
-                mi.yv,
-                mi.area;
-                angle_unit=:deg,
-            )
-            _mask .= mi.mask
-            
-        else
-            if sub_yrng == nothing
-                thorw(ErrorException("Init worker ocean, sub_yrng must be provided."))
-            end
-
-
-
-            gridinfo = DisplacedPoleCoordinate.GridInfo(
-                Re,
-                mi.nx,
-                mi.ny,
-                mi.xc,
-                mi.yc,
-                mi.xv,
-                mi.yv,
-                mi.area;
-                angle_unit=:deg,
-                sub_yrng=sub_yrng,
-            )
-            
-            _mask .= view(mi.mask, :, sub_yrng)
-           
-        end
+        gi = en.gi
 
         mask_idx = (_mask .== 1.0)
         # ===== [END] GridInfo =====

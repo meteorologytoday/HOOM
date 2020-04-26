@@ -1,6 +1,7 @@
 
+
 function advectTracer!(
-    model   :: Model,
+    model   :: TmdModel,
     Δt      :: Float64,
 )
 

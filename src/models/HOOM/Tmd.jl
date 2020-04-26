@@ -1,14 +1,7 @@
+include("../../share/PolelikeCoordinate.jl")
+include("../../share/MapInfo.jl")
 
 module Tmd
-
-    using Formatting
-    using LinearAlgebra    
-    using ..PolelikeCoordinate
-    using Statistics: mean
-
-    include("../../share/constants.jl")
-    include("../../share/ocean_state_function.jl")
-
 
     @inline function cyc(i::Int64, N::Int64)
         return mod(i-1, N) + 1
@@ -19,9 +12,7 @@ module Tmd
         b :: AbstractArray{Float64, 2},
         c :: AbstractArray{Float64, 2},
     )
-
         mul!(view(a, :), b, view(c, :))
-
     end
  
     @inline function mul3!(
@@ -29,17 +20,24 @@ module Tmd
         b :: AbstractArray{Float64, 2},
         c :: AbstractArray{Float64, 3},
     )
-
         for k=1:size(a)[3]
-            
             mul!(
                 view(view(a, :, :, k), :),
                 b,
                 view(view(c, :, :, k), :),
             )
         end
-
     end
+
+
+    using Formatting
+    using LinearAlgebra    
+    using ..PolelikeCoordinate
+    using ..ModelMap
+    using Statistics: mean
+
+    include("../../share/constants.jl")
+    include("../../share/ocean_state_function.jl")
 
     include("AdvectionSpeedUpMatrix.jl")
     include("TmdEnv.jl")
