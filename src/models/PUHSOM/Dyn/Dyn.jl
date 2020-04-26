@@ -1,23 +1,14 @@
-
 module Dyn
+
     using Formatting
     using LinearAlgebra    
     using ..PolelikeCoordinate
     using Statistics: mean
-    include("../../share/constants.jl")
-    include("../../share/ocean_state_function.jl")
+
+    include("../../../share/constants.jl")
 
 
 
-    function allocate(datakind::Symbol, dtype::DataType, dims... ; func=Main.zeros)
-        if datakind == :local
-            return func(dtype, dims...)
-        elseif datakind == :shared
-            return SharedArray{dtype}(dims...)
-        else
-            ErrorException("Unknown kind: " * string(datakind)) |> throw
-        end
-    end
 
     @inline function mul2!(
         a :: AbstractArray{Float64, 2},
@@ -53,9 +44,8 @@ module Dyn
     end
    
 
-    include("MatrixOperators.jl")
+    include("../MatrixOperators.jl")
     include("VerticalAverager.jl")
-    include("AdvectionSpeedUpMatrix.jl")
     include("AdvectionSpeedUpMatrix_dyn.jl")
     include("PhiSolver.jl")
     include("Workspace.jl")
@@ -65,10 +55,10 @@ module Dyn
     include("DynState.jl")
     include("DynCore.jl")
     include("DynModel.jl")
-    include("step_dyn_adv.jl")
+    include("step_model.jl")
 
 
-    include("var_list.jl")
+    include("varlist.jl")
 
     macro loop_hor(ocn, idx1, idx2, stmts)
         return :( for grid_idx in 1:size($(esc(ocn)).valid_idx)[2]

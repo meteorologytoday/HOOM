@@ -16,14 +16,16 @@ function init!(
 
     @sync let
         @spawnat job_dist_info.dyn_slave_pid let
-            include("DynSlave.jl")
-            global dyn_slave = DynSlave(ocn_env, shared_data)
+            global dyn_slave = PUHSOM.DynSlave(ocn_env, shared_data)
         end
 
-        for pid in job_dist_info.tmd_slave_pids
+        for (p, pid) in enumerate(job_dist_info.tmd_slave_pids)
             @spawnat pid let
-                include("TmdSlave.jl")
-                global tmd_slave = TmdSlave(ocn_env, shared_data)
+                global tmd_slave = PUHSOM.TmdSlave(
+                    ocn_env,
+                    shared_data,
+                    job_dist_info.y_split_infos[p],
+                )
             end
         end
     end

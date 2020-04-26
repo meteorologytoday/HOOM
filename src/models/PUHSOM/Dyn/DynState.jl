@@ -43,30 +43,30 @@ mutable struct DynState
         Nz_c = env.Nz_c
         Nz_f = env.Nz_f
 
-        u_c = allocate(datakind, Float64, Nx, Ny, Nz_c)
-        v_c = allocate(datakind, Float64, Nx, Ny+1, Nz_c)
+        u_c =  zeros(Float64, Nx, Ny, Nz_c)
+        v_c =  zeros(Float64, Nx, Ny+1, Nz_c)
 
-        u_f = allocate(datakind, Float64, Nx, Ny, Nz_f)
-        v_f = allocate(datakind, Float64, Nx, Ny+1, Nz_f)
-        w_f = allocate(datakind, Float64, Nz_f+1, Nx, Ny)
+        u_f =  zeros(Float64, Nx, Ny, Nz_f)
+        v_f =  zeros(Float64, Nx, Ny+1, Nz_f)
+        w_f =  zeros(Float64, Nz_f+1, Nx, Ny)
 
-        b_c = allocate(datakind, Float64, Nx, Ny, Nz_c)
-        b_f = allocate(datakind, Float64, Nx, Ny, Nz_f)
+        b_c =  zeros(Float64, Nx, Ny, Nz_c)
+        b_f =  zeros(Float64, Nx, Ny, Nz_f)
         
         NX = 2 + env.NX_passive
-        X = allocate(datakind, Float64, Nx, Ny, Nz_f, NX)
+        X =  zeros(Float64, Nx, Ny, Nz_f, NX)
         T = view(X, :, :, :, 1)
         S = view(X, :, :, :, 2)
 
-        Φ = allocate(datakind, Float64, Nx, Ny)
+        Φ =  zeros(Float64, Nx, Ny)
         
-        U = allocate(datakind, Float64, Nx, Ny  )
-        V = allocate(datakind, Float64, Nx, Ny+1)
-        B = allocate(datakind, Float64, Nx, Ny)
+        U =  zeros(Float64, Nx, Ny  )
+        V =  zeros(Float64, Nx, Ny+1)
+        B =  zeros(Float64, Nx, Ny)
 
-        u = allocate(datakind, Float64, Nx, Ny, Nz_c)
-        v = allocate(datakind, Float64, Nx, Ny+1, Nz_c)
-        b = allocate(datakind, Float64, Nx, Ny, Nz_c)
+        u =  zeros(Float64, Nx, Ny, Nz_c)
+        v =  zeros(Float64, Nx, Ny+1, Nz_c)
+        b =  zeros(Float64, Nx, Ny, Nz_c)
 
         τx = copy(Φ)
         τy = copy(Φ)

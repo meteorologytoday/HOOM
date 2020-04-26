@@ -11,7 +11,6 @@ end
 
 mutable struct JobDistributionInfo
 
-    env     :: OcnEnv
     overlap :: Int64
     pids    :: AbstractArray{Integer, 1}
     
@@ -65,7 +64,6 @@ mutable struct JobDistributionInfo
         end
       
         return new(
-            env,
             overlap,
             pids,
             dyn_slave_pid,

@@ -1,4 +1,4 @@
-include("HOOM.jl")
+include("PUHSOM.jl")
 
 Nz_f = 20
 Nz_c = 3
@@ -6,10 +6,9 @@ Nz_c = 3
 hrgrid_file = "/seley/tienyiah/CESM_domains/domain.ocn.gx1v6.090206.nc"
 topo_file = "/seley/tienyiah/CESM_domains/ocean_topog_gx1v6.nc"
 
-ocn_env = HOOM.OcnEnv(
+ocn_env = PUHSOM.OcnEnv(
     hrgrid_file,
     topo_file,
-    "bg_TS.nc",
     3600.0,
     24,
     8,
@@ -23,13 +22,18 @@ ocn_env = HOOM.OcnEnv(
     1e-3,
     [1e-3, 1e-3], 
     [1e-3, 1e-3], 
-    10.0,
-    1000.0,
     0.48,
     23.0,
+    1e-2,
+    [10.0, 1000.0],
+    ["T.nc", "S.nc"],
+    ["T", "S"],
+    [NaN, NaN],
+    "exponential_decay",
+    true,
 )
 
 
-model = HOOM.Model()
+model = PUHSOM.Model()
 
-HOOM.init!(model; ocn_env=ocn_env)
+PUHSOM.init!(model; ocn_env=ocn_env)

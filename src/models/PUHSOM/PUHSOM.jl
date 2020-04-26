@@ -1,16 +1,20 @@
 using Distributed
 
+@everywhere include("../../share/PolelikeCoordinate.jl")
+@everywhere include("../../share/MapInfo.jl")
+@everywhere include("Dyn/Dyn.jl")
+@everywhere include("Tmd/Tmd.jl")
+
 @everywhere module PUHSOM
 
-    include("include_packages.jl")
-
-
-    include("../../share/MapInfo.jl")
-    include("../../share/PolelikeCoordinate.jl")
-    #include("../../share/PolelikeCoordinate.jl")
-    include("../../share/constants.jl")
-    #include("../../share/ocean_state_function.jl")
-
+    using Formatting
+    using SharedArrays
+    using Distributed
+    using NCDatasets
+    using ..Dyn
+    using ..Tmd
+    using ..ModelMap
+    using ..PolelikeCoordinate
 
     include("OcnEnv.jl")
     include("SharedData.jl")
@@ -19,12 +23,8 @@ using Distributed
    
     include("core_func.jl")
 
-
-    # Sub models
-    include("Dyn.jl")
-
     # Slave
     include("DynSlave.jl")
-    #include("DynSlave.jl")
+    include("TmdSlave.jl")
 
 end

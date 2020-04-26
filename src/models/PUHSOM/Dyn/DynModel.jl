@@ -6,13 +6,15 @@ mutable struct DynModel
     
     
     function DynModel(;
-        gi,
+        gi :: PolelikeCoordinate.GridInfo,
         Δt,
         z_bnd_f, height_level_counts,
         NX_passive=0,
         mask=nothing,
     )
 
+        #println(">>>???")
+        #println( Main.PolelikeCoordinate.CurvilinearSphericalGridInfo <: Main.PolelikeCoordinate.GridInfo)
       
         env = DynEnv(;
             Δt = Δt,

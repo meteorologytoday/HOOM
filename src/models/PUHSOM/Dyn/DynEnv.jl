@@ -42,7 +42,7 @@ mutable struct DynEnv
     mask :: AbstractArray{Float64, 2}     # where mixed layer model is active 
 
     function DynEnv(;
-        gi                  :: PolelikeCoordinate.GridInfo,
+        gi                  :: PolelikeCoordinate.CurvilinearSphericalGridInfo,
         Δt                  :: Float64,
         Nx                  :: Int64,
         Ny                  :: Int64,
@@ -51,7 +51,7 @@ mutable struct DynEnv
         NX_passive          :: Int64 = 0,
         mask                :: Union{AbstractArray{Float64, 2}, Nothing} = nothing,
     )
-
+ 
         z_bnd_f = copy(z_bnd_f)
         Nz_f = length(z_bnd_f) - 1
 
@@ -87,7 +87,7 @@ mutable struct DynEnv
             H_c,
             H_f,
             sum(H_f),
-            g*sum(H_f),
+            g * sum(H_f),
             NX, NX_passive,
             mask,
         ) 

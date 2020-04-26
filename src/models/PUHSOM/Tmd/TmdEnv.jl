@@ -175,8 +175,7 @@ mutable struct TmdEnv
 
             X_wr = zeros(Float64, Nz, Nx, Ny, NX)
 
-        elseif size(X_wr) != (Nz, Ny, Nx, NX)
-
+        elseif size(X_wr) != (Nz, Nx, Ny, NX)
                 throw(ErrorException("Invalid size of weak restoration profiles." * string(size(X_wr))))
 
         end
@@ -260,11 +259,13 @@ mutable struct TmdEnv
         # Check if there is any hole in climatology 
        
         for x=1:NX
-            checkDataHoles3(
-                mask3   = mask3,
-                data    = view(X_wr, :, :, :, x),
-                varname = format("{:02d}", x),
-            )
+            if ! isnan(t_X_wr[x])
+                checkDataHoles3(
+                    mask3   = mask3,
+                    data    = view(X_wr, :, :, :, x),
+                    varname = format("{:02d}", x),
+                )
+            end
         end
 
         # ===== [END] check integrity =====

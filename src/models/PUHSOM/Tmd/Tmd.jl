@@ -1,6 +1,3 @@
-include("../../../share/PolelikeCoordinate.jl")
-include("../../../share/MapInfo.jl")
-
 module Tmd
 
     @inline function cyc(i::Int64, N::Int64)
@@ -36,8 +33,6 @@ module Tmd
     using ..ModelMap
     using Statistics: mean
 
-    include("../../../share/constants.jl")
-    include("../../../share/ocean_state_function.jl")
 
     include("Workspace.jl")
     include("AdvectionSpeedUpMatrix.jl")

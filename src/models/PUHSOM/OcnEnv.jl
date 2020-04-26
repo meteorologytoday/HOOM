@@ -1,8 +1,7 @@
 mutable struct OcnEnv
    
-    hrgrid_file  :: AbstractString
-    topo_file  :: AbstractString
-    bg_TS_file :: AbstractString
+    hrgrid_file   :: AbstractString
+    topo_file     :: AbstractString
 
     Δt :: Float64
     substep_dyn :: Int64
@@ -33,11 +32,6 @@ mutable struct OcnEnv
     Kh_X :: AbstractArray{Float64, 1}  # Horizontal diffusion coe of tracers
     Kv_X :: AbstractArray{Float64, 1}  # Vertical   diffusion coe of tracers
 
-    # mld_min, mld_max here are just one numbers.
-    # when used in mld core, they will be truncated according to each grid's topography
-    mld_min :: Float64    # minimum value of mixed-layer depth
-    mld_max :: Float64    # maximum value of mixed-layer depth
-    
     # Radiation Scheme
     # The parameterization is referenced to Paulson and Simpson (1977).
     # I made assumption that ζ1→0.0 as adapted in Oberhuber (1993).
@@ -65,27 +59,42 @@ mutable struct OcnEnv
     
     #mask3      :: AbstractArray{Float64, 3}     # where ocean grid is active in 3D grid
 
+    we_max                :: Float64
+    MLT_rng               :: AbstractArray{Float64, 1}
+
+    X_wr_file             :: AbstractArray{AbstractString, 1}
+    X_wr_varname          :: AbstractArray{AbstractString, 1}
+    t_X_wr                :: AbstractArray{Float64, 1}
+
+    radiation_scheme      :: AbstractString
+    convective_adjustment :: Bool
+
+
     function OcnEnv(
-        hrgrid_file :: String,
-        topo_file :: String,
-        bg_TS_file :: String,
-        Δt :: Float64,
-        substep_dyn,
-        substep_tmd,
-        Nz_f :: Int64,
-        Nz_c :: Int64,
-        z_bnd_f :: AbstractArray{Float64, 1},
-        height_level_counts :: AbstractArray{Int64, 1},
-        NX_passive :: Int64,
-        deep_threshold :: Float64,
-        Kh_m  :: Float64,
-        Kv_m  :: Float64,
-        Kh_X  :: AbstractArray{Float64, 1},
-        Kv_X  :: AbstractArray{Float64, 1},
-        mld_min :: Float64,
-        mld_max :: Float64,
-        R       :: Float64,
-        ζ       :: Float64,
+        hrgrid_file           :: String,
+        topo_file             :: String,
+        Δt                    :: Float64,
+        substep_dyn           :: Int64,
+        substep_tmd           :: Int64,
+        Nz_f                  :: Int64,
+        Nz_c                  :: Int64,
+        z_bnd_f               :: AbstractArray{Float64, 1},
+        height_level_counts   :: AbstractArray{Int64, 1},
+        NX_passive            :: Int64,
+        deep_threshold        :: Float64,
+        Kh_m                  :: Float64,
+        Kv_m                  :: Float64,
+        Kh_X                  :: AbstractArray{Float64, 1},
+        Kv_X                  :: AbstractArray{Float64, 1},
+        R                     :: Float64,
+        ζ                     :: Float64,
+        we_max                :: Float64,
+        MLT_rng               :: AbstractArray{Float64, 1},
+        X_wr_file             :: AbstractArray{String, 1},
+        X_wr_varname          :: AbstractArray{String, 1},
+        t_X_wr                :: AbstractArray{Float64, 1},
+        radiation_scheme      :: AbstractString,
+        convective_adjustment :: Bool,
     )
 
         local topo
@@ -113,10 +122,23 @@ mutable struct OcnEnv
 
         NX = NX_passive + 2   # 1 = T, 2 = S 
 
+
+        if !( NX == length(X_wr_varname) == length(X_wr_file) == length(t_X_wr))
+            throw(ErrorException("Length of t_X_wr, X_wr_file, X_wr_varname should be equal to NX = NX_passive + 2"))
+        end
+
+        for (i, t) in enumerate(t_X_wr)
+            if isnan(t)
+                println("No relaxation for tracer ",  i) 
+            elseif t < 0
+                throw(ErrorException("Relaxation time should be non-negative."))
+            end
+        end
+
+
         return new(
             hrgrid_file,
             topo_file,
-            bg_TS_file,
             Δt,
             substep_dyn,
             substep_tmd,
@@ -133,13 +155,20 @@ mutable struct OcnEnv
             Kv_m,
             Kh_X,
             Kv_X,
-            mld_min,
-            mld_max,
             R,
             ζ,
             mask2,
             mask2_deep,
             topo,
+            we_max,
+            MLT_rng,
+
+            X_wr_file,
+            X_wr_varname,
+            t_X_wr,
+
+            radiation_scheme,
+            convective_adjustment,
         )
 
     end
@@ -161,7 +190,6 @@ function saveOcnEnv(
 
         ds.attrib["hrgrid_file"] = env.hrgrid_file
         ds.attrib["topo_file"] = env.topo_file
-        ds.attrib["bg_TS_file"] = env.bg_TS_file
 
         ds.attrib["Nz_f"] = env.Nz_f
         ds.attrib["Nz_c"] = env.Nz_c
@@ -171,17 +199,22 @@ function saveOcnEnv(
         ds.attrib["deep_threshold"] = env.deep_threshold
         ds.attrib["Kh_m"] = env.Kh_m
         ds.attrib["Kv_m"] = env.Kv_m
-        ds.attrib["mld_min"] = env.mld_min
-        ds.attrib["mld_max"] = env.mld_max
+        ds.attrib["MLT_min"] = minimum(env.MLT_rng)
+        ds.attrib["MLT_max"] = maximum(env.MLT_rng)
         ds.attrib["R"] = env.R
         ds.attrib["zeta"] = env.zeta
 
+        ds.attrib["X_wr_file"]             = join(env.X_wr_file,    ",")
+        ds.attrib["X_wr_varname"]          = join(env.X_wr_varname, ",")
+        ds.attrib["radiation_scheme"]      = env.radiation_scheme
+        ds.attrib["convective_adjustment"] = env.convective_adjustment
         
         for (varname, vardata, vardim, attrib) in [
             ("z_bnd_f",             env.z_bnd_f,             ("Nz_fW",), Dict()),
             ("height_level_counts", env.height_level_counts, ("Nz_c",),  Dict()),
             ("Kh_X",                env.Kh_X,                ("NX",),  Dict()),
             ("Kv_X",                env.Kv_X,                ("NX",),  Dict()),
+            ("t_X_wr",              env.t_X_wr,              ("NX",),  Dict()),
         ] 
 
             if ! haskey(ds, varname)
@@ -216,7 +249,6 @@ function loadOcnEnv(
         env = OcnEnv(
             ds.attrib["hrgrid_file"],
             ds.attrib["topo_file"],
-            ds.attrib["bg_TS_file"],
             ds.attrib["Nz_f"],
             ds.attrib["Nz_c"],
             ds["z_bnd_f"][:] |> nomissing,
@@ -228,8 +260,6 @@ function loadOcnEnv(
             ds.attrib["Kv_m"],
             ds["Kh_X"][:] |> nomissing,
             ds["Kv_X"][:] |> nomissing,
-            ds.attrib["mld_min"],
-            ds.attrib["mld_max"],
             ds.attrib["R"],
             ds.attrib["zeta"],
         )

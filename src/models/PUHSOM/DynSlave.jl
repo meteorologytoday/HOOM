@@ -1,3 +1,6 @@
+
+include("../../share/constants.jl")
+
 mutable struct DynSlave
 
     model        :: Dyn.DynModel
