@@ -1,45 +1,36 @@
-
-
 function advectTracer!(
     model   :: TmdModel,
-    Δt      :: Float64,
 )
 
+
+    Δt = model.env.Δt
+
     state = model.state
-    tcr_adv = model.tcr_adv
-    env = model.env
+    core  = model.core
+    env   = model.env
+    wksp  = core.wksp
 
 
+    div   = getSpace!(wksp, :T)
+    tmp_T = getSpace!(wksp, :T)
 
     calDIV!(
-        ASUM = tcr_adv.ASUM,
-        u_bnd = state.u_f,
-        v_bnd = state.v_f,
-        div   = tcr_adv.div,
-        workspace = tcr_adv.workspaces[1]
+        ASUM = core.ASUM,
+        u_bnd = state.u_U,
+        v_bnd = state.v_V,
+        div   = div,
+        workspace = tmp_T
     )
-    #=
-    calDIV!(
-        gi    = env.gi,
-        Nx    = env.Nx,
-        Ny    = env.Ny,
-        Nz    = env.Nz_av_f,
-        u_bnd = state.u_f,
-        v_bnd = state.v_f,
-        div   = tcr_adv.div,
-        mask3 = env.mask3_f,
-    )
-    =#
 
     calVerVelBnd!(
         gi    = env.gi,
         Nx    = env.Nx,
         Ny    = env.Ny,
-        Nz    = env.Nz_av_f,
-        w_bnd = state.w_f,
-        hs    = env.H_f,
-        div   = tcr_adv.div,
-        mask3 = env.mask3_f,
+        Nz    = env.Nz_av,
+        w_bnd = state.w_W,
+        hs    = core.dz_W,
+        div   = div,
+        mask3 = env.mask3,
     )
    
 
@@ -47,87 +38,111 @@ function advectTracer!(
     # 1. calculate tracer flux
     # 2. calculate tracer flux divergence
     calDiffAdv_QUICKEST_SpeedUp!(model, Δt)
-    for x=1:env.NX
-        for i = 1:env.Nx, j=1:env.Ny
-            for k = 1:env.Nz_av_f[i, j]
-                state.X[k, i, j, x] += Δt * tcr_adv.XFLUX_CONV[k, i, j, x]
+
+#=
+    for x=1:env.NX, i = 1:env.Nx, j=1:env.Ny
+            for k = 1:env.Nz_av[i, j]
+                state.X[k, i, j, x] += Δt * core.XFLUX_CONV[k, i, j, x]
             end
+    end
+=#
+    let
+        for x=1:env.NX
+            tmp_T .= view(core.XFLUX_CONV, :, :, :, x)
+            tmp_T .*= Δt
+            state.X[:, :, :, x] .+= tmp_T
         end
     end
 
 end
 
 function calDiffAdv_QUICKEST_SpeedUp!(
-    model       :: Model,
+    model       :: TmdModel,
     Δt          :: Float64,
 )
    
-    tcr_adv = model.tcr_adv
+    core = model.core
     env     = model.env
     state   = model.state
-    ASUM    = tcr_adv.ASUM
-    workspaces = tcr_adv.workspaces
+    ASUM    = core.ASUM
+    wksp    = core.wksp
+
+    GRAD_bnd_x = getSpace!(wksp, :U)
+    GRAD_bnd_y = getSpace!(wksp, :V)
+    GRAD_bnd_z = getSpace!(wksp, :W)
+        
+    CURV_x = getSpace!(wksp, :T)
+    CURV_y = getSpace!(wksp, :T)
+    CURV_z = getSpace!(wksp, :T)
+        
+    tmp1 = getSpace!(wksp, :T)
+    tmp2 = getSpace!(wksp, :T)
+    tmp3 = getSpace!(wksp, :T)
 
     for x=1:env.NX
  
-        X            = view(model.state.X,        :, :, :, x)
-        XFLUX_bot    = view(tcr_adv.XFLUX_bot,       :, :, x)
-        XFLUX_CONV   = view(tcr_adv.XFLUX_CONV,   :, :, :, x)
-        XFLUX_CONV_h = view(tcr_adv.XFLUX_CONV_h, :, :, :, x)
-        XFLUX_DEN_x  = view(tcr_adv.XFLUX_DEN_x,  :, :, :, x)
-        XFLUX_DEN_y  = view(tcr_adv.XFLUX_DEN_y,  :, :, :, x)
-        XFLUX_DEN_z  = view(tcr_adv.XFLUX_DEN_z,  :, :, :, x)
+        X            = view(model.state.X,     :, :, :, x)
+
+        XFLUX_bot    = view(core.XFLUX_bot,       :, :, x)
+        XFLUX_CONV   = view(core.XFLUX_CONV,   :, :, :, x)
+        XFLUX_CONV_h = view(core.XFLUX_CONV_h, :, :, :, x)
+        XFLUX_DEN_x  = view(core.XFLUX_DEN_x,  :, :, :, x)
+        XFLUX_DEN_y  = view(core.XFLUX_DEN_y,  :, :, :, x)
+        XFLUX_DEN_z  = view(core.XFLUX_DEN_z,  :, :, :, x)
 
         let
-            mul!(view(tcr_adv.GRAD_bnd_x, :), ASUM.mtx_GRAD_X, view(X, :))
-            mul!(view(tcr_adv.GRAD_bnd_y, :), ASUM.mtx_GRAD_Y, view(X, :))
-            mul!(view(tcr_adv.GRAD_bnd_z, :), ASUM.mtx_GRAD_Z, view(X, :))
+            mul!(view(GRAD_bnd_x, :), ASUM.mtx_GRAD_X, view(X, :))
+            mul!(view(GRAD_bnd_y, :), ASUM.mtx_GRAD_Y, view(X, :))
+            mul!(view(GRAD_bnd_z, :), ASUM.mtx_GRAD_Z, view(X, :))
      
-            mul!(view(tcr_adv.CURV_x, :), ASUM.mtx_CURV_X, view(tcr_adv.GRAD_bnd_x, :))
-            mul!(view(tcr_adv.CURV_y, :), ASUM.mtx_CURV_Y, view(tcr_adv.GRAD_bnd_y, :))
-            mul!(view(tcr_adv.CURV_z, :), ASUM.mtx_CURV_Z, view(tcr_adv.GRAD_bnd_z, :))
+            mul!(view(CURV_x, :), ASUM.mtx_CURV_X, view(GRAD_bnd_x, :))
+            mul!(view(CURV_y, :), ASUM.mtx_CURV_Y, view(GRAD_bnd_y, :))
+            mul!(view(CURV_z, :), ASUM.mtx_CURV_Z, view(GRAD_bnd_z, :))
      
         end
 
+        #println("Flux Density")
         calFluxDensity!(
             gi         = env.gi,
             Nx         = env.Nx,
             Ny         = env.Ny,
-            Nz         = env.Nz_av_f,
+            Nz         = env.Nz_av,
             FLUX_bot   = XFLUX_bot,
             qs         = X,
-            GRAD_bnd_x = tcr_adv.GRAD_bnd_x,
-            GRAD_bnd_y = tcr_adv.GRAD_bnd_y,
-            GRAD_bnd_z = tcr_adv.GRAD_bnd_z,
-            CURV_x     = tcr_adv.CURV_x,
-            CURV_y     = tcr_adv.CURV_y,
-            CURV_z     = tcr_adv.CURV_z,
+            GRAD_bnd_x = GRAD_bnd_x,
+            GRAD_bnd_y = GRAD_bnd_y,
+            GRAD_bnd_z = GRAD_bnd_z,
+            CURV_x     = CURV_x,
+            CURV_y     = CURV_y,
+            CURV_z     = CURV_z,
             FLUX_DEN_x = XFLUX_DEN_x,
             FLUX_DEN_y = XFLUX_DEN_y,
             FLUX_DEN_z = XFLUX_DEN_z,
-            u_bnd      = state.u_f,
-            v_bnd      = state.v_f,
-            w_bnd      = state.w_f,
-            mask3          = env.mask3_f,
-            noflux_x_mask3 = env.noflux_x_mask3_f,
-            noflux_y_mask3 = env.noflux_y_mask3_f,
-            Δzs        = env.Δz_f,
-            D_hor      = env.Dh[x],
-            D_ver      = env.Dv[x],
+            u_bnd      = state.u_U,
+            v_bnd      = state.v_V,
+            w_bnd      = state.w_W,
+            mask3          = env.mask3,
+            noflux_x_mask3 = env.noflux_x_mask3,
+            noflux_y_mask3 = env.noflux_y_mask3,
+            Δzs        = core.dz_T,
+            D_hor      = env.Kh_X[x],
+            D_ver      = env.Kv_X[x],
             Δt         = Δt,
         )
+
+    
 
 
    #println("TOTAL CHANGE")
         let
             mul!(view(XFLUX_CONV_h, :), ASUM.mtx_DIV_X, view(XFLUX_DEN_x, :))
-            mul!(view(workspaces[2], :),   ASUM.mtx_DIV_Y, view(XFLUX_DEN_y, :))
-            mul!(view(workspaces[3], :),   ASUM.mtx_DIV_Z, view(XFLUX_DEN_z, :))
+            mul!(view(tmp1, :),   ASUM.mtx_DIV_Y, view(XFLUX_DEN_y, :))
+            mul!(view(tmp2, :),   ASUM.mtx_DIV_Z, view(XFLUX_DEN_z, :))
 
-            XFLUX_CONV_h .+= workspaces[2]
+            XFLUX_CONV_h .+= tmp1
             XFLUX_CONV_h .*= -1.0
             XFLUX_CONV .= XFLUX_CONV_h 
-            XFLUX_CONV .-= workspaces[3]
+            XFLUX_CONV .-= tmp2
 
     #        for j=1:ocn.Ny, i=1:ocn.Nx, k=1:ocn.Nz_bone
     #            FLUX_CONV_h[k, i, j] = - ( ocn.workspace1[k, i, j] + ocn.workspace2[k, i, j] )

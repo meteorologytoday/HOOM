@@ -1,11 +1,15 @@
 mutable struct TmdEnv
     
-    gi       :: Union{PolelikeCoordinate.GridInfo, Nothing}
+    gi         :: Union{PolelikeCoordinate.GridInfo, Nothing}
 
-    Nx       :: Integer           # Number of columns in i direction
-    Ny       :: Integer           # Number of columns in j direction
-    Nz  :: Integer           # Number of layers  in k direction
-    
+    Δt         :: Float64
+
+    Nx         :: Int64           # Number of columns in i direction
+    Ny         :: Int64           # Number of columns in j direction
+    Nz         :: Int64           # Number of layers  in k direction
+    NX         :: Int64   
+    NX_passive :: Int64
+ 
     z_bnd  :: AbstractArray{Float64, 1} # Unmasked z_bnd_av bone
     topo     :: AbstractArray{Float64, 2} # Depth of the topography. Negative value if it is underwater
     z_bnd_av   :: AbstractArray{Float64, 3} # Actuall z_bnd_av coordinate masked by topo
@@ -164,7 +168,7 @@ mutable struct TmdEnv
         
         # ===== [END] construct h_ML limits =====
 
-        NX = NX_passive + 2
+        NX = NX_passive + 2   # T, S, b
 
 
         if X_wr == nothing
@@ -267,7 +271,8 @@ mutable struct TmdEnv
 
         ocn = new(
             gi,
-            Nx, Ny, Nz,
+            Δt,
+            Nx, Ny, Nz, NX, NX_passive,
             z_bnd, topo,
             z_bnd_av, Nz_av,
 

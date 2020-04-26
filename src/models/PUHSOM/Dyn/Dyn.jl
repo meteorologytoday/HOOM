@@ -85,9 +85,8 @@ module Dyn
     function stepModel!(
         model :: DynModel,
     )
-
+        reset!(model.core.wksp)
         #setupFlow!(model.state)
-        
         #advectTracer!(model, Δt)
         advectDynamic!(model)
 

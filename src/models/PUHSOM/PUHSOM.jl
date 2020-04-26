@@ -1,6 +1,6 @@
 using Distributed
 
-@everywhere module HOOM
+@everywhere module PUHSOM
 
     include("include_packages.jl")
 

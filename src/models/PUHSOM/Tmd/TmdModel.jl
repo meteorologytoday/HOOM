@@ -45,7 +45,7 @@ mutable struct TmdModel
         state = TmdState(env)
         core  = TmdCore(env, state)
 
-        return(
+        return new(
             env, state, core
         )
 

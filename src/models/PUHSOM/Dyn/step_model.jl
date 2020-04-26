@@ -31,7 +31,7 @@ function advectDynamic!(
     state = model.state
     core  = model.core
 
-    reset!(core.wksp)
+
 
     #println("calAuxV!")
     calAuxV!(model)

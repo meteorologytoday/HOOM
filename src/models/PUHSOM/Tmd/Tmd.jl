@@ -1,5 +1,5 @@
-include("../../share/PolelikeCoordinate.jl")
-include("../../share/MapInfo.jl")
+include("../../../share/PolelikeCoordinate.jl")
+include("../../../share/MapInfo.jl")
 
 module Tmd
 
@@ -36,14 +36,18 @@ module Tmd
     using ..ModelMap
     using Statistics: mean
 
-    include("../../share/constants.jl")
-    include("../../share/ocean_state_function.jl")
+    include("../../../share/constants.jl")
+    include("../../../share/ocean_state_function.jl")
 
+    include("Workspace.jl")
     include("AdvectionSpeedUpMatrix.jl")
     include("TmdEnv.jl")
     include("TmdState.jl")
     include("TmdCore.jl")
     include("TmdModel.jl")
+
+    include("varlist.jl")
+    include("step_model.jl")
 
     macro loop_hor(ocn, idx1, idx2, stmts)
         return :( for grid_idx in 1:size($(esc(ocn)).valid_idx)[2]
@@ -60,11 +64,8 @@ module Tmd
     function stepModel!(
         model :: TmdModel,
     )
-
-        #setupFlow!(model.state)
-        
-        advectTracer!(model, Δt)
-
+        reset!(model.core.wksp)
+        advectTracer!(model)
     end
 
 
