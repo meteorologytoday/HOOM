@@ -73,3 +73,31 @@ mutable struct TmdSlave
     end
 
 end
+
+function setupBinding!(
+    slave :: TmdSlave,
+)
+
+    de = slave.data_exchanger
+    sd = slave.shared_data
+    m  = slave.model
+    s  = m.state
+    du = sd.data_units
+
+    bindings = (
+        ("u_c", s.u_c, :xyz, :u_c),
+        ("v_c", s.v_c, :xyz, :v_c),
+        ("b_c", s.b_c, :xyz, :b_c),
+    )
+
+    for (name, data_here, data_here_shape, data_there_key) in bindings
+        createBinding!(
+            de,
+            name, 
+            data_here, data_here_shape,
+            du[data_there_key].data, du[data_there_key].shape
+        )
+    end
+
+
+end
