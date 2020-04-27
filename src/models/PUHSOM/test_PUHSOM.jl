@@ -34,6 +34,4 @@ ocn_env = PUHSOM.OcnEnv(
 )
 
 
-model = PUHSOM.Model()
-
-PUHSOM.init!(model; ocn_env=ocn_env)
+PUHSOM.init!(ocn_env)

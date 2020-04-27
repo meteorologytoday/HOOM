@@ -38,6 +38,7 @@ end
 
 function regVariable!(
     sd       :: SharedData,
+    env      :: OcnEnv,
     id       :: Symbol,
     grid     :: Symbol,
     shape    :: Symbol,
@@ -55,11 +56,11 @@ function regVariable!(
 
     dim = Dict(
         :fT => [Nx  , Ny  , Nz_f],
-        :fU => [Nx+1, Ny  , Nz_f],
+        :fU => [Nx  , Ny  , Nz_f],
         :fV => [Nx  , Ny+1, Nz_f],
         :fW => [Nx  , Ny  , Nz_f+1],
         :cT => [Nx  , Ny  , Nz_c],
-        :cU => [Nx+1, Ny  , Nz_c],
+        :cU => [Nx  , Ny  , Nz_c],
         :cV => [Nx  , Ny+1, Nz_c],
         :cW => [Nx  , Ny  , Nz_c+1],
         :sT => [Nx  , Ny],

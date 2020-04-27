@@ -16,11 +16,15 @@ using Distributed
     using ..ModelMap
     using ..PolelikeCoordinate
 
+    include("Log.jl")
     include("OcnEnv.jl")
     include("SharedData.jl")
     include("JobDistributionInfo.jl")
+    include("DataExchanger.jl")
+    
+
+    # Model included last
     include("Model.jl")
-   
     include("core_func.jl")
 
     # Slave

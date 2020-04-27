@@ -1,5 +1,4 @@
 function init!(
-    model :: Model;
     ocn_env = Union{String, OceanEnv},
 )
 
@@ -8,15 +7,29 @@ function init!(
 
     shared_data    = SharedData(ocn_env)
     job_dist_info  = JobDistributionInfo(ocn_env; overlap=2)
-    
-    registerSharedData!(shared_data)
+    data_exchanger = DataExchanger()
+
+    model = Model(
+        ocn_env,
+        shared_data,
+        job_dist_info,
+        data_exchanger,
+    )
+
+    println("Register Shared Data") 
+    registerSharedData!(model)
     
     # Potential redundant: seems like shared_data is already doing this
     #ocn_state      = OcnState(shared_data)
 
+
+    println("Creating slaves on nodes")
     @sync let
         @spawnat job_dist_info.dyn_slave_pid let
             global dyn_slave = PUHSOM.DynSlave(ocn_env, shared_data)
+
+            PUHSOM.setupBinding!(dyn_slave)
+
         end
 
         for (p, pid) in enumerate(job_dist_info.tmd_slave_pids)
@@ -26,27 +39,57 @@ function init!(
                     shared_data,
                     job_dist_info.y_split_infos[p],
                 )
+
+#                PUHSOM.setupBinding!(tmd_slave)
             end
         end
     end
 
-    println("Stop here")
+    println("Slave created and data exchanger is set.")
     readline()
 
-    
-
-
-   
-    
-    slaves_init!(shared_data)
+    #=
 
     if restart_file != nothing
         loadRestart(restart_file, shared_data)
     end
+    =#
+
+    println("Testing syncing")
+    syncOcean(model, from=:master, to=:all)
     
-    syncOcean(from = :master, to=:all, shared_data)
+    println("Pass!")
+    readline()
+
 end
 
+
+function syncOcean(
+    model:: Model;
+    from :: Symbol,
+    to   :: Symbol,
+)
+
+    jdi = model.job_dist_info
+
+    @sync let
+
+        @spawnat jdi.dyn_slave_pid let
+
+            PUHSOM.syncData!(dyn_slave.data_exchanger, :pull)
+
+        end
+
+    end
+#=
+    for (p, pid) in enumerate(job_dist_info.tmd_slave_pids)
+        @spawnat pid let
+            global tmd_slave = PUHSOM.TmdSlave(
+                ocn_env,
+        end
+
+    end=#
+end
 
 #=
 function run!(
@@ -98,7 +141,7 @@ end
 
 =#
 
-function registerSharedData!(sd::SharedData)
+function registerSharedData!(model::Model)
 
     # F
     descs = (
@@ -117,6 +160,7 @@ function registerSharedData!(sd::SharedData)
         # These are used by dyn_core 
         (:u_c,   :cU, :xyz, Float64),
         (:v_c,   :cV, :xyz, Float64),
+        (:b_c,   :cT, :xyz, Float64),
         (:Phi,   :sT, :xy,  Float64),
 
         # Forcings and return fluxes to coupler
@@ -136,7 +180,7 @@ function registerSharedData!(sd::SharedData)
 
 
     for (id, grid, shape, dtype) in descs
-        regVariable!(sd, id, grid, shape, dtype)
+        regVariable!(model.shared_data, model.env, id, grid, shape, dtype)
     end
 
 

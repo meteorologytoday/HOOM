@@ -8,6 +8,8 @@ mutable struct DynSlave
     ocn_env      :: OcnEnv
     shared_data  :: SharedData
 
+    data_exchanger :: DataExchanger
+
     function DynSlave(
         ocn_env      :: OcnEnv,
         shared_data  :: SharedData,
@@ -35,12 +37,45 @@ mutable struct DynSlave
             mask    = ocn_env.mask2_deep
         )         
 
+        data_exchanger = DataExchanger()
+
         return new(
             model, 
             ocn_env,
             shared_data,
+            data_exchanger,
         )
 
     end
+
+end
+
+
+function setupBinding!(
+    slave :: DynSlave,
+)
+
+    de = slave.data_exchanger
+    sd = slave.shared_data
+    m  = slave.model
+    s  = m.state
+    du = sd.data_units
+
+    bindings = (
+        ("u_c", s.u_c, :xyz, :u_c),
+        ("v_c", s.v_c, :xyz, :v_c),
+        ("b_c", s.b_c, :xyz, :b_c),
+        ("Phi", s.Φ,   :xy , :Phi),
+    )
+
+    for (name, data_here, data_here_shape, data_there_key) in bindings
+        createBinding!(
+            de,
+            name, 
+            data_here, data_here_shape,
+            du[data_there_key].data, du[data_there_key].shape
+        )
+    end
+
 
 end

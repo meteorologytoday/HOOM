@@ -1,10 +1,12 @@
 mutable struct Model
-    env
-    shared_data
-    job_dist_info
 
-    function Model()
-        return new()
-    end
+    env            :: OcnEnv
+    shared_data    :: SharedData
+    job_dist_info  :: JobDistributionInfo
+    data_exchanger :: DataExchanger
+
+#    function Model()
+#        return new()
+#    end
 end
 
