@@ -7,13 +7,11 @@ function init!(
 
     shared_data    = SharedData(ocn_env)
     job_dist_info  = JobDistributionInfo(ocn_env; overlap=2)
-    data_exchanger = DataExchanger()
 
     model = Model(
         ocn_env,
         shared_data,
         job_dist_info,
-        data_exchanger,
     )
 
     println("Register Shared Data") 
@@ -25,13 +23,14 @@ function init!(
 
     println("Creating slaves on nodes")
     @sync let
+
         @spawnat job_dist_info.dyn_slave_pid let
             global dyn_slave = PUHSOM.DynSlave(ocn_env, shared_data)
 
             PUHSOM.setupBinding!(dyn_slave)
 
         end
-
+        
         for (p, pid) in enumerate(job_dist_info.tmd_slave_pids)
             @spawnat pid let
                 global tmd_slave = PUHSOM.TmdSlave(
@@ -40,7 +39,7 @@ function init!(
                     job_dist_info.y_split_infos[p],
                 )
 
-#                PUHSOM.setupBinding!(tmd_slave)
+                PUHSOM.setupBinding!(tmd_slave)
             end
         end
     end
@@ -143,17 +142,13 @@ end
 
 function registerSharedData!(model::Model)
 
-    # F
-    descs = (
+    descs_X = (
+        (:X,     :fT, :zxy, Float64),
+        (:X_ML,  :sT, :xy,  Float64),
+    )
+ 
+    descs_noX = (
 
-        # These are intensively used
-        # in tcr_mld_core. zxy will be
-        # much memory friendly
-        (:T,     :fT, :zxy, Float64),
-        (:S,     :fT, :zxy, Float64),
-        (:b,     :fT, :zxy, Float64),
-        (:T_ML,  :sT, :xy,  Float64),
-        (:S_ML,  :sT, :xy,  Float64),
         (:h_ML,  :sT, :xy,  Float64),
         (:FLDO,  :sT, :xy,    Int64),
         
@@ -161,7 +156,7 @@ function registerSharedData!(model::Model)
         (:u_c,   :cU, :xyz, Float64),
         (:v_c,   :cV, :xyz, Float64),
         (:b_c,   :cT, :xyz, Float64),
-        (:Phi,   :sT, :xy,  Float64),
+        (:Φ  ,   :sT, :xy,  Float64),
 
         # Forcings and return fluxes to coupler
         (:SWFLX,   :sT, :xy,  Float64),
@@ -175,12 +170,16 @@ function registerSharedData!(model::Model)
         (:QFLX_S,  :sT, :xy,  Float64),
         (:T_CLIM,  :sT, :xy,  Float64),
         (:S_CLIM,  :sT, :xy,  Float64),
-        (:MLD,     :sT, :xy,  Float64),
+        (:MLT,     :sT, :xy,  Float64),
     ) 
 
 
-    for (id, grid, shape, dtype) in descs
-        regVariable!(model.shared_data, model.env, id, grid, shape, dtype)
+    for (id, grid, shape, dtype) in descs_X
+        regVariable!(model.shared_data, model.env, id, grid, shape, dtype, has_Xdim=true)
+    end
+
+    for (id, grid, shape, dtype) in descs_noX
+        regVariable!(model.shared_data, model.env, id, grid, shape, dtype, has_Xdim=false)
     end
 
 

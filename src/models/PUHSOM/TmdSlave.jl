@@ -1,9 +1,13 @@
 mutable struct TmdSlave
 
     model        :: Tmd.TmdModel
-
     ocn_env      :: OcnEnv
     shared_data  :: SharedData
+    
+    data_exchanger :: DataExchanger
+    buffer_data  :: Dict
+
+    y_split_info :: YSplitInfo
 
     function TmdSlave(
         ocn_env      :: OcnEnv,
@@ -11,9 +15,13 @@ mutable struct TmdSlave
         y_split_info :: YSplitInfo,
     )
        
+        """ WARNING !!!!! Ny should be length(sub_yrng) """
+
+
         Nx = ocn_env.Nx
-        Ny = ocn_env.Ny
-        Nz = ocn_env.Nz_f
+        Ny = length(y_split_info.pull_fr_rng)
+        Nz_f = ocn_env.Nz_f
+        Nz_c = ocn_env.Nz_c
         NX = ocn_env.NX
 
         mi = ModelMap.MapInfo{Float64}(ocn_env.hrgrid_file)
@@ -33,12 +41,12 @@ mutable struct TmdSlave
        
         # ===== [BEGIN] X_wr =====
         
-        X_wr = zeros(Float64, Nz, Nx, Ny, NX)
+        X_wr = zeros(Float64, Nz_f, Nx, Ny, NX)
         X_wr .= NaN
         for (x, t) in enumerate(ocn_env.t_X_wr)
             if ! isnan(t)
                 Dataset(ocn_env.X_wr_file[x], "r") do ds
-                    X_wr[:, :, :, x] = PermutedDimsArray( nomissing( ds[ocn_env.X_wr_varname][:, :, :] ), (3, 1, 2))
+                    X_wr[:, :, :, x] = PermutedDimsArray( nomissing( ds[ocn_env.X_wr_varname][:, y_split_info.pull_fr_rng, :] ), (3, 1, 2))
                 end    
             end
         end
@@ -64,10 +72,26 @@ mutable struct TmdSlave
             convective_adjustment = ocn_env.convective_adjustment,
         )         
 
+
+        data_exchanger = DataExchanger([
+           :FR_DYN, :TO_DYN, :BND, :TO_MAS, 
+        ])
+
+        buffer_data = Dict(
+            :u_c => zeros(Float64, Nz_c, Nx, Ny  ),
+            :v_c => zeros(Float64, Nz_c, Nx, Ny+1),
+            :b_c => zeros(Float64, Nz_c, Nx, Ny  ),
+        )
+
+
+
         return new(
             model, 
             ocn_env,
             shared_data,
+            data_exchanger,
+            buffer_data,
+            y_split_info,
         )
 
     end
@@ -78,26 +102,49 @@ function setupBinding!(
     slave :: TmdSlave,
 )
 
+    println("TmdSlave setupBinding...")
+
     de = slave.data_exchanger
     sd = slave.shared_data
     m  = slave.model
+    du_there = sd.data_units
+
+    bd = slave.buffer_data
     s  = m.state
-    du = sd.data_units
+
+    ysi = slave.y_split_info
 
     bindings = (
-        ("u_c", s.u_c, :xyz, :u_c),
-        ("v_c", s.v_c, :xyz, :v_c),
-        ("b_c", s.b_c, :xyz, :b_c),
+        ([:FR_DYN], DataUnit(:u_c, :cU, :zxy, bd[:u_c], false), :u_c),
+        ([:FR_DYN], DataUnit(:v_c, :cV, :zxy, bd[:v_c], false), :v_c),
+        ([:TO_DYN], DataUnit(:b_c, :cT, :zxy, bd[:b_c], false), :b_c),
+        
+        # T, S, FLDO and such
+        ([:BND, :TO_MAS], DataUnit(:X,    :fT, :zxy, s.X,    true), :X   ),
+        ([:BND, :TO_MAS], DataUnit(:X_ML, :sT, :xy , s.X_ML, true), :X_ML),
     )
 
-    for (name, data_here, data_here_shape, data_there_key) in bindings
+    println("createBinding..")
+
+    for (group_labels, here, there_key) in bindings
+       
+        println("Doing : ", here.id, "; ", du_there[there_key].id) 
+        here_yrng  = Colon()
+        if here.grid in (:fV, :cV, :sV)
+            there_yrng = ysi.pull_fr_rng[1]:(ysi.pull_fr_rng[end]+1)
+        else
+            there_yrng = ysi.pull_fr_rng
+        end
+
         createBinding!(
             de,
-            name, 
-            data_here, data_here_shape,
-            du[data_there_key].data, du[data_there_key].shape
+            here,
+            du_there[there_key],
+            here_yrng,
+            there_yrng,
+            labels = group_labels,
         )
     end
 
-
+    println("done.")
 end

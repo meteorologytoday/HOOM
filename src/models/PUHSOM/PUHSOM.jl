@@ -18,6 +18,7 @@ using Distributed
 
     include("Log.jl")
     include("OcnEnv.jl")
+    include("DataUnit.jl")
     include("SharedData.jl")
     include("JobDistributionInfo.jl")
     include("DataExchanger.jl")

@@ -1,20 +1,3 @@
-
-mutable struct DataMapping
-    # shape can be either :xyz or :zxy
-    fr_shape  :: Symbol
-    to_shape  :: Symbol
-    fr      :: Symbol
-    to      :: Symbol
-end
-
-mutable struct DataUnit
-    id          :: Symbol
-    grid        :: Symbol      # could be (f, c, s) x (T, U, V, W)
-    shape       :: Symbol    # could be :xy, :xyz, :zxy
-    data        :: AbstractArray
-end
-
-
 mutable struct SharedData
 
     env        :: OcnEnv
@@ -44,11 +27,14 @@ function regVariable!(
     shape    :: Symbol,
     dtype    :: DataType;
     data     :: Union{Nothing, SharedArray{T}} = nothing,
+    has_Xdim :: Bool = false,
 ) where T
 
 
     env = sd.env
     Nx, Ny, Nz_f, Nz_c = env.Nx, env.Ny, env.Nz_f, env.Nz_c
+    NX = env.NX
+
 
     if haskey(sd.data_units, id)
         throw(ErrorException("Error: variable id " * String(id) *  " already exists."))
@@ -82,6 +68,10 @@ function regVariable!(
         end
     end
 
+    if has_Xdim
+        push!(dim, NX)
+    end
+
     if ! (dtype in (Float64, Int64))
         throw(ErrorException("Invalid data type. Only Float64 and Int64 are accepted"))
     end
@@ -106,5 +96,6 @@ function regVariable!(
         grid,
         shape,
         data,
+        has_Xdim,
     )
 end

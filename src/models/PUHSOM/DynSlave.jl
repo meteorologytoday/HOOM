@@ -37,7 +37,10 @@ mutable struct DynSlave
             mask    = ocn_env.mask2_deep
         )         
 
-        data_exchanger = DataExchanger()
+        data_exchanger = DataExchanger([
+            :MOM,
+            :THERMO,
+        ])
 
         return new(
             model, 
@@ -59,23 +62,26 @@ function setupBinding!(
     sd = slave.shared_data
     m  = slave.model
     s  = m.state
-    du = sd.data_units
+    du_there = sd.data_units
 
     bindings = (
-        ("u_c", s.u_c, :xyz, :u_c),
-        ("v_c", s.v_c, :xyz, :v_c),
-        ("b_c", s.b_c, :xyz, :b_c),
-        ("Phi", s.Φ,   :xy , :Phi),
+        ([:MOM],    DataUnit(:u_c, :cU, :xyz, s.u_c, false), :u_c),
+        ([:MOM],    DataUnit(:v_c, :cV, :xyz, s.v_c, false), :v_c),
+        ([:THERMO], DataUnit(:b_c, :cT, :xyz, s.b_c, false), :b_c),
+        ([:THERMO], DataUnit(:Φ  , :sT, :xy , s.Φ,   false), :Φ  ),
     )
 
-    for (name, data_here, data_here_shape, data_there_key) in bindings
+    for (group_labels, here, there_key) in bindings
+       
+        println("Doing : ", here.id, "; ", du_there[there_key].id) 
+
         createBinding!(
             de,
-            name, 
-            data_here, data_here_shape,
-            du[data_there_key].data, du[data_there_key].shape
+            here,
+            du_there[there_key],
+            Colon(),
+            Colon(),
+            labels = group_labels,
         )
     end
-
-
 end

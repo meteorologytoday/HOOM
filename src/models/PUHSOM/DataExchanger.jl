@@ -1,91 +1,164 @@
 struct DataBinding
     
-    name    :: String
+    here  :: DataUnit
+    there :: DataUnit
+   
+    # views 
+    here_view   :: Any
+    there_view  :: Any
 
-    data_here  :: AbstractArray
-    data_there :: AbstractArray
-    
-    data_here_shape  :: Symbol   
-    data_there_shape :: Symbol
 
     function DataBinding(
-        name    :: String,
-        data_here  :: AbstractArray{T_here},
-        data_there :: AbstractArray{T_there},
-        data_here_shape  :: Symbol,
-        data_there_shape :: Symbol,
-    ) where T_here where T_there
+        here        :: DataUnit,
+        there       :: DataUnit,
+        here_yrng        :: Any,
+        there_yrng       :: Any,
+    )
 
-        if length(data_here) != length(data_there)
-            println("size(data_here) = ", size(data_here), "; size(data_there) = ", size(data_there))
-            throw(ErrorException("Data do not share same length."))
+        if ! (here.shape in (:xyz, :zxy, :xy))
+            throw(ErrorException("Unknown shape: " * string(here.shape)))
+        end
+
+        if ! (there.shape in (:xyz, :zxy, :xy))
+            throw(ErrorException("Unknown shape: " * string(there.shape)))
         end
 
 
-        if data_here_shape == :xyz && data_there_shape == :zxy
-            data_there = PermutedDimsArray(data_there, (2, 3, 1))
-        elseif data_here_shape == :zxy && data_there_shape == :xyz
-            data_there = PermutedDimsArray(data_there, (3, 1, 2))
-        elseif data_here_shape != data_there_shape
-            throw(ErrorException("Data do not share same shape"))
-        elseif ! (data_here_shape in (:xyz, :zxy, :xy))
-            throw(ErrorException("Unknown shape: " * string(data_here_shape)))
+        if here.has_Xdim != there.has_Xdim
+            throw(ErrorException("has_Xdim does not match"))
         end
 
-        if T_here != T_there
-            println(format("Warning : data binding {} do not share the same data type. Implicit data conversion will be expected.", name))
+        has_Xdim = here.has_Xdim
+
+        if here.shape == :xy
+
+            here_rng = [Colon(), here_yrng]
+            there_rng = [Colon(), there_yrng]
+
+            if has_Xdim
+                push!(here_rng, Colon())
+                push!(there_rng, Colon())
+            end
+
+            here_view  = view( here.data,  here_rng...)
+            there_view = view(there.data, there_rng...)
+
+        else 
+
+            permute_xyz = [1, 2, 3]
+            permute_zxy = [2, 3, 1]
+
+            if has_Xdim
+                push!(permute_xyz, 4)
+                push!(permute_zxy, 4)
+            end
+            
+
+            if here.shape == :zxy
+                here_view = PermutedDimsArray(here.data, permute_zxy)
+            else
+                here_view = here.data
+            end
+
+            if there.shape == :zxy
+                there_view = PermutedDimsArray(there.data, permute_zxy)
+            else
+                there_view = there.data
+            end
+
+            # at this point views are arranged in :xyz
+
+            here_rng  = [Colon(), here_yrng, Colon()]
+            there_rng = [Colon(), there_yrng, Colon()]
+
+            if has_Xdim
+                push!(here_rng, Colon())
+                push!(there_rng, Colon())
+            end
+
+            here_view  = view( here_view,  here_rng...)
+            there_view = view(there_view, there_rng...)
         end
 
+        if length(here_view) != length(there_view)
+            throw(ErrorException("Range mismatch."))
+        end
+        
+        
         return new(
-            name,
-            data_here,
-            data_there,
-            data_here_shape,
-            data_there_shape,
+            here,
+            there,
+            here_view,
+            there_view,
         )
 
     end
+
 end
 
 
 struct DataExchanger
     
-    data_bindings :: AbstractArray{DataBinding}
+    data_bindings :: Dict
 
-    function DataExchanger()
-        
-        data_bindings = Array{DataBinding}(undef, 0)
+    function DataExchanger(
+        group_labels :: AbstractArray{Symbol} = Array{Symbol}(undef, 0),
+    )
 
-        return new(data_bindings)
+        if ! (:ALL in group_labels)
+            push!(group_labels, :ALL)
+        end
+
+
+        data_bindings = Dict() 
+        for label in group_labels
+            data_bindings[label] = Array{DataBinding}(undef, 0)
+        end
+
+        return new(
+            data_bindings,
+        )
     end
 
 end
 
-
 function createBinding!(
     data_exchanger   :: DataExchanger,
-    name             :: String,
-    data_here        :: AbstractArray,
-    data_here_shape  :: Symbol,
-    data_there       :: AbstractArray,
-    data_there_shape :: Symbol,
+    here             :: DataUnit,
+    there            :: DataUnit,
+    here_yrng        :: Any,
+    there_yrng       :: Any;
+    labels           :: Union{Symbol, AbstractArray{Symbol}} = [:ALL],
 )
-    push!(
-        data_exchanger.data_bindings, 
-        DataBinding(
-            name,
-            data_here,
-            data_there,
-            data_here_shape,
-            data_there_shape,
-        )
+
+    db = DataBinding(
+        here,
+        there,
+        here_yrng,
+        there_yrng,
     )
+
+    if typeof(labels) == Symbol
+        labels = [labels]
+    end
+    
+    if ! ( :ALL in labels )
+        push!(labels, :ALL)
+    end
+
+    for label in labels
+        push!(
+            data_exchanger.data_bindings[label], 
+            db,
+        )
+    end
 
 end
 
 
 function syncData!(
     data_exchanger :: DataExchanger,
+    group          :: Symbol,
     direction      :: Symbol,
 )
     if direction == :push

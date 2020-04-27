@@ -8,7 +8,7 @@ mutable struct TmdCore    # Adam Bashford
     rad_decay_coe  :: AbstractArray{Float64, 3}
     rad_absorp_coe :: AbstractArray{Float64, 3}
 
-    ASUM           :: AdvectionSpeedUpMatrix
+    ASUM           :: Any#AdvectionSpeedUpMatrix
 
     wksp           :: Workspace
 
@@ -69,7 +69,8 @@ mutable struct TmdCore    # Adam Bashford
         end
 
         println("Making ASUM")
-        @time ASUM = AdvectionSpeedUpMatrix(;
+        @time ASUM = nothing; 
+        #=AdvectionSpeedUpMatrix(;
                 gi = env.gi,
                 Nx = Nx,
                 Ny = Ny,
@@ -80,7 +81,7 @@ mutable struct TmdCore    # Adam Bashford
                 noflux_y_mask3 = env.noflux_y_mask3,
                 Δzs = dz_T,
                 hs  = dz_W,
-        )
+        )=#
 
         wksp = Workspace(;
             Nx = Nx,
