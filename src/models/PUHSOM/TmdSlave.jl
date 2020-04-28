@@ -9,6 +9,8 @@ mutable struct TmdSlave
 
     y_split_info :: YSplitInfo
 
+    va       :: Union{VerticalAverager, Nothing}
+
     function TmdSlave(
         ocn_env      :: OcnEnv,
         shared_data  :: SharedData,
@@ -52,10 +54,18 @@ mutable struct TmdSlave
         end
         # ===== [END] X_wr =====
 
+
+        # ===== [BEGIN] Making vertical averager =====
+        va = VerticalAverager(
+            z_bnd_f             = ocn_env.z_bnd_f,
+            height_level_counts = ocn_env.height_level_counts,
+        )
+        
+        # ===== [END] Making vertical averager =====
  
         model = Tmd.TmdModel(
             gi      = gi,
-            Δt      = ocn_env.Δt,
+            Δt      = ocn_env.Δt / ocn_env.substep_tmd,
             z_bnd   = ocn_env.z_bnd_f,
             topo    = ocn_env.topo,
             mask2   = ocn_env.mask2,
@@ -92,59 +102,10 @@ mutable struct TmdSlave
             data_exchanger,
             buffer_data,
             y_split_info,
+            va,
         )
 
     end
 
 end
 
-function setupBinding!(
-    slave :: TmdSlave,
-)
-
-    println("TmdSlave setupBinding...")
-
-    de = slave.data_exchanger
-    sd = slave.shared_data
-    m  = slave.model
-    du_there = sd.data_units
-
-    bd = slave.buffer_data
-    s  = m.state
-
-    ysi = slave.y_split_info
-
-    bindings = (
-        ([:FR_DYN], DataUnit(:u_c, :cU, :zxy, bd[:u_c], false), :u_c),
-        ([:FR_DYN], DataUnit(:v_c, :cV, :zxy, bd[:v_c], false), :v_c),
-        ([:TO_DYN], DataUnit(:b_c, :cT, :zxy, bd[:b_c], false), :b_c),
-        
-        # T, S, FLDO and such
-        ([:BND, :TO_MAS], DataUnit(:X,    :fT, :zxy, s.X,    true), :X   ),
-        ([:BND, :TO_MAS], DataUnit(:X_ML, :sT, :xy , s.X_ML, true), :X_ML),
-    )
-
-    println("createBinding..")
-
-    for (group_labels, here, there_key) in bindings
-       
-        println("Doing : ", here.id, "; ", du_there[there_key].id) 
-        here_yrng  = Colon()
-        if here.grid in (:fV, :cV, :sV)
-            there_yrng = ysi.pull_fr_rng[1]:(ysi.pull_fr_rng[end]+1)
-        else
-            there_yrng = ysi.pull_fr_rng
-        end
-
-        createBinding!(
-            de,
-            here,
-            du_there[there_key],
-            here_yrng,
-            there_yrng,
-            labels = group_labels,
-        )
-    end
-
-    println("done.")
-end

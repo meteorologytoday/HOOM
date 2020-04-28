@@ -30,7 +30,7 @@ function init!(
             PUHSOM.setupBinding!(dyn_slave)
 
         end
-        
+
         for (p, pid) in enumerate(job_dist_info.tmd_slave_pids)
             @spawnat pid let
                 global tmd_slave = PUHSOM.TmdSlave(
@@ -45,89 +45,75 @@ function init!(
     end
 
     println("Slave created and data exchanger is set.")
-    readline()
+    println("TODO: Skip read restart file for now.")
 
     #=
-
     if restart_file != nothing
         loadRestart(restart_file, shared_data)
     end
     =#
 
-    println("Testing syncing")
-    syncOcean(model, from=:master, to=:all)
-    
-    println("Pass!")
-    readline()
+    syncTmd!(model, :TO_DYN, :S2M)
+    return model
 
 end
 
 
-function syncOcean(
-    model:: Model;
-    from :: Symbol,
-    to   :: Symbol,
+function stepModel!(
+    model :: Model,
+    write_restart :: Bool,
 )
 
-    jdi = model.job_dist_info
+    env = model.env
 
-    @sync let
-
-        @spawnat jdi.dyn_slave_pid let
-
-            PUHSOM.syncData!(dyn_slave.data_exchanger, :pull)
-
-        end
-
-    end
-#=
-    for (p, pid) in enumerate(job_dist_info.tmd_slave_pids)
-        @spawnat pid let
-            global tmd_slave = PUHSOM.TmdSlave(
-                ocn_env,
-        end
-
-    end=#
-end
-
-#=
-function run!(
-    model,
-    write_restart,
-)
-
-    load ... 
-    substep_dyn
-    substep_tcr
-    substep_mld
-
-    # Currently mld_core does not need info from
+    # Sync
+    syncDyn!(model, :FR_TMD, :M2S)
+   
+     
+    # Currently tmd_core does not need info from
     # dyn_core so we do not need to pass dyn fields
     # to mld core
-    for t=1:substep_dyn
-        step_dyn(dyn_slaves)
-    end
-    syncOcean(from = :dyn_slave, to = :tcr_slave, shared_data)
+#    for t=1:env.substep_dyn
+#        Dyn.stepModel!(dyn_slaves)
+#    end
  
+
+    @sync @spawnat model.job_dist_info.dyn_slave_pid let
+            for t=1:env.substep_dyn
+                Dyn.stepModel!(dyn_slave.model)
+            end
+    end
+   
+    #= 
+    syncDyn!(model, :TO_TMD, :S2M)
+    syncTmd!(model, :FR_DYN, :M2S)
+
+    ##### tmd slave should distribute u,v to fine grids here #####
+
     # this involves passing tracer through boundaries
     # so need to sync every time after it evolves
-    for t=1:substep_tcr
-        step_tcr(tcr_slaves)
-        if t != substep_tcr
-            syncOcean(from = :tcr_slave, to = :tcr_slave, shared_data)
-        else
-            syncOcean(from = :tcr_slave, to = :mld_slave, shared_data)
+    for t=1:env.substep_tmd
+
+        #step_tmd(tcr_slaves)
+
+        syncTmd!(model, :BND, :S2M)
+        syncTmd!(model, :BND, :M2S)
+
+    end
+    
+    ##### tmd slave should calcaulte b of coarse grid #####
+    @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
+        @spawnat pid let
+            PUHSOM.calCoarseBuoyancy!(tmd_slave)
         end
     end
 
-    # Supposedly MLD dynamics changes dyn and tcr fields vertically
-    # so it only sync by the end of simulation and sync to
-    # all other components
-    for t=1:substep_mld
-        step_mld(mld_slaves)
-    end
-    syncOcean(from = :mld_slave, to = :all, shared_data)
-   
+    syncTmd!(model, :TO_MAS, :S2M)
+
+    =#
+    syncDyn!(model, :TO_MAS, :S2M)
+
+    #= 
     if write_restart
         writeRestart(
             dyn_slave,
@@ -135,10 +121,9 @@ function run!(
             mld_slave, 
         )
     end
-     
+    =#
 end
 
-=#
 
 function registerSharedData!(model::Model)
 
@@ -182,11 +167,42 @@ function registerSharedData!(model::Model)
         regVariable!(model.shared_data, model.env, id, grid, shape, dtype, has_Xdim=false)
     end
 
-
-
-
 end
 
+
+push_pull_relation = Dict(
+    :S2M => :PUSH,
+    :M2S => :PULL,
+)
+function syncTmd!(
+    model :: Model,
+    group_label :: Symbol,
+    direction :: Symbol,
+)
+
+    direction = push_pull_relation[direction]
+
+    @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
+        @spawnat pid let
+            PUHSOM.syncData!(tmd_slave.data_exchanger, group_label, direction)
+        end
+    end
+end
+
+function syncDyn!(
+    model:: Model,
+    group_label :: Symbol,
+    direction :: Symbol,
+)
+
+    direction = push_pull_relation[direction]
+
+    @sync let
+        @spawnat model.job_dist_info.dyn_slave_pid let
+            PUHSOM.syncData!(dyn_slave.data_exchanger, group_label, direction)
+        end
+    end
+end
 
 function loadData!()
 end

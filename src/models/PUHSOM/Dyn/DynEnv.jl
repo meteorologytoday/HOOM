@@ -42,7 +42,7 @@ mutable struct DynEnv
     mask :: AbstractArray{Float64, 2}     # where mixed layer model is active 
 
     function DynEnv(;
-        gi                  :: PolelikeCoordinate.CurvilinearSphericalGridInfo,
+        gi                  :: PolelikeCoordinate.GridInfo,
         Δt                  :: Float64,
         Nx                  :: Int64,
         Ny                  :: Int64,
@@ -55,21 +55,9 @@ mutable struct DynEnv
         z_bnd_f = copy(z_bnd_f)
         Nz_f = length(z_bnd_f) - 1
 
-        height_level_counts = copy(height_level_counts)
-        Nz_c =  length(height_level_counts)
+        H_f, H_c = _helper_calLayerThickness(z_bnd_f, height_level_counts)
 
-        if sum(height_level_counts) != Nz_f
-            throw(ErrorException("sum(height_level_counts) != length(z_bnd_f) - 1"))
-        end
-
-        H_f  = z_bnd_f[1:end-1] - z_bnd_f[2:end]
-        H_c  = zeros(Float64, Nz_c)
-       
-        idx = 1
-        for (k, cnt) in enumerate(height_level_counts)
-            H_c[k] = sum(H_f[idx:idx+cnt-1])
-            idx += cnt
-        end
+        Nz_c = length(H_c)
 
         # If mask is not provided
         if mask == nothing
@@ -77,6 +65,12 @@ mutable struct DynEnv
         end
 
         NX = NX_passive + 2
+
+        H_total = sum(H_f)
+        Φ_total = g * H_total
+        
+        println("H_total: ", H_total)
+        println("Φ_total: ", Φ_total)
 
         return new(
             gi,
@@ -86,8 +80,8 @@ mutable struct DynEnv
             height_level_counts,
             H_c,
             H_f,
-            sum(H_f),
-            g * sum(H_f),
+            H_total,
+            Φ_total,
             NX, NX_passive,
             mask,
         ) 

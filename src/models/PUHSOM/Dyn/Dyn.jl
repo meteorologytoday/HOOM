@@ -6,6 +6,7 @@ module Dyn
     using Statistics: mean
 
     include("../../../share/constants.jl")
+    include("../../../share/ocean_state_function.jl")
 
 
 
@@ -45,7 +46,8 @@ module Dyn
    
 
     include("../MatrixOperators.jl")
-    include("VerticalAverager.jl")
+    include("../VerticalAverager.jl")
+
     include("AdvectionSpeedUpMatrix_dyn.jl")
     include("PhiSolver.jl")
     include("Workspace.jl")

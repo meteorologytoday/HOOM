@@ -120,7 +120,7 @@ mutable struct DynamicAdvSpeedUpMatrix
         T_DIVy_V = filter_T * T_invΔσ_T * ( op.T_S_V - op.T_N_V  ) * V_Δx_V  ; dropzeros!(T_DIVy_V);
 
 
-        function selfDivision!(m, ones_vec)
+        function selfDivision(m, ones_vec)
             local wgts = m * ones_vec
             m_t = transpose(m) |> sparse
 
@@ -131,16 +131,22 @@ mutable struct DynamicAdvSpeedUpMatrix
                 end
             end
             =#
+            #for (i, wgt) in enumerate(wgts)
+            #    if wgt != 0
+            #        m[i, :] ./= wgt
+            #    end
+            #end
 
             # Hack into sparse matrix to speed up. Speed up like 10 times at least
             for (i, wgt) in enumerate(wgts)
                 if wgt != 0
                     _beg = m_t.colptr[i]
                     _end = m_t.colptr[i+1]-1
-                    m_t.nzval[_beg: _end] ./= wgt
+                    m_t.nzval[_beg:_end] ./= wgt
                 end
             end
-           
+          
+            return transpose(m_t) |> sparse
      
         end
 
@@ -149,28 +155,22 @@ mutable struct DynamicAdvSpeedUpMatrix
         ones_T = ones(Float64, op.T_pts)
 
         U_interp_V = (op.U_SW_V + op.U_SE_V + op.U_NW_V + op.U_NE_V) * filter_V     
-        selfDivision!(U_interp_V, ones_V)
-        dropzeros!(U_interp_V)
+        U_interp_V = selfDivision(U_interp_V, ones_V)
 
         V_interp_U = (op.V_SW_U + op.V_SE_U + op.V_NW_U + op.V_NE_U) * filter_U
-        selfDivision!(V_interp_U, ones_U)
-        dropzeros!(V_interp_U)
+        V_interp_U = selfDivision(V_interp_U, ones_U)
        
         V_interp_T = (op.V_S_T + op.V_N_T) * filter_T
-        selfDivision!(V_interp_T, ones_T)
-        dropzeros!(V_interp_T)
+        V_interp_T = selfDivision(V_interp_T, ones_T)
 
         U_interp_T = (op.U_W_T + op.U_E_T) * filter_T
-        selfDivision!(U_interp_T, ones_T)
-        dropzeros!(U_interp_T)
+        U_interp_T = selfDivision(U_interp_T, ones_T)
  
         T_interp_U = (op.T_W_U + op.T_E_U) * filter_U
-        selfDivision!(T_interp_U, ones_U)
-        dropzeros!(T_interp_U)
+        T_interp_U = selfDivision(T_interp_U, ones_U)
  
         T_interp_V = (op.T_S_V + op.T_N_V) * filter_V
-        selfDivision!(T_interp_V, ones_V)
-        dropzeros!(T_interp_V)
+        T_interp_V = selfDivision(T_interp_V, ones_V)
  
         #println("Making coriolis operators")
         f = gi.c_f |> cvt23

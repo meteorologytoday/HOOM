@@ -8,12 +8,13 @@ struct VerticalAverager
     rng_f2c :: AbstractArray
 
     function VerticalAverager(;
-        H_c :: AbstractArray{Float64, 1},
-        H_f :: AbstractArray{Float64, 1},
+        z_bnd_f :: AbstractArray{Float64, 1},
         height_level_counts :: AbstractArray{Int64, 1},
     )
 
-        Nz_f = length(H_f) 
+        H_f, H_c = _helper_calLayerThickness(z_bnd_f, height_level_counts)
+
+        Nz_f = length(H_f)
         Nz_c = length(H_c)
  
         wgt_f2c = zeros(Float64, Nz_f)
@@ -46,8 +47,19 @@ end
 function calAverage_f2c!(
     va    :: VerticalAverager,
     var_f :: AbstractArray{Float64, 3},
-    var_c :: AbstractArray{Float64, 3},
+    var_c :: AbstractArray{Float64, 3};
+    shape :: Symbol = :xyz,
 )
+
+    if ! (shape in (:xyz, :zxy))
+        throw(ErrorException("Unrecognized argument for shape. Only :xyz and :zxy are allowed"))
+    end
+
+    if shape == :zxy 
+        var_f = PermutedDimsArray(var_f, (2, 3, 1))
+        var_c = PermutedDimsArray(var_c, (2, 3, 1))
+    end
+
     Nx, Ny, _ = size(var_c)
 
     for i=1:Nx, j=1:Ny
@@ -91,4 +103,26 @@ function projVertical_c2f!(
             var_f[i, j, va.rng_f2c[k_c]] .= var_c[i, j, k_c]
         end
     end
+end
+
+function _helper_calLayerThickness(
+    z_bnd_f :: AbstractArray{Float64, 1},
+    height_level_counts :: AbstractArray{Int64, 1},
+)
+    H_f  = z_bnd_f[1:end-1] - z_bnd_f[2:end]
+    H_c  = zeros(Float64, length(height_level_counts))
+   
+    if sum(height_level_counts) != length(H_f)
+        throw(ErrorException("sum(height_level_counts) != length(z_bnd_f) - 1"))
+    end
+
+    idx = 1
+    for (k, cnt) in enumerate(height_level_counts)
+        H_c[k] = sum(H_f[idx:idx+cnt-1])
+        idx += cnt
+    end
+
+    return H_f, H_c
+
+    return
 end

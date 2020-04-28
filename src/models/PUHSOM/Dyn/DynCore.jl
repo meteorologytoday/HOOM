@@ -19,8 +19,7 @@ mutable struct DynCore    # Adam Bashford
         Nz = env.Nz_c
 
         va = VerticalAverager(
-            H_c = env.H_c,
-            H_f = env.H_f,
+            z_bnd_f = env.z_bnd_f,
             height_level_counts = env.height_level_counts
         )
         

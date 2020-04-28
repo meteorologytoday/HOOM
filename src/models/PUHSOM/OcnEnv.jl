@@ -69,6 +69,7 @@ mutable struct OcnEnv
     radiation_scheme      :: AbstractString
     convective_adjustment :: Bool
 
+    topo_varname          :: String
 
     function OcnEnv(
         hrgrid_file           :: String,
@@ -95,13 +96,20 @@ mutable struct OcnEnv
         t_X_wr                :: AbstractArray{Float64, 1},
         radiation_scheme      :: AbstractString,
         convective_adjustment :: Bool,
+        topo_varname          :: String,
     )
+
+    
+        if z_bnd_f[end] < - deep_threshold 
+            throw(ErrorException("Deepest z in z_bnd_f should not be lower-bounded by -deep_threshold"))
+        end
+
 
         local topo
 
         mi = ModelMap.MapInfo{Float64}(hrgrid_file)
         Dataset(topo_file, "r") do ds
-            topo = - (ds["depth"][:] |> nomissing)
+            topo = - (ds[topo_varname][:] |> nomissing)
         end
 
         Nx = mi.nx
@@ -209,6 +217,8 @@ function saveOcnEnv(
         ds.attrib["radiation_scheme"]      = env.radiation_scheme
         ds.attrib["convective_adjustment"] = env.convective_adjustment
         
+        ds.attrib["topo_varname"]          = env.topo_varname
+        
         for (varname, vardata, vardim, attrib) in [
             ("z_bnd_f",             env.z_bnd_f,             ("Nz_fW",), Dict()),
             ("height_level_counts", env.height_level_counts, ("Nz_c",),  Dict()),
@@ -262,6 +272,7 @@ function loadOcnEnv(
             ds["Kv_X"][:] |> nomissing,
             ds.attrib["R"],
             ds.attrib["zeta"],
+            ds.attrib["topo_varname"],
         )
     end
 

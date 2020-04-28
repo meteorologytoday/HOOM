@@ -1,5 +1,4 @@
-
-include("../../share/constants.jl")
+#include("../../share/constants.jl")
 
 mutable struct DynSlave
 
@@ -31,15 +30,17 @@ mutable struct DynSlave
         
         model = Dyn.DynModel(
             gi      = gi,
-            Δt      = ocn_env.Δt,
+            Δt      = ocn_env.Δt / ocn_env.substep_dyn,
             z_bnd_f = ocn_env.z_bnd_f,
             height_level_counts = ocn_env.height_level_counts;
             mask    = ocn_env.mask2_deep
         )         
 
         data_exchanger = DataExchanger([
-            :MOM,
-            :THERMO,
+            :FR_TMD,
+            :TO_TMD,
+            :TO_MAS,
+            :TEST,
         ])
 
         return new(
@@ -53,35 +54,3 @@ mutable struct DynSlave
 
 end
 
-
-function setupBinding!(
-    slave :: DynSlave,
-)
-
-    de = slave.data_exchanger
-    sd = slave.shared_data
-    m  = slave.model
-    s  = m.state
-    du_there = sd.data_units
-
-    bindings = (
-        ([:MOM],    DataUnit(:u_c, :cU, :xyz, s.u_c, false), :u_c),
-        ([:MOM],    DataUnit(:v_c, :cV, :xyz, s.v_c, false), :v_c),
-        ([:THERMO], DataUnit(:b_c, :cT, :xyz, s.b_c, false), :b_c),
-        ([:THERMO], DataUnit(:Φ  , :sT, :xy , s.Φ,   false), :Φ  ),
-    )
-
-    for (group_labels, here, there_key) in bindings
-       
-        println("Doing : ", here.id, "; ", du_there[there_key].id) 
-
-        createBinding!(
-            de,
-            here,
-            du_there[there_key],
-            Colon(),
-            Colon(),
-            labels = group_labels,
-        )
-    end
-end
