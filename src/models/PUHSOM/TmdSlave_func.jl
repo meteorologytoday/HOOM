@@ -65,6 +65,8 @@ function calCoarseBuoyancy!(
 
     println("TODO: somehow need to calculate the avg buoyancy in the grid box where h_ML is in.")
 
+    #mixXinsideFLDO!(state.b)
+
     calAverage_f2c!(
         slave.va,
         slave.model.state.b,
@@ -72,4 +74,22 @@ function calCoarseBuoyancy!(
         shape=:zxy,
     )
 
+end
+
+function projVelocity!(
+    slave :: TmdSlave,
+)
+
+    projVertical_c2f!(
+        slave.va,
+        slave.buffer_data[:u_c],
+        slave.model.state.u_U,
+    )
+ 
+    projVertical_c2f!(
+        slave.va,
+        slave.buffer_data[:v_c],
+        slave.model.state.v_V,
+    )
+ 
 end

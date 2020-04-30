@@ -2,9 +2,6 @@ function stepOcean_MLDynamics!(
     model :: TmdModel,
 )
 
-
-    
-
     ifrac   = ocn.in_flds.ifrac
 
     taux    = ocn.in_flds.taux

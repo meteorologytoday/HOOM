@@ -77,18 +77,22 @@ function stepModel!(
 #        Dyn.stepModel!(dyn_slaves)
 #    end
  
-
+#=
     @sync @spawnat model.job_dist_info.dyn_slave_pid let
             for t=1:env.substep_dyn
                 Dyn.stepModel!(dyn_slave.model)
             end
     end
-   
-    #= 
+=# 
+    
+    # Sending updated velocity to tmd
     syncDyn!(model, :TO_TMD, :S2M)
     syncTmd!(model, :FR_DYN, :M2S)
 
     ##### tmd slave should distribute u,v to fine grids here #####
+    @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
+        @spawnat pid projVelocity!(tmd_slave)
+    end
 
     # this involves passing tracer through boundaries
     # so need to sync every time after it evolves
@@ -109,8 +113,6 @@ function stepModel!(
     end
 
     syncTmd!(model, :TO_MAS, :S2M)
-
-    =#
     syncDyn!(model, :TO_MAS, :S2M)
 
     #= 
