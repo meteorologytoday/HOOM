@@ -32,21 +32,58 @@ function advectDynamic!(
     core  = model.core
 
 
+    println("Do Diffusion!")
+    @time doHDiffusion!(model)
 
-    #println("calAuxV!")
-    calAuxV!(model)
+    println("calAuxV!")
+    @time calAuxV!(model)
 
-    #println("calAuxΦ!")
-    calAuxΦ!(model)
+    println("calAuxΦ!")
+    @time calAuxΦ!(model)
 
-    #println("solveΦ!")
-    solveΦ!(model)
+    println("solveΦ!")
+    @time solveΦ!(model)
 
-    #println("updateV!")
-    updateV!(model)
+    println("updateV!")
+    @time updateV!(model)
 
     #println(format("(u, v) = ({:.2f}, {:.2f})", state.u_c[1, 5, 5], state.v_c[1,5,5]))
 end
+
+function doHDiffusion!(
+    model :: DynModel,
+)
+ 
+    state = model.state
+    core = model.core
+    env = model.env
+    wksp = core.wksp
+    
+    wksp_cU = getSpace!(wksp, :cU)
+    wksp_cV = getSpace!(wksp, :cV)
+
+    wksp_cU .= state.u_c 
+    wksp_cV .= state.v_c 
+    
+
+    for k = 1:env.Nz_c
+
+        solveDiffusion!(
+            core.diffusion_solver, :U,
+            view(wksp_cU  , :, :, k),
+            view(state.u_c, :, :, k),
+        )
+
+        solveDiffusion!(
+            core.diffusion_solver, :V,
+            view(wksp_cV  , :, :, k),
+            view(state.v_c, :, :, k),
+        )
+    end
+   
+
+end
+
 
 function calAuxV!(
     model   :: DynModel,
@@ -110,6 +147,7 @@ function calAuxV!(
 
  
     # ===== [ BEGIN cal (v⋅∇)v ] =====
+    #=
     ∂u∂x = getSpace!(wksp, :cU)
     ∂u∂y = getSpace!(wksp, :cU)
     ∂v∂x = getSpace!(wksp, :cV)
@@ -122,6 +160,8 @@ function calAuxV!(
     # interpolate first then multiply by ∇v
     
     # On U grid
+
+    
     u∂u∂x = getSpace!(wksp, :cU)
     v∂u∂y = getSpace!(wksp, :cU)
     mul3!(v∂u∂y, c_ops.U_interp_V, state.v_c)  # store interpolated v into v∂u∂y
@@ -138,6 +178,7 @@ function calAuxV!(
         u∂v∂x[i, j, k] *=                     ∂v∂x[i, j, k]
         v∂v∂y[i, j, k]  = state.v[i, j, k]  * ∂v∂y[i, j, k]
     end
+    =#
     # ===== [ END cal (v⋅∇)v ] =====
 
     # cal G
@@ -155,6 +196,7 @@ function calAuxV!(
 #    G_u .-= v∂u∂y
 #    G_u .+= ∂b∂x
     G_u .+= fv
+    #G_u .+= Du_diss
 
 
  
@@ -163,6 +205,7 @@ function calAuxV!(
 #    G_v .-= v∂v∂y
 #    G_v .+= ∂b∂y
     G_v .-= fu
+    #G_v .+= Dv_diss
 
 
     # surface
@@ -191,7 +234,7 @@ function calAuxV!(
                 state.G_u[i, j, k, Δt0],
                 state.G_u[i, j, k, Δt1],
                 state.G_u[i, j, k, Δt2],
-        )
+           )
     end
 
     #println("G_u")
@@ -203,8 +246,7 @@ function calAuxV!(
                 G_v[i, j, k, Δt0],
                 G_v[i, j, k, Δt1],
                 G_v[i, j, k, Δt2],
-        )
-       
+            )
     end
 
     G_idx[:now] = Δt2
@@ -256,19 +298,28 @@ function solveΦ!(
     env    = model.env
     core   = model.core
     state  = model.state
-
-    rhs = getSpace!(core.wksp, :sT)
     solver = core.Φ_solver
+
+    lhs = getSpace!(core.wksp, :sT)
+    rhs = getSpace!(core.wksp, :sT)
+
+    lhs_TT = view(getSpace!(core.wksp, :sT), 1:solver.TT_length)
+    rhs_TT = view(getSpace!(core.wksp, :sT), 1:solver.TT_length)
+
     α = solver.α
     for i=1:env.Nx, j=1:env.Ny
         rhs[i, j] = - core.Φ_aux[i, j] * α
     end
+
+    mul!(rhs_TT, solver.TT_send_T, view(rhs, :))
  
     ldiv!(
-        view(state.Φ, :),
+        lhs_TT,
         solver.tool_mtx.MoLap,
-        view(rhs, :),
+        rhs_TT,
     )
+        
+    mul!(view(state.Φ, :), solver.T_send_TT, lhs_TT)
 
 end
 
@@ -292,10 +343,22 @@ function updateV!(
 
     Δt∂Φ∂x .*= Δt
     Δt∂Φ∂y .*= Δt
- 
+
+    # TODO: NEED to use AUXILIRAY U, V instead of old U, V 
+    ΔtfricU = getSpace!(wksp, :sU)
+    ΔtfricV = getSpace!(wksp, :sV)
+
+    ΔtfricU .= state.U
+    ΔtfricV .= state.V
+
+    τ = 10*86400.0
+
+    ΔtfricU .*= Δt/τ
+    ΔtfricV .*= Δt/τ
+
     for i=1:env.Nx, j=1:env.Ny, k=1:env.Nz_c
-        state.u_c[i, j, k] = core.u_aux[i, j, k] - Δt∂Φ∂x[i, j]
-        state.v_c[i, j, k] = core.v_aux[i, j, k] - Δt∂Φ∂y[i, j]
+        state.u_c[i, j, k] = core.u_aux[i, j, k] - Δt∂Φ∂x[i, j] - ΔtfricU[i, j]
+        state.v_c[i, j, k] = core.v_aux[i, j, k] - Δt∂Φ∂y[i, j] - ΔtfricV[i, j]
     end
  
     #projVertical_c2f!(core.va, state.u_c, state.u_f)

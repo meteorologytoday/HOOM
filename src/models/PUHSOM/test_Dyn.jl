@@ -47,11 +47,12 @@ end
 
 
 
-z_bnd_f = collect(Float64, range(0, -100, length=11))
-height_level_counts = [1, 9]
+z_bnd_f = collect(Float64, range(0, -4000, length=11))
+height_level_counts = [1, 3, 6]
 
 println("Create Gridinfo");
 
+#=
 gi = PolelikeCoordinate.RegularCylindricalGridInfo(;
     R = 5000e3,
     Ω = Ωe,
@@ -61,6 +62,45 @@ gi = PolelikeCoordinate.RegularCylindricalGridInfo(;
     lat0 = 0.0 |> deg2rad,
     β    = Ωe / Re,
 );
+=#
+
+hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.ocn.gx1v6.090206.nc"
+topo_file = "/seley/tienyiah/CESM_domains/test_domains/topo.gx1v6.nc"
+
+hrgrid_file = "/seley/tienyiah/CESM_domains/domain.ocn.gx1v6.090206.nc"
+topo_file = "/seley/tienyiah/CESM_domains/ocean_topog_gx1v6.nc"
+
+
+#hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.lnd.fv0.9x1.25_gx1v6.090309.nc"
+#topo_file = "/seley/tienyiah/CESM_domains/test_domains/topo.fv0.9x1.25.nc"
+
+
+mi = ModelMap.MapInfo{Float64}(hrgrid_file)
+
+Dataset(topo_file, "r") do ds
+    
+    mask_idx = (ds["depth"][:] |> nomissing) .< 1000.0
+
+    #mi.mask[mask_idx] .= 0.0
+end
+
+
+
+#mi.mask = 1 .- mi.mask
+
+gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
+    R=Re,
+    Ω=Ωe,
+    Nx=mi.nx,
+    Ny=mi.ny,
+    c_lon=mi.xc,
+    c_lat=mi.yc,
+    vs_lon=mi.xv,
+    vs_lat=mi.yv,
+    area=mi.area,
+    angle_unit=:deg,
+)
+
 
 #=
 mi = ModelMap.MapInfo{Float64}("/seley/tienyiah/CESM_domains/domain.lnd.fv4x5_gx3v7.091218.nc")
@@ -86,14 +126,71 @@ gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
 Δt = 3600.0
 
 model = Dyn.DynModel(
-    gi = gi,
-    Δt = Δt,
-    z_bnd_f = z_bnd_f,
+    gi                  = gi,
+    Δt                  = Δt,
+    Dh                  = 30000.0,
+    z_bnd_f             = z_bnd_f,
     height_level_counts = height_level_counts,
+    mask                = mi.mask,
 )
 
+#=
+U = similar(model.state.U)
+V = similar(model.state.V)
+T = similar(model.state.Φ)
+
+U.=1000
+V.=1000
+T.=1000
+
+U_filtered = copy(U)
+V_filtered = copy(V)
+T_filtered = copy(T)
 
 
+Dyn.mul2!(U_filtered, model.core.s_ops.filter_U, U)
+Dyn.mul2!(V_filtered, model.core.s_ops.filter_V, V)
+Dyn.mul2!(T_filtered, model.core.s_ops.filter_T, T)
+
+
+
+Dataset("dissect.nc", "c") do ds
+
+    defDim(ds, "Nx", mi.nx)
+    defDim(ds, "Ny", mi.ny)
+    defDim(ds, "Nyp1", mi.ny+1)
+
+    for (varname, vardata, vardim, attrib) in [
+        ("mask", mi.mask, ("Nx", "Ny"), Dict()),
+        ("U_filtered", U_filtered, ("Nx", "Ny"), Dict()),
+        ("V_filtered", V_filtered, ("Nx", "Nyp1"), Dict()),
+        ("T_filtered", T_filtered, ("Nx", "Ny"), Dict()),
+    ]
+
+        println("Doing var: ", varname)
+
+        var = defVar(ds, varname, Float64, vardim)
+        var.attrib["_FillValue"] = 1e20
+
+        var = ds[varname]
+        
+        for (k, v) in attrib
+            var.attrib[k] = v
+        end
+
+        rng = []
+        for i in 1:length(vardim)-1
+            push!(rng, Colon())
+        end
+        push!(rng, 1:size(vardata)[end])
+        var[rng...] = vardata
+
+    end
+
+end
+=# 
+#println("Pause")
+#readline()
 # Setting up recorder
 complete_varlist = Dyn.getCompleteVariableList(model)
 varlist = []
@@ -135,24 +232,27 @@ recorder = RecordTool.Recorder(
 RecordTool.setNewNCFile!(recorder, output_file)
 
 sum_dσ=sum(gi.dσ)
-function integrateT()
+function integrateKE()
     s = 0.0
-    for k=1:model.env.Nz_f
-        s += sum(gi.dσ .* view(model.state.T, :, :, k))
-    end
-    return s / sum_dσ / model.env.Nz_f
+    KE = (model.state.U.^2 + model.state.V.^2)
+    return avg(KE)
 end
+
+function avg(x)
+    return sum(gi.dσ .* x) / sum_dσ
+end
+
 
 #a = 0.1 * exp.(- (gi.c_y.^2 + gi.c_x.^2) / (σ^2.0) / 2) .* sin.(gi.c_lon*3)
 #b = 0.1 * exp.(- (gi.c_y.^2 + gi.c_x.^2) / (σ^2.0) / 2) .* cos.(gi.c_lon*3)
 a=b=0
-run_days=1
+run_days=20
 
 #model.state.v_c[:, 2:end, 1] .= 1.0 * exp.(- (gi.c_y.^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2) .* cos.(gi.c_lon*3)
 #model.state.v_c[:, 2:end, 1] .= 1.0 * exp.(- ((gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 #model.state.u_c[:, :, 1] .= 1.0 * exp.(- (gi.c_y.^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 #model.state.u_c[:, :, 1] .= 1.0 * exp.(- ((gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
-model.state.Φ[:, :] .= 0.01 * exp.(- (gi.c_y.^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
+model.state.Φ[:, :] .= 0.01 * exp.(- ((gi.c_lat * gi.R).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 #model.state.Φ[:, :] .= g * 1.0 * exp.(- ((gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 
 # output initial state
@@ -163,7 +263,7 @@ RecordTool.avgAndOutput!(recorder)
 
 # 0.5 * sin.((model.env.gi.c_lon .- deg2rad(45))) .* cos.(model.env.gi.c_lat)
 
-@time for step=1:run_days
+for step=1:run_days
     println("Run day ", step)
 
     #=
@@ -177,11 +277,15 @@ RecordTool.avgAndOutput!(recorder)
     =#
 
 
-    for substep = 1:Int64(86400/Δt)
+    @time for substep = 1:Int64(86400/Δt)
         Dyn.stepModel!(model)
         RecordTool.record!(recorder)
-        RecordTool.avgAndOutput!(recorder)
-    end
+        if mod(substep,2)==0
+            RecordTool.avgAndOutput!(recorder)
+        end
 
+    end
+    println("Avg ϕ: ", avg(model.state.Φ.^2.0))
+#    println("Avg KE: ", integrateKE())
 end
 

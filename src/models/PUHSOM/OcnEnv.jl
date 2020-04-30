@@ -128,6 +128,41 @@ mutable struct OcnEnv
         mask2_deep = copy(mask2)
         mask2_deep[topo .> - deep_threshold] .= 0.0
 
+#=
+Dataset("mask_output.nc", "c") do ds
+
+    defDim(ds, "Nx", Nx)
+    defDim(ds, "Ny", Ny)
+
+    for (varname, vardata, vardim, attrib) in [
+        ("mask2", mask2, ("Nx", "Ny"), Dict()),
+        ("mask2_deep", mask2_deep, ("Nx", "Ny"), Dict()),
+    ]
+
+        println("Doing var: ", varname)
+
+        var = defVar(ds, varname, Float64, vardim)
+        var.attrib["_FillValue"] = 1e20
+
+        var = ds[varname]
+        
+        for (k, v) in attrib
+            var.attrib[k] = v
+        end
+
+        rng = []
+        for i in 1:length(vardim)-1
+            push!(rng, Colon())
+        end
+        push!(rng, 1:size(vardata)[end])
+        var[rng...] = vardata
+
+    end
+
+end
+       =# 
+
+
         NX = NX_passive + 2   # 1 = T, 2 = S 
 
 

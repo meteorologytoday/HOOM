@@ -58,6 +58,7 @@ struct MatrixOperators
     V_pts
     W_pts
     T_pts
+    F_pts
 
 
     # Nomenclature:
@@ -69,7 +70,7 @@ struct MatrixOperators
     U_I_U
     V_I_V
     T_I_T
-#    P_I_P
+    F_I_F
 
     U_W_T
     U_E_T
@@ -77,6 +78,8 @@ struct MatrixOperators
     U_E_U
     V_W_V
     V_E_V
+    V_W_F
+    V_E_F
 
     V_S_T
     V_N_T
@@ -84,12 +87,19 @@ struct MatrixOperators
     U_N_U
     V_S_V
     V_N_V
+    U_S_F
+    U_N_F
 
     T_S_V
     T_N_V
     T_W_U
     T_E_U 
-    
+   
+    F_E_V
+    F_W_V
+    F_N_U
+    F_S_U
+ 
     U_SW_V
     U_SE_V
     U_NW_V
@@ -98,6 +108,16 @@ struct MatrixOperators
     V_SE_U
     V_NW_U
     V_NE_U
+
+    T_SW_F
+    T_SE_F
+    T_NW_F
+    T_NE_F
+
+    F_SW_T
+    F_SE_T
+    F_NW_T
+    F_NE_T
 
     T_N_T
     T_S_T
@@ -131,37 +151,44 @@ struct MatrixOperators
         V_dim = (Nz, Nx, Ny+1)
         W_dim = (Nz+1, Nx, Ny)
         T_dim = (Nz, Nx, Ny)
+        F_dim = (Nz, Nx, Ny+1)
 
         U_pts = reduce(*, U_dim)
         V_pts = reduce(*, V_dim)
         W_pts = reduce(*, W_dim)
         T_pts = reduce(*, T_dim)
+        F_pts = reduce(*, F_dim)
 
         U_I_U = speye(Float64, U_pts)
         V_I_V = speye(Float64, V_pts)
         W_I_W = speye(Float64, W_pts)
         T_I_T = speye(Float64, T_pts)
+        F_I_F = speye(Float64, F_pts)
 
         U_I_U_expand = vcat(U_I_U, zeros(Float64, 1, U_pts))
         V_I_V_expand = vcat(V_I_V, zeros(Float64, 1, V_pts))
         W_I_W_expand = vcat(W_I_W, zeros(Float64, 1, W_pts))
         T_I_T_expand = vcat(T_I_T, zeros(Float64, 1, T_pts))
+        F_I_F_expand = vcat(F_I_F, zeros(Float64, 1, F_pts))
 
 
         num_U = zeros(Int64, U_dim...)
         num_V = zeros(Int64, V_dim...)
         num_W = zeros(Int64, W_dim...)
         num_T = zeros(Int64, T_dim...)
+        num_F = zeros(Int64, F_dim...)
 
         num_U[:] = 1:length(num_U)
         num_V[:] = 1:length(num_V)
         num_W[:] = 1:length(num_W)
         num_T[:] = 1:length(num_T)
+        num_F[:] = 1:length(num_F)
         
         U = num_U * 0
         V = num_V * 0
         W = num_W * 0
         T = num_T * 0
+        F = num_T * 0
 
         #smb = SparseMatrixBuilder(Nx*(Ny+1)*(Nz+1)*4)
         function build!(id_mtx, idx; wipe=:none)
@@ -202,6 +229,9 @@ struct MatrixOperators
         V[:] = circshift(num_V, (0, -1, 0));            V_W_V = build!(V_I_V, V)
         V[:] = circshift(num_V, (0,  1, 0));            V_E_V = build!(V_I_V, V)
  
+        V[:, :, :] = circshift(num_F, (0, -1, 0));      V_W_F = build!(F_I_F, V)
+        V[:, :, :] = num_F;                             V_E_F = build!(F_I_F, V)
+ 
         # north, south passing mtx
         V[:, :, 1:Ny]   = num_T;                        V_S_T = build!(T_I_T_expand, V; wipe=:n)
         V[:, :, 2:Ny+1] = num_T;                        V_N_T = build!(T_I_T_expand, V; wipe=:s)
@@ -212,11 +242,20 @@ struct MatrixOperators
         V[:, :, 1:Ny]   = view(num_V, :, :, 2:Ny+1);    V_S_V = build!(V_I_V_expand, V; wipe=:n)
         V[:, :, 2:Ny+1] = view(num_V, :, :, 1:Ny  );    V_N_V = build!(V_I_V_expand, V; wipe=:s)
 
+        U[:, :, :]      = view(num_F, :, :, 2:Ny+1);    U_S_F = build!(F_I_F, U)
+        U[:, :, :]      = view(num_F, :, :, 1:Ny  );    U_N_F = build!(F_I_F, U)
+
+
         # inverse directions
         T_S_V = V_N_T' |> sparse
         T_N_V = V_S_T' |> sparse
         T_W_U = U_E_T' |> sparse
         T_E_U = U_W_T' |> sparse
+
+        F_E_V = V_W_F' |> sparse
+        F_W_V = V_E_F' |> sparse
+        F_N_U = U_S_F' |> sparse
+        F_S_U = U_N_F' |> sparse
 
         # diagonal passing mtx        
         U_SW_V = U_W_T * T_S_V
@@ -229,6 +268,19 @@ struct MatrixOperators
         V_NW_U = V_N_T * T_W_U
         V_NE_U = V_N_T * T_E_U
 
+        T_SW_F = T_S_V * V_W_F
+        T_SE_F = T_S_V * V_E_F
+        T_NW_F = T_N_V * V_W_F
+        T_NE_F = T_N_V * V_E_F
+
+        F_SW_T = T_NE_F' |> sparse
+        F_SE_T = T_NW_F' |> sparse
+        F_NW_T = T_SE_F' |> sparse
+        F_NE_T = T_SW_F' |> sparse
+
+
+
+        # T to T operators
         T_N_T = T_N_V * V_N_T
         T_S_T = T_S_V * V_S_T
         T_E_T = T_E_U * U_E_T
@@ -255,24 +307,36 @@ struct MatrixOperators
         =#
 
         return new(
-            U_pts, V_pts, W_pts, T_pts,
-            U_I_U, V_I_V, T_I_T,
+            U_pts, V_pts, W_pts, T_pts, F_pts,
+            U_I_U, V_I_V, T_I_T, F_I_F,
 
             U_W_T, U_E_T,
             U_W_U, U_E_U,
             V_W_V, V_E_V,
+            V_W_F, V_E_F,
 
             V_S_T, V_N_T,
             U_S_U, U_N_U,
             V_S_V, V_N_V,
+            U_S_F, U_N_F,
 
             T_S_V, T_N_V,
             T_W_U, T_E_U,
+
+            F_E_V, F_W_V,
+            F_N_U, F_S_U,
 
             U_SW_V, U_SE_V,
             U_NW_V, U_NE_V,
             V_SW_U, V_SE_U,
             V_NW_U, V_NE_U,
+
+            T_SW_F, T_SE_F,
+            T_NW_F, T_NE_F,
+
+            F_SW_T, F_SE_T,
+            F_NW_T, F_NE_T,
+
 
             T_N_T, T_S_T,
             T_E_T, T_W_T,

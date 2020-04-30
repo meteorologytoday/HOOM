@@ -32,12 +32,12 @@ if !isdefined(Main, :REPL)
 
 else
 
-    run_days = 5
+    run_days = 5*24
     output_file = "output.nc"
 
 end
 
-Δt = 3600.0
+Δt = 86400.0 / 24
 
 Nz_f = 20
 Nz_c = 3
@@ -96,8 +96,7 @@ model = PUHSOM.init!(ocn_env)
 recorder = PUHSOM.getBasicRecorder(model)
 
 du = model.shared_data.data_units
-du[:Φ].data .= 1.0 * 10.0 * sin.((gi.c_lon )) .* sin.(gi.c_lat * 2)
-
+du[:Φ].data .= 0.01 * exp.(- ( (gi.c_lat * gi.R ).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 PUHSOM.syncDyn!(model, :TEST, :M2S)
 
 RecordTool.setNewNCFile!(recorder, output_file)

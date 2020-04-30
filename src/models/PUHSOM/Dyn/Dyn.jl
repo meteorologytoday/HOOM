@@ -1,3 +1,6 @@
+
+include("../../../share/PolelikeCoordinate.jl")
+
 module Dyn
 
     using Formatting
@@ -50,6 +53,7 @@ module Dyn
 
     include("AdvectionSpeedUpMatrix_dyn.jl")
     include("PhiSolver.jl")
+    include("DiffusionSolver.jl")
     include("Workspace.jl")
 
 

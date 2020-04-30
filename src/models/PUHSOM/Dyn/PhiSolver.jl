@@ -1,13 +1,15 @@
 
 mutable struct PhiSolver
 
+    TT_length    :: Int64
+
     M :: DynamicAdvSpeedUpMatrix
     α :: Float64
 
-    cT_send_T    :: AbstractArray{Float64, 2}
-    T_send_cT    :: AbstractArray{Float64, 2}
-    cT_Lap_cT    :: AbstractArray{Float64, 2}
-    cT_MoLap_cT  :: AbstractArray{Float64, 2}
+    TT_send_T    :: AbstractArray{Float64, 2}
+    T_send_TT    :: AbstractArray{Float64, 2}
+    TT_Lap_TT    :: AbstractArray{Float64, 2}
+    TT_MoLap_TT  :: AbstractArray{Float64, 2}
    
     T_Lap_T
     tool_mtx
@@ -38,44 +40,74 @@ mutable struct PhiSolver
         #active_num_exclude_bnd = T_num[ mask2_exclude_bnd .==1 ]
 
 
-        cT_send_T  = M.op.T_I_T[active_num, :]
-        #ccT_send_T = M.op.T_I_T[active_num_exclude_bnd, :]
+        TT_send_T  = M.op.T_I_T[active_num, :]
+        #cTT_send_T = M.op.T_I_T[active_num_exclude_bnd, :]
         
-        dropzeros!(cT_send_T)
-        #dropzeros!(ccT_send_T)
+        dropzeros!(TT_send_T)
+        #dropzeros!(cTT_send_T)
 
-        T_send_cT  = sparse(cT_send_T')
-        #T_send_ccT = sparse(ccT_send_T')
+        T_send_TT  = sparse(TT_send_T')
+        #T_send_cTT = sparse(cTT_send_T')
        
         # identity 
-        #ccT_I_ccT = ccT_send_T * T_send_ccT
-        cT_I_cT = cT_send_T * T_send_cT
+        #cTT_I_cTT = cTT_send_T * T_send_cTT
+        TT_I_TT = TT_send_T * T_send_TT
 
         # Laplacian on T grids with gradient equals zero at boundaries
         T_Lap_T   = M.T_DIVx_U * M.U_∂x_T + M.T_DIVy_V * M.V_∂y_T
 
-        # ccT_Lap_ccT will get incorrect Laplacian since some info is lost during compression
-        cT_Lap_cT = cT_send_T * T_Lap_T * T_send_cT
 
-        dropzeros!(cT_Lap_cT)
+        # cTT_Lap_cTT will get incorrect Laplacian since some info is lost during compression
+        TT_Lap_TT = TT_send_T * T_Lap_T * T_send_TT
+
+        dropzeros!(TT_Lap_TT)
+
+        #println(Array(TT_Lap_TT))
 
         # Modified Laplacian
-        cT_MoLap_cT = cT_Lap_cT - α * cT_I_cT
-        
+        TT_MoLap_TT = TT_Lap_TT - α * TT_I_TT
+
+
+#=
+        # Testing       
+        rr, cc = size(TT_Lap_TT)
+
+#        println(TT_Lap_TT.nzval)
+
+        r_cnt = 0
+        for i=1:rr
+            if all(TT_Lap_TT[i, :] .<= 1e-13)
+                r_cnt += 1
+            end
+        end
+
+        c_cnt = 0
+        for j=1:cc
+            if all(TT_Lap_TT[:, j] .<= 1e-13)
+                c_cnt += 1
+            end
+        end
+
+        println("Empty rows: ", r_cnt)
+        println("Empty cols: ", c_cnt)
+=#
+
+        MoLap = lu(TT_MoLap_TT)
         tool_mtx = (
-            Lap   = lu(cT_Lap_cT),
-            MoLap = lu(cT_MoLap_cT),
+        #    Lap   = lu(TT_Lap_TT),
+            MoLap = lu(TT_MoLap_TT),
         )
         
         return new(
+            size(TT_MoLap_TT)[1],
             M,
             α,
-        #    ccT_send_T,
-            cT_send_T,
-        #    T_send_ccT,
-            T_send_cT,
-            cT_Lap_cT,
-            cT_MoLap_cT,
+        #    cTT_send_T,
+            TT_send_T,
+        #    T_send_cTT,
+            T_send_TT,
+            TT_Lap_TT,
+            TT_MoLap_TT,
             T_Lap_T,
             tool_mtx,
         )

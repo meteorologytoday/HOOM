@@ -4,6 +4,7 @@ mutable struct DynCore    # Adam Bashford
     s_ops    :: Union{DynamicAdvSpeedUpMatrix, Nothing}
     va       :: Union{VerticalAverager, Nothing}
     Φ_solver :: PhiSolver
+    diffusion_solver :: DiffusionSolver
 
     G_idx    :: Dict
     wksp     :: Workspace
@@ -47,6 +48,16 @@ mutable struct DynCore    # Adam Bashford
             M     = s_ops,
         )
 
+        diffusion_solver = DiffusionSolver(;
+            gi = env.gi,
+            M  = s_ops,
+            D  = env.Dh,
+            Δt = env.Δt,
+            mask2 = env.mask,
+        )
+
+
+
         #         now   Δt-ago  2Δt-ago
         G_idx = Dict(
             :now           =>  1,
@@ -66,7 +77,7 @@ mutable struct DynCore    # Adam Bashford
             cT = 5,
             cU = 6,
             cV = 6,
-            sT = 5,
+            sT = 7,
             sU = 5,
             sV = 5,
         ) 
@@ -80,6 +91,7 @@ mutable struct DynCore    # Adam Bashford
             s_ops,
             va,
             Φ_solver,
+            diffusion_solver,
             G_idx,
             wksp,
             u_aux,

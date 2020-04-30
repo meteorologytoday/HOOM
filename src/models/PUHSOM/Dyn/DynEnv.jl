@@ -22,6 +22,7 @@ mutable struct DynEnv
     gi :: PolelikeCoordinate.GridInfo
 
     Δt :: Float64
+    Dh :: Float64
 
     Nx :: Int64
     Ny :: Int64
@@ -41,9 +42,13 @@ mutable struct DynEnv
 
     mask :: AbstractArray{Float64, 2}     # where mixed layer model is active 
 
+
+
+
     function DynEnv(;
         gi                  :: PolelikeCoordinate.GridInfo,
         Δt                  :: Float64,
+        Dh                  :: Float64,
         Nx                  :: Int64,
         Ny                  :: Int64,
         z_bnd_f             :: AbstractArray{Float64, 1},
@@ -75,6 +80,7 @@ mutable struct DynEnv
         return new(
             gi,
             Δt,
+            Dh,
             Nx, Ny, Nz_c, Nz_f, 
             z_bnd_f,
             height_level_counts,
