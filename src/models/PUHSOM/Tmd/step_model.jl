@@ -1,42 +1,48 @@
-function advectTracer!(
-    model   :: TmdModel,
+function determineVelocity!(
+    m :: TmdModel,
 )
+    @fast_extract m
 
-
-    Δt = model.env.Δt
-
-    state = model.state
-    core  = model.core
-    env   = model.env
-    wksp  = core.wksp
+    wksp  = co.wksp
 
     div   = getSpace!(wksp, :T)
     tmp_T = getSpace!(wksp, :T)
 
     calDIV!(
-        ASUM = core.ASUM,
-        u_bnd = state.u_U,
-        v_bnd = state.v_V,
+        ASUM = co.ASUM,
+        u_bnd = fr.u_U,
+        v_bnd = fr.v_V,
         div   = div,
         workspace = tmp_T
     )
 
     calVerVelBnd!(
-        gi    = env.gi,
-        Nx    = env.Nx,
-        Ny    = env.Ny,
-        Nz    = env.Nz_av,
-        w_bnd = state.w_W,
-        hs    = core.dz_W,
+        gi    = ev.gi,
+        Nx    = ev.Nx,
+        Ny    = ev.Ny,
+        Nz    = ev.Nz_av,
+        w_bnd = fr.w_W,
+        hs    = co.dz_W,
         div   = div,
-        mask3 = env.mask3,
+        mask3 = ev.mask3,
     )
-   
+    
 
+end
+
+
+function advectTracer!(
+    m   :: TmdModel,
+)
+
+    @fast_extract m
+
+    Δt = ev.Δt_substep
+    tmp_T = getSpace!(co.wksp, :T)
     # Pseudo code
     # 1. calculate tracer flux
     # 2. calculate tracer flux divergence
-    calDiffAdv_QUICKEST_SpeedUp!(model, Δt)
+    calDiffAdv_QUICKEST_SpeedUp!(m, Δt)
 
 #=
     for x=1:env.NX, i = 1:env.Nx, j=1:env.Ny
@@ -45,26 +51,29 @@ function advectTracer!(
             end
     end
 =#
-    let
-        for x=1:env.NX
-            tmp_T .= view(core.XFLUX_CONV, :, :, :, x)
+
+    @. st.X += Δt * co.XFLUX_CONV
+
+    #=
+    @time let
+        for x=1:ev.NX
+            tmp_T .= view(co.XFLUX_CONV, :, :, :, x)
             tmp_T .*= Δt
-            state.X[:, :, :, x] .+= tmp_T
+            st.X[:, :, :, x] .+= tmp_T
         end
     end
-
+    =#
 end
 
 function calDiffAdv_QUICKEST_SpeedUp!(
-    model       :: TmdModel,
+    m       :: TmdModel,
     Δt          :: Float64,
 )
-   
-    core = model.core
-    env     = model.env
-    state   = model.state
-    ASUM    = core.ASUM
-    wksp    = core.wksp
+
+    @fast_extract m
+    
+    ASUM    = co.ASUM
+    wksp    = co.wksp
 
     GRAD_bnd_x = getSpace!(wksp, :U)
     GRAD_bnd_y = getSpace!(wksp, :V)
@@ -78,16 +87,16 @@ function calDiffAdv_QUICKEST_SpeedUp!(
     tmp2 = getSpace!(wksp, :T)
     tmp3 = getSpace!(wksp, :T)
 
-    for x=1:env.NX
+    for x=1:ev.NX
  
-        X            = view(model.state.X,     :, :, :, x)
+        X            = view(st.X,     :, :, :, x)
 
-        XFLUX_bot    = view(core.XFLUX_bot,       :, :, x)
-        XFLUX_CONV   = view(core.XFLUX_CONV,   :, :, :, x)
-        XFLUX_CONV_h = view(core.XFLUX_CONV_h, :, :, :, x)
-        XFLUX_DEN_x  = view(core.XFLUX_DEN_x,  :, :, :, x)
-        XFLUX_DEN_y  = view(core.XFLUX_DEN_y,  :, :, :, x)
-        XFLUX_DEN_z  = view(core.XFLUX_DEN_z,  :, :, :, x)
+        XFLUX_bot    = view(co.XFLUX_bot,       :, :, x)
+        XFLUX_CONV   = view(co.XFLUX_CONV,   :, :, :, x)
+        XFLUX_CONV_h = view(co.XFLUX_CONV_h, :, :, :, x)
+        XFLUX_DEN_x  = view(co.XFLUX_DEN_x,  :, :, :, x)
+        XFLUX_DEN_y  = view(co.XFLUX_DEN_y,  :, :, :, x)
+        XFLUX_DEN_z  = view(co.XFLUX_DEN_z,  :, :, :, x)
 
         let
             mul!(view(GRAD_bnd_x, :), ASUM.mtx_GRAD_X, view(X, :))
@@ -102,10 +111,10 @@ function calDiffAdv_QUICKEST_SpeedUp!(
 
         #println("Flux Density")
         calFluxDensity!(
-            gi         = env.gi,
-            Nx         = env.Nx,
-            Ny         = env.Ny,
-            Nz         = env.Nz_av,
+            gi         = ev.gi,
+            Nx         = ev.Nx,
+            Ny         = ev.Ny,
+            Nz         = ev.Nz_av,
             FLUX_bot   = XFLUX_bot,
             qs         = X,
             GRAD_bnd_x = GRAD_bnd_x,
@@ -117,15 +126,15 @@ function calDiffAdv_QUICKEST_SpeedUp!(
             FLUX_DEN_x = XFLUX_DEN_x,
             FLUX_DEN_y = XFLUX_DEN_y,
             FLUX_DEN_z = XFLUX_DEN_z,
-            u_bnd      = state.u_U,
-            v_bnd      = state.v_V,
-            w_bnd      = state.w_W,
-            mask3          = env.mask3,
-            noflux_x_mask3 = env.noflux_x_mask3,
-            noflux_y_mask3 = env.noflux_y_mask3,
-            Δzs        = core.dz_T,
-            D_hor      = env.Kh_X[x],
-            D_ver      = env.Kv_X[x],
+            u_bnd      = fr.u_U,
+            v_bnd      = fr.v_V,
+            w_bnd      = fr.w_W,
+            mask3          = ev.mask3,
+            noflux_x_mask3 = ev.noflux_x_mask3,
+            noflux_y_mask3 = ev.noflux_y_mask3,
+            Δzs        = co.dz_T,
+            D_hor      = ev.Kh_X[x],
+            D_ver      = ev.Kv_X[x],
             Δt         = Δt,
         )
 
@@ -138,10 +147,18 @@ function calDiffAdv_QUICKEST_SpeedUp!(
             mul!(view(tmp1, :),   ASUM.mtx_DIV_Y, view(XFLUX_DEN_y, :))
             mul!(view(tmp2, :),   ASUM.mtx_DIV_Z, view(XFLUX_DEN_z, :))
 
+            #=
+            @time let     
             XFLUX_CONV_h .+= tmp1
             XFLUX_CONV_h .*= -1.0
+
             XFLUX_CONV .= XFLUX_CONV_h 
             XFLUX_CONV .-= tmp2
+            end
+            =#
+
+            @. XFLUX_CONV_h = -1.0 * (XFLUX_CONV_h + tmp1)
+            @. XFLUX_CONV = XFLUX_CONV_h - tmp2
 
     #        for j=1:ocn.Ny, i=1:ocn.Nx, k=1:ocn.Nz_bone
     #            FLUX_CONV_h[k, i, j] = - ( ocn.workspace1[k, i, j] + ocn.workspace2[k, i, j] )

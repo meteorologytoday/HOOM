@@ -101,8 +101,13 @@ module Tmd
 
         reset!(co.wksp)
 
-#        advectTracer!(m)
-        doMixedLayerDynamics!(m)
+        if co.current_substep == 1
+            determineVelocity!(m)
+        end
+
+
+        advectTracer!(m)
+        #doMixedLayerDynamics!(m)
         
         if co.current_substep == ev.substeps
             # do slow processes

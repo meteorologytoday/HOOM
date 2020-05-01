@@ -47,6 +47,8 @@ end
 z_bnd = collect(Float64, range(0, -100, length=21))
 
 println("Create Gridinfo");
+
+#=
 gi = PolelikeCoordinate.RegularCylindricalGridInfo(;
     R = 5000e3,
     Ω = Ωe,
@@ -56,6 +58,36 @@ gi = PolelikeCoordinate.RegularCylindricalGridInfo(;
     lat0 = 0.0 |> deg2rad,
     β    = Ωe / Re,
 );
+=#
+
+hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.ocn.gx1v6.090206.nc"
+topo_file = "/seley/tienyiah/CESM_domains/test_domains/topo.gx1v6.nc"
+
+
+hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.lnd.fv0.9x1.25_gx1v6.090309.nc"
+topo_file = "/seley/tienyiah/CESM_domains/test_domains/topo.fv0.9x1.25.nc"
+
+hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.lnd.fv4x5_gx3v7.091218.nc"
+
+
+
+mi = ModelMap.MapInfo{Float64}(hrgrid_file)
+mi.mask = 1.0 .- mi.mask
+
+
+gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
+    R=Re,
+    Ω=Ωe,
+    Nx=mi.nx,
+    Ny=mi.ny,
+    c_lon=mi.xc,
+    c_lat=mi.yc,
+    vs_lon=mi.xv,
+    vs_lat=mi.yv,
+    area=mi.area,
+    angle_unit=:deg,
+)
+
 
 Δt = 3600.0 * 24 
 
@@ -99,14 +131,17 @@ model.state.S .= 35.0
 
 model.state.T .= 10.0
 model.state.T_ML .= 10.0
-model.state.T[1, :, :] .= 10.0# * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat)
+model.state.T_ML .= 20 .+ 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat)
+model.state.T[1, :, :] .= model.state.T_ML
 
-model.forcing.swflx .= -1000.0
+
+#model.forcing.swflx .= -1000.0
 model.forcing.h_ML  .= model.state.h_ML
 #model.state.Φ .= 1.0 * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat * 2)
 σ = 100e3 * 10.0
 #model.state.u_c[1, :, :] .= 1.0
-#model.state.u_U[1, :, :] .= 1.0 * sin.((model.env.gi.c_lon )) .* exp.( - (model.env.gi.c_y / σ).^2.0 / 2.0 )
+
+model.forcing.u_U[1, :, :] .= 1.0 #* sin.((model.env.gi.c_lon )) .* cos.(model.env.gi.c_lat*2) #.* exp.( - (model.env.gi.c_y / σ).^2.0 / 2.0 )
 
 Tmd.initialization!(model)
 
