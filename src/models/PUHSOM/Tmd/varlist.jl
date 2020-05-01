@@ -5,13 +5,14 @@ function getCoordinateVariable(m::TmdModel)
 end
 
 function getCompleteVariableList(m::TmdModel)
-    s = m.state
-    c = m.core
-    f = m.forcing
+
+    @fast_extract m
+    
     return Dict(
-        "X"               => ( PermutedDimsArray(s.X, (2, 3, 1, 4)),                ("Nx", "Ny", "Nz", "NX") ),
-        "X_ML"            => ( s.X_ML,                                              ("Nx", "Ny",       "NX") ),
-        "u_U"             => ( PermutedDimsArray(f.u_U, (2, 3, 1)),                 ("Nx", "Ny", "Nz"      ) ),
+        "X"               => ( PermutedDimsArray(st.X, (2, 3, 1, 4)),                ("Nx", "Ny", "Nz", "NX") ),
+        "X_ML"            => ( st.X_ML,                                              ("Nx", "Ny",       "NX") ),
+        "swflx"           => ( fr.swflx,                                             ("Nx", "Ny") ),
+        "u_U"             => ( PermutedDimsArray(fr.u_U, (2, 3, 1)),                 ("Nx", "Ny", "Nz"      ) ),
     )
 end
 

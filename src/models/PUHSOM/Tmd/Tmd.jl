@@ -64,6 +64,7 @@ module Tmd
 
     include("Workspace.jl")
     include("AdvectionSpeedUpMatrix.jl")
+    include("AccumulativeVariables.jl")
     include("TmdEnv.jl")
     include("TmdState.jl")
     include("TmdDiag.jl")
@@ -85,19 +86,37 @@ module Tmd
     #include("deep_ocn_correction.jl")
     include("shortwave_radiation.jl")
     #include("flx_correction.jl")
-    
+    include("initialization.jl")
+    include("set_ocean_column.jl")
  
     include("varlist.jl")
     include("step_model.jl")
     include("step_tmd_mixed_layer.jl")
 
     function stepModel!(
-        model :: TmdModel,
+        m :: TmdModel,
     )
-        reset!(model.core.wksp)
-        doMixedLayerDynamics!(model)
-        advectTracer!(model)
+
+        @fast_extract m
+
+        reset!(co.wksp)
+
+#        advectTracer!(m)
+        doMixedLayerDynamics!(m)
         
+        if co.current_substep == ev.substeps
+            # do slow processes
+        end
+
+       if co.current_substep != ev.substeps
+            flag = :INTER_STEP
+            co.current_substep += 1
+        else
+            flag = :FINAL_STEP
+            co.current_substep = 1
+        end
+      
+        return flag 
     end
 
 

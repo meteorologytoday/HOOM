@@ -3,6 +3,8 @@ mutable struct TmdEnv
     gi         :: Union{PolelikeCoordinate.GridInfo, Nothing}
 
     Δt         :: Float64
+    Δt_substep :: Float64
+    substeps   :: Int64
 
     Nx         :: Int64           # Number of columns in i direction
     Ny         :: Int64           # Number of columns in j direction
@@ -48,15 +50,16 @@ mutable struct TmdEnv
     t_X_wr :: AbstractArray{Float64, 1}
     X_wr   :: AbstractArray{Float64, 4}
     
+    MLT_scheme            :: Symbol
     radiation_scheme      :: Symbol
     convective_adjustment :: Bool
-    prescribe_MLT        :: Bool
     use_Qflux             :: Bool
-    
+    finding_Qflux         :: Bool 
  
     function TmdEnv(;
         gi         :: PolelikeCoordinate.GridInfo,
         Δt         :: Float64,
+        substeps   :: Int64,
         z_bnd      :: AbstractArray{Float64, 1},
         topo       :: Union{AbstractArray{Float64, 2}, Nothing},
         Kh_X       :: AbstractArray{Float64, 1},
@@ -69,8 +72,11 @@ mutable struct TmdEnv
         X_wr       :: Union{AbstractArray{Float64, 4}, Nothing},
         NX_passive :: Int64,
         mask2      :: Union{AbstractArray{Float64, 2}, Nothing},
+        MLT_scheme    :: Symbol,
         radiation_scheme :: Symbol,
         convective_adjustment :: Bool,
+        use_Qflux     :: Bool,
+        finding_Qflux :: Bool,
         verbose    :: Bool = false,
     )
        
@@ -156,6 +162,14 @@ mutable struct TmdEnv
         # ===== [BEGIN] construct h_ML limits =====
         h_ML_min    = zeros(Float64, Nx, Ny)
         h_ML_max    = zeros(Float64, Nx, Ny)
+
+        if MLT_rng[2] <= MLT_rng[1]
+            throw(ErrorException("MLT_rng should be 2-element with second one larger than the first one."))
+        end
+
+        h_ML_min .= MLT_rng[1]
+        h_ML_max .= MLT_rng[2]
+
 
         # Detect and fix h_ML_{max,min}
         fitMLTToTopo!(
@@ -272,7 +286,7 @@ mutable struct TmdEnv
 
         ocn = new(
             gi,
-            Δt,
+            Δt, Δt/substeps, substeps,
             Nx, Ny, Nz, NX, NX_passive,
             z_bnd, topo,
             z_bnd_av, Nz_av,
@@ -285,9 +299,12 @@ mutable struct TmdEnv
             R, ζ,
             
             t_X_wr, X_wr,
-            
+           
+            MLT_scheme, 
             radiation_scheme,
             convective_adjustment,
+            use_Qflux,
+            finding_Qflux,
         )
     end
 end

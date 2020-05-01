@@ -8,11 +8,11 @@ function OC_doShortwaveRadiation!(
 
     m.state.T_ML[i, j] = doShortwaveRadiation!(
         Tswflx = Tswflx,
-        Ts   = m.core.cols.Ts[i, j],
-        zs   = m.core.cols.zs[i, j],
-        hs   = m.core.cols.hs[i, j],
-        rad_decay_coes  = m.core.cols.rad_decay_coes[i, j],
-        rad_absorp_coes = m.core.cols.rad_absorp_coes[i, j],
+        Ts   = m.core.cols.T[i, j],
+        zs   = m.core.cols.z_bnd_av[i, j],
+        hs   = m.core.cols.dz_W[i, j],
+        rad_decay_coes  = m.core.cols.rad_decay_coe[i, j],
+        rad_absorp_coes = m.core.cols.rad_absorp_coe[i, j],
         T_ML = m.state.T_ML[i, j],
         h_ML = m.state.h_ML[i, j],
         Nz   = m.env.Nz_av[i, j],

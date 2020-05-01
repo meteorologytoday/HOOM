@@ -9,6 +9,7 @@ mutable struct TmdModel
     function TmdModel(;
         gi,
         Δt,
+        substeps,
         z_bnd,
         topo        = nothing,
         Kh_X        = [1e3,  1e3 ],
@@ -21,13 +22,17 @@ mutable struct TmdModel
         t_X_wr      = nothing,
         X_wr        = nothing,
         mask2       = nothing,
+        MLT_scheme  = :dynamic,
         radiation_scheme = :exponential_decay,
         convective_adjustment = true,
+        use_Qflux      = true,
+        finding_Qflux  = false,
     )
 
         env = TmdEnv(;
             gi         = gi,
             Δt         = Δt,
+            substeps   = substeps,
             z_bnd      = z_bnd,
             topo       = topo,
             Kh_X       = Kh_X,
@@ -40,8 +45,11 @@ mutable struct TmdModel
             t_X_wr     = t_X_wr,
             X_wr       = X_wr,
             mask2      = mask2,
+            MLT_scheme = MLT_scheme,
             radiation_scheme = radiation_scheme,
             convective_adjustment = convective_adjustment,
+            use_Qflux  = use_Qflux,
+            finding_Qflux = finding_Qflux,
         )
 
 

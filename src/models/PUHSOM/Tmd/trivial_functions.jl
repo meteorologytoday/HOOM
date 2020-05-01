@@ -76,7 +76,7 @@ function OC_updateFLDO!(
     j :: Integer,
 )
 
-    m.state.FLDO[i, j] = getFLDO(zs=m.core.cols[:zs][i, j], h_ML=m.state.h_ML[i, j], Nz=m.env.Nz_av[i, j])
+    m.state.FLDO[i, j] = getFLDO(zs=m.core.cols.z_bnd_av[i, j], h_ML=m.state.h_ML[i, j], Nz=m.env.Nz_av[i, j])
 end
 
 """
@@ -138,7 +138,7 @@ function OC_updateB!(
     
     m.state.b_ML[i, j]  = TS2b(m.state.T_ML[i, j], m.state.S_ML[i, j])
     for k=1:m.env.Nz_av[i, j]
-        m.state.b[k, i, j] = TS2b(m.state.T[k, i, j], ocn.Ss[k, i, j])
+        m.state.b[k, i, j] = TS2b(m.state.T[k, i, j], m.state.S[k, i, j])
     end
 
 end

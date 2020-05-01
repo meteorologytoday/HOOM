@@ -4,18 +4,18 @@ function OC_doConvectiveAdjustment!(
     j :: Integer,
 )
 
-    if_adjust, ocn.b_ML[i, j], ocn.T_ML[i, j], ocn.S_ML[i, j], ocn.h_ML[i, j], ocn.FLDO[i, j] = doConvectiveAdjustment!(
-        zs       = ocn.cols.zs[i, j],
-        bs       = ocn.cols.bs[i, j],
-        Ts       = ocn.cols.Ts[i, j],
-        Ss       = ocn.cols.Ss[i, j],
-        h_ML     = ocn.h_ML[i, j],
-        b_ML     = ocn.b_ML[i, j],
-        T_ML     = ocn.T_ML[i, j],
-        S_ML     = ocn.S_ML[i, j],
-        FLDO     = ocn.FLDO[i, j],
-        Nz       = ocn.Nz[i, j],
-        h_ML_max = ocn.h_ML_max[i, j],
+    if_adjust, m.state.b_ML[i, j], m.state.T_ML[i, j], m.state.S_ML[i, j], m.state.h_ML[i, j], m.state.FLDO[i, j] = doConvectiveAdjustment!(
+        zs       = m.core.cols.z_bnd_av[i, j],
+        bs       = m.core.cols.b[i, j],
+        Ts       = m.core.cols.T[i, j],
+        Ss       = m.core.cols.S[i, j],
+        h_ML     = m.state.h_ML[i, j],
+        b_ML     = m.state.b_ML[i, j],
+        T_ML     = m.state.T_ML[i, j],
+        S_ML     = m.state.S_ML[i, j],
+        FLDO     = m.state.FLDO[i, j],
+        Nz       = m.env.Nz_av[i, j],
+        h_ML_max = m.env.h_ML_max[i, j],
     )
 
     return if_adjust

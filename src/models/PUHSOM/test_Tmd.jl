@@ -37,21 +37,21 @@ if !isdefined(Main, :REPL)
 
 else
 
-    run_days = 100
+    run_days = 10
     output_file = "output_tmd.nc"
 
 end
 
 
 
-z_bnd = collect(Float64, range(0, -100, length=11))
+z_bnd = collect(Float64, range(0, -100, length=21))
 
 println("Create Gridinfo");
 gi = PolelikeCoordinate.RegularCylindricalGridInfo(;
     R = 5000e3,
     Ω = Ωe,
-    Nx = 120,
-    Ny = 100,
+    Nx = 60,
+    Ny = 30,
     Ly = 100e3 * 100,
     lat0 = 0.0 |> deg2rad,
     β    = Ωe / Re,
@@ -60,12 +60,18 @@ gi = PolelikeCoordinate.RegularCylindricalGridInfo(;
 Δt = 3600.0 * 24 
 
 model = Tmd.TmdModel(
-    gi = gi,
-    Δt = Δt,
-    z_bnd = z_bnd,
-    Kh_X  = [0.0, 0.0],
-    Kv_X  = [0.0, 0.0],
+    gi                    = gi,
+    Δt                    = Δt,
+    substeps              = 8,
+    z_bnd                 = z_bnd,
+    Kh_X                  = [0.0, 0.0],
+    Kv_X                  = [0.0, 0.0],
+    MLT_rng               = [3, 1e5],
+    radiation_scheme      = :exponential_decay,
+    MLT_scheme            = :dynamic,
+    convective_adjustment = true,
 )
+
 
 
 
@@ -86,14 +92,23 @@ for varname in keys(coord_varlist)
 end
 
 
+model.state.h_ML .= 5.0
 
-model.state.T[1, :, :] .= 1.0# * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat)
-#model.state.T[2, :, :] .= 1.0 * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat * 2)
+model.state.S_ML .= 35.0
+model.state.S .= 35.0
 
+model.state.T .= 10.0
+model.state.T_ML .= 10.0
+model.state.T[1, :, :] .= 10.0# * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat)
+
+model.forcing.swflx .= -1000.0
+model.forcing.h_ML  .= model.state.h_ML
 #model.state.Φ .= 1.0 * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat * 2)
 σ = 100e3 * 10.0
 #model.state.u_c[1, :, :] .= 1.0
 #model.state.u_U[1, :, :] .= 1.0 * sin.((model.env.gi.c_lon )) .* exp.( - (model.env.gi.c_y / σ).^2.0 / 2.0 )
+
+Tmd.initialization!(model)
 
 recorder = RecordTool.Recorder(
     Dict(
@@ -129,13 +144,11 @@ println(integrateT())
     
     println("Run day ", step)
 
-    for substep = 1:Int64(86400/Δt)
+    for substep = 1:model.env.substeps
         Tmd.stepModel!(model)
-        RecordTool.record!(recorder)
-        RecordTool.avgAndOutput!(recorder)
-        
-        println(integrateT())
     end
+    RecordTool.record!(recorder)
+    RecordTool.avgAndOutput!(recorder)
 
 end
 

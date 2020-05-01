@@ -14,9 +14,8 @@ function doMixedLayerDynamics!(
     vsflx   = fr.vsflx
     qflx_T  = fr.qflx_T
     qflx_S  = fr.qflx_S
-        
 
-    prescribe_MLT = ev.prescribe_MLT
+    Δt      = ev.Δt_substep        
 
     # It is assumed here that buoyancy has already been updated.
     @loop_hor m i j let
@@ -60,9 +59,9 @@ function doMixedLayerDynamics!(
 
         new_h_ML = old_h_ML
 
-        if prescribe_MLT # h_ML is datastream
+        if ev.MLT_scheme == :prescribe # h_ML is datastream
 
-            new_h_ML = fo.h_ML[i, j]
+            new_h_ML = fr.h_ML[i, j]
 
         else        # h_ML is prognostic
  
@@ -104,20 +103,20 @@ function doMixedLayerDynamics!(
 
             new_h_ML, st.h_MO[i, j] = calNewMLD(;
                 h_ML   = old_h_ML,
-                Bf     = surf_bflx + surf_Jflx * env.R,
-                J0     = surf_Jflx * (1.0 - env.R),
+                Bf     = surf_bflx + surf_Jflx * ev.R,
+                J0     = surf_Jflx * (1.0 - ev.R),
                 fric_u = weighted_fric_u,
                 Δb     = Δb,
-                f      = env.gi.c_f[i, j],
+                f      = ev.gi.c_f[i, j],
                 Δt     = Δt,
-                ζ      = env.ζ,
-                h_max  = env.h_ML_max[i, j],
-                we_max = env.we_max,
+                ζ      = ev.ζ,
+                h_max  = ev.h_ML_max[i, j],
+                we_max = ev.we_max,
             )
             
         end
 
-        new_h_ML = boundMLD(new_h_ML; h_ML_max=env.h_ML_max[i, j], h_ML_min=env.h_ML_min[i, j])
+        new_h_ML = boundMLD(new_h_ML; h_ML_max=ev.h_ML_max[i, j], h_ML_min=ev.h_ML_min[i, j])
 
 
         # ML
@@ -155,23 +154,23 @@ function doMixedLayerDynamics!(
         if_entrainment = new_h_ML > old_h_ML
 
         # Calculate the effect of entrainment on SSS
-        new_int_S_ML = OC_getIntegratedSalinity(   ocn, i, j; target_z = -new_h_ML)
+        new_int_S_ML = OC_getIntegratedSalinity(   m, i, j; target_z = -new_h_ML)
         new_S_ML = new_int_S_ML / new_h_ML
-        ocn.dSdt_ent[i, j] = (if_entrainment) ? (new_S_ML - old_S_ML) / Δt : 0.0
+        #ocn.dSdt_ent[i, j] = (if_entrainment) ? (new_S_ML - old_S_ML) / Δt : 0.0
 
         # Add in external surface flux effect on SSS
         new_S_ML = (new_int_S_ML - surf_Sflx * Δt) / new_h_ML
 
         # Calculate the effect of entrainment on SST
-        new_int_T_ML = OC_getIntegratedTemperature(ocn, i, j; target_z = -new_h_ML)
+        new_int_T_ML = OC_getIntegratedTemperature(  m, i, j; target_z = -new_h_ML)
         new_T_ML = new_int_T_ML / new_h_ML
-        ocn.dTdt_ent[i, j] = (if_entrainment) ? (new_T_ML - old_T_ML) / Δt : 0.0
+        #ocn.dTdt_ent[i, j] = (if_entrainment) ? (new_T_ML - old_T_ML) / Δt : 0.0
 
         # Add in external surface flux effect on SST. Shortwave radiation is not included yet
         new_T_ML = (new_int_T_ML - surf_Tnswflx * Δt) / new_h_ML
 
         # Q-flux 
-        if do_qflx
+        if ev.use_Qflux
 
             new_T_ML += qflx_T[i, j] * Δt / (ρc_sw * new_h_ML)
             new_S_ML += qflx_S[i, j] * Δt / new_h_ML
@@ -180,42 +179,36 @@ function doMixedLayerDynamics!(
 
         # Update mixed-layer
         OC_setMixedLayer!(
-            ocn, i, j;
+            m, i, j;
             T_ML=new_T_ML,
             S_ML=new_S_ML,
             h_ML=new_h_ML,
         )
 
-#            if ocn.FLDO[i, j] > 1 && ocn.T_ML[i, j] != ocn.Ts[1, i, j] 
-#                println(format("UPDATE ML ERROR: ({},{}) has T_ML={:f} but Ts[1]={:f}", i, j, ocn.T_ML[i,j], ocn.Ts[1,i,j]))
-#            end
-
         # Shortwave radiation
-        if rad_scheme == :exponential
-            FLDO = ocn.FLDO[i, j]
-            ocn.T_ML[i, j] += - ocn.R * surf_Tswflx * Δt / new_h_ML
-            ocn.Ts[1:((FLDO == -1) ? Nz : FLDO-1 ), i, j] .= ocn.T_ML[i, j]
-            OC_doShortwaveRadiation!(ocn, i, j; Tswflx=(1.0 - ocn.R) * surf_Tswflx, Δt=Δt)
 
-#            if ocn.FLDO[i, j] > 1 && ocn.T_ML[i, j] != ocn.Ts[1, i, j] 
-#                println(format("RADIATION ERROR: ({},{}) has T_ML={:f} but Ts[1]={:f}", i, j, ocn.T_ML[i,j], ocn.Ts[1,i,j]))
-#            end
-        elseif rad_scheme == :step
-            FLDO = ocn.FLDO[i, j]
-            ocn.T_ML[i, j] += - surf_Tswflx * Δt / new_h_ML
-            ocn.Ts[1:((FLDO == -1) ? Nz : FLDO-1 ), i, j] .= ocn.T_ML[i, j]
+        if ev.radiation_scheme == :exponential_decay
+            FLDO = st.FLDO[i, j]
+            st.T_ML[i, j] += - ev.R * surf_Tswflx * Δt / new_h_ML
+            st.T[1:((FLDO == -1) ? Nz : FLDO-1 ), i, j] .= st.T_ML[i, j]
+            OC_doShortwaveRadiation!(m, i, j; Tswflx=(1.0 - ev.R) * surf_Tswflx, Δt=Δt)
+
+        elseif ev.radiation_scheme == :step
+            FLDO = st.FLDO[i, j]
+            st.T_ML[i, j] += - surf_Tswflx * Δt / new_h_ML
+            st.T[1:((FLDO == -1) ? Nz : FLDO-1 ), i, j] .= st.T_ML[i, j]
+
+            if i==j==10
+                println("surf_Tswflx: ", surf_Tswflx)
+                println("h_ML       : ", old_h_ML)
+            end
+
         end
 
-        OC_updateB!(ocn, i, j)
+        OC_updateB!(m, i, j)
 
-        if do_convadjust
-            OC_doConvectiveAdjustment!(ocn, i, j;)
-
-#            if FLDO > 1 && ocn.T_ML[i, j] != ocn.Ts[1, i, j] 
-#                println(format("CONV ERROR: ({},{}) has T_ML={:f} but Ts[1]={:f}", i, j, ocn.T_ML[i,j], ocn.Ts[1,i,j]))
-#            end
-
-
+        if ev.convective_adjustment
+            OC_doConvectiveAdjustment!(m, i, j;)
         end
 
     end

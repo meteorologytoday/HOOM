@@ -34,9 +34,12 @@ mutable struct TmdCore    # Adam Bashford
     XFLUX_DEN_x  :: AbstractArray{Float64, 4}
     XFLUX_DEN_y  :: AbstractArray{Float64, 4}
     XFLUX_DEN_z  :: AbstractArray{Float64, 4}
-    
-    valid_idx :: AbstractArray{Int64, 2}
 
+    acc_vars     :: AccumulativeVariables
+    
+    valid_idx    :: AbstractArray{Int64, 2}
+
+    current_substep :: Int64
 
     function TmdCore(env, state, diag, forcing)
         
@@ -122,7 +125,9 @@ mutable struct TmdCore    # Adam Bashford
         XFLUX_DEN_x  = zeros(Float64, Nz, Nx, Ny, NX)
         XFLUX_DEN_y  = zeros(Float64, Nz, Nx, Ny+1, NX)
         XFLUX_DEN_z  = zeros(Float64, Nz+1, Nx, Ny, NX)
-    
+   
+        acc_vars = AccumulativeVariables(Nx, Ny, Nz, NX)
+ 
 
         valid_idx = zeros(Int64, 2, sum(mask2 .== 1.0))
         let k = 1
@@ -140,7 +145,7 @@ mutable struct TmdCore    # Adam Bashford
             end
         end
 
-
+        current_substep = 1
     
         new(
 
@@ -159,7 +164,9 @@ mutable struct TmdCore    # Adam Bashford
             XFLUX_DEN_x,
             XFLUX_DEN_y,
             XFLUX_DEN_z,
+            acc_vars,
             valid_idx,
+            current_substep,
         )
     end
 end
