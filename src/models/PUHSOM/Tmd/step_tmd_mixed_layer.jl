@@ -1,32 +1,28 @@
 function doMixedLayerDynamics!(
-    model :: TmdModel,
+    m :: TmdModel,
 )
 
-    env   = model.env
-    state = model.state
-    core  = model.core
-    fo = model.forcing
+    @fast_extract m
 
-    ifrac   = fo.ifrac
+    ifrac   = fr.ifrac
 
-    taux    = fo.τx
-    tauy    = fo.τy
+    taux    = fr.τx
+    tauy    = fr.τy
 
-    swflx   = fo.swflx
-    nswflx  = fo.nswflx
-    vsflx   = fo.vsflx
-    qflx_T  = fo.qflx_T
-    qflx_S  = fo.qflx_S
+    swflx   = fr.swflx
+    nswflx  = fr.nswflx
+    vsflx   = fr.vsflx
+    qflx_T  = fr.qflx_T
+    qflx_S  = fr.qflx_S
         
-    z_bnd_av = core.cols[:z_bnd_av]
 
-    prescribe_MLT = env.prescribe_MLT
+    prescribe_MLT = ev.prescribe_MLT
 
     # It is assumed here that buoyancy has already been updated.
-    @loop_hor core i j let
+    @loop_hor m i j let
 
-        zs = z_bnd_av[i, j]
-        Nz = env.Nz_av[i, j]
+        zs = co.cols.z_bnd_av[i, j]
+        Nz = ev.Nz_av[i, j]
 
         fric_u          = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / ρ_sw)
         weighted_fric_u = fric_u * (1.0 - ifrac[i, j])
@@ -45,10 +41,10 @@ function doMixedLayerDynamics!(
         # p.s.: Need to examine carefully about the
         #       conservation of buoyancy in water column
 
-        old_FLDO = state.FLDO[i, j]
-        old_h_ML = state.h_ML[i, j]
-        old_T_ML = state.T_ML[i, j]
-        old_S_ML = state.S_ML[i, j]
+        old_FLDO = st.FLDO[i, j]
+        old_h_ML = st.h_ML[i, j]
+        old_T_ML = st.T_ML[i, j]
+        old_S_ML = st.S_ML[i, j]
 
         α = TS2α(old_T_ML, old_S_ML) 
         β = TS2β(old_T_ML, old_S_ML) 
@@ -60,7 +56,7 @@ function doMixedLayerDynamics!(
         surf_Sflx    = vsflx[i, j]
         surf_bflx    = g * ( α * surf_Tnswflx - β * surf_Sflx )
         
-        core.XFLUX_top[i, j, 2] = surf_Sflx
+        co.XFLUX_top[i, j, 2] = surf_Sflx
 
         new_h_ML = old_h_ML
 
@@ -71,7 +67,7 @@ function doMixedLayerDynamics!(
         else        # h_ML is prognostic
  
 
-            Δb = (old_FLDO == -1 ) ? 0.0 : state.b_ML[i, j] - state.b[old_FLDO, i, j]
+            Δb = (old_FLDO == -1 ) ? 0.0 : st.b_ML[i, j] - st.b[old_FLDO, i, j]
 
             # After convective adjustment, there still might
             # be some numerical error making Δb slightly negative
@@ -106,7 +102,7 @@ function doMixedLayerDynamics!(
 =#
 #            end
 
-            new_h_ML, state.h_MO[i, j] = calNewMLD(;
+            new_h_ML, st.h_MO[i, j] = calNewMLD(;
                 h_ML   = old_h_ML,
                 Bf     = surf_bflx + surf_Jflx * env.R,
                 J0     = surf_Jflx * (1.0 - env.R),
@@ -139,19 +135,19 @@ function doMixedLayerDynamics!(
             if old_FLDO == -1
 
                 # Mixing does not happen because FLDO does not exist in this case
-                state.T[new_FLDO:Nz, i, j] .= state.T_ML[i, j]
-                state.S[new_FLDO:Nz, i, j] .= state.S_ML[i, j]
+                st.T[new_FLDO:Nz, i, j] .= st.T_ML[i, j]
+                st.S[new_FLDO:Nz, i, j] .= st.S_ML[i, j]
 
             else
                 FLDO_Δz =  -old_h_ML - zs[old_FLDO+1]
                 retreat_Δz =  old_h_ML - ( (new_FLDO == old_FLDO) ? new_h_ML : (-zs[old_FLDO]) )
 
-                state.T[old_FLDO, i, j] = (
-                    state.T[old_FLDO, i, j] * FLDO_Δz + state.T_ML[i, j] * retreat_Δz
+                st.T[old_FLDO, i, j] = (
+                    st.T[old_FLDO, i, j] * FLDO_Δz + st.T_ML[i, j] * retreat_Δz
                 ) / (FLDO_Δz + retreat_Δz)
 
-                state.S[old_FLDO, i, j] = (
-                    state.S[old_FLDO, i, j] * FLDO_Δz + state.S_ML[i, j] * retreat_Δz
+                st.S[old_FLDO, i, j] = (
+                    st.S[old_FLDO, i, j] * FLDO_Δz + st.S_ML[i, j] * retreat_Δz
                 ) / (FLDO_Δz + retreat_Δz)
             end
         end

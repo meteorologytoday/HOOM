@@ -26,11 +26,26 @@ module Tmd
         end
     end
 
-    macro loop_hor(core, idx1, idx2, stmts)
-        return :( for grid_idx in 1:size($(esc(core)).valid_idx)[2]
 
-            $(esc(idx1)) = $(esc(core)).valid_idx[1, grid_idx]
-            $(esc(idx2)) = $(esc(core)).valid_idx[2, grid_idx]
+
+    macro fast_extract(model)
+        return esc(:( 
+            co = $(model).core;
+            st = $(model).state;
+            dg = $(model).diag;
+            fr = $(model).forcing;
+            ev = $(model).env;
+        ))
+    end
+
+
+
+
+    macro loop_hor(model, idx1, idx2, stmts)
+        return :( for grid_idx in 1:size($(esc(model)).core.valid_idx)[2]
+
+            $(esc(idx1)) = $(esc(model)).core.valid_idx[1, grid_idx]
+            $(esc(idx2)) = $(esc(model)).core.valid_idx[2, grid_idx]
             $(esc(stmts))
 
         end )
@@ -56,21 +71,25 @@ module Tmd
     include("TmdCore.jl")
     include("TmdModel.jl")
 
+    # functions
+    include("latent_heat_release_of_freezing.jl")
+    include("columnwise_budget.jl")
+    include("trivial_functions.jl")
+
+    include("mld_calculation.jl")
+    include("convective_adjustment.jl")
+    include("diffusion.jl")
+    include("mixUnmix.jl")
+    include("calFLDOPartition.jl")
+    include("columnwise_integration.jl")
+    #include("deep_ocn_correction.jl")
+    include("shortwave_radiation.jl")
+    #include("flx_correction.jl")
+    
+ 
     include("varlist.jl")
     include("step_model.jl")
     include("step_tmd_mixed_layer.jl")
-
-    macro loop_hor(ocn, idx1, idx2, stmts)
-        return :( for grid_idx in 1:size($(esc(ocn)).valid_idx)[2]
-
-            $(esc(idx1)) = $(esc(ocn)).valid_idx[1, grid_idx]
-            $(esc(idx2)) = $(esc(ocn)).valid_idx[2, grid_idx]
-            $(esc(stmts))
-
-        end )
-    end
-
-
 
     function stepModel!(
         model :: TmdModel,

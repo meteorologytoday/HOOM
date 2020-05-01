@@ -93,7 +93,7 @@ model.state.T[1, :, :] .= 1.0# * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(mode
 #model.state.Φ .= 1.0 * 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat * 2)
 σ = 100e3 * 10.0
 #model.state.u_c[1, :, :] .= 1.0
-model.state.u_U[1, :, :] .= 1.0 * sin.((model.env.gi.c_lon )) .* exp.( - (model.env.gi.c_y / σ).^2.0 / 2.0 )
+#model.state.u_U[1, :, :] .= 1.0 * sin.((model.env.gi.c_lon )) .* exp.( - (model.env.gi.c_y / σ).^2.0 / 2.0 )
 
 recorder = RecordTool.Recorder(
     Dict(

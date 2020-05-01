@@ -1,6 +1,21 @@
+mutable struct Cols
+    z_bnd_av      :: Array{SubArray}
+    T             :: Array{SubArray}
+    S             :: Array{SubArray}
+    b             :: Array{SubArray}
+    dz_W          :: Array{SubArray}
+    rad_decay_coe :: Array{SubArray}
+    rad_absorp_coe:: Array{SubArray}
+    function Cols()
+        return new()
+    end
+end
+
+
+
 mutable struct TmdCore    # Adam Bashford
 
-    cols           :: Dict
+    cols           :: Cols
 
     dz_W           :: AbstractArray{Float64, 3}   
     dz_T           :: AbstractArray{Float64, 3}   
@@ -58,7 +73,7 @@ mutable struct TmdCore    # Adam Bashford
         )
 
         # making columnwise views
-        cols = Dict()
+        cols = Cols()
         for (var, ref) in Dict(
             :z_bnd_av        => env.z_bnd_av,
             :T               => state.T,
@@ -68,7 +83,7 @@ mutable struct TmdCore    # Adam Bashford
             :rad_decay_coe   => rad_decay_coe,
             :rad_absorp_coe  => rad_absorp_coe,
         )
-            cols[var] = genColView(ref)
+            setfield!(cols, var, genColView(ref))
         end
 
         println("Making ASUM")

@@ -1,12 +1,12 @@
 mutable struct TmdForcing
  
-    X_wk   :: AbstractArray{Float64, 4}
-    T_wk   :: AbstractArray{Float64, 3}
-    S_wk   :: AbstractArray{Float64, 3}
+    X_wr   :: AbstractArray{Float64, 4}
+    T_wr   :: AbstractArray{Float64, 3}
+    S_wr   :: AbstractArray{Float64, 3}
  
-    XSAS_wk   :: AbstractArray{Float64, 3}
-    TSAS_wk   :: AbstractArray{Float64, 2}
-    SSAS_wk   :: AbstractArray{Float64, 2}
+    XSAS_wr   :: AbstractArray{Float64, 3}
+    TSAS_wr   :: AbstractArray{Float64, 2}
+    SSAS_wr   :: AbstractArray{Float64, 2}
 
     u_U    :: AbstractArray{Float64, 3}
     v_V    :: AbstractArray{Float64, 3}
@@ -39,13 +39,13 @@ mutable struct TmdForcing
         Nz = env.Nz
         NX = env.NX
 
-        X_wk = zeros(Float64, Nz, Nx, Ny, NX)
-        T_wk = view(X_wk, :, :, :, 1)
-        S_wk = view(X_wk, :, :, :, 2)
+        X_wr = zeros(Float64, Nz, Nx, Ny, NX)
+        T_wr = view(X_wr, :, :, :, 1)
+        S_wr = view(X_wr, :, :, :, 2)
  
-        XSAS_wk = zeros(Float64, Nx, Ny, NX)
-        TSAS_wk = view(XSAS_wk, :, :, 1)
-        SSAS_wk = view(XSAS_wk, :, :, 2)
+        XSAS_wr = zeros(Float64, Nx, Ny, NX)
+        TSAS_wr = view(XSAS_wr, :, :, 1)
+        SSAS_wr = view(XSAS_wr, :, :, 2)
  
 
         u_U = zeros(Float64, Nz, Nx, Ny)
@@ -71,13 +71,13 @@ mutable struct TmdForcing
         h_ML = zeros(Float64, Nx, Ny)
  
          return new(
-            X_wk,
-            T_wk,
-            S_wk,
+            X_wr,
+            T_wr,
+            S_wr,
          
-            XSAS_wk,
-            TSAS_wk,
-            SSAS_wk,
+            XSAS_wr,
+            TSAS_wr,
+            SSAS_wr,
 
             u_U,
             v_V,

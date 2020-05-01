@@ -12,6 +12,10 @@ mutable struct TmdDiag
     qflx_T_correction :: AbstractArray{Float64, 2}
     qflx_S_correction :: AbstractArray{Float64, 2}
 
+    XFLUX_DIV_implied :: AbstractArray{Float64, 3}
+    TFLUX_DIV_implied :: AbstractArray{Float64, 2}
+    SFLUX_DIV_implied :: AbstractArray{Float64, 2}
+
 
     function TmdDiag(
         env :: TmdEnv,
@@ -33,6 +37,9 @@ mutable struct TmdDiag
         qflx_T_correction = view(qflx_X_correction, :, :, 1)
         qflx_S_correction = view(qflx_X_correction, :, :, 2)
 
+        XFLUX_DIV_implied = zeros(Float64, Nx, Ny, NX)
+        TFLUX_DIV_implied = view(XFLUX_DIV_implied, :, :, 1)
+        SFLUX_DIV_implied = view(XFLUX_DIV_implied, :, :, 2)
 
         return new(
             intX,
@@ -47,7 +54,9 @@ mutable struct TmdDiag
             qflx_T_correction,
             qflx_S_correction,
 
-
+            XFLUX_DIV_implied,
+            TFLUX_DIV_implied,
+            SFLUX_DIV_implied,
         )
     end
 
