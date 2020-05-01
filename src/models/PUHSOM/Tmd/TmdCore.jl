@@ -12,15 +12,18 @@ mutable struct TmdCore    # Adam Bashford
 
     wksp           :: Workspace
 
+    XFLUX_top    :: AbstractArray{Float64, 3}
     XFLUX_bot    :: AbstractArray{Float64, 3}
     XFLUX_CONV   :: AbstractArray{Float64, 4}
     XFLUX_CONV_h :: AbstractArray{Float64, 4}
     XFLUX_DEN_x  :: AbstractArray{Float64, 4}
     XFLUX_DEN_y  :: AbstractArray{Float64, 4}
     XFLUX_DEN_z  :: AbstractArray{Float64, 4}
+    
+    valid_idx :: AbstractArray{Int64, 2}
 
 
-    function TmdCore(env, state)
+    function TmdCore(env, state, diag, forcing)
         
         Nx = env.Nx
         Ny = env.Ny
@@ -97,13 +100,33 @@ mutable struct TmdCore    # Adam Bashford
         ) 
 
 
+        XFLUX_top    = zeros(Float64, Nx, Ny, NX)
         XFLUX_bot    = zeros(Float64, Nx, Ny, NX)
         XFLUX_CONV   = zeros(Float64, Nz, Nx, Ny, NX)
         XFLUX_CONV_h = zeros(Float64, Nz, Nx, Ny, NX)
         XFLUX_DEN_x  = zeros(Float64, Nz, Nx, Ny, NX)
         XFLUX_DEN_y  = zeros(Float64, Nz, Nx, Ny+1, NX)
         XFLUX_DEN_z  = zeros(Float64, Nz+1, Nx, Ny, NX)
-        
+    
+
+        valid_idx = zeros(Int64, 2, sum(mask2 .== 1.0))
+        let k = 1
+            for idx in CartesianIndices((Nx, Ny))
+                if mask2[idx] == 1.0
+                    valid_idx[1, k] = idx[1]
+                    valid_idx[2, k] = idx[2]
+
+                    k += 1
+                end
+            end
+
+            if k != size(valid_idx)[2] + 1
+                throw(ErrorException("Initialization error making `valid_idx`"))
+            end
+        end
+
+
+    
         new(
 
 
@@ -114,12 +137,14 @@ mutable struct TmdCore    # Adam Bashford
             rad_absorp_coe,
             ASUM,
             wksp,         
+            XFLUX_top,
             XFLUX_bot,
             XFLUX_CONV,
             XFLUX_CONV_h,
             XFLUX_DEN_x,
             XFLUX_DEN_y,
             XFLUX_DEN_z,
+            valid_idx,
         )
     end
 end

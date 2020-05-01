@@ -84,7 +84,7 @@ mutable struct TmdSlave
 
 
         data_exchanger = DataExchanger([
-           :FR_DYN, :TO_DYN, :BND, :TO_MAS, 
+           :FR_DYN, :TO_DYN, :BND, :TO_MAS, :FR_MAS, 
         ])
 
         buffer_data = Dict(

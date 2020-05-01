@@ -25,21 +25,21 @@ function init!(
     @sync let
 
         @spawnat job_dist_info.dyn_slave_pid let
-            global dyn_slave = PUHSOM.DynSlave(ocn_env, shared_data)
+            global dyn_slave = BLOHSOM.DynSlave(ocn_env, shared_data)
 
-            PUHSOM.setupBinding!(dyn_slave)
+            BLOHSOM.setupBinding!(dyn_slave)
 
         end
 
         for (p, pid) in enumerate(job_dist_info.tmd_slave_pids)
             @spawnat pid let
-                global tmd_slave = PUHSOM.TmdSlave(
+                global tmd_slave = BLOHSOM.TmdSlave(
                     ocn_env,
                     shared_data,
                     job_dist_info.y_split_infos[p],
                 )
 
-                PUHSOM.setupBinding!(tmd_slave)
+                BLOHSOM.setupBinding!(tmd_slave)
             end
         end
     end
@@ -67,8 +67,10 @@ function stepModel!(
     env = model.env
 
     # Sync
-    syncDyn!(model, :FR_TMD, :M2S)
-   
+    @sync let
+        syncDyn!(model, :FR_TMD, :M2S)
+        syncTmd!(model, :FR_MAS, :M2S)
+    end 
      
     # Currently tmd_core does not need info from
     # dyn_core so we do not need to pass dyn fields
@@ -86,8 +88,8 @@ function stepModel!(
 =# 
     
     # Sending updated velocity to tmd
-    syncDyn!(model, :TO_TMD, :S2M)
-    syncTmd!(model, :FR_DYN, :M2S)
+    @sync syncDyn!(model, :TO_TMD, :S2M)
+    @sync syncTmd!(model, :FR_DYN, :M2S)
 
     ##### tmd slave should distribute u,v to fine grids here #####
     @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
@@ -98,22 +100,30 @@ function stepModel!(
     # so need to sync every time after it evolves
     for t=1:env.substep_tmd
 
-        #step_tmd(tcr_slaves)
 
-        syncTmd!(model, :BND, :S2M)
-        syncTmd!(model, :BND, :M2S)
+        @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
+            @spawnat pid stepModel!(tmd_slave)
+        end
+
+
+
+
+        @sync syncTmd!(model, :BND, :S2M)
+        @sync syncTmd!(model, :BND, :M2S)
 
     end
     
     ##### tmd slave should calcaulte b of coarse grid #####
     @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
         @spawnat pid let
-            PUHSOM.calCoarseBuoyancy!(tmd_slave)
+            BLOHSOM.calCoarseBuoyancy!(tmd_slave)
         end
     end
 
-    syncTmd!(model, :TO_MAS, :S2M)
-    syncDyn!(model, :TO_MAS, :S2M)
+    @sync let
+        syncTmd!(model, :TO_MAS, :S2M)
+        syncDyn!(model, :TO_MAS, :S2M)
+    end
 
     #= 
     if write_restart
@@ -151,7 +161,6 @@ function registerSharedData!(model::Model)
         (:TAUX,    :sT, :xy,  Float64),
         (:TAUY,    :sT, :xy,  Float64),
         (:IFRAC,   :sT, :xy,  Float64),
-        (:FRWFLX,  :sT, :xy,  Float64),
         (:VSFLX,   :sT, :xy,  Float64),
         (:QFLX_T,  :sT, :xy,  Float64),
         (:QFLX_S,  :sT, :xy,  Float64),
@@ -176,6 +185,7 @@ push_pull_relation = Dict(
     :S2M => :PUSH,
     :M2S => :PULL,
 )
+
 function syncTmd!(
     model :: Model,
     group_label :: Symbol,
@@ -184,9 +194,9 @@ function syncTmd!(
 
     direction = push_pull_relation[direction]
 
-    @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
+    for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
         @spawnat pid let
-            PUHSOM.syncData!(tmd_slave.data_exchanger, group_label, direction)
+            BLOHSOM.syncData!(tmd_slave.data_exchanger, group_label, direction)
         end
     end
 end
@@ -199,9 +209,9 @@ function syncDyn!(
 
     direction = push_pull_relation[direction]
 
-    @sync let
+    let
         @spawnat model.job_dist_info.dyn_slave_pid let
-            PUHSOM.syncData!(dyn_slave.data_exchanger, group_label, direction)
+            BLOHSOM.syncData!(dyn_slave.data_exchanger, group_label, direction)
         end
     end
 end

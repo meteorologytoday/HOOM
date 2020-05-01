@@ -1,28 +1,35 @@
-function stepOcean_MLDynamics!(
+function doMixedLayerDynamics!(
     model :: TmdModel,
 )
 
-    ifrac   = ocn.in_flds.ifrac
+    env   = model.env
+    state = model.state
+    core  = model.core
+    fo = model.forcing
 
-    taux    = ocn.in_flds.taux
-    tauy    = ocn.in_flds.tauy
-    fric_u  = ocn.fric_u
+    ifrac   = fo.ifrac
 
-    swflx   = ocn.in_flds.swflx
-    nswflx  = ocn.in_flds.nswflx
-    frwflx  = ocn.in_flds.frwflx
-    vsflx   = ocn.in_flds.vsflx
-    qflx_T  = ocn.in_flds.qflx_T
-    qflx_S  = ocn.in_flds.qflx_S
+    taux    = fo.τx
+    tauy    = fo.τy
+
+    swflx   = fo.swflx
+    nswflx  = fo.nswflx
+    vsflx   = fo.vsflx
+    qflx_T  = fo.qflx_T
+    qflx_S  = fo.qflx_S
+        
+    z_bnd_av = core.cols[:z_bnd_av]
+
+    prescribe_MLT = env.prescribe_MLT
 
     # It is assumed here that buoyancy has already been updated.
-    @loop_hor ocn i j let
+    @loop_hor core i j let
 
-        zs = ocn.cols.zs[i, j]
-        Nz = ocn.Nz[i, j]
+        zs = z_bnd_av[i, j]
+        Nz = env.Nz_av[i, j]
 
-        fric_u[i, j] = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / HOOM.ρ_sw)
-        weighted_fric_u = fric_u[i, j] * (1.0 - ifrac[i, j])
+        fric_u          = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / ρ_sw)
+        weighted_fric_u = fric_u * (1.0 - ifrac[i, j])
 
 
         # Pseudo code
@@ -38,10 +45,10 @@ function stepOcean_MLDynamics!(
         # p.s.: Need to examine carefully about the
         #       conservation of buoyancy in water column
 
-        old_FLDO = ocn.FLDO[i, j]
-        old_h_ML = ocn.h_ML[i, j]
-        old_T_ML = ocn.T_ML[i, j]
-        old_S_ML = ocn.S_ML[i, j]
+        old_FLDO = state.FLDO[i, j]
+        old_h_ML = state.h_ML[i, j]
+        old_T_ML = state.T_ML[i, j]
+        old_S_ML = state.S_ML[i, j]
 
         α = TS2α(old_T_ML, old_S_ML) 
         β = TS2β(old_T_ML, old_S_ML) 
@@ -53,35 +60,18 @@ function stepOcean_MLDynamics!(
         surf_Sflx    = vsflx[i, j]
         surf_bflx    = g * ( α * surf_Tnswflx - β * surf_Sflx )
         
-        ocn.SFLUX_top[i, j] = surf_Sflx
+        core.XFLUX_top[i, j, 2] = surf_Sflx
 
         new_h_ML = old_h_ML
 
-        if use_h_ML # h_ML is datastream
+        if prescribe_MLT # h_ML is datastream
 
-            new_h_ML = ocn.in_flds.h_ML[i, j]
+            new_h_ML = fo.h_ML[i, j]
 
         else        # h_ML is prognostic
  
-#            target_z = max( - old_h_ML - 30.0,  - ocn.h_ML_max[i, j])
-#            avg_D = - old_h_ML - target_z
 
-#=
-            if (i, j) == (48, 89)
-                println("before delta b ##### Ts: ", ocn.Ts[1:5, i, j])
-                println("before delta b ##### Ss: ", ocn.Ss[1:5, i, j])
-                println("before delta b ##### bs: ", ocn.bs[1:5, i, j])
-            end
-=#
-
-
-#            Δb = ( (avg_D > 0.0) ? ocn.b_ML[i, j] - (
-#                  OC_getIntegratedBuoyancy(ocn, i, j; target_z =   target_z)
-#                - OC_getIntegratedBuoyancy(ocn, i, j; target_z = - old_h_ML)
-#            ) / avg_D
-#            : 0.0 )
-
-            Δb = (old_FLDO == -1 ) ? 0.0 : ocn.b_ML[i, j] - ocn.bs[old_FLDO, i, j]
+            Δb = (old_FLDO == -1 ) ? 0.0 : state.b_ML[i, j] - state.b[old_FLDO, i, j]
 
             # After convective adjustment, there still might
             # be some numerical error making Δb slightly negative
@@ -116,22 +106,22 @@ function stepOcean_MLDynamics!(
 =#
 #            end
 
-            new_h_ML, ocn.h_MO[i, j] = calNewMLD(;
+            new_h_ML, state.h_MO[i, j] = calNewMLD(;
                 h_ML   = old_h_ML,
-                Bf     = surf_bflx + surf_Jflx * ocn.R,
-                J0     = surf_Jflx * (1.0 - ocn.R),
+                Bf     = surf_bflx + surf_Jflx * env.R,
+                J0     = surf_Jflx * (1.0 - env.R),
                 fric_u = weighted_fric_u,
                 Δb     = Δb,
-                f      = ocn.fs[i, j],
+                f      = env.gi.c_f[i, j],
                 Δt     = Δt,
-                ζ      = ocn.ζ,
-                h_max  = ocn.h_ML_max[i, j],
-                we_max = ocn.we_max,
+                ζ      = env.ζ,
+                h_max  = env.h_ML_max[i, j],
+                we_max = env.we_max,
             )
             
         end
 
-        new_h_ML = boundMLD(new_h_ML; h_ML_max=ocn.h_ML_max[i, j], h_ML_min=ocn.h_ML_min[i, j])
+        new_h_ML = boundMLD(new_h_ML; h_ML_max=env.h_ML_max[i, j], h_ML_min=env.h_ML_min[i, j])
 
 
         # ML
@@ -149,19 +139,19 @@ function stepOcean_MLDynamics!(
             if old_FLDO == -1
 
                 # Mixing does not happen because FLDO does not exist in this case
-                ocn.Ts[new_FLDO:Nz, i, j] .= ocn.T_ML[i, j]
-                ocn.Ss[new_FLDO:Nz, i, j] .= ocn.S_ML[i, j]
+                state.T[new_FLDO:Nz, i, j] .= state.T_ML[i, j]
+                state.S[new_FLDO:Nz, i, j] .= state.S_ML[i, j]
 
             else
                 FLDO_Δz =  -old_h_ML - zs[old_FLDO+1]
                 retreat_Δz =  old_h_ML - ( (new_FLDO == old_FLDO) ? new_h_ML : (-zs[old_FLDO]) )
 
-                ocn.Ts[old_FLDO, i, j] = (
-                    ocn.Ts[old_FLDO, i, j] * FLDO_Δz + ocn.T_ML[i, j] * retreat_Δz
+                state.T[old_FLDO, i, j] = (
+                    state.T[old_FLDO, i, j] * FLDO_Δz + state.T_ML[i, j] * retreat_Δz
                 ) / (FLDO_Δz + retreat_Δz)
 
-                ocn.Ss[old_FLDO, i, j] = (
-                    ocn.Ss[old_FLDO, i, j] * FLDO_Δz + ocn.S_ML[i, j] * retreat_Δz
+                state.S[old_FLDO, i, j] = (
+                    state.S[old_FLDO, i, j] * FLDO_Δz + state.S_ML[i, j] * retreat_Δz
                 ) / (FLDO_Δz + retreat_Δz)
             end
         end
@@ -296,7 +286,7 @@ function advectTracer!(
 end
 
 function calDiffAdv_QUICKEST_SpeedUp!(
-    model       :: Model,
+    model       :: TmdModel,
     Δt          :: Float64,
 )
    

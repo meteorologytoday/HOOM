@@ -1,8 +1,16 @@
+function stepModel!(
+    slave :: TmdSlave,
+)
+
+    Tmd.stepModel!(slave.model)
+
+end
+
 function setupBinding!(
     slave :: TmdSlave,
 )
 
-    println("TmdSlave setupBinding...")
+    #println("TmdSlave setupBinding...")
 
     de = slave.data_exchanger
     sd = slave.shared_data
@@ -11,24 +19,42 @@ function setupBinding!(
 
     bd = slave.buffer_data
     s  = m.state
+    f  = m.forcing
 
     ysi = slave.y_split_info
 
+    hasXdim = true
+    noXdim  = false
+
     bindings = (
-        ([:FR_DYN], DataUnit(:u_c, :cU, :zxy, bd[:u_c], false), :u_c),
-        ([:FR_DYN], DataUnit(:v_c, :cV, :zxy, bd[:v_c], false), :v_c),
-        ([:TO_DYN], DataUnit(:b_c, :cT, :zxy, bd[:b_c], false), :b_c),
+        ((:u_c, :cU, :zxy, bd[:u_c], noXdim), :u_c),
+        ((:v_c, :cV, :zxy, bd[:v_c], noXdim), :v_c),
+        ((:b_c, :cT, :zxy, bd[:b_c], noXdim), :b_c),
         
         # T, S, FLDO and such
-        ([:BND, :TO_MAS], DataUnit(:X,    :fT, :zxy, s.X,    true), :X   ),
-        ([:BND, :TO_MAS], DataUnit(:X_ML, :sT, :xy , s.X_ML, true), :X_ML),
+        ((:X,    :fT, :zxy, s.X,    hasXdim), :X   ),
+        ((:X_ML, :sT, :xy , s.X_ML, hasXdim), :X_ML),
+
+        # forcings
+        ((:SWFLX,  :sT, :xy, f.swflx,  noXdim), :SWFLX),
+        ((:NSWFLX, :sT, :xy, f.nswflx, noXdim), :NSWFLX),
+
     )
 
-    println("createBinding..")
+    groups = Dict(
+        :FR_DYN => (:u_c, :v_c,),
+        :TO_DYN => (:b_c,),
+        :BND    => (:X, :X_ML,),
+        :FR_MAS => (:SWFLX, :NSWFLX),
+        :TO_MAS => (:X, :X_ML,),
+    )
+    
+    #println("createBinding..")
 
-    for (group_labels, here, there_key) in bindings
+    for (here_args, there_key) in bindings
        
-        println("Doing : ", here.id, "; ", du_there[there_key].id) 
+        here = DataUnit(here_args...)
+        #println("Doing : ", here.id, "; ", du_there[there_key].id) 
         
         here_pull_yrng  = Colon()
 
@@ -44,17 +70,23 @@ function setupBinding!(
 
         createBinding!(
             de,
+            here.id,
             here,
             du_there[there_key],
             here_pull_yrng,
             there_pull_yrng,
             here_push_yrng,
             there_push_yrng,
-            labels = group_labels,
         )
     end
 
-    println("done.")
+    for (label, du_ids) in groups
+        for id in du_ids
+            addToGroup!(de, id, label)
+        end
+    end
+
+    #println("done.")
 end
 
 
@@ -83,13 +115,13 @@ function projVelocity!(
     projVertical_c2f!(
         slave.va,
         slave.buffer_data[:u_c],
-        slave.model.state.u_U,
+        slave.model.forcing.u_U,
     )
  
     projVertical_c2f!(
         slave.va,
         slave.buffer_data[:v_c],
-        slave.model.state.v_V,
+        slave.model.forcing.v_V,
     )
  
 end

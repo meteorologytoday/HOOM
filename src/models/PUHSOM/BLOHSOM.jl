@@ -6,7 +6,7 @@ using Distributed
 @everywhere include("Dyn/Dyn.jl")
 @everywhere include("Tmd/Tmd.jl")
 
-@everywhere module PUHSOM
+@everywhere module BLOHSOM
 
     using Formatting
     using SharedArrays

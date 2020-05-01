@@ -1,8 +1,10 @@
 mutable struct TmdModel
 
-    env   :: TmdEnv
-    state :: TmdState
-    core  :: TmdCore
+    env     :: TmdEnv
+    core    :: TmdCore
+    state   :: TmdState
+    diag    :: TmdDiag
+    forcing :: TmdForcing
 
     function TmdModel(;
         gi,
@@ -42,11 +44,17 @@ mutable struct TmdModel
             convective_adjustment = convective_adjustment,
         )
 
-        state = TmdState(env)
-        core  = TmdCore(env, state)
+
+        state   = TmdState(env)
+        diag    = TmdDiag(env)
+        forcing = TmdForcing(env)
+        
+        core  = TmdCore(env, state, diag, forcing)
+
+
 
         return new(
-            env, state, core
+            env, core, state, diag, forcing
         )
 
     end

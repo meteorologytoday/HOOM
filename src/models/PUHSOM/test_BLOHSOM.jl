@@ -1,7 +1,7 @@
 using ArgParse
 using JSON
 
-include("PUHSOM.jl")
+include("BLOHSOM.jl")
 include("../../share/constants.jl")
 
 if !isdefined(Main, :REPL)
@@ -32,7 +32,7 @@ if !isdefined(Main, :REPL)
 
 else
 
-    run_days = 5*24
+    run_days = 10
     output_file = "output.nc"
 
 end
@@ -62,7 +62,7 @@ gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
     angle_unit=:deg,
 )
 
-ocn_env = PUHSOM.OcnEnv(
+ocn_env = BLOHSOM.OcnEnv(
     hrgrid_file,
     topo_file,
     Δt,
@@ -91,13 +91,15 @@ ocn_env = PUHSOM.OcnEnv(
 )
 
 println("##### Initialize model #####")
-model = PUHSOM.init!(ocn_env)
+model = BLOHSOM.init!(ocn_env)
 
-recorder = PUHSOM.getBasicRecorder(model)
+recorder = BLOHSOM.getBasicRecorder(model)
 
 du = model.shared_data.data_units
-du[:Φ].data .= 0.01 * exp.(- ( (gi.c_lat * gi.R ).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
-PUHSOM.syncDyn!(model, :TEST, :M2S)
+#du[:Φ].data .= 0.01 * exp.(- ( (gi.c_lat * gi.R ).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
+du[:SWFLX].data .= -1000.0
+
+#BLOHSOM.syncDyn!(model, :TEST, :M2S)
 
 RecordTool.setNewNCFile!(recorder, output_file)
 RecordTool.record!(recorder)
@@ -107,7 +109,7 @@ RecordTool.avgAndOutput!(recorder)
 @time for step=1:run_days
     println("##### Run day ", step)
 
-    @time PUHSOM.stepModel!(model, false)
+    @time BLOHSOM.stepModel!(model, false)
     RecordTool.record!(recorder)
     RecordTool.avgAndOutput!(recorder)
 end

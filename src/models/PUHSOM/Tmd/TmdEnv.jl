@@ -50,7 +50,7 @@ mutable struct TmdEnv
     
     radiation_scheme      :: Symbol
     convective_adjustment :: Bool
-    prescribed_MLT        :: Bool
+    prescribe_MLT        :: Bool
     use_Qflux             :: Bool
     
  

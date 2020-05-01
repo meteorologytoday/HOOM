@@ -26,6 +26,17 @@ module Tmd
         end
     end
 
+    macro loop_hor(core, idx1, idx2, stmts)
+        return :( for grid_idx in 1:size($(esc(core)).valid_idx)[2]
+
+            $(esc(idx1)) = $(esc(core)).valid_idx[1, grid_idx]
+            $(esc(idx2)) = $(esc(core)).valid_idx[2, grid_idx]
+            $(esc(stmts))
+
+        end )
+    end
+
+
 
     using Formatting
     using LinearAlgebra    
@@ -33,16 +44,21 @@ module Tmd
     using ..ModelMap
     using Statistics: mean
 
+    include("../../../share/constants.jl")
+    include("../../../share/ocean_state_function.jl")
 
     include("Workspace.jl")
     include("AdvectionSpeedUpMatrix.jl")
     include("TmdEnv.jl")
     include("TmdState.jl")
+    include("TmdDiag.jl")
+    include("TmdForcing.jl")
     include("TmdCore.jl")
     include("TmdModel.jl")
 
     include("varlist.jl")
     include("step_model.jl")
+    include("step_tmd_mixed_layer.jl")
 
     macro loop_hor(ocn, idx1, idx2, stmts)
         return :( for grid_idx in 1:size($(esc(ocn)).valid_idx)[2]
@@ -60,6 +76,7 @@ module Tmd
         model :: TmdModel,
     )
         reset!(model.core.wksp)
+        doMixedLayerDynamics!(model)
         advectTracer!(model)
         
     end

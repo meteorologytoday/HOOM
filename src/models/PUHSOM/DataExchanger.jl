@@ -1,5 +1,7 @@
 struct DataBinding
-    
+   
+    id    :: Symbol
+ 
     here  :: DataUnit
     there :: DataUnit
    
@@ -14,6 +16,9 @@ struct DataBinding
     # push from here
 
     function DataBinding(
+
+        id          :: Symbol,
+
         here        :: DataUnit,
         there       :: DataUnit,
 
@@ -55,6 +60,7 @@ struct DataBinding
         
         
         return new(
+            id,
             here,
             there,
             here_pull_view,
@@ -70,7 +76,9 @@ end
 
 struct DataExchanger
     
-    data_bindings :: Dict
+    groups        :: Dict
+    bindings :: Dict
+
 
     function DataExchanger(
         group_labels :: AbstractArray{Symbol} = Array{Symbol}(undef, 0),
@@ -81,13 +89,16 @@ struct DataExchanger
         end
 
 
-        data_bindings = Dict() 
+        groups = Dict() 
         for label in group_labels
-            data_bindings[label] = Array{DataBinding}(undef, 0)
+            groups[label] = Array{Symbol}(undef, 0)
         end
 
+        bindings = Dict()
+
         return new(
-            data_bindings,
+            groups,
+            bindings,
         )
     end
 
@@ -95,16 +106,17 @@ end
 
 function createBinding!(
     data_exchanger   :: DataExchanger,
+    id               :: Symbol,
     here             :: DataUnit,
     there            :: DataUnit,
     here_pull_yrng        :: Any,
     there_pull_yrng       :: Any,
     here_push_yrng        :: Any,
     there_push_yrng       :: Any;
-    labels           :: Union{Symbol, AbstractArray{Symbol}} = [:ALL],
 )
 
     db = DataBinding(
+        id,
         here,
         there,
         here_pull_yrng,
@@ -113,23 +125,28 @@ function createBinding!(
         there_push_yrng,
     )
 
-    if typeof(labels) == Symbol
-        labels = [labels]
-    end
-    
-    if ! ( :ALL in labels )
-        push!(labels, :ALL)
-    end
-
-    for label in labels
-        push!(
-            data_exchanger.data_bindings[label], 
-            db,
-        )
+    if ! haskey(data_exchanger.bindings, id)
+        data_exchanger.bindings[id] = db
+    else
+        throw(ErrorException("Binding id `" * string(id) * "` already existed."))
     end
 
 end
 
+function addToGroup!(
+    data_exchanger :: DataExchanger,
+    id    :: Symbol,
+    label :: Symbol, 
+)
+
+ 
+    if id in data_exchanger.groups[label]
+        throw(ErrorException("Binding id `" * string(id) * "` already in group `" * string(label) * "`."))
+    end
+
+    push!(data_exchanger.groups[label], id)
+
+end
 
 function syncData!(
     data_exchanger :: DataExchanger,
@@ -137,17 +154,19 @@ function syncData!(
     direction      :: Symbol,
 )
 
-    dbs = data_exchanger.data_bindings[group_label]
+    dbs = data_exchanger.groups[group_label]
    
 
      
     if direction == :PUSH
-        for db in dbs
+        for db_label in dbs
+            db = data_exchanger.bindings[db_label]
     #        println("db: id: ", db.here.id, "; ", db.there.id)
             db.there_push_view[:] = db.here_push_view
         end 
     elseif direction == :PULL
-        for db in dbs
+        for db_label in dbs
+            db = data_exchanger.bindings[db_label]
             db.here_pull_view[:] = db.there_pull_view
         end 
     else
