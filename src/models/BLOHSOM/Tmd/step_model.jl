@@ -37,33 +37,69 @@ function advectTracer!(
 
     @fast_extract m
 
+#    println("BEFORE:T[1:2]", st.X[1:2, 3, 3, 1], "; FDLO = ", st.FLDO[3,3], "; FLDO_ratio_top")
+
+
+    calFLDOPartition!(m)
+
+    for x = 1:ev.NX
+
+        ΔX   = view(st.ΔX,      :, :, x)
+        X_ML = view(st.X_ML,    :, :, x)
+        X    = view(co.cols.X,  :, :, x)
+
+        for I in CartesianIndices(X)
+            ΔX[I] = mixFLDO!(
+                qs   = X[I],
+                zs   = co.cols.z_bnd_av[I],
+                hs   = co.cols.dz_W[I],
+                q_ML = X_ML[I],
+                FLDO = st.FLDO[I],
+                FLDO_ratio_top = st.FLDO_ratio_top[I],
+                FLDO_ratio_bot = st.FLDO_ratio_bot[I],
+            )
+        end
+    end
+
+
+#    println("AFTER:T[1:2]", st.X[1:2, 3, 3, 1], ";h_ML=", st.h_ML[3, 3])
+
     Δt = ev.Δt_substep
     tmp_T = getSpace!(co.wksp, :T)
+    
     # Pseudo code
     # 1. calculate tracer flux
     # 2. calculate tracer flux divergence
     calDiffAdv_QUICKEST_SpeedUp!(m, Δt)
 
-#=
-    for x=1:env.NX, i = 1:env.Nx, j=1:env.Ny
-            for k = 1:env.Nz_av[i, j]
-                state.X[k, i, j, x] += Δt * core.XFLUX_CONV[k, i, j, x]
-            end
-    end
-=#
+    @. st.X  += Δt * co.XFLUX_CONV
+    @. st.ΔX += Δt * st.dΔXdt
 
-    @. st.X += Δt * co.XFLUX_CONV
 
-    #=
-    @time let
-        for x=1:ev.NX
-            tmp_T .= view(co.XFLUX_CONV, :, :, :, x)
-            tmp_T .*= Δt
-            st.X[:, :, :, x] .+= tmp_T
+#    println("## Before T_ML=", st.X_ML[3,3,1])
+    for x = 1:ev.NX
+
+        ΔX   = view(st.ΔX,      :, :, x)
+        X_ML = view(st.X_ML,    :, :, x)
+        X    = view(co.cols.X,  :, :, x)
+
+        for I in CartesianIndices(X)
+            X_ML[I] = unmixFLDOKeepDiff!(
+                qs   = X[I],
+                zs   = co.cols.z_bnd_av[I],
+                hs   = co.cols.dz_W[I],
+                h_ML = st.h_ML[I],
+                FLDO = st.FLDO[I],
+                Nz   = ev.Nz_av[I],
+                Δq   = ΔX[I],
+            )
         end
     end
-    =#
+
+#    println("## After T_ML=", st.X_ML[3,3,1])
+
 end
+
 
 function calDiffAdv_QUICKEST_SpeedUp!(
     m       :: TmdModel,
@@ -89,8 +125,8 @@ function calDiffAdv_QUICKEST_SpeedUp!(
 
     for x=1:ev.NX
  
-        X            = view(st.X,     :, :, :, x)
-
+        X            = view(st.X,            :, :, :, x)
+        dΔXdt        = view(st.dΔXdt,           :, :, x)
         XFLUX_bot    = view(co.XFLUX_bot,       :, :, x)
         XFLUX_CONV   = view(co.XFLUX_CONV,   :, :, :, x)
         XFLUX_CONV_h = view(co.XFLUX_CONV_h, :, :, :, x)
@@ -141,30 +177,28 @@ function calDiffAdv_QUICKEST_SpeedUp!(
     
 
 
-   #println("TOTAL CHANGE")
-        let
-            mul!(view(XFLUX_CONV_h, :), ASUM.mtx_DIV_X, view(XFLUX_DEN_x, :))
-            mul!(view(tmp1, :),   ASUM.mtx_DIV_Y, view(XFLUX_DEN_y, :))
-            mul!(view(tmp2, :),   ASUM.mtx_DIV_Z, view(XFLUX_DEN_z, :))
+        mul!(view(XFLUX_CONV_h, :), ASUM.mtx_DIV_X, view(XFLUX_DEN_x, :))
+        mul!(view(tmp1, :),   ASUM.mtx_DIV_Y, view(XFLUX_DEN_y, :))
+        mul!(view(tmp2, :),   ASUM.mtx_DIV_Z, view(XFLUX_DEN_z, :))
 
-            #=
-            @time let     
-            XFLUX_CONV_h .+= tmp1
-            XFLUX_CONV_h .*= -1.0
 
-            XFLUX_CONV .= XFLUX_CONV_h 
-            XFLUX_CONV .-= tmp2
-            end
-            =#
+        @. XFLUX_CONV_h = -1.0 * (XFLUX_CONV_h + tmp1)
+        @. XFLUX_CONV = XFLUX_CONV_h - tmp2
 
-            @. XFLUX_CONV_h = -1.0 * (XFLUX_CONV_h + tmp1)
-            @. XFLUX_CONV = XFLUX_CONV_h - tmp2
-
-    #        for j=1:ocn.Ny, i=1:ocn.Nx, k=1:ocn.Nz_bone
-    #            FLUX_CONV_h[k, i, j] = - ( ocn.workspace1[k, i, j] + ocn.workspace2[k, i, j] )
-    #            FLUX_CONV[k, i, j] = FLUX_CONV_h[k, i, j] - ocn.workspace3[k, i, j]
-    #        end
-        end
+        
+        calMixedLayer_dΔqdt!(
+            Nx          = ev.Nx,
+            Ny          = ev.Ny,
+            Nz          = ev.Nz_av,
+            FLUX_CONV_h = XFLUX_CONV_h,
+            FLUX_DEN_z  = XFLUX_DEN_z,
+            dΔqdt       = dΔXdt,
+            mask        = ev.mask2,
+            FLDO        = st.FLDO,
+            h_ML        = st.h_ML,
+            hs          = co.dz_W,
+            zs          = ev.z_bnd_av,
+        )
 
     end
 
@@ -635,3 +669,45 @@ function calHorVelBnd!(;
     end
 
 end
+
+function calMixedLayer_dΔqdt!(;
+    Nx          :: Integer,
+    Ny          :: Integer,
+    Nz          :: AbstractArray{Int64, 2},
+    FLUX_CONV_h :: AbstractArray{Float64, 3},     # ( Nz_bone  ,  Nx, Ny )
+    FLUX_DEN_z  :: AbstractArray{Float64, 3},     # ( Nz_bone+1,  Nx, Ny )
+    dΔqdt       :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    mask        :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    FLDO        :: AbstractArray{Int64, 2},       # ( Nx, Ny )
+    h_ML        :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    hs          :: AbstractArray{Float64, 3},     # ( Nz_bone  ,  Nx, Ny )
+    zs          :: AbstractArray{Float64, 3},     # ( Nz_bone+1,  Nx, Ny )
+) 
+
+    for i=1:Nx, j=1:Ny
+
+        if mask[i, j] == 0.0
+            continue
+        end
+
+        _FLDO = FLDO[i, j]
+
+        if _FLDO == -1
+            continue
+        end
+
+        tmp = 0.0
+        for k = 1:_FLDO-1
+            tmp += FLUX_CONV_h[k, i, j] * hs[k, i, j]
+        end
+        tmp += ( 
+              FLUX_CONV_h[_FLDO, i, j] * zs[_FLDO, i, j] 
+            + ( FLUX_DEN_z[_FLDO+1, i, j] * zs[_FLDO, i, j] - FLUX_DEN_z[_FLDO, i, j] * zs[_FLDO+1, i, j] ) / hs[_FLDO, i, j]
+        )
+
+        dΔqdt[i, j] = tmp / h_ML[i, j]
+    end
+
+end
+
+

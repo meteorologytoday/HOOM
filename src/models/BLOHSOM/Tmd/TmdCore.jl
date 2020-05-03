@@ -6,6 +6,7 @@ mutable struct Cols
     dz_W          :: Array{SubArray}
     rad_decay_coe :: Array{SubArray}
     rad_absorp_coe:: Array{SubArray}
+    X             :: Array
     function Cols()
         return new()
     end
@@ -79,6 +80,7 @@ mutable struct TmdCore    # Adam Bashford
         cols = Cols()
         for (var, ref) in Dict(
             :z_bnd_av        => env.z_bnd_av,
+            :X               => state.X,
             :T               => state.T,
             :S               => state.S,
             :b               => state.b,
@@ -171,13 +173,31 @@ mutable struct TmdCore    # Adam Bashford
 end
 
 function genColView(
-    arr :: AbstractArray{T, 3}
+    arr :: Union{AbstractArray{T, 3}, AbstractArray{T, 4}}
 ) where T
 
-    _, Nx, Ny = size(arr)
-    view_arr  = Array{SubArray}(undef, Nx, Ny)
-    for i=1:Nx, j=1:Ny
-        view_arr[i, j] = view(arr, :, i, j)
+    # vectorization the for loop is not faster
+
+    s = size(arr)
+
+    if length(s) == 3
+
+        _, Nx, Ny = size(arr)
+        view_arr  = Array{SubArray}(undef, Nx, Ny)
+
+        for i=1:Nx, j=1:Ny
+            view_arr[i, j] = view(arr, :, i, j)
+        end
+
+    elseif length(s) == 4
+
+        _, Nx, Ny, NX = size(arr)
+        view_arr  = Array{SubArray}(undef, Nx, Ny, NX)
+
+        for i=1:Nx, j=1:Ny, x =1:NX
+            view_arr[i, j, x] = view(arr, :, i, j, x)
+        end
+
     end
 
     return view_arr

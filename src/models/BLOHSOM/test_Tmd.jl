@@ -37,14 +37,14 @@ if !isdefined(Main, :REPL)
 
 else
 
-    run_days = 10
+    run_days = 5
     output_file = "output_tmd.nc"
 
 end
 
 
 
-z_bnd = collect(Float64, range(0, -100, length=21))
+z_bnd = collect(Float64, range(0, -100, length=11))
 
 println("Create Gridinfo");
 
@@ -100,7 +100,7 @@ model = Tmd.TmdModel(
     Kv_X                  = [0.0, 0.0],
     MLT_rng               = [3, 1e5],
     radiation_scheme      = :exponential_decay,
-    MLT_scheme            = :dynamic,
+    MLT_scheme            = :prescribe_MLT,
     convective_adjustment = true,
 )
 
@@ -124,7 +124,7 @@ for varname in keys(coord_varlist)
 end
 
 
-model.state.h_ML .= 5.0
+model.state.h_ML .= 7.0
 
 model.state.S_ML .= 35.0
 model.state.S .= 35.0
@@ -132,7 +132,7 @@ model.state.S .= 35.0
 model.state.T .= 10.0
 model.state.T_ML .= 10.0
 model.state.T_ML .= 20 .+ 10.0 * sin.((model.env.gi.c_lon )) .* sin.(model.env.gi.c_lat)
-model.state.T[1, :, :] .= model.state.T_ML
+#model.state.T[1, :, :] .= model.state.T_ML
 
 
 #model.forcing.swflx .= -1000.0
@@ -141,7 +141,7 @@ model.forcing.h_ML  .= model.state.h_ML
 σ = 100e3 * 10.0
 #model.state.u_c[1, :, :] .= 1.0
 
-model.forcing.u_U[1, :, :] .= 1.0 #* sin.((model.env.gi.c_lon )) .* cos.(model.env.gi.c_lat*2) #.* exp.( - (model.env.gi.c_y / σ).^2.0 / 2.0 )
+model.forcing.u_U[1, :, :] .= 1 .* cos.(model.env.gi.c_lat)#* sin.((model.env.gi.c_lon )) .* cos.(model.env.gi.c_lat*2) #.* exp.( - (model.env.gi.c_y / σ).^2.0 / 2.0 )
 
 Tmd.initialization!(model)
 

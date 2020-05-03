@@ -11,7 +11,6 @@ using ArgParse
 using JSON
 
 
-
 if !isdefined(Main, :REPL)
 
     function parse_commandline()
@@ -47,8 +46,9 @@ end
 
 
 
-z_bnd_f = collect(Float64, range(0, -4000, length=11))
+z_bnd_f = collect(Float64, range(0, -100, length=11))
 height_level_counts = [1, 3, 6]
+height_level_counts = [10]
 
 println("Create Gridinfo");
 
@@ -71,22 +71,22 @@ hrgrid_file = "/seley/tienyiah/CESM_domains/domain.ocn.gx1v6.090206.nc"
 topo_file = "/seley/tienyiah/CESM_domains/ocean_topog_gx1v6.nc"
 
 
-#hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.lnd.fv0.9x1.25_gx1v6.090309.nc"
-#topo_file = "/seley/tienyiah/CESM_domains/test_domains/topo.fv0.9x1.25.nc"
+hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.lnd.fv0.9x1.25_gx1v6.090309.nc"
+topo_file = "/seley/tienyiah/CESM_domains/test_domains/topo.fv0.9x1.25.nc"
 
 
 mi = ModelMap.MapInfo{Float64}(hrgrid_file)
 
 Dataset(topo_file, "r") do ds
-    
-    mask_idx = (ds["depth"][:] |> nomissing) .< 1000.0
-
-    #mi.mask[mask_idx] .= 0.0
+    global mask_idx = (ds["depth"][:] |> nomissing) .< 1000.0
 end
 
 
 
-#mi.mask = 1 .- mi.mask
+mi.mask = 1 .- mi.mask
+mi.mask[mask_idx] .= 0.0
+
+#mi.mask .= 1
 
 gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
     R=Re,
@@ -246,7 +246,7 @@ end
 #a = 0.1 * exp.(- (gi.c_y.^2 + gi.c_x.^2) / (σ^2.0) / 2) .* sin.(gi.c_lon*3)
 #b = 0.1 * exp.(- (gi.c_y.^2 + gi.c_x.^2) / (σ^2.0) / 2) .* cos.(gi.c_lon*3)
 a=b=0
-run_days=20
+run_days=50
 
 #model.state.v_c[:, 2:end, 1] .= 1.0 * exp.(- (gi.c_y.^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2) .* cos.(gi.c_lon*3)
 #model.state.v_c[:, 2:end, 1] .= 1.0 * exp.(- ((gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)

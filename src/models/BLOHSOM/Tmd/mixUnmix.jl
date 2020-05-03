@@ -32,11 +32,6 @@ function unmixFLDOKeepDiff!(;
 #    verbose = false
 )
 
-    # no need to remix if h_ML is shallower than the first layer
-    if FLDO == 1
-        return qs[1]
-    end
-
     int_layer = 0
     integral = 0.0
     new_q_ML = 0.0

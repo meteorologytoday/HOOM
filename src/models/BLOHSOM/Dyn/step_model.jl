@@ -31,21 +31,29 @@ function advectDynamic!(
     state = model.state
     core  = model.core
 
+#=
+  0.041038 seconds (106 allocations: 9.164 MiB, 2.54% gc time)
+  0.045352 seconds (2.16 M allocations: 32.969 MiB, 2.54% gc time)
+  0.026442 seconds (1.44 M allocations: 21.995 MiB, 5.05% gc time)
+  0.005663 seconds (21 allocations: 1.572 MiB)
+  0.001000 seconds (100 allocations: 3.063 KiB)
+=#
 
-    println("Do Diffusion!")
-    @time doHDiffusion!(model)
 
-    println("calAuxV!")
-    @time calAuxV!(model)
+#    println("Do Diffusion!")
+    doHDiffusion!(model)
 
-    println("calAuxΦ!")
-    @time calAuxΦ!(model)
+#    println("calAuxV!")
+    calAuxV!(model)
 
-    println("solveΦ!")
-    @time solveΦ!(model)
+#    println("calAuxΦ!")
+    calAuxΦ!(model)
 
-    println("updateV!")
-    @time updateV!(model)
+#    println("solveΦ!")
+    solveΦ!(model)
+
+#    println("updateV!")
+    updateV!(model)
 
     #println(format("(u, v) = ({:.2f}, {:.2f})", state.u_c[1, 5, 5], state.v_c[1,5,5]))
 end
@@ -98,6 +106,7 @@ function calAuxV!(
     wksp = core.wksp
 
     # cal b_f from T_f, S_f
+    #=
     for i=1:env.Nx, j=1:env.Ny
 
         if env.mask[i, j] == 0
@@ -108,7 +117,7 @@ function calAuxV!(
             state.b_f[i, j, k] = TS2b(state.T[i, j, k], state.S[i, j, k])
         end
     end
-
+    =#
     # cal b_c from b_f
     #@time let
     #println("cal avg f2c")
@@ -226,9 +235,23 @@ function calAuxV!(
 
     # calculate auxiliary velocity
     Δt = env.Δt 
-    G_u = state.G_u
-    G_v = state.G_v
-    for i=1:env.Nx, j=1:env.Ny, k=1:env.Nz_c
+#    G_u = state.G_u
+#    G_v = state.G_v
+
+    G_u_Δt0 = view(state.G_u, :, :, :, Δt0)
+    G_u_Δt1 = view(state.G_u, :, :, :, Δt1)
+    G_u_Δt2 = view(state.G_u, :, :, :, Δt2)
+
+    G_v_Δt0 = view(state.G_v, :, :, :, Δt0)
+    G_v_Δt1 = view(state.G_v, :, :, :, Δt1)
+    G_v_Δt2 = view(state.G_v, :, :, :, Δt2)
+
+
+    @. core.u_aux = state.u_c + Δt * ABIII(G_u_Δt0, G_u_Δt1, G_u_Δt2)
+    @. core.v_aux = state.v_c + Δt * ABIII(G_v_Δt0, G_v_Δt1, G_v_Δt2)
+
+    #=
+    @time for i=1:env.Nx, j=1:env.Ny, k=1:env.Nz_c
         core.u_aux[i, j, k] = state.u_c[i, j, k] + Δt *
            ABIII(
                 state.G_u[i, j, k, Δt0],
@@ -248,6 +271,7 @@ function calAuxV!(
                 G_v[i, j, k, Δt2],
             )
     end
+    =#
 
     G_idx[:now] = Δt2
     G_idx[:one_Δt_ago] = Δt0
@@ -283,13 +307,17 @@ function calAuxΦ!(
 
     mul2!(DIV_Φu, s_ops.T_DIVx_U,   Φu)
     mul2!(DIV_Φv, s_ops.T_DIVy_V,   Φv)
+
  
+    @. core.Φ_aux = state.Φ - Δt * (DIV_Φu + DIV_Φv)
+   
+    #= 
     for i=1:env.Nx, j=1:env.Ny
         core.Φ_aux[i, j] = state.Φ[i, j] - Δt * (
             DIV_Φu[i, j] + DIV_Φv[i, j]
         )
     end
-   
+    =#
 end
 
 function solveΦ!(
@@ -307,9 +335,11 @@ function solveΦ!(
     rhs_TT = view(getSpace!(core.wksp, :sT), 1:solver.TT_length)
 
     α = solver.α
-    for i=1:env.Nx, j=1:env.Ny
-        rhs[i, j] = - core.Φ_aux[i, j] * α
-    end
+    
+    @. rhs = - core.Φ_aux * α
+#    for i=1:env.Nx, j=1:env.Ny
+#        rhs[i, j] = - core.Φ_aux[i, j] * α
+#    end
 
     mul!(rhs_TT, solver.TT_send_T, view(rhs, :))
  
@@ -356,11 +386,23 @@ function updateV!(
     ΔtfricU .*= Δt/τ
     ΔtfricV .*= Δt/τ
 
+    
+    for k=1:env.Nz_c
+        u_c = view(state.u_c, :, :, k)
+        v_c = view(state.v_c, :, :, k)
+        u_aux = view(core.u_aux, :, :, k)
+        v_aux = view(core.v_aux, :, :, k)
+
+        @. u_c = u_aux - Δt∂Φ∂x - ΔtfricU
+        @. v_c = v_aux - Δt∂Φ∂y - ΔtfricV
+    end
+
+#= 
     for i=1:env.Nx, j=1:env.Ny, k=1:env.Nz_c
         state.u_c[i, j, k] = core.u_aux[i, j, k] - Δt∂Φ∂x[i, j] - ΔtfricU[i, j]
         state.v_c[i, j, k] = core.v_aux[i, j, k] - Δt∂Φ∂y[i, j] - ΔtfricV[i, j]
     end
- 
+ =#
     #projVertical_c2f!(core.va, state.u_c, state.u_f)
     #projVertical_c2f!(core.va, state.v_c, state.v_f)
    
