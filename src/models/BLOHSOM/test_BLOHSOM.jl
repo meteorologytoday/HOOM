@@ -32,7 +32,7 @@ if !isdefined(Main, :REPL)
 
 else
 
-    run_days = 10
+    run_days = 5
     output_file = "output.nc"
 
 end
@@ -62,12 +62,20 @@ gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
     angle_unit=:deg,
 )
 
+mi.mask .= 1.0
+mi.mask[:, 1] .= 0 
+mi.mask[:, end] .= 0 
+
+topo = similar(mi.mask)
+topo .= -2000
+
 ocn_env = BLOHSOM.OcnEnv(
     hrgrid_file,
     topo_file,
+    "topo",
     Δt,
-    1,
-    1,
+    12,
+    8,
     Nz_f,
     Nz_c,
     collect(Float64, range(0.0, -100.0, length=21)),
@@ -85,9 +93,13 @@ ocn_env = BLOHSOM.OcnEnv(
     ["T.nc", "S.nc"],
     ["T", "S"],
     [NaN, NaN],
-    "exponential_decay",
+    :dynamic,
+    :exponential_decay,
     true,
-    "topo",
+    false,
+    false;
+    mask2 = mi.mask,
+    topo  = topo,
 )
 
 println("##### Initialize model #####")
@@ -97,7 +109,9 @@ recorder = BLOHSOM.getBasicRecorder(model)
 
 du = model.shared_data.data_units
 #du[:Φ].data .= 0.01 * exp.(- ( (gi.c_lat * gi.R ).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
-du[:SWFLX].data .= -1000.0
+
+σ = 1000e3
+du[:SWFLX].data .= -1000.0 * exp.(- ( (gi.c_lat * gi.R ).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 
 #BLOHSOM.syncDyn!(model, :TEST, :M2S)
 
@@ -109,6 +123,9 @@ RecordTool.avgAndOutput!(recorder)
 @time for step=1:run_days
     println("##### Run day ", step)
 
+    if step >= 3
+        du[:SWFLX].data .= 0.0
+    end
     @time BLOHSOM.stepModel!(model, false)
     RecordTool.record!(recorder)
     RecordTool.avgAndOutput!(recorder)

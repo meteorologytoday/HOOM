@@ -1,10 +1,11 @@
 function init!(
-    ocn_env = Union{String, OceanEnv},
+    ocn_env = Union{String, OceanEnv};
+    snapshot :: Union{String, Nothing} = nothing,
 )
 
     # TODO
     ocn_env = (typeof(ocn_env) == String) ? loadOcnEnv(env) : ocn_env
-
+    
     shared_data    = SharedData(ocn_env)
     job_dist_info  = JobDistributionInfo(ocn_env; overlap=2)
 
@@ -40,9 +41,22 @@ function init!(
                 )
 
                 BLOHSOM.setupBinding!(tmd_slave)
+                BLOHSOM.Tmd.initialization!(tmd_slave.model)
             end
         end
     end
+
+    if snapshot != nothing
+
+        snapshot_dyn = format("{:s}.dyn.nc", snapshot)
+        snapshot_tmd = format("{:s}.tmd.nc", snapshot)
+        
+        Dyn.loadSnapshot!(snapshot_dyn)
+        Tmd.loadSnapshot!(snapshot_tmd)
+
+    end
+
+
 
     println("Slave created and data exchanger is set.")
     println("TODO: Skip read restart file for now.")
@@ -75,13 +89,13 @@ function stepModel!(
     # Currently tmd_core does not need info from
     # dyn_core so we do not need to pass dyn fields
     # to mld core
-#    for t=1:env.substep_dyn
+#    for t=1:env.substeps_dyn
 #        Dyn.stepModel!(dyn_slaves)
 #    end
  
 #=
     @sync @spawnat model.job_dist_info.dyn_slave_pid let
-            for t=1:env.substep_dyn
+            for t=1:env.substeps_dyn
                 Dyn.stepModel!(dyn_slave.model)
             end
     end
@@ -98,7 +112,7 @@ function stepModel!(
 
     # this involves passing tracer through boundaries
     # so need to sync every time after it evolves
-    for t=1:env.substep_tmd
+    for t=1:env.substeps_tmd
 
 
         @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)

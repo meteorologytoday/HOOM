@@ -64,22 +64,26 @@ mutable struct TmdSlave
         # ===== [END] Making vertical averager =====
  
         model = Tmd.TmdModel(
-            gi      = gi,
-            Δt      = ocn_env.Δt / ocn_env.substep_tmd,
-            z_bnd   = ocn_env.z_bnd_f,
-            topo    = ocn_env.topo,
-            mask2   = ocn_env.mask2,
-            Kh_X    = ocn_env.Kh_X,
-            Kv_X    = ocn_env.Kv_X,
-            we_max  = ocn_env.we_max,
-            R       = ocn_env.R,
-            ζ       = ocn_env.ζ,
-            MLT_rng = ocn_env.MLT_rng,
+            gi       = gi,
+            Δt       = ocn_env.Δt / ocn_env.substeps_tmd,
+            substeps = ocn_env.substeps_tmd,
+            z_bnd    = ocn_env.z_bnd_f,
+            topo     = ocn_env.topo,
+            mask2    = ocn_env.mask2,
+            Kh_X     = ocn_env.Kh_X,
+            Kv_X     = ocn_env.Kv_X,
+            we_max   = ocn_env.we_max,
+            R        = ocn_env.R,
+            ζ        = ocn_env.ζ,
+            MLT_rng  = ocn_env.MLT_rng,
             NX_passive = ocn_env. NX_passive,
             t_X_wr     = ocn_env.t_X_wr,
             X_wr       = X_wr,
+            MLT_scheme = ocn_env.MLT_scheme,
             radiation_scheme = Symbol(ocn_env.radiation_scheme),
             convective_adjustment = ocn_env.convective_adjustment,
+            use_Qflux     = ocn_env.use_Qflux,
+            finding_Qflux = ocn_env.finding_Qflux,
         )         
 
 

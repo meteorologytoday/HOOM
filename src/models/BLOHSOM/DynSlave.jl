@@ -30,7 +30,7 @@ mutable struct DynSlave
         
         model = Dyn.DynModel(
             gi      = gi,
-            Δt      = ocn_env.Δt / ocn_env.substep_dyn,
+            Δt      = ocn_env.Δt / ocn_env.substeps_dyn,
             Dh      = ocn_env.Kh_m,
             z_bnd_f = ocn_env.z_bnd_f,
             height_level_counts = ocn_env.height_level_counts;

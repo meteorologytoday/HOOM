@@ -118,6 +118,9 @@ function doMixedLayerDynamics!(
 
         new_h_ML = boundMLD(new_h_ML; h_ML_max=ev.h_ML_max[i, j], h_ML_min=ev.h_ML_min[i, j])
 
+        if new_h_ML == 0.0
+            throw(ErrorException("zero h_ML"))
+        end
 
         # ML
         #      i: Calculate integrated buoyancy that should

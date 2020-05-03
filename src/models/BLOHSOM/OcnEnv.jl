@@ -1,11 +1,12 @@
 mutable struct OcnEnv
    
-    hrgrid_file   :: AbstractString
-    topo_file     :: AbstractString
+    hrgrid_file   :: String
+    topo_file     :: String
+    topo_varname  :: String
 
     Δt :: Float64
-    substep_dyn :: Int64
-    substep_tmd :: Int64
+    substeps_dyn :: Int64
+    substeps_tmd :: Int64
 
     Nx :: Int64
     Ny :: Int64
@@ -62,21 +63,25 @@ mutable struct OcnEnv
     we_max                :: Float64
     MLT_rng               :: AbstractArray{Float64, 1}
 
-    X_wr_file             :: AbstractArray{AbstractString, 1}
-    X_wr_varname          :: AbstractArray{AbstractString, 1}
+    X_wr_file             :: AbstractArray{String, 1}
+    X_wr_varname          :: AbstractArray{String, 1}
     t_X_wr                :: AbstractArray{Float64, 1}
 
-    radiation_scheme      :: AbstractString
+    MLT_scheme            :: Symbol
+    radiation_scheme      :: Symbol
     convective_adjustment :: Bool
+    use_Qflux             :: Bool
+    finding_Qflux         :: Bool
 
-    topo_varname          :: String
+
 
     function OcnEnv(
         hrgrid_file           :: String,
         topo_file             :: String,
+        topo_varname          :: String,
         Δt                    :: Float64,
-        substep_dyn           :: Int64,
-        substep_tmd           :: Int64,
+        substeps_dyn           :: Int64,
+        substeps_tmd           :: Int64,
         Nz_f                  :: Int64,
         Nz_c                  :: Int64,
         z_bnd_f               :: AbstractArray{Float64, 1},
@@ -94,9 +99,13 @@ mutable struct OcnEnv
         X_wr_file             :: AbstractArray{String, 1},
         X_wr_varname          :: AbstractArray{String, 1},
         t_X_wr                :: AbstractArray{Float64, 1},
-        radiation_scheme      :: AbstractString,
+        MLT_scheme            :: Symbol,
+        radiation_scheme      :: Symbol,
         convective_adjustment :: Bool,
-        topo_varname          :: String,
+        use_Qflux             :: Bool,
+        finding_Qflux         :: Bool;
+        mask2                 :: Union{AbstractArray{Float64, 2}, Nothing} = nothing, # debugging purpose
+        topo                  :: Union{AbstractArray{Float64, 2}, Nothing} = nothing, # debugging purpose
     )
 
     
@@ -105,16 +114,20 @@ mutable struct OcnEnv
         end
 
 
-        local topo
-
         mi = ModelMap.MapInfo{Float64}(hrgrid_file)
-        Dataset(topo_file, "r") do ds
-            topo = - (ds[topo_varname][:] |> nomissing)
+
+        if topo == nothing 
+            Dataset(topo_file, "r") do ds
+                topo = - (ds[topo_varname][:] |> nomissing)
+            end
         end
 
         Nx = mi.nx
         Ny = mi.ny
-        mask2      = copy(mi.mask)
+        
+        if mask2 == nothing
+            mask2 = copy( mi.mask )
+        end
         
         if size(mask2) != (Nx, Ny)
             throw(ErrorException("Size of mask does not match ocn env."))
@@ -182,9 +195,10 @@ end
         return new(
             hrgrid_file,
             topo_file,
+            topo_varname,
             Δt,
-            substep_dyn,
-            substep_tmd,
+            substeps_dyn,
+            substeps_tmd,
             Nx,
             Ny,
             Nz_f,
@@ -210,8 +224,12 @@ end
             X_wr_varname,
             t_X_wr,
 
+            MLT_scheme,
             radiation_scheme,
             convective_adjustment,
+            use_Qflux,
+            finding_Qflux,
+
         )
 
     end

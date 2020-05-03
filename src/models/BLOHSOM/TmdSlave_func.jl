@@ -34,6 +34,8 @@ function setupBinding!(
         # T, S, FLDO and such
         ((:X,    :fT, :zxy, s.X,    hasXdim), :X   ),
         ((:X_ML, :sT, :xy , s.X_ML, hasXdim), :X_ML),
+        ((:h_ML, :sT, :xy , s.h_ML, noXdim),  :h_ML),
+        ((:FLDO, :sT, :xy , s.FLDO, noXdim),  :FLDO),
 
         # forcings
         ((:SWFLX,  :sT, :xy, f.swflx,  noXdim), :SWFLX),
@@ -46,7 +48,7 @@ function setupBinding!(
         :TO_DYN => (:b_c,),
         :BND    => (:X, :X_ML,),
         :FR_MAS => (:SWFLX, :NSWFLX),
-        :TO_MAS => (:X, :X_ML,),
+        :TO_MAS => (:X, :X_ML, :h_ML, :FLDO),
     )
     
     #println("createBinding..")

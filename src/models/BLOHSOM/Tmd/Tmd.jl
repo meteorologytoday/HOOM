@@ -105,9 +105,9 @@ module Tmd
             determineVelocity!(m)
         end
 
-
-        advectTracer!(m)
-        #doMixedLayerDynamics!(m)
+        println("Sum of SWFLX: ", sum(fr.swflx))
+        #advectTracer!(m)
+        doMixedLayerDynamics!(m)
         
         if co.current_substep == ev.substeps
             # do slow processes
