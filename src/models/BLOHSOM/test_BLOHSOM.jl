@@ -32,7 +32,7 @@ if !isdefined(Main, :REPL)
 
 else
 
-    run_days = 5
+    run_days = 300
     output_file = "output.nc"
 
 end
@@ -40,13 +40,14 @@ end
 Δt = 86400.0 / 24
 
 Nz_f = 20
-Nz_c = 3
 
 hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.ocn.gx3v7.120323.nc"
 topo_file = "/seley/tienyiah/CESM_domains/test_domains/topo.gx3v7.nc"
 
 hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.lnd.fv4x5_gx3v7.091218.nc"
 topo_file = "/seley/tienyiah/CESM_domains/test_domains/topo.fv4x5.nc"
+
+hrgrid_file = "/seley/tienyiah/CESM_domains/domain.lnd.fv1.9x2.5_gx1v6.090206.nc"
 
 mi = ModelMap.MapInfo{Float64}(hrgrid_file)
 gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
@@ -62,9 +63,11 @@ gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
     angle_unit=:deg,
 )
 
+cutoff = 20
+
 mi.mask .= 1.0
-mi.mask[:, 1] .= 0 
-mi.mask[:, end] .= 0 
+mi.mask[:, 1:cutoff] .= 0 
+mi.mask[:, end-cutoff+1:end] .= 0 
 
 topo = similar(mi.mask)
 topo .= -2000
@@ -76,10 +79,8 @@ ocn_env = BLOHSOM.OcnEnv(
     Δt,
     12,
     8,
-    Nz_f,
-    Nz_c,
     collect(Float64, range(0.0, -100.0, length=21)),
-    [1, 5, 14],
+    [1, 1, 1, 1, 1, 2, 2, 2, 9],
     0,
     1000.0,
     1e-3,
@@ -105,16 +106,30 @@ ocn_env = BLOHSOM.OcnEnv(
 println("##### Initialize model #####")
 model = BLOHSOM.init!(ocn_env)
 
-recorder = BLOHSOM.getBasicRecorder(model)
-
 du = model.shared_data.data_units
 #du[:Φ].data .= 0.01 * exp.(- ( (gi.c_lat * gi.R ).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 
-σ = 1000e3
-du[:SWFLX].data .= -1000.0 * exp.(- ( (gi.c_lat * gi.R ).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
+σ = 750e3
+#du[:SWFLX].data .= -1000.0 * exp.(- ( (gi.c_lat * gi.R ).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
+#du[:X].odata[30:40, 15:25, 1:5, 1] .+= 10.0
+#du[:X_ML].odata[30:40, 15:25, 1] .+= 10.0
 
-#BLOHSOM.syncDyn!(model, :TEST, :M2S)
+@sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
+    @spawnat pid let
+        
+        BLOHSOM.tmd_slave.model.state.h_ML[:, :] .= 10.0
+        BLOHSOM.tmd_slave.model.state.X_ML[:, :, :, 1] .= 10.0
+        BLOHSOM.tmd_slave.model.state.X[:, :, :, 1] .= 10.0
 
+        BLOHSOM.tmd_slave.model.state.X[1, :, :, 1] .= 10 .+ 20.0 * exp.(- ( (gi.c_lat * gi.R ).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
+        BLOHSOM.tmd_slave.model.state.X_ML[:, :, 1]   .= BLOHSOM.tmd_slave.model.state.X[1, :, :, 1]
+        BLOHSOM.Tmd.initialization!(BLOHSOM.tmd_slave.model)
+    end
+end
+
+@sync BLOHSOM.touchTmd!(model, :END_TMD2MAS, :S2M)
+
+recorder = BLOHSOM.getBasicRecorder(model)
 RecordTool.setNewNCFile!(recorder, output_file)
 RecordTool.record!(recorder)
 RecordTool.avgAndOutput!(recorder)
@@ -123,11 +138,10 @@ RecordTool.avgAndOutput!(recorder)
 @time for step=1:run_days
     println("##### Run day ", step)
 
-    if step >= 3
+    if step >= 20 || true
         du[:SWFLX].data .= 0.0
     end
     @time BLOHSOM.stepModel!(model, false)
     RecordTool.record!(recorder)
     RecordTool.avgAndOutput!(recorder)
 end
-

@@ -28,7 +28,9 @@ mutable struct TmdState
     b        :: AbstractArray{Float64, 3}
     b_ML     :: AbstractArray{Float64, 2}
  
-
+    b_mixed  :: AbstractArray{Float64, 3}
+    B        :: AbstractArray{Float64, 3}
+ 
     function TmdState(
         env :: TmdEnv,
     )
@@ -64,6 +66,9 @@ mutable struct TmdState
 
         b    = zeros(Float64, Nz, Nx, Ny)
         b_ML = zeros(Float64, Nx, Ny)
+        
+        b_mixed = zeros(Float64, Nz, Nx, Ny)
+        B       = zeros(Float64, Nz, Nx, Ny)
 
         return new(
             X,
@@ -91,6 +96,9 @@ mutable struct TmdState
 
             b,
             b_ML,
+
+            b_mixed,
+            B,
         )
     end
 

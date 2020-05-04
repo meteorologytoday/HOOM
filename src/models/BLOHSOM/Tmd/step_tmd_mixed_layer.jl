@@ -20,12 +20,27 @@ function doMixedLayerDynamics!(
     # It is assumed here that buoyancy has already been updated.
     @loop_hor m i j let
 
+        OC_updateB!(m, i, j)
+        
+        if ev.convective_adjustment
+            OC_doConvectiveAdjustment!(m, i, j;)
+        end
+
+
         zs = co.cols.z_bnd_av[i, j]
         Nz = ev.Nz_av[i, j]
 
         fric_u          = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / ρ_sw)
         weighted_fric_u = fric_u * (1.0 - ifrac[i, j])
 
+#=
+        if (i, j) == (35, 20)
+            println("Just get in ")
+            println(st.T[:, i, j]) 
+            println(st.S[:, i, j]) 
+            println(st.b[:, i, j]) 
+        end
+=#
 
         # Pseudo code
         # Current using only Euler forward scheme:
@@ -180,6 +195,15 @@ function doMixedLayerDynamics!(
 
         end
 
+#=
+        if (i, j) == (35, 20)
+            println("before setMixedLayer")
+            println(st.T[:, i, j]) 
+            println(st.S[:, i, j]) 
+            println(st.b[:, i, j]) 
+        end
+=#
+
         # Update mixed-layer
         OC_setMixedLayer!(
             m, i, j;
@@ -189,7 +213,6 @@ function doMixedLayerDynamics!(
         )
 
         # Shortwave radiation
-
         if ev.radiation_scheme == :exponential_decay
             FLDO = st.FLDO[i, j]
             st.T_ML[i, j] += - ev.R * surf_Tswflx * Δt / new_h_ML
@@ -203,10 +226,20 @@ function doMixedLayerDynamics!(
 
         end
 
+#=
+        if (i, j) == (35, 20)
+            println("before updateB")
+            println(st.T[:, i, j]) 
+            println(st.S[:, i, j]) 
+            println(st.b[:, i, j]) 
+        end
+=#
         OC_updateB!(m, i, j)
-
+        
         if ev.convective_adjustment
-            OC_doConvectiveAdjustment!(m, i, j;)
+            if OC_doConvectiveAdjustment!(m, i, j;) && (i,j)==(35,20)
+                println("!!!!! ", i, "; ", j)
+            end
         end
 
     end

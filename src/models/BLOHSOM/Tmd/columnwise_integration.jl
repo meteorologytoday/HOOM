@@ -28,7 +28,7 @@ function OC_getIntegratedSalinity(
     return getIntegratedQuantity(
         zs       = m.core.cols.z_bnd_av[i, j],
         qs       = m.core.cols.S[i, j],
-        q_ML     = m.state.T_ML[i, j],
+        q_ML     = m.state.S_ML[i, j],
         h_ML     = m.state.h_ML[i, j],
         Nz       = m.env.Nz_av[i, j],
         target_z = target_z,

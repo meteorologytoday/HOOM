@@ -3,6 +3,8 @@ mutable struct Cols
     T             :: Array{SubArray}
     S             :: Array{SubArray}
     b             :: Array{SubArray}
+    b_mixed       :: Array{SubArray}
+    B             :: Array{SubArray}
     dz_W          :: Array{SubArray}
     rad_decay_coe :: Array{SubArray}
     rad_absorp_coe:: Array{SubArray}
@@ -84,6 +86,8 @@ mutable struct TmdCore    # Adam Bashford
             :T               => state.T,
             :S               => state.S,
             :b               => state.b,
+            :b_mixed         => state.b_mixed,
+            :B               => state.B,
             :dz_W            => dz_W,
             :rad_decay_coe   => rad_decay_coe,
             :rad_absorp_coe  => rad_absorp_coe,

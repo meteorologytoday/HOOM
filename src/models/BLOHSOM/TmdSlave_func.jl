@@ -27,15 +27,19 @@ function setupBinding!(
     noXdim  = false
 
     bindings = (
-        ((:u_c, :cU, :zxy, bd[:u_c], noXdim), :u_c),
-        ((:v_c, :cV, :zxy, bd[:v_c], noXdim), :v_c),
-        ((:b_c, :cT, :zxy, bd[:b_c], noXdim), :b_c),
+        ((:u_total_c, :cU, :xyz, bd[:u_total_c], noXdim), :u_total_c),
+        ((:v_total_c, :cV, :xyz, bd[:v_total_c], noXdim), :v_total_c),
+        ((:B_c,       :cT, :xyz, bd[:B_c],       noXdim), :B_c),
+
         
         # T, S, FLDO and such
         ((:X,    :fT, :zxy, s.X,    hasXdim), :X   ),
         ((:X_ML, :sT, :xy , s.X_ML, hasXdim), :X_ML),
         ((:h_ML, :sT, :xy , s.h_ML, noXdim),  :h_ML),
         ((:FLDO, :sT, :xy , s.FLDO, noXdim),  :FLDO),
+        ((:b,    :fT, :zxy, s.b,    noXdim),  :b   ),
+        ((:b_ML, :sT, :xy,  s.b_ML, noXdim),  :b_ML),
+        ((:B,    :fT, :zxy, s.B,    noXdim),  :B   ),
 
         # forcings
         ((:SWFLX,  :sT, :xy, f.swflx,  noXdim), :SWFLX),
@@ -43,6 +47,7 @@ function setupBinding!(
 
     )
 
+    #=
     groups = Dict(
         :FR_DYN => (:u_c, :v_c,),
         :TO_DYN => (:b_c,),
@@ -50,7 +55,7 @@ function setupBinding!(
         :FR_MAS => (:SWFLX, :NSWFLX),
         :TO_MAS => (:X, :X_ML, :h_ML, :FLDO),
     )
-    
+    =#
     #println("createBinding..")
 
     for (here_args, there_key) in bindings
@@ -72,7 +77,7 @@ function setupBinding!(
 
         createBinding!(
             de,
-            here.id,
+            there_key,
             here,
             du_there[there_key],
             here_pull_yrng,
@@ -82,31 +87,31 @@ function setupBinding!(
         )
     end
 
+    #=
     for (label, du_ids) in groups
         for id in du_ids
             addToGroup!(de, id, label)
         end
     end
+    =#
 
     #println("done.")
 end
 
 
 
-function calCoarseBuoyancy!(
+function calCoarseBuoyancyPressure!(
     slave :: TmdSlave,
 )
 
-    println("TODO: somehow need to calculate the avg buoyancy in the grid box where h_ML is in.")
-
-    #mixXinsideFLDO!(state.b)
-
     calAverage_f2c!(
         slave.va,
-        slave.model.state.b,
-        slave.buffer_data[:b_c],
-        shape=:zxy,
+        PermutedDimsArray(slave.model.state.B, (2, 3, 1)),
+        slave.buffer_data[:B_c],
     )
+
+    #println("Sum of state.b: ", sum(slave.model.state.b))
+    #println("Sum of b_c: ", sum(slave.buffer_data[:b_c]))
 
 end
 
@@ -116,14 +121,14 @@ function projVelocity!(
 
     projVertical_c2f!(
         slave.va,
-        slave.buffer_data[:u_c],
-        slave.model.forcing.u_U,
+        slave.buffer_data[:u_total_c],
+        PermutedDimsArray(slave.model.forcing.u_U, (2, 3, 1)),
     )
  
     projVertical_c2f!(
         slave.va,
-        slave.buffer_data[:v_c],
-        slave.model.forcing.v_V,
+        slave.buffer_data[:v_total_c],
+        PermutedDimsArray(slave.model.forcing.v_V, (2, 3, 1)),
     )
  
 end

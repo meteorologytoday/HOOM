@@ -48,17 +48,8 @@ function calAverage_f2c!(
     va    :: VerticalAverager,
     var_f :: AbstractArray{Float64, 3},
     var_c :: AbstractArray{Float64, 3};
-    shape :: Symbol = :xyz,
+#    shape :: Symbol = :xyz,
 )
-
-    if ! (shape in (:xyz, :zxy))
-        throw(ErrorException("Unrecognized argument for shape. Only :xyz and :zxy are allowed"))
-    end
-
-    if shape == :zxy 
-        var_f = PermutedDimsArray(var_f, (2, 3, 1))
-        var_c = PermutedDimsArray(var_c, (2, 3, 1))
-    end
 
     Nx, Ny, _ = size(var_c)
 
@@ -97,6 +88,9 @@ function projVertical_c2f!(
     var_c :: AbstractArray{Float64, 3},
     var_f :: AbstractArray{Float64, 3}
 )
+
+
+
     Nx, Ny, _ = size(var_c)
     for i=1:Nx, j=1:Ny
         for k_c = 1:va.Nz_c

@@ -16,7 +16,7 @@ function init!(
     )
 
     println("Register Shared Data") 
-    registerSharedData!(model)
+    regSharedData!(model)
     
     # Potential redundant: seems like shared_data is already doing this
     #ocn_state      = OcnState(shared_data)
@@ -41,10 +41,12 @@ function init!(
                 )
 
                 BLOHSOM.setupBinding!(tmd_slave)
-                BLOHSOM.Tmd.initialization!(tmd_slave.model)
+
             end
         end
     end
+
+    regBindingGroups!(model)
 
     if snapshot != nothing
 
@@ -67,7 +69,13 @@ function init!(
     end
     =#
 
-    syncTmd!(model, :TO_DYN, :S2M)
+    @sync let 
+        touchDyn!(model, :END_DYN2MAS, :S2M)
+        touchTmd!(model, :END_TMD2MAS, :S2M)
+
+        touchTmd!(model, :TMD2DYN, :S2M)
+    end
+
     return model
 
 end
@@ -82,8 +90,8 @@ function stepModel!(
 
     # Sync
     @sync let
-        syncDyn!(model, :FR_TMD, :M2S)
-        syncTmd!(model, :FR_MAS, :M2S)
+        touchDyn!(model, :TMD2DYN, :M2S) # :b_c
+        touchTmd!(model, :FORCING_MAS2TMD, :M2S) # forcing such as  :SWFLX
     end 
      
     # Currently tmd_core does not need info from
@@ -93,17 +101,15 @@ function stepModel!(
 #        Dyn.stepModel!(dyn_slaves)
 #    end
  
-#=
     @sync @spawnat model.job_dist_info.dyn_slave_pid let
-            for t=1:env.substeps_dyn
-                Dyn.stepModel!(dyn_slave.model)
-            end
+        for t=1:env.substeps_dyn
+            Dyn.stepModel!(dyn_slave.model)
+        end
     end
-=# 
     
     # Sending updated velocity to tmd
-    @sync syncDyn!(model, :TO_TMD, :S2M)
-    @sync syncTmd!(model, :FR_DYN, :M2S)
+    @sync touchDyn!(model, :DYN2TMD, :S2M)
+    @sync touchTmd!(model, :DYN2TMD, :M2S)
 
     ##### tmd slave should distribute u,v to fine grids here #####
     @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
@@ -114,29 +120,27 @@ function stepModel!(
     # so need to sync every time after it evolves
     for t=1:env.substeps_tmd
 
-
         @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
             @spawnat pid stepModel!(tmd_slave)
         end
 
-
-
-
-        @sync syncTmd!(model, :BND, :S2M)
-        @sync syncTmd!(model, :BND, :M2S)
+        @sync touchTmd!(model, :TMDBND, :S2M)
+        @sync touchTmd!(model, :TMDBND, :M2S)
 
     end
     
     ##### tmd slave should calcaulte b of coarse grid #####
     @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
         @spawnat pid let
-            BLOHSOM.calCoarseBuoyancy!(tmd_slave)
+            BLOHSOM.calCoarseBuoyancyPressure!(tmd_slave)
         end
     end
 
     @sync let
-        syncTmd!(model, :TO_MAS, :S2M)
-        syncDyn!(model, :TO_MAS, :S2M)
+        touchDyn!(model, :END_DYN2MAS, :S2M)
+        touchTmd!(model, :END_TMD2MAS, :S2M)
+
+        touchTmd!(model, :TMD2DYN, :S2M)
     end
 
     #= 
@@ -146,12 +150,46 @@ function stepModel!(
             tcr_slave,
             mld_slave, 
         )
-    end
+    
     =#
 end
 
+function regBindingGroups!(model::Model)
+    groups = Dict(
+        :DYN2TMD     => (:u_total_c, :v_total_c),
+        :TMD2DYN     => (:B_c,),
+        :TMDBND      => (:X, :X_ML, :h_ML, :FLDO),
+        :END_DYN2MAS => (:Φ,),
+        :END_TMD2MAS => (:X, :X_ML, :h_ML, :FLDO, :b, :b_ML, :B),
+        :FORCING_MAS2DYN => (),
+        :FORCING_MAS2TMD => (:SWFLX, :NSWFLX),
+        :TEST_MAS2TMD => (:X, :X_ML),
+    ) 
 
-function registerSharedData!(model::Model)
+    @sync let
+        for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
+            @spawnat pid let 
+
+                for group_label in [ :DYN2TMD, :TMD2DYN, :TMDBND, :END_TMD2MAS, :FORCING_MAS2TMD]
+                    for binding_id in groups[group_label]
+                        addToGroup!(tmd_slave.data_exchanger, binding_id, group_label)
+                    end
+                end
+            end
+        end
+        
+        @spawnat model.job_dist_info.dyn_slave_pid let 
+            for group_label in [:DYN2TMD, :TMD2DYN, :END_DYN2MAS, :FORCING_MAS2DYN]
+                for binding_id in groups[group_label]
+                    addToGroup!(dyn_slave.data_exchanger, binding_id, group_label)
+                end
+            end
+        end
+
+    end
+end
+
+function regSharedData!(model::Model)
 
     descs_X = (
         (:X,     :fT, :zxy, Float64),
@@ -161,13 +199,16 @@ function registerSharedData!(model::Model)
     descs_noX = (
 
         (:h_ML,  :sT, :xy,  Float64),
+        (:b_ML,  :sT, :xy,  Float64),
+        (:b   ,  :fT, :zxy, Float64),
+        (:B   ,  :fT, :zxy, Float64),
         (:FLDO,  :sT, :xy,    Int64),
         
         # These are used by dyn_core 
-        (:u_c,   :cU, :xyz, Float64),
-        (:v_c,   :cV, :xyz, Float64),
-        (:b_c,   :cT, :xyz, Float64),
-        (:Φ  ,   :sT, :xy,  Float64),
+        (:u_total_c, :cU, :xyz, Float64),
+        (:v_total_c, :cV, :xyz, Float64),
+        (:B_c,       :cT, :xyz, Float64),
+        (:Φ,         :sT, :xy,  Float64),
 
         # Forcings and return fluxes to coupler
         (:SWFLX,   :sT, :xy,  Float64),
@@ -200,7 +241,7 @@ push_pull_relation = Dict(
     :M2S => :PULL,
 )
 
-function syncTmd!(
+function touchTmd!(
     model :: Model,
     group_label :: Symbol,
     direction :: Symbol,
@@ -215,7 +256,7 @@ function syncTmd!(
     end
 end
 
-function syncDyn!(
+function touchDyn!(
     model:: Model,
     group_label :: Symbol,
     direction :: Symbol,

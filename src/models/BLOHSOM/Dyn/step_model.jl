@@ -52,10 +52,12 @@ function advectDynamic!(
 #    println("solveΦ!")
     solveΦ!(model)
 
+#    model.state.Φ .= model.env.Φ_total
+
 #    println("updateV!")
     updateV!(model)
 
-    #println(format("(u, v) = ({:.2f}, {:.2f})", state.u_c[1, 5, 5], state.v_c[1,5,5]))
+    #println(format("(u, v) = ({:.2f}, {:.2f})", state.u_total[1, 5, 5], state.v_total[1,5,5]))
 end
 
 function doHDiffusion!(
@@ -70,8 +72,8 @@ function doHDiffusion!(
     wksp_cU = getSpace!(wksp, :cU)
     wksp_cV = getSpace!(wksp, :cV)
 
-    wksp_cU .= state.u_c 
-    wksp_cV .= state.v_c 
+    wksp_cU .= state.u_total 
+    wksp_cV .= state.v_total 
     
 
     for k = 1:env.Nz_c
@@ -79,13 +81,13 @@ function doHDiffusion!(
         solveDiffusion!(
             core.diffusion_solver, :U,
             view(wksp_cU  , :, :, k),
-            view(state.u_c, :, :, k),
+            view(state.u_total, :, :, k),
         )
 
         solveDiffusion!(
             core.diffusion_solver, :V,
             view(wksp_cV  , :, :, k),
-            view(state.v_c, :, :, k),
+            view(state.v_total, :, :, k),
         )
     end
    
@@ -104,33 +106,11 @@ function calAuxV!(
     va = core.va
     env = model.env
     wksp = core.wksp
-
-    # cal b_f from T_f, S_f
-    #=
-    for i=1:env.Nx, j=1:env.Ny
-
-        if env.mask[i, j] == 0
-            continue
-        end
-
-        for k=1:env.Nz_f
-            state.b_f[i, j, k] = TS2b(state.T[i, j, k], state.S[i, j, k])
-        end
-    end
-    =#
-    # cal b_c from b_f
-    #@time let
-    #println("cal avg f2c")
-    #calAverage_f2c!(va, state.b_f, state.b_c)
-    #end
-    
-    #println(format("u_c, U, u before {:.2f}, {:.2f}, {:.2f}", state.u_c[5,5,1], state.U[5,5], state.u[5,5,1]))
+  
     # cal barotropic and baroclinic components
-    decompose!(total=state.u_c, mean=state.U, anomaly=state.u, va=va)
-    decompose!(total=state.v_c, mean=state.V, anomaly=state.v, va=va)
-    decompose!(total=state.b_c, mean=state.B, anomaly=state.b, va=va)
+    decompose!(total=state.u_total, mean=state.U, anomaly=state.u, va=va)
+    decompose!(total=state.v_total, mean=state.V, anomaly=state.v, va=va)
 
-    #println(format("u_c, U, u after {:.2f}, {:.2f}, {:.2f}", state.u_c[5,5,1], state.U[5,5], state.u[5,5,1]))
   
     # cal τx_acc, τy_acc
     τx_acc = getSpace!(wksp, :sU)
@@ -142,16 +122,16 @@ function calAuxV!(
     τy_acc ./= (ρ_fw * env.H_c[1])
  
     # cal ∇b
-    ∂b∂x   = getSpace!(wksp, :cU)
-    ∂b∂y   = getSpace!(wksp, :cV)
-    mul3!(∂b∂x, c_ops.U_∂x_T, state.b)
-    mul3!(∂b∂y, c_ops.V_∂y_T, state.b)
+    ∂B∂x   = getSpace!(wksp, :cU)
+    ∂B∂y   = getSpace!(wksp, :cV)
+    mul3!(∂B∂x, c_ops.U_∂x_T, state.B)
+    mul3!(∂B∂y, c_ops.V_∂y_T, state.B)
 
     # cal Coriolis force
     fu   = getSpace!(wksp, :cV)
     fv   = getSpace!(wksp, :cU)
-    mul3!(fu, c_ops.V_f_U, state.u_c)   # fu on V grid
-    mul3!(fv, c_ops.U_f_V, state.v_c)   # fv on U grid
+    mul3!(fu, c_ops.V_f_U, state.u_total)   # fu on V grid
+    mul3!(fv, c_ops.U_f_V, state.v_total)   # fv on U grid
     #println("fu: ", fu[30, 29, 1])   
 
  
@@ -173,7 +153,7 @@ function calAuxV!(
     
     u∂u∂x = getSpace!(wksp, :cU)
     v∂u∂y = getSpace!(wksp, :cU)
-    mul3!(v∂u∂y, c_ops.U_interp_V, state.v_c)  # store interpolated v into v∂u∂y
+    mul3!(v∂u∂y, c_ops.U_interp_V, state.v_total)  # store interpolated v into v∂u∂y
     for i=1:env.Nx, j=1:env.Ny, k=1:env.Nz_c
         u∂u∂x[i, j, k]  = state.u[i, j, k] * ∂u∂x[i, j, k]
         v∂u∂y[i, j, k] *=                    ∂u∂y[i, j, k]
@@ -182,7 +162,7 @@ function calAuxV!(
     # On V grid
     u∂v∂x = getSpace!(wksp, :cV)
     v∂v∂y = getSpace!(wksp, :cV)
-    mul3!(u∂v∂x, c_ops.V_interp_U, state.u_c)  # store interpolated u into u∂v∂x
+    mul3!(u∂v∂x, c_ops.V_interp_U, state.u_total)  # store interpolated u into u∂v∂x
     for i=1:env.Nx, j=1:env.Ny+1, k=1:env.Nz_c
         u∂v∂x[i, j, k] *=                     ∂v∂x[i, j, k]
         v∂v∂y[i, j, k]  = state.v[i, j, k]  * ∂v∂y[i, j, k]
@@ -200,21 +180,13 @@ function calAuxV!(
     G_u = view(state.G_u, :, :, :, Δt0)
     G_v = view(state.G_v, :, :, :, Δt0)
 
-    G_u .= 0 
+    @. G_u = ∂B∂x + fv
 #    G_u .-= u∂u∂x
 #    G_u .-= v∂u∂y
-#    G_u .+= ∂b∂x
-    G_u .+= fv
-    #G_u .+= Du_diss
-
-
  
-    G_v .= 0 
+    @. G_v = ∂B∂y - fu
 #    G_v .-= u∂v∂x
 #    G_v .-= v∂v∂y
-#    G_v .+= ∂b∂y
-    G_v .-= fu
-    #G_v .+= Dv_diss
 
 
     # surface
@@ -247,12 +219,12 @@ function calAuxV!(
     G_v_Δt2 = view(state.G_v, :, :, :, Δt2)
 
 
-    @. core.u_aux = state.u_c + Δt * ABIII(G_u_Δt0, G_u_Δt1, G_u_Δt2)
-    @. core.v_aux = state.v_c + Δt * ABIII(G_v_Δt0, G_v_Δt1, G_v_Δt2)
+    @. core.u_aux = state.u_total + Δt * ABIII(G_u_Δt0, G_u_Δt1, G_u_Δt2)
+    @. core.v_aux = state.v_total + Δt * ABIII(G_v_Δt0, G_v_Δt1, G_v_Δt2)
 
     #=
     @time for i=1:env.Nx, j=1:env.Ny, k=1:env.Nz_c
-        core.u_aux[i, j, k] = state.u_c[i, j, k] + Δt *
+        core.u_aux[i, j, k] = state.u_total[i, j, k] + Δt *
            ABIII(
                 state.G_u[i, j, k, Δt0],
                 state.G_u[i, j, k, Δt1],
@@ -264,7 +236,7 @@ function calAuxV!(
     #println(state.G_u[1, 2, 2, Δt0])
 
     for i=1:env.Nx, j=1:env.Ny+1, k=1:env.Nz_c
-        core.v_aux[i, j, k] = state.v_c[i, j, k] + Δt *
+        core.v_aux[i, j, k] = state.v_total[i, j, k] + Δt *
             ABIII(
                 G_v[i, j, k, Δt0],
                 G_v[i, j, k, Δt1],
@@ -337,9 +309,6 @@ function solveΦ!(
     α = solver.α
     
     @. rhs = - core.Φ_aux * α
-#    for i=1:env.Nx, j=1:env.Ny
-#        rhs[i, j] = - core.Φ_aux[i, j] * α
-#    end
 
     mul!(rhs_TT, solver.TT_send_T, view(rhs, :))
  
@@ -381,30 +350,30 @@ function updateV!(
     ΔtfricU .= state.U
     ΔtfricV .= state.V
 
-    τ = 10*86400.0
+    τ = 100*86400.0
 
     ΔtfricU .*= Δt/τ
     ΔtfricV .*= Δt/τ
 
     
     for k=1:env.Nz_c
-        u_c = view(state.u_c, :, :, k)
-        v_c = view(state.v_c, :, :, k)
+        u_total = view(state.u_total, :, :, k)
+        v_total = view(state.v_total, :, :, k)
         u_aux = view(core.u_aux, :, :, k)
         v_aux = view(core.v_aux, :, :, k)
 
-        @. u_c = u_aux - Δt∂Φ∂x - ΔtfricU
-        @. v_c = v_aux - Δt∂Φ∂y - ΔtfricV
+        @. u_total = u_aux #=- Δt∂Φ∂x=# - ΔtfricU
+        @. v_total = v_aux #=- Δt∂Φ∂y=# - ΔtfricV
     end
 
 #= 
     for i=1:env.Nx, j=1:env.Ny, k=1:env.Nz_c
-        state.u_c[i, j, k] = core.u_aux[i, j, k] - Δt∂Φ∂x[i, j] - ΔtfricU[i, j]
-        state.v_c[i, j, k] = core.v_aux[i, j, k] - Δt∂Φ∂y[i, j] - ΔtfricV[i, j]
+        state.u_total[i, j, k] = core.u_aux[i, j, k] - Δt∂Φ∂x[i, j] - ΔtfricU[i, j]
+        state.v_total[i, j, k] = core.v_aux[i, j, k] - Δt∂Φ∂y[i, j] - ΔtfricV[i, j]
     end
  =#
-    #projVertical_c2f!(core.va, state.u_c, state.u_f)
-    #projVertical_c2f!(core.va, state.v_c, state.v_f)
+    #projVertical_c2f!(core.va, state.u_total, state.u_f)
+    #projVertical_c2f!(core.va, state.v_total, state.v_f)
    
 end
 

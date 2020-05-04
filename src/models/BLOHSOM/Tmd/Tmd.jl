@@ -52,7 +52,6 @@ module Tmd
     end
 
 
-
     using Formatting
     using LinearAlgebra    
     using ..PolelikeCoordinate
@@ -88,6 +87,7 @@ module Tmd
     #include("flx_correction.jl")
     include("initialization.jl")
     include("set_ocean_column.jl")
+    include("buoyancy.jl")
  
     include("varlist.jl")
     include("step_model.jl")
@@ -105,12 +105,14 @@ module Tmd
             determineVelocity!(m)
         end
 
-        println("Sum of SWFLX: ", sum(fr.swflx))
-        #advectTracer!(m)
-        doMixedLayerDynamics!(m)
+
+        advectTracer!(m)
+#        doMixedLayerDynamics!(m)
+
         
         if co.current_substep == ev.substeps
             # do slow processes
+            calBuoyancyPressure!(m)
         end
 
        if co.current_substep != ev.substeps

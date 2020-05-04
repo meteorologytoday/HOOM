@@ -2,17 +2,19 @@ mutable struct SharedData
 
     env        :: OcnEnv
     data_units :: Dict{ Symbol, DataUnit }
-
+    flags      :: Dict{ Symbol, Int64} 
     function SharedData(
         env::OcnEnv
     )
 
 
         data_units = Dict{Symbol, DataUnit}()
+        flags      = Dict{Symbol, Int64}()
 
         return new(
             env,
             data_units,
+            flags,
         )
 
     end
@@ -98,4 +100,6 @@ function regVariable!(
         data,
         has_Xdim,
     )
+
+    sd.flags[id] = 0
 end

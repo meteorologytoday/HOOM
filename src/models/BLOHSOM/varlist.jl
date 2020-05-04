@@ -7,12 +7,17 @@ end
 function getCompleteVariableList(m::Model)
         d = m.shared_data.data_units
         return Dict(
-            "Phi"             => ( d[:Φ].data,                                ("Nx", "Ny",) ),
             "T"               => ( view(d[:X].odata, :, :, :, 1),             ("Nx", "Ny", "Nz_f") ),
             "S"               => ( view(d[:X].odata, :, :, :, 2),             ("Nx", "Ny", "Nz_f") ),
             "swflx"           => ( d[:SWFLX].odata,                           ("Nx", "Ny") ),
             "X_ML"            => ( view(d[:X_ML].odata, :, :, :, 1),          ("Nx", "Ny", "NX") ),
             "h_ML"            => ( d[:h_ML].odata,                            ("Nx", "Ny") ),
+            "Phi"             => ( d[:Φ].odata,                               ("Nx", "Ny",) ),
+            "u_total"         => ( d[:u_total_c].odata,                       ("Nx", "Ny",   "Nz_c") ),
+            "v_total"         => ( d[:v_total_c].odata,                       ("Nx", "Nyp1", "Nz_c") ),
+            "b_ML"            => ( d[:b_ML].odata,                            ("Nx", "Ny") ),
+            "b"               => ( d[:b].odata,                               ("Nx", "Ny", "Nz_f") ),
+            "B"               => ( d[:B].odata,                               ("Nx", "Ny", "Nz_f") ),
         )
 end
 

@@ -51,11 +51,13 @@ struct DataBinding
 
 
         if length(here_pull_view) != length(there_pull_view)
-            throw(ErrorException("Range mismatch in pull view."))
+            println(size(here_pull_view), "; " , size(there_pull_view))
+            throw(ErrorException("Range mismatch in pull view. Key: " * string(id)))
         end
  
         if length(here_push_view) != length(there_push_view)
-            throw(ErrorException("Range mismatch in push view."))
+            println(size(here_push_view), "; " , size(there_push_view))
+            throw(ErrorException("Range mismatch in push view. Key: " * string(id)))
         end
         
         
@@ -76,7 +78,7 @@ end
 
 struct DataExchanger
     
-    groups        :: Dict
+    groups   :: Dict
     bindings :: Dict
 
 
@@ -139,7 +141,11 @@ function addToGroup!(
     label :: Symbol, 
 )
 
- 
+    if ! haskey(data_exchanger.groups, label)
+        println("Group `" * string(label) * "` does not exist. Create one.")
+        data_exchanger.groups[label] = Array{Symbol}(undef, 0)
+    end
+
     if id in data_exchanger.groups[label]
         throw(ErrorException("Binding id `" * string(id) * "` already in group `" * string(label) * "`."))
     end

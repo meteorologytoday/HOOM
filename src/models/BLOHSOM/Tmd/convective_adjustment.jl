@@ -16,6 +16,7 @@ function OC_doConvectiveAdjustment!(
         FLDO     = m.state.FLDO[i, j],
         Nz       = m.env.Nz_av[i, j],
         h_ML_max = m.env.h_ML_max[i, j],
+        #verbose = true || (i, j) == (35, 20),
     )
 
     return if_adjust
@@ -43,6 +44,7 @@ function doConvectiveAdjustment!(;
     FLDO :: Integer,
     Nz   :: Integer,
     h_ML_max :: Float64,
+    #verbose :: Bool = false
 )
     
     if_adjust = false
@@ -92,7 +94,7 @@ function doConvectiveAdjustment!(;
             if stage == :search_peak_layer
 
                 Δb = bs[i] - ((i==FLDO) ? new_b_ML : bs[i-1])
-                #println("FLDO:", FLDO, "; i:", i, "; Δb:", Δb)
+                #verbose && println("FLDO:", FLDO, "; i:", i, "; Δb:", Δb)
                 if Δb > 0.0  # Instability
                     if_adjust = true
                     stage = :search_top_layer

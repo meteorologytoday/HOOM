@@ -1,15 +1,9 @@
 mutable struct DynState
     
     # total velocity, buoyancy
-    u_c  :: AbstractArray{Float64, 3}
-    v_c  :: AbstractArray{Float64, 3}
-    b_c  :: AbstractArray{Float64, 3}
-
-    u_f  :: AbstractArray{Float64, 3}
-    v_f  :: AbstractArray{Float64, 3}
-    w_f  :: AbstractArray{Float64, 3}
-    b_f  :: AbstractArray{Float64, 3}
-
+    u_total  :: AbstractArray{Float64, 3}
+    v_total  :: AbstractArray{Float64, 3}
+    B        :: AbstractArray{Float64, 3}
 
     X  :: AbstractArray{Float64, 4}   # all tracers, 1 is T, 2 is S
     T  :: AbstractArray{Float64, 3}   # dimensions in Nz_f grid
@@ -20,12 +14,10 @@ mutable struct DynState
     # barotropic component
     U  :: AbstractArray{Float64, 2}
     V  :: AbstractArray{Float64, 2}
-    B  :: AbstractArray{Float64, 2}
 
     # Baroclinic component
     u  :: AbstractArray{Float64, 3}
     v  :: AbstractArray{Float64, 3}
-    b  :: AbstractArray{Float64, 3}
 
     # Exception 
     τx  :: AbstractArray{Float64, 2}  # on T grid
@@ -43,16 +35,10 @@ mutable struct DynState
         Nz_c = env.Nz_c
         Nz_f = env.Nz_f
 
-        u_c =  zeros(Float64, Nx, Ny, Nz_c)
-        v_c =  zeros(Float64, Nx, Ny+1, Nz_c)
+        u_total =  zeros(Float64, Nx, Ny, Nz_c)
+        v_total =  zeros(Float64, Nx, Ny+1, Nz_c)
+        B       =  zeros(Float64, Nx, Ny, Nz_c)
 
-        u_f =  zeros(Float64, Nx, Ny, Nz_f)
-        v_f =  zeros(Float64, Nx, Ny+1, Nz_f)
-        w_f =  zeros(Float64, Nz_f+1, Nx, Ny)
-
-        b_c =  zeros(Float64, Nx, Ny, Nz_c)
-        b_f =  zeros(Float64, Nx, Ny, Nz_f)
-        
         NX = 2 + env.NX_passive
         X =  zeros(Float64, Nx, Ny, Nz_f, NX)
         T = view(X, :, :, :, 1)
@@ -62,7 +48,7 @@ mutable struct DynState
         
         U =  zeros(Float64, Nx, Ny  )
         V =  zeros(Float64, Nx, Ny+1)
-        B =  zeros(Float64, Nx, Ny)
+
 
         u =  zeros(Float64, Nx, Ny, Nz_c)
         v =  zeros(Float64, Nx, Ny+1, Nz_c)
@@ -75,11 +61,10 @@ mutable struct DynState
         G_v = zeros(Float64, Nx, Ny+1, Nz_c, 3)
 
         return new(
-            u_c, v_c, b_c,
-            u_f, v_f, w_f, b_f,
+            u_total, v_total, B,
             X, T, S,
-            Φ, U, V, B,
-               u, v, b,
+            Φ, U, V,
+               u, v,
             τx, τy,
             G_u, G_v,
         )

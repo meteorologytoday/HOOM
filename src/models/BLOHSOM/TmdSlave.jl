@@ -92,9 +92,9 @@ mutable struct TmdSlave
         ])
 
         buffer_data = Dict(
-            :u_c => zeros(Float64, Nz_c, Nx, Ny  ),
-            :v_c => zeros(Float64, Nz_c, Nx, Ny+1),
-            :b_c => zeros(Float64, Nz_c, Nx, Ny  ),
+            :u_total_c => zeros(Float64, Nx, Ny,   Nz_c),
+            :v_total_c => zeros(Float64, Nx, Ny+1, Nz_c),
+            :B_c => zeros(Float64, Nx, Ny,   Nz_c),
         )
 
 

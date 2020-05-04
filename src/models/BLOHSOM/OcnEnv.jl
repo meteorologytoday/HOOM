@@ -82,8 +82,6 @@ mutable struct OcnEnv
         Δt                    :: Float64,
         substeps_dyn           :: Int64,
         substeps_tmd           :: Int64,
-        Nz_f                  :: Int64,
-        Nz_c                  :: Int64,
         z_bnd_f               :: AbstractArray{Float64, 1},
         height_level_counts   :: AbstractArray{Int64, 1},
         NX_passive            :: Int64,
@@ -124,7 +122,13 @@ mutable struct OcnEnv
 
         Nx = mi.nx
         Ny = mi.ny
-        
+        Nz_f = length(z_bnd_f) - 1
+        Nz_c = length(height_level_counts)
+
+        if sum(height_level_counts) != Nz_f
+            throw(ErrorException("sum of height_level_counts must match Nz_f which is length(z_bnd_f) - 1"))
+        end       
+
         if mask2 == nothing
             mask2 = copy( mi.mask )
         end

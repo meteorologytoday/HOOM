@@ -40,7 +40,7 @@ if !isdefined(Main, :REPL)
 else
 
     run_days = 1
-    output_file = "output.nc"
+    output_file = "output_dyn_buoyancy.nc"
 
 end
 
@@ -48,7 +48,6 @@ end
 
 z_bnd_f = collect(Float64, range(0, -100, length=11))
 height_level_counts = [1, 3, 6]
-height_level_counts = [10]
 
 println("Create Gridinfo");
 
@@ -82,11 +81,15 @@ Dataset(topo_file, "r") do ds
 end
 
 
-
+mi.mask .= 1.0
+mi.mask[:, 1]   .= 0
+mi.mask[:, end] .= 0
+#=
 mi.mask = 1 .- mi.mask
 mi.mask[mask_idx] .= 0.0
-
+=#
 #mi.mask .= 1
+
 
 gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
     R=Re,
@@ -246,13 +249,14 @@ end
 #a = 0.1 * exp.(- (gi.c_y.^2 + gi.c_x.^2) / (σ^2.0) / 2) .* sin.(gi.c_lon*3)
 #b = 0.1 * exp.(- (gi.c_y.^2 + gi.c_x.^2) / (σ^2.0) / 2) .* cos.(gi.c_lon*3)
 a=b=0
-run_days=10
+run_days=20
 
 #model.state.v_c[:, 2:end, 1] .= 1.0 * exp.(- (gi.c_y.^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2) .* cos.(gi.c_lon*3)
 #model.state.v_c[:, 2:end, 1] .= 1.0 * exp.(- ((gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 #model.state.u_c[:, :, 1] .= 1.0 * exp.(- (gi.c_y.^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 #model.state.u_c[:, :, 1] .= 1.0 * exp.(- ((gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
-model.state.Φ[:, :] .= 0.01 * exp.(- ((gi.c_lat * gi.R).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
+#model.state.Φ[:, :] .= 0.01 * exp.(- ((gi.c_lat * gi.R).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
+model.state.b_c[:, :, 1] .= 0.01 * exp.(- ((gi.c_lat * gi.R).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 #model.state.Φ[:, :] .= g * 1.0 * exp.(- ((gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 
 # output initial state
@@ -280,10 +284,7 @@ for step=1:run_days
     @time for substep = 1:Int64(86400/Δt)
         Dyn.stepModel!(model)
         RecordTool.record!(recorder)
-        if mod(substep,2)==0
-            RecordTool.avgAndOutput!(recorder)
-        end
-
+        RecordTool.avgAndOutput!(recorder)
     end
     println("Avg ϕ: ", avg(model.state.Φ.^2.0))
 #    println("Avg KE: ", integrateKE())
