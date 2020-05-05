@@ -1,3 +1,15 @@
+mutable struct Layers
+    u :: Array{SubArray}
+    v :: Array{SubArray}
+    u_total :: Array{SubArray}
+    v_total :: Array{SubArray}
+    function Layers()
+        return new()
+    end
+end
+
+
+
 mutable struct DynCore    # Adam Bashford
 
     c_ops    :: Union{DynamicAdvSpeedUpMatrix, Nothing}
@@ -12,7 +24,12 @@ mutable struct DynCore    # Adam Bashford
     u_aux    :: AbstractArray{Float64, 3}
     v_aux    :: AbstractArray{Float64, 3}
     Φ_aux    :: AbstractArray{Float64, 2}
-    
+
+    ∂B∂x     :: AbstractArray{Float64, 3}
+    ∂B∂y     :: AbstractArray{Float64, 3}
+
+    layers   :: Layers
+ 
     function DynCore(env, state)
         
         Nx = env.Nx
@@ -86,6 +103,21 @@ mutable struct DynCore    # Adam Bashford
         v_aux = zeros(Float64, Nx, Ny+1, Nz)
         Φ_aux = zeros(Float64, Nx, Ny)
 
+        ∂B∂x  = zeros(Float64, Nx, Ny,   Nz)
+        ∂B∂y  = zeros(Float64, Nx, Ny+1, Nz)
+        
+        # making layer-wise views
+        layers = Layers()
+        for (var, ref) in Dict(
+            :u => state.u,
+            :v => state.v,
+            :u_total => state.u_total,
+            :v_total => state.v_total,
+        )
+            setfield!(layers, var, genLayerView(ref))
+        end
+
+
         new(
             c_ops,
             s_ops,
@@ -97,8 +129,29 @@ mutable struct DynCore    # Adam Bashford
             u_aux,
             v_aux,
             Φ_aux,
+            ∂B∂x,
+            ∂B∂y,
+            layers,
         )
     end
+end
+
+function genLayerView(
+    arr :: AbstractArray{T, 3}
+) where T
+
+    # vectorization the for loop is not faster
+
+    s = size(arr)
+
+    _, _, Nz = size(arr)
+    view_arr  = Array{SubArray}(undef, Nz)
+
+    for k=1:Nz
+        view_arr[k] = view(arr, :, :, k)
+    end
+
+    return view_arr
 end
 
 

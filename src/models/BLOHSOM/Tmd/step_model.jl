@@ -321,7 +321,7 @@ function calFluxDensity!(;
     Nx         :: Integer,
     Ny         :: Integer,
     Nz         :: AbstractArray{Int64, 2},
-    FLUX_bot     :: AbstractArray{Float64, 2},     # ( Nx  , Ny   )
+    FLUX_bot   :: AbstractArray{Float64, 2},     # ( Nx  , Ny   )
     qs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
     u_bnd      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx, Ny   )
     v_bnd      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
@@ -595,16 +595,19 @@ function calVerVelBnd!(;
 
 #    local tmp = tmp_σ = 0.0
     for i=1:Nx, j=1:Ny
+        
+        _Nz = Nz[i, j]
+        w_bnd[1, i, j]     = 0.0
+        w_bnd[_Nz+1, i, j] = 0.0
 
-        w_bnd[1, i, j] = 0.0
-
-        for k=1:Nz[i, j]
+        for k=_Nz:-1:2
 
             if mask3[k, i, j] == 0.0
                 break
             end
             
-            w_bnd[k+1, i, j] = w_bnd[k, i, j] + div[k, i, j] * hs[k, i, j]
+            #w_bnd[k+1, i, j] = w_bnd[k, i, j] + div[k, i, j] * hs[k, i, j]
+            w_bnd[k, i, j] = w_bnd[k+1, i, j] - div[k, i, j] * hs[k, i, j]
         end
 
 #        tmp   += w_bnd[Nz[i, j]+1, i, j] * gi.dσ[i, j]

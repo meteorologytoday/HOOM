@@ -82,10 +82,7 @@ module Dyn
         model :: DynModel,
     )
         reset!(model.core.wksp)
-        #setupFlow!(model.state)
-        #advectTracer!(model, Δt)
         advectDynamic!(model)
-
     end
 
 

@@ -55,7 +55,7 @@ module Tmd
     using Formatting
     using LinearAlgebra    
     using ..PolelikeCoordinate
-    using ..ModelMap
+    using ..GridFiles
     using Statistics: mean
 
     include("../../../share/constants.jl")
@@ -107,7 +107,7 @@ module Tmd
 
 
         advectTracer!(m)
-#        doMixedLayerDynamics!(m)
+        doMixedLayerDynamics!(m)
 
         
         if co.current_substep == ev.substeps

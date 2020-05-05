@@ -26,18 +26,8 @@ mutable struct TmdSlave
         Nz_c = ocn_env.Nz_c
         NX = ocn_env.NX
 
-        mi = ModelMap.MapInfo{Float64}(ocn_env.hrgrid_file)
-        gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
-            R=Re,
-            Ω=Ωe,
-            Nx=mi.nx,
-            Ny=mi.ny,
-            c_lon=mi.xc,
-            c_lat=mi.yc,
-            vs_lon=mi.xv,
-            vs_lat=mi.yv,
-            area=mi.area,
-            angle_unit=:deg,
+        gi = PolelikeCoordinate.genGridInfo(
+            ocn_env.hrgrid,
             sub_yrng=y_split_info.pull_fr_rng,
         )
        

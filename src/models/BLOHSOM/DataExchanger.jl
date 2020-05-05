@@ -43,10 +43,10 @@ struct DataBinding
         end
 
 
-        here_pull_view  = _helper_genView(here, here_pull_yrng)
+        here_pull_view  = _helper_genView(here,   here_pull_yrng)
         there_pull_view = _helper_genView(there, there_pull_yrng)
 
-        here_push_view  = _helper_genView(here, here_push_yrng)
+        here_push_view  = _helper_genView(here,   here_push_yrng)
         there_push_view = _helper_genView(there, there_push_yrng)
 
 
@@ -154,6 +154,16 @@ function addToGroup!(
 
 end
 
+#=
+function SUM(arr)
+    tmp = 0.0
+    for i=1:size(arr)[1], j=1:size(arr)[2]
+        tmp+=arr[i, j]
+    end
+    return tmp
+end
+=#
+
 function syncData!(
     data_exchanger :: DataExchanger,
     group_label    :: Symbol,
@@ -167,13 +177,36 @@ function syncData!(
     if direction == :PUSH
         for db_label in dbs
             db = data_exchanger.bindings[db_label]
-    #        println("db: id: ", db.here.id, "; ", db.there.id)
-            db.there_push_view[:] = db.here_push_view
+
+            #= 
+            if db_label == :Φ
+                db.here_push_view .= rand(size(db.here_push_view)...)
+                println("Before SYNC: ")
+                println("SUM here : ",  SUM(db.here_push_view))
+                println("SUM there: ", SUM(db.there_push_view))
+            end
+            =#
+
+
+            db.there_push_view .= db.here_push_view
+
+            #=
+            if db_label == :Φ
+
+                for i=1:144, j=1:90
+                    db.there_push_view[i, j] = db.here_push_view[i, j]
+                end
+
+                println("db: id: ", db.here.id, "; ", db.there.id, "; size: ", size(db.there_push_view), "; sizehere: ", size(db.here_push_view))
+                println("SUM here : ",  SUM(db.here_push_view))
+                println("SUM there: ", SUM(db.there_push_view))
+            end
+            =#
         end 
     elseif direction == :PULL
         for db_label in dbs
             db = data_exchanger.bindings[db_label]
-            db.here_pull_view[:] = db.there_pull_view
+            db.here_pull_view .= db.there_pull_view
         end 
     else
         throw(ErrorException("Unknown direction keyword: " * string(direction)))

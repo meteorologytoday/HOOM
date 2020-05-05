@@ -43,17 +43,17 @@ function regVariable!(
     end
 
     dim = Dict(
-        :fT => [Nx  , Ny  , Nz_f],
-        :fU => [Nx  , Ny  , Nz_f],
-        :fV => [Nx  , Ny+1, Nz_f],
+        :fT => [Nx  , Ny  , Nz_f  ],
+        :fU => [Nx  , Ny  , Nz_f  ],
+        :fV => [Nx  , Ny+1, Nz_f  ],
         :fW => [Nx  , Ny  , Nz_f+1],
-        :cT => [Nx  , Ny  , Nz_c],
-        :cU => [Nx  , Ny  , Nz_c],
-        :cV => [Nx  , Ny+1, Nz_c],
+        :cT => [Nx  , Ny  , Nz_c  ],
+        :cU => [Nx  , Ny  , Nz_c  ],
+        :cV => [Nx  , Ny+1, Nz_c  ],
         :cW => [Nx  , Ny  , Nz_c+1],
-        :sT => [Nx  , Ny],
-        :sU => [Nx  , Ny],
-        :sV => [Nx  , Ny],
+        :sT => [Nx  , Ny  ],
+        :sU => [Nx  , Ny  ],
+        :sV => [Nx  , Ny+1],
     )[grid]
 
     if ! (shape in (:xy, :xyz, :zxy))

@@ -6,13 +6,16 @@ function setupBinding!(
     sd = slave.shared_data
     m  = slave.model
     s  = m.state
+    c  = m.core
     du_there = sd.data_units
 
     bindings = (
         (DataUnit(:u_total, :cU, :xyz, s.u_total, false), :u_total_c),
         (DataUnit(:v_total, :cV, :xyz, s.v_total, false), :v_total_c),
-        (DataUnit(:B,       :cT, :xyz, s.B,       false), :B_c),
-        (DataUnit(:Φ,       :sT, :xy , s.Φ,       false), :Φ  ),
+        (DataUnit(:B,       :cT, :xyz, s.B,       false), :B_c      ),
+        (DataUnit(:Φ,       :sT, :xy , s.Φ,       false), :Φ        ),
+        (DataUnit(:∂B∂x,    :cU, :xyz, c.∂B∂x,    false), :∂B∂x     ),
+        (DataUnit(:∂B∂y,    :cV, :xyz, c.∂B∂y,    false), :∂B∂y     ),
     )
     #=
     groups = Dict(

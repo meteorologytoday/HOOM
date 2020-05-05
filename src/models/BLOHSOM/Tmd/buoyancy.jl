@@ -21,17 +21,25 @@ function calBuoyancyPressure!(
     end
 
     # Calculate integrated buoyancy
-    B_star_half = getSpace!(co.wksp, :T)
-    @. B_star_half = co.dz_W * st.b_mixed / 2
+    B_star = getSpace!(co.wksp, :T)
+    @. B_star = co.dz_W * st.b_mixed / 2
+
+    #=
+    println("b_mixed: ", st.b_mixed[1, 55, 45])
+    println("dz_W: ",   co.dz_W[1, 55, 45])
+    println("B_star: ", B_star[1, 55, 45])
+
+    throw(ErrorException())
+    =#
 
     # Calculate B_n
     @loop_hor m i j let
 
         B = co.cols.B[i, j]
-        B[1] = B_star_half[1, i, j]
+        B[1] = B_star[1, i, j]
 
         for k=2:ev.Nz_av[i, j]
-            B[k] = B[k-1] + B_star_half[k-1, i, j] + B_star_half[k, i, j]
+            B[k] = B[k-1] + B_star[k-1, i, j] + B_star[k, i, j]
         end
     end
 

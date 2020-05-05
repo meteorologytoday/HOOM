@@ -1,6 +1,6 @@
 mutable struct OcnEnv
    
-    hrgrid_file   :: String
+    hrgrid        :: GridFiles.GridFile
     topo_file     :: String
     topo_varname  :: String
 
@@ -75,13 +75,13 @@ mutable struct OcnEnv
 
 
 
-    function OcnEnv(
-        hrgrid_file           :: String,
+    function OcnEnv(;
+        hrgrid                :: GridFiles.GridFile,
         topo_file             :: String,
         topo_varname          :: String,
         Δt                    :: Float64,
-        substeps_dyn           :: Int64,
-        substeps_tmd           :: Int64,
+        substeps_dyn          :: Int64,
+        substeps_tmd          :: Int64,
         z_bnd_f               :: AbstractArray{Float64, 1},
         height_level_counts   :: AbstractArray{Int64, 1},
         NX_passive            :: Int64,
@@ -101,7 +101,7 @@ mutable struct OcnEnv
         radiation_scheme      :: Symbol,
         convective_adjustment :: Bool,
         use_Qflux             :: Bool,
-        finding_Qflux         :: Bool;
+        finding_Qflux         :: Bool,
         mask2                 :: Union{AbstractArray{Float64, 2}, Nothing} = nothing, # debugging purpose
         topo                  :: Union{AbstractArray{Float64, 2}, Nothing} = nothing, # debugging purpose
     )
@@ -112,7 +112,6 @@ mutable struct OcnEnv
         end
 
 
-        mi = ModelMap.MapInfo{Float64}(hrgrid_file)
 
         if topo == nothing 
             Dataset(topo_file, "r") do ds
@@ -120,8 +119,8 @@ mutable struct OcnEnv
             end
         end
 
-        Nx = mi.nx
-        Ny = mi.ny
+        Nx = hrgrid.Nx
+        Ny = hrgrid.Ny
         Nz_f = length(z_bnd_f) - 1
         Nz_c = length(height_level_counts)
 
@@ -130,7 +129,7 @@ mutable struct OcnEnv
         end       
 
         if mask2 == nothing
-            mask2 = copy( mi.mask )
+            mask2 = copy( hrgrid.mask )
         end
         
         if size(mask2) != (Nx, Ny)
@@ -197,7 +196,7 @@ end
 
 
         return new(
-            hrgrid_file,
+            hrgrid,
             topo_file,
             topo_varname,
             Δt,

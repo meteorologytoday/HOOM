@@ -31,6 +31,7 @@ function setupBinding!(
         ((:v_total_c, :cV, :xyz, bd[:v_total_c], noXdim), :v_total_c),
         ((:B_c,       :cT, :xyz, bd[:B_c],       noXdim), :B_c),
 
+
         
         # T, S, FLDO and such
         ((:X,    :fT, :zxy, s.X,    hasXdim), :X   ),
@@ -42,8 +43,11 @@ function setupBinding!(
         ((:B,    :fT, :zxy, s.B,    noXdim),  :B   ),
 
         # forcings
-        ((:SWFLX,  :sT, :xy, f.swflx,  noXdim), :SWFLX),
-        ((:NSWFLX, :sT, :xy, f.nswflx, noXdim), :NSWFLX),
+        ((:SWFLX,  :sT, :xy,  f.swflx,  noXdim), :SWFLX),
+        ((:NSWFLX, :sT, :xy,  f.nswflx, noXdim), :NSWFLX),
+        ((:u_U,    :fU, :zxy, f.u_U,  noXdim),   :u_U ),
+        ((:v_V,    :fV, :zxy, f.v_V,  noXdim),   :v_V ),
+        ((:w_W,    :fW, :zxy, f.w_W,  noXdim),   :w_W ),
 
     )
 
@@ -61,7 +65,7 @@ function setupBinding!(
     for (here_args, there_key) in bindings
        
         here = DataUnit(here_args...)
-        #println("Doing : ", here.id, "; ", du_there[there_key].id) 
+        println("Doing : ", here.id, "; ", du_there[there_key].id, "; size: ", size(here.data)) 
         
         here_pull_yrng  = Colon()
 

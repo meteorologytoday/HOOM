@@ -69,13 +69,14 @@ function init!(
     end
     =#
 
+    #=
     @sync let 
         touchDyn!(model, :END_DYN2MAS, :S2M)
         touchTmd!(model, :END_TMD2MAS, :S2M)
-
-        touchTmd!(model, :TMD2DYN, :S2M)
     end
 
+    @sync touchTmd!(model, :TMD2DYN, :S2M)
+    =#
     return model
 
 end
@@ -88,19 +89,15 @@ function stepModel!(
 
     env = model.env
 
-    # Sync
+    # Send infos
     @sync let
-        touchDyn!(model, :TMD2DYN, :M2S) # :b_c
-        touchTmd!(model, :FORCING_MAS2TMD, :M2S) # forcing such as  :SWFLX
+        @async touchDyn!(model, :TMD2DYN,         :M2S) # :B_c
+        @async touchTmd!(model, :FORCING_MAS2TMD, :M2S) # forcing such as  :SWFLX
     end 
      
     # Currently tmd_core does not need info from
     # dyn_core so we do not need to pass dyn fields
     # to mld core
-#    for t=1:env.substeps_dyn
-#        Dyn.stepModel!(dyn_slaves)
-#    end
- 
     @sync @spawnat model.job_dist_info.dyn_slave_pid let
         for t=1:env.substeps_dyn
             Dyn.stepModel!(dyn_slave.model)
@@ -108,13 +105,14 @@ function stepModel!(
     end
     
     # Sending updated velocity to tmd
-    @sync touchDyn!(model, :DYN2TMD, :S2M)
-    @sync touchTmd!(model, :DYN2TMD, :M2S)
+    touchDyn!(model, :DYN2TMD, :S2M)
+    touchTmd!(model, :DYN2TMD, :M2S)
 
     ##### tmd slave should distribute u,v to fine grids here #####
     @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
         @spawnat pid projVelocity!(tmd_slave)
     end
+
 
     # this involves passing tracer through boundaries
     # so need to sync every time after it evolves
@@ -124,8 +122,8 @@ function stepModel!(
             @spawnat pid stepModel!(tmd_slave)
         end
 
-        @sync touchTmd!(model, :TMDBND, :S2M)
-        @sync touchTmd!(model, :TMDBND, :M2S)
+        touchTmd!(model, :TMDBND, :S2M)
+        touchTmd!(model, :TMDBND, :M2S)
 
     end
     
@@ -137,11 +135,11 @@ function stepModel!(
     end
 
     @sync let
-        touchDyn!(model, :END_DYN2MAS, :S2M)
-        touchTmd!(model, :END_TMD2MAS, :S2M)
-
-        touchTmd!(model, :TMD2DYN, :S2M)
+        @async touchDyn!(model, :END_DYN2MAS, :S2M)
+        @async touchTmd!(model, :END_TMD2MAS, :S2M)
     end
+
+    touchTmd!(model, :TMD2DYN, :S2M)
 
     #= 
     if write_restart
@@ -159,8 +157,8 @@ function regBindingGroups!(model::Model)
         :DYN2TMD     => (:u_total_c, :v_total_c),
         :TMD2DYN     => (:B_c,),
         :TMDBND      => (:X, :X_ML, :h_ML, :FLDO),
-        :END_DYN2MAS => (:Φ,),
-        :END_TMD2MAS => (:X, :X_ML, :h_ML, :FLDO, :b, :b_ML, :B),
+        :END_DYN2MAS => (:Φ, :∂B∂x, :∂B∂y),
+        :END_TMD2MAS => (:X, :X_ML, :h_ML, :FLDO, :b, :b_ML, :B, :u_U, :v_V, :w_W),
         :FORCING_MAS2DYN => (),
         :FORCING_MAS2TMD => (:SWFLX, :NSWFLX),
         :TEST_MAS2TMD => (:X, :X_ML),
@@ -203,12 +201,17 @@ function regSharedData!(model::Model)
         (:b   ,  :fT, :zxy, Float64),
         (:B   ,  :fT, :zxy, Float64),
         (:FLDO,  :sT, :xy,    Int64),
+        (:u_U,   :fU, :zxy, Float64),
+        (:v_V,   :fV, :zxy, Float64),
+        (:w_W,   :fW, :zxy, Float64),
         
         # These are used by dyn_core 
         (:u_total_c, :cU, :xyz, Float64),
         (:v_total_c, :cV, :xyz, Float64),
         (:B_c,       :cT, :xyz, Float64),
         (:Φ,         :sT, :xy,  Float64),
+        (:∂B∂x,      :cU, :xyz, Float64),
+        (:∂B∂y,      :cV, :xyz, Float64),
 
         # Forcings and return fluxes to coupler
         (:SWFLX,   :sT, :xy,  Float64),
@@ -249,7 +252,8 @@ function touchTmd!(
 
     direction = push_pull_relation[direction]
 
-    for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
+    
+    @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
         @spawnat pid let
             BLOHSOM.syncData!(tmd_slave.data_exchanger, group_label, direction)
         end
@@ -264,10 +268,8 @@ function touchDyn!(
 
     direction = push_pull_relation[direction]
 
-    let
-        @spawnat model.job_dist_info.dyn_slave_pid let
-            BLOHSOM.syncData!(dyn_slave.data_exchanger, group_label, direction)
-        end
+    @sync @spawnat model.job_dist_info.dyn_slave_pid let
+        BLOHSOM.syncData!(dyn_slave.data_exchanger, group_label, direction)
     end
 end
 

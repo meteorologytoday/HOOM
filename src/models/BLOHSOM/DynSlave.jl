@@ -14,18 +14,8 @@ mutable struct DynSlave
         shared_data  :: SharedData,
     )
        
-        mi = ModelMap.MapInfo{Float64}(ocn_env.hrgrid_file)
-        gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
-            R=Re,
-            Ω=Ωe,
-            Nx=mi.nx,
-            Ny=mi.ny,
-            c_lon=mi.xc,
-            c_lat=mi.yc,
-            vs_lon=mi.xv,
-            vs_lat=mi.yv,
-            area=mi.area,
-            angle_unit=:deg,
+        gi = PolelikeCoordinate.genGridInfo(
+            ocn_env.hrgrid,
         )
         
         model = Dyn.DynModel(

@@ -1,7 +1,7 @@
 using Distributed
 
 @everywhere include("../../share/PolelikeCoordinate.jl")
-@everywhere include("../../share/MapInfo.jl")
+@everywhere include("../../share/GridFiles.jl")
 @everywhere include("../../share/RecordTool.jl")
 @everywhere include("Dyn/Dyn.jl")
 @everywhere include("Tmd/Tmd.jl")
@@ -14,7 +14,7 @@ using Distributed
     using NCDatasets
     using ..Dyn
     using ..Tmd
-    using ..ModelMap
+    using ..GridFiles
     using ..RecordTool
     using ..PolelikeCoordinate
 

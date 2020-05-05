@@ -40,8 +40,10 @@ function advectDynamic!(
 =#
 
 
+    decomposeModes!(model)
+
 #    println("Do Diffusion!")
-    doHDiffusion!(model)
+#    doHDiffusionBarotropic!(model)
 
 #    println("calAuxV!")
     calAuxV!(model)
@@ -60,7 +62,7 @@ function advectDynamic!(
     #println(format("(u, v) = ({:.2f}, {:.2f})", state.u_total[1, 5, 5], state.v_total[1,5,5]))
 end
 
-function doHDiffusion!(
+function doHDiffusionBarotropic!(
     model :: DynModel,
 )
  
@@ -68,14 +70,14 @@ function doHDiffusion!(
     core = model.core
     env = model.env
     wksp = core.wksp
-    
-    wksp_cU = getSpace!(wksp, :cU)
-    wksp_cV = getSpace!(wksp, :cV)
-
-    wksp_cU .= state.u_total 
-    wksp_cV .= state.v_total 
-    
-
+    layers = core.layers 
+    #wksp_cU = getSpace!(wksp, :cU)
+    #wksp_cV = getSpace!(wksp, :cV)
+    #wksp_cU .= state.u_total 
+    #wksp_cV .= state.v_total 
+    #wksp_cU .= state.u_total 
+    #wksp_cV .= state.v_total 
+#= 
     for k = 1:env.Nz_c
 
         solveDiffusion!(
@@ -90,7 +92,48 @@ function doHDiffusion!(
             view(state.v_total, :, :, k),
         )
     end
-   
+=#
+    wksp_sU = getSpace!(wksp, :sU)
+    wksp_sV = getSpace!(wksp, :sV)
+
+    wksp_sU .= state.U
+    wksp_sV .= state.V 
+ 
+
+    solveDiffusion!(
+        core.diffusion_solver, :U,
+        wksp_sU,
+        state.U,
+    )
+
+    solveDiffusion!(
+        core.diffusion_solver, :V,
+        wksp_sV,
+        state.V,
+    )
+
+
+    for k = 1:env.Nz_c
+        @. layers.u_total[k] = state.U + layers.u[k]
+    end
+end
+
+function decomposeModes!(
+    model :: DynModel
+)
+ 
+    state = model.state
+    core = model.core
+    c_ops = core.c_ops
+    s_ops = core.s_ops
+    va = core.va
+    env = model.env
+    wksp = core.wksp
+  
+    
+    # cal barotropic and baroclinic components
+    decompose!(total=state.u_total, mean=state.U, anomaly=state.u, va=va)
+    decompose!(total=state.v_total, mean=state.V, anomaly=state.v, va=va)
 
 end
 
@@ -107,10 +150,6 @@ function calAuxV!(
     env = model.env
     wksp = core.wksp
   
-    # cal barotropic and baroclinic components
-    decompose!(total=state.u_total, mean=state.U, anomaly=state.u, va=va)
-    decompose!(total=state.v_total, mean=state.V, anomaly=state.v, va=va)
-
   
     # cal τx_acc, τy_acc
     τx_acc = getSpace!(wksp, :sU)
@@ -122,10 +161,10 @@ function calAuxV!(
     τy_acc ./= (ρ_fw * env.H_c[1])
  
     # cal ∇b
-    ∂B∂x   = getSpace!(wksp, :cU)
-    ∂B∂y   = getSpace!(wksp, :cV)
-    mul3!(∂B∂x, c_ops.U_∂x_T, state.B)
-    mul3!(∂B∂y, c_ops.V_∂y_T, state.B)
+    ∂B∂x   = core.∂B∂x
+    ∂B∂y   = core.∂B∂y
+    mul3!(core.∂B∂x, c_ops.U_∂x_T, state.B)
+    mul3!(core.∂B∂y, c_ops.V_∂y_T, state.B)
 
     # cal Coriolis force
     fu   = getSpace!(wksp, :cV)
@@ -180,11 +219,11 @@ function calAuxV!(
     G_u = view(state.G_u, :, :, :, Δt0)
     G_v = view(state.G_v, :, :, :, Δt0)
 
-    @. G_u = ∂B∂x + fv
+    @. G_u = ∂B∂x #+ fv
 #    G_u .-= u∂u∂x
 #    G_u .-= v∂u∂y
  
-    @. G_v = ∂B∂y - fu
+    @. G_v = ∂B∂y #- fu
 #    G_v .-= u∂v∂x
 #    G_v .-= v∂v∂y
 
@@ -362,8 +401,8 @@ function updateV!(
         u_aux = view(core.u_aux, :, :, k)
         v_aux = view(core.v_aux, :, :, k)
 
-        @. u_total = u_aux #=- Δt∂Φ∂x=# - ΔtfricU
-        @. v_total = v_aux #=- Δt∂Φ∂y=# - ΔtfricV
+        @. u_total = u_aux - Δt∂Φ∂x - ΔtfricU
+        @. v_total = v_aux - Δt∂Φ∂y - ΔtfricV
     end
 
 #= 
