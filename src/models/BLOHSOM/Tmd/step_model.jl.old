@@ -1,0 +1,716 @@
+function determineVelocity!(
+    m :: TmdModel,
+)
+    @fast_extract m
+
+    wksp  = co.wksp
+
+    div   = getSpace!(wksp, :T)
+    tmp_T = getSpace!(wksp, :T)
+
+    calDIV!(
+        ASUM = co.ASUM,
+        u_bnd = fr.u_U,
+        v_bnd = fr.v_V,
+        div   = div,
+        workspace = tmp_T
+    )
+
+    calVerVelBnd!(
+        gi    = ev.gi,
+        Nx    = ev.Nx,
+        Ny    = ev.Ny,
+        Nz    = ev.Nz_av,
+        w_bnd = fr.w_W,
+        hs    = co.Δz_T,
+        div   = div,
+        mask3 = ev.mask3,
+    )
+    
+
+end
+
+
+function advectTracer!(
+    m   :: TmdModel,
+)
+
+    @fast_extract m
+
+#    println("BEFORE:T[1:2]", st.X[1:2, 3, 3, 1], "; FDLO = ", st.FLDO[3,3], "; FLDO_ratio_top")
+
+
+    calFLDOPartition!(m)
+
+    for x = 1:ev.NX
+
+        ΔX   = view(st.ΔX,      :, :, x)
+        X_ML = view(st.X_ML,    :, :, x)
+        X    = view(co.cols.X,  :, :, x)
+
+        for I in CartesianIndices(X)
+            ΔX[I] = mixFLDO!(
+                qs   = X[I],
+                zs   = co.cols.z_bnd_av[I],
+                hs   = co.cols.Δz_T[I],
+                q_ML = X_ML[I],
+                FLDO = st.FLDO[I],
+                FLDO_ratio_top = st.FLDO_ratio_top[I],
+                FLDO_ratio_bot = st.FLDO_ratio_bot[I],
+            )
+        end
+    end
+
+
+#    println("AFTER:T[1:2]", st.X[1:2, 3, 3, 1], ";h_ML=", st.h_ML[3, 3])
+
+    Δt = ev.Δt_substep
+    tmp_T = getSpace!(co.wksp, :T)
+    
+    # Pseudo code
+    # 1. calculate tracer flux
+    # 2. calculate tracer flux divergence
+    calDiffAdv_QUICKEST_SpeedUp!(m, Δt)
+
+    @. st.X  += Δt * co.XFLUX_CONV
+    @. st.ΔX += Δt * st.dΔXdt
+
+
+#    println("## Before T_ML=", st.X_ML[3,3,1])
+    for x = 1:ev.NX
+
+        ΔX   = view(st.ΔX,      :, :, x)
+        X_ML = view(st.X_ML,    :, :, x)
+        X    = view(co.cols.X,  :, :, x)
+
+        for I in CartesianIndices(X)
+            X_ML[I] = unmixFLDOKeepDiff!(
+                qs   = X[I],
+                zs   = co.cols.z_bnd_av[I],
+                hs   = co.cols.Δz_T[I],
+                h_ML = st.h_ML[I],
+                FLDO = st.FLDO[I],
+                Nz   = ev.Nz_av[I],
+                Δq   = ΔX[I],
+            )
+        end
+    end
+
+#    println("## After T_ML=", st.X_ML[3,3,1])
+
+end
+
+
+function calDiffAdv_QUICKEST_SpeedUp!(
+    m       :: TmdModel,
+    Δt          :: Float64,
+)
+
+    @fast_extract m
+    
+    ASUM    = co.ASUM
+    wksp    = co.wksp
+
+    GRAD_bnd_x = getSpace!(wksp, :U)
+    GRAD_bnd_y = getSpace!(wksp, :V)
+    GRAD_bnd_z = getSpace!(wksp, :W)
+        
+    CURV_x = getSpace!(wksp, :T)
+    CURV_y = getSpace!(wksp, :T)
+    CURV_z = getSpace!(wksp, :T)
+        
+    tmp1 = getSpace!(wksp, :T)
+    tmp2 = getSpace!(wksp, :T)
+    tmp3 = getSpace!(wksp, :T)
+
+    for x=1:ev.NX
+ 
+        X            = view(st.X,            :, :, :, x)
+        dΔXdt        = view(st.dΔXdt,           :, :, x)
+        XFLUX_bot    = view(co.XFLUX_bot,       :, :, x)
+        XFLUX_CONV   = view(co.XFLUX_CONV,   :, :, :, x)
+        XFLUX_CONV_h = view(co.XFLUX_CONV_h, :, :, :, x)
+        XFLUX_DEN_x  = view(co.XFLUX_DEN_x,  :, :, :, x)
+        XFLUX_DEN_y  = view(co.XFLUX_DEN_y,  :, :, :, x)
+        XFLUX_DEN_z  = view(co.XFLUX_DEN_z,  :, :, :, x)
+
+        let
+            mul!(view(GRAD_bnd_x, :), ASUM.mtx_GRAD_X, view(X, :))
+            mul!(view(GRAD_bnd_y, :), ASUM.mtx_GRAD_Y, view(X, :))
+            mul!(view(GRAD_bnd_z, :), ASUM.mtx_GRAD_Z, view(X, :))
+     
+            mul!(view(CURV_x, :), ASUM.mtx_CURV_X, view(GRAD_bnd_x, :))
+            mul!(view(CURV_y, :), ASUM.mtx_CURV_Y, view(GRAD_bnd_y, :))
+            mul!(view(CURV_z, :), ASUM.mtx_CURV_Z, view(GRAD_bnd_z, :))
+     
+        end
+
+        #println("Flux Density")
+        calFluxDensity!(
+            gi         = ev.gi,
+            Nx         = ev.Nx,
+            Ny         = ev.Ny,
+            Nz         = ev.Nz_av,
+            FLUX_bot   = XFLUX_bot,
+            qs         = X,
+            GRAD_bnd_x = GRAD_bnd_x,
+            GRAD_bnd_y = GRAD_bnd_y,
+            GRAD_bnd_z = GRAD_bnd_z,
+            CURV_x     = CURV_x,
+            CURV_y     = CURV_y,
+            CURV_z     = CURV_z,
+            FLUX_DEN_x = XFLUX_DEN_x,
+            FLUX_DEN_y = XFLUX_DEN_y,
+            FLUX_DEN_z = XFLUX_DEN_z,
+            u_bnd      = fr.u_U,
+            v_bnd      = fr.v_V,
+            w_bnd      = fr.w_W,
+            mask3          = ev.mask3,
+            noflux_x_mask3 = ev.noflux_x_mask3,
+            noflux_y_mask3 = ev.noflux_y_mask3,
+            Δzs        = co.Δz_W,
+            D_hor      = ev.Kh_X[x],
+            D_ver      = ev.Kv_X[x],
+            Δt         = Δt,
+        )
+
+    
+
+
+        mul!(view(XFLUX_CONV_h, :), ASUM.mtx_DIV_X, view(XFLUX_DEN_x, :))
+        mul!(view(tmp1, :),   ASUM.mtx_DIV_Y, view(XFLUX_DEN_y, :))
+        mul!(view(tmp2, :),   ASUM.mtx_DIV_Z, view(XFLUX_DEN_z, :))
+
+
+        @. XFLUX_CONV_h = -1.0 * (XFLUX_CONV_h + tmp1)
+        @. XFLUX_CONV = XFLUX_CONV_h - tmp2
+
+        
+        calMixedLayer_dΔqdt!(
+            Nx          = ev.Nx,
+            Ny          = ev.Ny,
+            Nz          = ev.Nz_av,
+            FLUX_CONV_h = XFLUX_CONV_h,
+            FLUX_DEN_z  = XFLUX_DEN_z,
+            dΔqdt       = dΔXdt,
+            mask        = ev.mask2,
+            FLDO        = st.FLDO,
+            h_ML        = st.h_ML,
+            hs          = co.Δz_T,
+            zs          = ev.z_bnd_av,
+        )
+
+    end
+
+end
+
+
+function calTotalChange!(;
+    FLUX_CONV  :: AbstractArray{Float64, 3},     # ( Nz_bone,  , Nx   , Ny   )
+    FLUX_CONV_h:: AbstractArray{Float64, 3},     # ( Nz_bone,  , Nx   , Ny   )
+    gi         :: PolelikeCoordinate.GridInfo,
+    Nx         :: Integer,
+    Ny         :: Integer,
+    Nz         :: AbstractArray{Int64, 2},
+    FLUX_DEN_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx, Ny   )
+    FLUX_DEN_y :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
+    FLUX_DEN_z :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
+    mask3      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    hs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+)
+
+
+    #tmp = 0.0
+    #tmp_wT = 0.0
+    #tmp_v = 0.0
+    #tmp_σ = 0.0
+
+    for i=1:Nx, j=1:Ny
+        
+        if mask3[1, i, j] == 0
+            continue
+        end
+
+        #i_e = (i==Nx) ? 1 : i+1
+
+
+ #       if FLUX_DEN_z[1, i, j] != 0
+ #          #println("i: ", i, "; j:", j)
+ #           throw(ErrorException("FLUX_DEN_z != 0.0"))
+ #       end
+
+      # tmp_wT += FLUX_DEN_z[Nz[i, j]+1, i, j] * gi.dσ[i, j]
+      # tmp_σ += gi.dσ[i, j]
+
+#=
+        if (i, j) == (48, 89)
+           #println("FLUX_X = ", FLUX_DEN_x[1:6, i+1, j], "; ", FLUX_DEN_x[1:6, i, j])
+           #println("FLUX_X conv=", FLUX_DEN_x[1:6, i+1, j] * gi.DY[i+1, j] - FLUX_DEN_x[1:6, i, j] * gi.DY[i, j])
+           #println("FLUX_y conv=", FLUX_DEN_y[1:6, i, j+1] * gi.DX[i, j+1] - FLUX_DEN_y[1:6, i, j] * gi.DX[i, j])
+
+           #println("DX: ", gi.DX[i, j:j+1])
+           #println("DY: ", gi.DY[i:i+1, j])
+        end
+=#
+
+        for k=1:Nz[i, j]
+
+            _CONV_h = (
+                - (
+                     FLUX_DEN_x[k, i+1, j] * gi.DY[i+1, j] - FLUX_DEN_x[k, i, j] * gi.DY[i, j]
+                   + FLUX_DEN_y[k, i, j+1] * gi.DX[i, j+1] - FLUX_DEN_y[k, i, j] * gi.DX[i, j]
+                ) / gi.dσ[i, j]
+            )
+
+            FLUX_CONV_h[k, i, j] = _CONV_h
+
+            FLUX_CONV[k, i, j] = ( 
+                _CONV_h - (
+                     FLUX_DEN_z[k, i, j] - FLUX_DEN_z[k+1, i, j]
+                ) / hs[k, i, j]
+            )
+
+#=
+           if i==1 && FLUX_DEN_x[k, 1, j] != FLUX_DEN_x[k, Nx+1, j]
+               #println("i: ", i, "; j:", j)
+                throw(ErrorException("FLUX_DEN_x does not match"))
+           end
+ 
+           if j==1 && ( FLUX_DEN_y[k, i, 1] != 0 ||  FLUX_DEN_x[k, i, Ny+1] != 0)
+               #println("i: ", i, "; j:", j)
+                throw(ErrorException("FLUX_DEN_y != 0"))
+           end
+ 
+=#
+#=
+            if i < Nx-1 && gi.ds2[i, j] != gi.ds4[i+1, j]
+               #println("i: ", i, "; j:", j)
+                throw(ErrorException("ds2 ds4 does not match"))
+            end
+            
+            if j < Ny-1 && gi.ds3[i, j] != gi.ds1[i, j+1]
+               #println("i: ", i, "; j:", j)
+               #println("ds3: ", gi.ds3[i, j], "; ds1: ", gi.ds1[i, j+1])
+                throw(ErrorException("ds1 ds3 does not match"))
+            end
+=#
+
+     #       tmp += FLUX_CONV[k, i, j] * hs[k, i, j] * gi.dσ[i, j]
+     #       tmp_v += hs[k, i, j] * gi.dσ[i, j]
+
+#            if (k, j) == (2, 10)
+#               #println(FLUX_DEN_x[k, i, j] * gi.ds4[i_e, j], " ::: ", FLUX_DEN_x[k, i+1, j] * gi.ds4[i, j])
+#                tmp += FLUX_DEN_x[k, i+1, j] * gi.ds4[i_e, j] - FLUX_DEN_x[k, i, j] * gi.ds4[i, j]
+#            end
+            
+#            if (k, i) == (1, 10) 
+#               #println(FLUX_DEN_y[k, i, j+1] * gi.ds1[i, j+1], " ::: ", FLUX_DEN_y[k, i, j] * gi.ds1[i, j])
+#            end
+
+        end
+
+    end
+
+    #println("SUM of FLUX_CONV weighted by volume: ", tmp, " / ", tmp_v, " = ", tmp/tmp_v)
+    #println("wQ total: ", tmp_wT/tmp_σ)
+    #println("If consider the affect of wQ: ", (tmp - tmp_wT) /tmp_v)
+end
+
+function calFluxDensity!(;
+    gi         :: PolelikeCoordinate.GridInfo,
+    Nx         :: Integer,
+    Ny         :: Integer,
+    Nz         :: AbstractArray{Int64, 2},
+    FLUX_bot   :: AbstractArray{Float64, 2},     # ( Nx  , Ny   )
+    qs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    u_bnd      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx, Ny   )
+    v_bnd      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
+    w_bnd      :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
+    GRAD_bnd_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx, Ny   )
+    GRAD_bnd_y :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
+    GRAD_bnd_z :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
+    CURV_x     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    CURV_y     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    CURV_z     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    FLUX_DEN_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx, Ny   )
+    FLUX_DEN_y :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
+    FLUX_DEN_z :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
+    mask3      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    noflux_x_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx, Ny   )
+    noflux_y_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx  , Ny+1 )
+    Δzs        :: AbstractArray{Float64, 3},     # ( Nz_bone-1 ,  Nx  , Ny   )
+    D_hor      :: Float64,
+    D_ver      :: Float64,
+    Δt         :: Float64,
+)
+
+    # x
+    for i=2:Nx, j=1:Ny
+        for k=1:Nz[i, j]
+            if noflux_x_mask3[k, i, j] == 0.0
+                FLUX_DEN_x[k, i, j] = 0.0
+            else
+                CURV_r = ( u_bnd[k, i, j] >= 0.0 ) ? CURV_x[k, i-1, j] : CURV_x[k, i, j]
+                uΔt    = u_bnd[k, i, j] * Δt
+                q_star = (qs[k, i-1, j] + qs[k, i, j]) / 2.0 - uΔt / 2.0 * GRAD_bnd_x[k, i, j] + ( D_hor * Δt / 2.0 - gi.dx_w[i, j]^2.0/6.0 + uΔt^2.0 / 6.0 ) * CURV_r
+
+                FLUX_DEN_x[k, i, j] = u_bnd[k, i, j] * q_star - D_hor * ( GRAD_bnd_x[k, i, j] - uΔt / 2.0 * CURV_r )
+            end
+        end
+    end
+
+    # x - periodic
+    for j=1:Ny 
+        for k=1:Nz[1, j]
+            if noflux_x_mask3[k, 1, j] == 0.0
+                FLUX_DEN_x[k, 1, j] = 0.0
+            else
+
+                CURV_r = ( u_bnd[k, 1, j] >= 0.0 ) ? CURV_x[k, Nx, j] : CURV_x[k, 1, j]
+                uΔt    = u_bnd[k, 1, j] * Δt
+                q_star = (qs[k, Nx, j] + qs[k, 1, j]) / 2.0 - uΔt / 2.0 * GRAD_bnd_x[k, 1, j] + ( D_hor * Δt / 2.0 - gi.dx_w[1, j]^2.0/6.0 + uΔt^2.0 / 6.0 ) * CURV_r
+
+                FLUX_DEN_x[k, 1, j] =  u_bnd[k, 1, j] * q_star - D_hor * ( GRAD_bnd_x[k, 1, j] - uΔt / 2.0 * CURV_r )
+            end
+        end
+    end
+
+
+    # y
+    for i=1:Nx, j=2:Ny
+        for k=1:Nz[i, j]
+            if noflux_y_mask3[k, i, j] == 0.0
+                FLUX_DEN_y[k, i, j] = 0.0
+            else
+
+                CURV_r = ( v_bnd[k, i, j] >= 0.0 ) ? CURV_y[k, i, j-1] : CURV_y[k, i, j]
+                vΔt    = v_bnd[k, i, j] * Δt
+                q_star = (qs[k, i, j-1] + qs[k, i, j]) / 2.0 - vΔt / 2.0 * GRAD_bnd_y[k, i, j] + ( D_hor * Δt / 2.0 - gi.dy_s[i, j]^2.0/6.0 + vΔt^2.0 / 6.0 ) * CURV_r
+
+                FLUX_DEN_y[k, i, j] = v_bnd[k, i, j] * q_star - D_hor * ( GRAD_bnd_y[k, i, j] - vΔt / 2.0 * CURV_r )
+
+            end
+        end
+    end
+
+
+    # z
+    for i=1:Nx, j=1:Ny
+
+        if mask3[1, i, j] == 0.0
+            continue
+        end
+
+        FLUX_DEN_z[1, i, j] = 0.0
+
+        _Nz = Nz[i, j]
+
+        #local q_star
+        for k=2:_Nz
+
+            CURV_r = ( w_bnd[k, i, j] >= 0.0 ) ? CURV_z[k, i, j] : CURV_z[k-1, i, j]
+            wΔt    = w_bnd[k, i, j] * Δt
+            q_star = (qs[k, i, j] + qs[k-1, i, j]) / 2.0 - wΔt / 2.0 * GRAD_bnd_z[k, i, j] + ( D_ver * Δt / 2.0 - Δzs[k-1, i, j]^2.0/6.0 + wΔt^2.0 / 6.0 ) * CURV_r
+
+            FLUX_DEN_z[k, i, j] = w_bnd[k, i, j] * q_star - D_ver * ( GRAD_bnd_z[k, i, j] - wΔt / 2.0 * CURV_r )
+
+        end
+
+        FLUX_DEN_z[_Nz+1, i, j] = FLUX_bot[i, j] = FLUX_DEN_z[_Nz, i, j]
+
+        #println("(i, j) = ", (i, j), "; q_star = ", q_star, "; w_bnd = ", w_bnd[_Nz+1, i, j])
+
+    end
+
+end
+
+
+
+function calGRAD_CURV!(;
+    gi         :: PolelikeCoordinate.GridInfo,
+    Nx         :: Integer,
+    Ny         :: Integer,
+    Nz         :: AbstractArray{Int64, 2},
+    qs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    GRAD_bnd_x :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    GRAD_bnd_y :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny+1 )
+    GRAD_bnd_z :: AbstractArray{Float64, 3},     # ( Nz_bone+1 ,  Nx  , Ny   )
+    CURV_x     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    CURV_y     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    CURV_z     :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    mask3      :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+    noflux_x_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx  , Ny   )
+    noflux_y_mask3 :: AbstractArray{Float64, 3}, # ( Nz_bone   ,  Nx  , Ny+1 )
+    Δzs        :: AbstractArray{Float64, 3},     # ( Nz_bone-1 ,  Nx  , Ny   )
+    hs         :: AbstractArray{Float64, 3},     # ( Nz_bone   ,  Nx  , Ny   )
+)
+
+    # x 
+    for i=2:Nx, j=1:Ny 
+        for k=1:Nz[i, j]
+            GRAD_bnd_x[k, i, j] = (
+                ( noflux_x_mask3[k, i, j] == 0.0 )  
+                ? 0.0 : ( qs[k, i, j] - qs[k, i-1, j] ) / gi.dx_w[i, j] 
+            )
+        end
+    end
+
+    # x - periodic
+    for j=1:Ny
+        for k=1:Nz[1, j]
+            GRAD_bnd_x[k, 1, j] = (
+                ( noflux_x_mask3[k, 1, j] == 0.0 )  
+                ? 0.0 : ( qs[k, 1, j] - qs[k, Nx, j] ) / gi.dx_w[1, j]
+            )
+        end
+    end
+
+    # y
+    for i=1:Nx, j=2:Ny
+        for k=1:Nz[i, j]
+            GRAD_bnd_y[k, i, j] = (
+                ( noflux_y_mask3[k, i, j] == 0.0 )  
+                ? 0.0 : ( qs[k, i, j] - qs[k, i, j-1] ) / gi.dy_s[i, j]
+            )
+        end
+    end
+
+    # z
+    for i=1:Nx, j=1:Ny
+
+        if mask3[1, i, j] == 0.0
+            continue
+        end
+
+        _Nz = Nz[i, j]
+        GRAD_bnd_z[1, i, j] = GRAD_bnd_z[_Nz+1, i, j] = 0.0
+        for k=2:_Nz
+            GRAD_bnd_z[k, i, j] = ( qs[k-1, i, j] - qs[k, i, j] ) / Δzs[k-1, i, j]
+        end
+
+        GRAD_bnd_z[_Nz+1, i, j] = GRAD_bnd_z[_Nz, i, j]
+
+    end
+
+    # CURV
+    for i=1:Nx, j=1:Ny
+        for k=1:Nz[i, j]
+            CURV_x[k, i, j] = ( GRAD_bnd_x[k, i+1, j  ] - GRAD_bnd_x[k  , i, j] ) / gi.dx_c[i, j]
+            CURV_y[k, i, j] = ( GRAD_bnd_y[k, i  , j+1] - GRAD_bnd_y[k  , i, j] ) / gi.dy_c[i, j]
+            CURV_z[k, i, j] = ( GRAD_bnd_z[k, i  , j  ] - GRAD_bnd_z[k+1, i, j] ) / hs[k, i, j]
+#            if (k, i, j) == (4, 47, 87)
+#               #println("[3,47,87] CURV_z=", CURV_z[1:6, i, j], ", hs=", hs[1:6, i, j], "; Δzs: ", Δzs[1:6, i, j])
+#               #println("[3,47,87] GRAD_bnd_z: ", GRAD_bnd_z[1:6, i, j])
+#            end
+        end
+    end
+
+    #=
+    if any(isnan.(GRAD_bnd_x))
+        throw(ErrorException("GRAD_bnd_x NaN"))
+    end
+
+    if any(isnan.(GRAD_bnd_y))
+        throw(ErrorException("GRAD_bnd_y NaN"))
+    end
+
+    if any(isnan.(GRAD_bnd_z))
+        throw(ErrorException("GRAD_bnd_z NaN"))
+    end
+
+    =#
+
+end
+
+
+function calDIV!(;
+    ASUM     ,
+    u_bnd     :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+    v_bnd     :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny+1 )
+    div       :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+    workspace :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+)
+
+    
+    mul!(view(div, :),       ASUM.mtx_DIV_X, view(u_bnd, :))
+    mul!(view(workspace, :), ASUM.mtx_DIV_Y, view(v_bnd, :))
+    div .+= workspace
+
+end
+
+#=
+function calDIV!(;
+    gi       :: PolelikeCoordinate.GridInfo,
+    Nx       :: Integer,
+    Ny       :: Integer,
+    Nz       :: AbstractArray{Int64, 2},
+    u_bnd    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+    v_bnd    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny+1 )
+    div      :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+    mask3    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+)
+
+    
+    mul!(view(div, :),           ASUM.mtx_DIV_X, view(u_bnd, :))
+    mul!(view(workspaces[1], :), ASUM.mtx_DIV_Y, view(v_bnd, :))
+    div .+= workspaces[1]
+
+    #=
+
+#    local tmp = tmp_σ = 0.0
+    for i=1:Nx, j=1:Ny
+
+        for k=1:Nz[i, j]
+
+            if mask3[k, i, j] == 0.0
+                break
+            end
+            
+            div[k, i, j] =  (  
+                u_bnd[k, i+1, j  ]  * gi.DY[i+1, j  ]
+              - u_bnd[k, i,   j  ]  * gi.DY[i  , j  ]
+              + v_bnd[k, i,   j+1]  * gi.DX[i  , j+1]
+              - v_bnd[k, i,   j  ]  * gi.DX[i  , j  ]
+            ) / gi.dσ[i, j]
+
+        end
+
+    end
+
+    =#
+end
+=#
+
+
+function calVerVelBnd!(;
+    gi       :: PolelikeCoordinate.GridInfo,
+    Nx       :: Integer,
+    Ny       :: Integer,
+    Nz       :: AbstractArray{Int64, 2},
+    w_bnd    :: AbstractArray{Float64, 3},   # ( Nz_bone+1, Nx  , Ny   )
+    hs       :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+    div      :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+    mask3    :: AbstractArray{Float64, 3},   # ( Nz_bone  , Nx  , Ny   )
+)
+
+#    local tmp = tmp_σ = 0.0
+    for i=1:Nx, j=1:Ny
+        
+        _Nz = Nz[i, j]
+        w_bnd[1, i, j]     = 0.0
+        w_bnd[_Nz+1, i, j] = 0.0
+
+        for k=_Nz:-1:2
+
+            if mask3[k, i, j] == 0.0
+                break
+            end
+            
+            #w_bnd[k+1, i, j] = w_bnd[k, i, j] + div[k, i, j] * hs[k, i, j]
+            w_bnd[k, i, j] = w_bnd[k+1, i, j] - div[k, i, j] * hs[k, i, j]
+        end
+
+#        tmp   += w_bnd[Nz[i, j]+1, i, j] * gi.dσ[i, j]
+#        tmp_σ += gi.dσ[i, j]
+    end
+
+#   #println("tmp: ", tmp, "; tmp_σ: ", tmp_σ, "; Average w: ", tmp/tmp_σ)
+
+end
+
+
+
+function calHorVelBnd!(;
+    Nx       :: Integer,
+    Ny       :: Integer,
+    Nz       :: AbstractArray{Int64, 2},
+    weight_e :: AbstractArray{Float64, 2},   # (Nx+1, Ny)
+    weight_n :: AbstractArray{Float64, 2},   # (Nx, Ny+1)
+    u        :: AbstractArray{Float64, 3},   # (Nz_bone, Nx, Ny)
+    v        :: AbstractArray{Float64, 3},   # (Nz_bone, Nx, Ny)
+    u_bnd    :: AbstractArray{Float64, 3},   # (Nz_bone, Nx+1, Ny)
+    v_bnd    :: AbstractArray{Float64, 3},   # (Nz_bone, Nx, Ny+1)
+    mask3    :: AbstractArray{Float64, 3},   # (Nz_bone, Nx, Ny)
+    noflux_x_mask3 :: AbstractArray{Float64, 3}, # (Nz_bone, Nx+1, Ny)
+    noflux_y_mask3 :: AbstractArray{Float64, 3}, # (Nz_bone, Nx, Ny+1)
+)
+
+    # x
+    for i=2:Nx, j=1:Ny
+        for k=1:Nz[i, j]
+            if noflux_x_mask3[k, i, j] == 0.0
+                u_bnd[k, i, j] = 0.0
+            else
+                u_bnd[k, i, j] = u[k, i-1, j] * (1.0 - weight_e[i, j]) + u[k, i, j] * weight_e[i, j]
+                #u_bnd[k, i, j] = (u[k, i-1, j] + u[k, i, j]) / 2.0
+            end
+        end
+    end
+    
+    # x - periodic
+    for j=1:Ny
+        for k=1:Nz[1, j]
+            if noflux_x_mask3[k, 1, j] == 0.0
+                u_bnd[k, 1, j] = u_bnd[k, Nx+1, j] = 0.0
+            else
+                u_bnd[k, 1, j] = u_bnd[k, Nx+1, j] = u[k, Nx, j] * (1.0 - weight_e[1, j]) + u[k, 1, j] * weight_e[1, j]
+                #u_bnd[k, 1, j] = u_bnd[k, Nx+1, j] = (u[k, Nx, j] + u[k, 1, j]) / 2.0
+            end
+        end
+    end
+
+    # y
+    for i=1:Nx, j=2:Ny
+        for k=1:Nz[i, j]
+            if noflux_y_mask3[k, i, j] == 0.0
+                v_bnd[k, i, j] = 0.0
+            else
+                v_bnd[k, i, j] = v[k, i, j-1] * (1.0 - weight_n[i, j]) + v[k, i, j] * weight_n[i, j]
+                #v_bnd[k, i, j] = (v[k, i, j-1] + v[k, i, j]) / 2.0
+            end
+        end
+    end
+
+end
+
+function calMixedLayer_dΔqdt!(;
+    Nx          :: Integer,
+    Ny          :: Integer,
+    Nz          :: AbstractArray{Int64, 2},
+    FLUX_CONV_h :: AbstractArray{Float64, 3},     # ( Nz_bone  ,  Nx, Ny )
+    FLUX_DEN_z  :: AbstractArray{Float64, 3},     # ( Nz_bone+1,  Nx, Ny )
+    dΔqdt       :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    mask        :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    FLDO        :: AbstractArray{Int64, 2},       # ( Nx, Ny )
+    h_ML        :: AbstractArray{Float64, 2},     # ( Nx, Ny )
+    hs          :: AbstractArray{Float64, 3},     # ( Nz_bone  ,  Nx, Ny )
+    zs          :: AbstractArray{Float64, 3},     # ( Nz_bone+1,  Nx, Ny )
+) 
+
+    for i=1:Nx, j=1:Ny
+
+        if mask[i, j] == 0.0
+            continue
+        end
+
+        _FLDO = FLDO[i, j]
+
+        if _FLDO == -1
+            continue
+        end
+
+        tmp = 0.0
+        for k = 1:_FLDO-1
+            tmp += FLUX_CONV_h[k, i, j] * hs[k, i, j]
+        end
+        tmp += ( 
+              FLUX_CONV_h[_FLDO, i, j] * zs[_FLDO, i, j] 
+            + ( FLUX_DEN_z[_FLDO+1, i, j] * zs[_FLDO, i, j] - FLUX_DEN_z[_FLDO, i, j] * zs[_FLDO+1, i, j] ) / hs[_FLDO, i, j]
+        )
+
+        dΔqdt[i, j] = tmp / h_ML[i, j]
+    end
+
+end
+
+

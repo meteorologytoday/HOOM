@@ -12,7 +12,7 @@ function calBuoyancyPressure!(
         Tmd.mixFLDO!(
             qs   = co.cols.b_mixed[i, j],
             zs   = co.cols.z_bnd_av[i, j],
-            hs   = co.cols.dz_W[i, j],
+            hs   = co.cols.Δz_T[i, j],
             q_ML = st.b_ML[i, j],
             FLDO = st.FLDO[i, j],
             FLDO_ratio_top = st.FLDO_ratio_top[i, j],
@@ -22,11 +22,11 @@ function calBuoyancyPressure!(
 
     # Calculate integrated buoyancy
     B_star = getSpace!(co.wksp, :T)
-    @. B_star = co.dz_W * st.b_mixed / 2
+    @. B_star = co.Δz_T * st.b_mixed / 2
 
     #=
     println("b_mixed: ", st.b_mixed[1, 55, 45])
-    println("dz_W: ",   co.dz_W[1, 55, 45])
+    println("Δz_T: ",   co.Δz_T[1, 55, 45])
     println("B_star: ", B_star[1, 55, 45])
 
     throw(ErrorException())

@@ -53,7 +53,7 @@ mutable struct PhiSolver
         #cTT_I_cTT = cTT_send_T * T_send_cTT
         TT_I_TT = TT_send_T * T_send_TT
 
-        # Laplacian on T grids with gradient equals zero at boundaries
+        # Laplacian on T grids with gradient equals zero at boundaries (U, V grid boundaries)
         T_Lap_T   = M.T_DIVx_U * M.U_∂x_T + M.T_DIVy_V * M.V_∂y_T
 
 

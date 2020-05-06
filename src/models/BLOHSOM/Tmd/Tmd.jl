@@ -4,30 +4,14 @@ module Tmd
         return mod(i-1, N) + 1
     end
 
-    @inline function mul2!(
-        a :: AbstractArray{Float64, 2},
+    @inline function mul_autoflat!(
+        a :: AbstractArray{Float64},
         b :: AbstractArray{Float64, 2},
-        c :: AbstractArray{Float64, 2},
+        c :: AbstractArray{Float64},
     )
         mul!(view(a, :), b, view(c, :))
     end
  
-    @inline function mul3!(
-        a :: AbstractArray{Float64, 3},
-        b :: AbstractArray{Float64, 2},
-        c :: AbstractArray{Float64, 3},
-    )
-        for k=1:size(a)[3]
-            mul!(
-                view(view(a, :, :, k), :),
-                b,
-                view(view(c, :, :, k), :),
-            )
-        end
-    end
-
-
-
     macro fast_extract(model)
         return esc(:( 
             co = $(model).core;
@@ -37,9 +21,6 @@ module Tmd
             ev = $(model).env;
         ))
     end
-
-
-
 
     macro loop_hor(model, idx1, idx2, stmts)
         return :( for grid_idx in 1:size($(esc(model)).core.valid_idx)[2]
@@ -52,6 +33,7 @@ module Tmd
     end
 
 
+    using SparseArrays
     using Formatting
     using LinearAlgebra    
     using ..PolelikeCoordinate
@@ -61,7 +43,9 @@ module Tmd
     include("../../../share/constants.jl")
     include("../../../share/ocean_state_function.jl")
 
+    include("../MatrixOperators.jl")
     include("Workspace.jl")
+    #include("AdvectionSpeedUpMatrix.jl.old")
     include("AdvectionSpeedUpMatrix.jl")
     include("AccumulativeVariables.jl")
     include("TmdEnv.jl")
@@ -90,7 +74,10 @@ module Tmd
     include("buoyancy.jl")
  
     include("varlist.jl")
+
+    include("leonard1979.jl")
     include("step_model.jl")
+    #include("step_model.jl.old")
     include("step_tmd_mixed_layer.jl")
 
     function stepModel!(
@@ -101,6 +88,7 @@ module Tmd
 
         reset!(co.wksp)
 
+        
         if co.current_substep == 1
             determineVelocity!(m)
         end

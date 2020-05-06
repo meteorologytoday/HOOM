@@ -1,5 +1,9 @@
 mutable struct Workspace
 
+    Nx :: Int64
+    Ny :: Int64
+    Nz :: Int64
+
     T :: Array
     U :: Array
     V :: Array
@@ -36,36 +40,6 @@ mutable struct Workspace
         _sU = []
         _sV = []
 
-        for i=1:T
-            push!(_T, zeros(Float64, Nz, Nx, Ny))
-        end 
-
-        for i=1:U
-            push!(_U, zeros(Float64, Nz, Nx, Ny))
-        end 
-
-        for i=1:V
-            push!(_V, zeros(Float64, Nz, Nx, Ny+1))
-        end 
-
-        for i=1:W
-            push!(_W, zeros(Float64, Nz+1, Nx, Ny))
-        end 
-
-
-        for i=1:sT
-            push!(_sT, zeros(Float64, Nx, Ny))
-        end 
-
-        for i=1:sU
-            push!(_sU, zeros(Float64, Nx, Ny))
-        end 
-
-        for i=1:sV
-            push!(_sV, zeros(Float64, Nx, Ny+1))
-        end 
-
-
         ptr = Dict(
             :T => 1,
             :U => 1,
@@ -76,8 +50,8 @@ mutable struct Workspace
             :sV => 1,
         )
 
-
         return new(
+            Nx, Ny, Nz,
             _T, _U, _V, _W,
             _sT, _sU, _sV,
             ptr,
@@ -99,7 +73,8 @@ function getSpace!(
 #    println(string(grid), " => ", i, "; length(list) = ", length(list))
 
     if i > length(list)
-        throw(ErrorException("Running out of workspace of " * string(grid)))
+        println("Running out of workspace of " * string(grid) * ", create new...")
+        push!(list, genEmptyGrid(wksp, Float64, grid))
     end
     
     wksp.ptr[grid] += 1
@@ -121,3 +96,22 @@ function reset!(
 
 end
 
+function genEmptyGrid(
+    wksp  :: Workspace,
+    dtype :: DataType,
+    grid  :: Symbol,
+)
+    Nx, Ny, Nz = wksp.Nx, wksp.Ny, wksp.Nz
+    dim = Dict(
+        :T => (Nz,   Nx, Ny  ),
+        :U => (Nz,   Nx, Ny  ),
+        :V => (Nz,   Nx, Ny+1),
+        :W => (Nz+1, Nx, Ny  ),
+        :sT => ( Nx, Ny  ),
+        :sU => ( Nx, Ny  ),
+        :sV => ( Nx, Ny+1),
+    )[grid]
+
+    return zeros(dtype, dim...)
+
+end

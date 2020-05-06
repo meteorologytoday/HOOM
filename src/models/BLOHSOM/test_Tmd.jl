@@ -1,7 +1,8 @@
 
+include("../../share/GridFiles.jl")
 include("../../share/PolelikeCoordinate.jl")
 include("../../share/constants.jl")
-include("../../share/MapInfo.jl")
+
 include("../../share/RecordTool.jl")
 
 include("Tmd/Tmd.jl")
@@ -37,7 +38,7 @@ if !isdefined(Main, :REPL)
 
 else
 
-    run_days = 5
+    run_days = 10
     output_file = "output_tmd.nc"
 
 end
@@ -70,24 +71,30 @@ topo_file = "/seley/tienyiah/CESM_domains/test_domains/topo.fv0.9x1.25.nc"
 hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.lnd.fv4x5_gx3v7.091218.nc"
 
 
-
-mi = ModelMap.MapInfo{Float64}(hrgrid_file)
-mi.mask = 1.0 .- mi.mask
-
-
-gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
-    R=Re,
-    Ω=Ωe,
-    Nx=mi.nx,
-    Ny=mi.ny,
-    c_lon=mi.xc,
-    c_lat=mi.yc,
-    vs_lon=mi.xv,
-    vs_lat=mi.yv,
-    area=mi.area,
-    angle_unit=:deg,
+gf = GridFiles.CurvilinearSphericalGridFile(
+        hrgrid_file;
+        R   = Re,
+        Ω   = Ωe,
 )
 
+
+xcutoff = 1
+ycutoff = 5
+
+gf.mask                       .= 1
+gf.mask[:, 1:ycutoff]         .= 0 
+gf.mask[:, end-ycutoff+1:end] .= 0 
+
+gf.mask[1:xcutoff, :]         .= 0 
+gf.mask[end-xcutoff+1:end, :] .= 0 
+
+
+
+Dataset(topo_file, "r") do ds
+    global mask_idx = (ds["depth"][:] |> nomissing) .< 1000.0
+end
+
+gi = PolelikeCoordinate.genGridInfo(gf);
 
 Δt = 3600.0 * 24 
 
@@ -96,6 +103,7 @@ model = Tmd.TmdModel(
     Δt                    = Δt,
     substeps              = 8,
     z_bnd                 = z_bnd,
+    mask2                 = gf.mask,
     Kh_X                  = [0.0, 0.0],
     Kv_X                  = [0.0, 0.0],
     MLT_rng               = [3, 1e5],
@@ -141,7 +149,7 @@ model.forcing.h_ML  .= model.state.h_ML
 σ = 100e3 * 10.0
 #model.state.u_c[1, :, :] .= 1.0
 
-model.forcing.u_U[1, :, :] .= 1 .* cos.(model.env.gi.c_lat)#* sin.((model.env.gi.c_lon )) .* cos.(model.env.gi.c_lat*2) #.* exp.( - (model.env.gi.c_y / σ).^2.0 / 2.0 )
+model.forcing.u_U[1, :, :] .= 1 .* cos.(2*model.env.gi.c_lat)#* sin.((model.env.gi.c_lon )) .* cos.(model.env.gi.c_lat*2) #.* exp.( - (model.env.gi.c_y / σ).^2.0 / 2.0 )
 
 Tmd.initialization!(model)
 

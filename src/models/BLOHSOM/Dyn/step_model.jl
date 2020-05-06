@@ -219,11 +219,11 @@ function calAuxV!(
     G_u = view(state.G_u, :, :, :, Δt0)
     G_v = view(state.G_v, :, :, :, Δt0)
 
-    @. G_u = ∂B∂x #+ fv
+    @. G_u = ∂B∂x + fv
 #    G_u .-= u∂u∂x
 #    G_u .-= v∂u∂y
  
-    @. G_v = ∂B∂y #- fu
+    @. G_v = ∂B∂y - fu
 #    G_v .-= u∂v∂x
 #    G_v .-= v∂v∂y
 

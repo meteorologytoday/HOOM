@@ -1,6 +1,6 @@
 
 include("../../share/constants.jl")
-include("../../share/MapInfo.jl")
+include("../../share/GridFiles.jl")
 include("../../share/RecordTool.jl")
 
 include("Dyn/Dyn.jl")
@@ -46,24 +46,45 @@ end
 
 
 
-z_bnd_f = collect(Float64, range(0, -100, length=11))
+z_bnd_f = collect(Float64, range(0, -4000, length=11))
 height_level_counts = [1, 3, 6]
 height_level_counts = [10]
 
 println("Create Gridinfo");
+hrgrid_file = "/seley/tienyiah/CESM_domains/domain.lnd.fv1.9x2.5_gx1v6.090206.nc"
+
+gf_ref = GridFiles.CurvilinearSphericalGridFile(
+        hrgrid_file;
+        R   = Re,
+        Ω   = Ωe,
+)
+
+Ly = 100e3 * 150.0
+gf = GridFiles.CylindricalGridFile(;
+        R   = Re,
+        Ω   = Ωe,
+        Nx   = gf_ref.Nx,
+        Ny   = gf_ref.Ny,
+        Ly   = Ly,
+        lat0 = 0.0 |> deg2rad,
+        β    = Ωe / Re,
+)
+
+#xcutoff = 10
+ycutoff = 2
+
+gf.mask .= 1.0 .- gf_ref.mask
+
+#gf.mask                       .= 1
+gf.mask[:, 1:ycutoff]         .= 0 
+gf.mask[:, end-ycutoff+1:end] .= 0 
+
+#gf.mask[1:xcutoff, :]         .= 0 
+#gf.mask[end-xcutoff+1:end, :] .= 0 
+
+
 
 #=
-gi = PolelikeCoordinate.RegularCylindricalGridInfo(;
-    R = 5000e3,
-    Ω = Ωe,
-    Nx = 60,
-    Ny = 30,
-    Ly = 100e3 * 100,
-    lat0 = 0.0 |> deg2rad,
-    β    = Ωe / Re,
-);
-=#
-
 hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.ocn.gx1v6.090206.nc"
 topo_file = "/seley/tienyiah/CESM_domains/test_domains/topo.gx1v6.nc"
 
@@ -75,31 +96,23 @@ hrgrid_file = "/seley/tienyiah/CESM_domains/test_domains/domain.lnd.fv0.9x1.25_g
 topo_file = "/seley/tienyiah/CESM_domains/test_domains/topo.fv0.9x1.25.nc"
 
 
-mi = ModelMap.MapInfo{Float64}(hrgrid_file)
+gf = GridFiles.CurvilinearSphericalGridFile(
+        hrgrid_file;
+        R   = Re,
+        Ω   = Ωe,
+)
 
 Dataset(topo_file, "r") do ds
     global mask_idx = (ds["depth"][:] |> nomissing) .< 1000.0
 end
 
+gf.mask = 1 .- gf.mask
+gf.mask[mask_idx] .= 0.0
+
+=#
 
 
-mi.mask = 1 .- mi.mask
-mi.mask[mask_idx] .= 0.0
-
-#mi.mask .= 1
-
-gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
-    R=Re,
-    Ω=Ωe,
-    Nx=mi.nx,
-    Ny=mi.ny,
-    c_lon=mi.xc,
-    c_lat=mi.yc,
-    vs_lon=mi.xv,
-    vs_lat=mi.yv,
-    area=mi.area,
-    angle_unit=:deg,
-)
+gi = PolelikeCoordinate.genGridInfo(gf);
 
 
 #=
@@ -108,15 +121,15 @@ cutoff = 5
 gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
     R=Re,
     Ω=Ωe,
-    Nx=mi.nx,
-    Ny=mi.ny,
-    c_lon=mi.xc,
-    c_lat=mi.yc,
-    vs_lon=mi.xv,
-    vs_lat=mi.yv,
-    area=mi.area,
+    Nx=gf.nx,
+    Ny=gf.ny,
+    c_lon=gf.xc,
+    c_lat=gf.yc,
+    vs_lon=gf.xv,
+    vs_lat=gf.yv,
+    area=gf.area,
     angle_unit=:deg,
-    sub_yrng = cutoff+1:mi.ny-cutoff,
+    sub_yrng = cutoff+1:gf.ny-cutoff,
 )
 =#
 
@@ -128,10 +141,10 @@ gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
 model = Dyn.DynModel(
     gi                  = gi,
     Δt                  = Δt,
-    Dh                  = 30000.0,
+    Dh                  = 10000.0,
     z_bnd_f             = z_bnd_f,
     height_level_counts = height_level_counts,
-    mask                = mi.mask,
+    mask                = gf.mask,
 )
 
 #=
@@ -156,12 +169,12 @@ Dyn.mul2!(T_filtered, model.core.s_ops.filter_T, T)
 
 Dataset("dissect.nc", "c") do ds
 
-    defDim(ds, "Nx", mi.nx)
-    defDim(ds, "Ny", mi.ny)
-    defDim(ds, "Nyp1", mi.ny+1)
+    defDim(ds, "Nx", gf.nx)
+    defDim(ds, "Ny", gf.ny)
+    defDim(ds, "Nyp1", gf.ny+1)
 
     for (varname, vardata, vardim, attrib) in [
-        ("mask", mi.mask, ("Nx", "Ny"), Dict()),
+        ("mask", gf.mask, ("Nx", "Ny"), Dict()),
         ("U_filtered", U_filtered, ("Nx", "Ny"), Dict()),
         ("V_filtered", V_filtered, ("Nx", "Nyp1"), Dict()),
         ("T_filtered", T_filtered, ("Nx", "Ny"), Dict()),
@@ -246,13 +259,14 @@ end
 #a = 0.1 * exp.(- (gi.c_y.^2 + gi.c_x.^2) / (σ^2.0) / 2) .* sin.(gi.c_lon*3)
 #b = 0.1 * exp.(- (gi.c_y.^2 + gi.c_x.^2) / (σ^2.0) / 2) .* cos.(gi.c_lon*3)
 a=b=0
-run_days=10
+run_days=100
 
 #model.state.v_c[:, 2:end, 1] .= 1.0 * exp.(- (gi.c_y.^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2) .* cos.(gi.c_lon*3)
 #model.state.v_c[:, 2:end, 1] .= 1.0 * exp.(- ((gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 #model.state.u_c[:, :, 1] .= 1.0 * exp.(- (gi.c_y.^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 #model.state.u_c[:, :, 1] .= 1.0 * exp.(- ((gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
-model.state.Φ[:, :] .= 0.01 * exp.(- ((gi.c_lat * gi.R).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
+#model.state.Φ[:, :] .= 0.01 * exp.(- ((gi.c_lat * gi.R).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
+model.state.Φ[:, :] .= 0.01 * exp.(- ((gi.c_y).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 #model.state.Φ[:, :] .= g * 1.0 * exp.(- ((gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 
 # output initial state

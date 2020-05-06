@@ -55,7 +55,7 @@ mutable struct TmdSlave
  
         model = Tmd.TmdModel(
             gi       = gi,
-            Δt       = ocn_env.Δt / ocn_env.substeps_tmd,
+            Δt       = ocn_env.Δt,
             substeps = ocn_env.substeps_tmd,
             z_bnd    = ocn_env.z_bnd_f,
             topo     = ocn_env.topo,

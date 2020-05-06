@@ -143,7 +143,7 @@ mutable struct TmdEnv
             for k=2:length(z_bnd)
                 if z_bnd[k] <= topo[i, j]
                     _Nz_av = k-1
-                    #println(format("This topo gets: z_bnd[{:d}] = {:f}, _topo[{:d},{:d}]={:f}", k, z_bnd[k], i, j, _topo[i,j]))
+#                    println(format("This topo gets: z_bnd[{:d}] = {:f}, _topo[{:d},{:d}]={:f}", k, z_bnd[k], i, j, topo[i,j]))
                     break
                 end
             end

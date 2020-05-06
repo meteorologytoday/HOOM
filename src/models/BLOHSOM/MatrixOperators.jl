@@ -124,7 +124,6 @@ struct MatrixOperators
     T_E_T
     T_W_T
 
-    #=
     T_UP_T
     T_DN_T
     U_UP_U
@@ -137,7 +136,6 @@ struct MatrixOperators
 
     W_UP_T
     W_DN_T
-    =#
 
     function MatrixOperators(;
         Nx             :: Int64,
@@ -287,7 +285,6 @@ struct MatrixOperators
         T_W_T = T_W_U * U_W_T
 
 
-        #=
         # upward, downward passing mtx
         T[1:Nz-1, :, :] = view(num_T, 2:Nz, :, :);    T_UP_T = build!(T_I_T_expand, T; wipe=:b)
         T[2:Nz, :, :] = view(num_T, 1:Nz-1, :, :);    T_DN_T = build!(T_I_T_expand, T; wipe=:t)
@@ -304,7 +301,6 @@ struct MatrixOperators
         # inverse directions
         W_DN_T = T_UP_W' |> sparse
         W_UP_T = T_DN_W' |> sparse
-        =#
 
         return new(
             U_pts, V_pts, W_pts, T_pts, F_pts,
@@ -340,13 +336,12 @@ struct MatrixOperators
 
             T_N_T, T_S_T,
             T_E_T, T_W_T,
-#=
+            
             T_UP_T, T_DN_T,
             U_UP_U, U_DN_U,
             V_UP_V, V_DN_V,
             T_UP_W, T_DN_W,
             W_UP_T, W_DN_T,
-  =#       
         )
 
     end

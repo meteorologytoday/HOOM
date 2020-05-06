@@ -32,12 +32,14 @@ if !isdefined(Main, :REPL)
 
 else
 
-    run_days = 25
+    run_days = 365
     output_file = "output.nc"
 
 end
 
-Δt = 86400.0
+
+coupling = 4
+Δt_day = 86400.0
 
 Nz_f = 20
 
@@ -64,20 +66,21 @@ gi = PolelikeCoordinate.CurvilinearSphericalGridInfo(;
     angle_unit=:deg,
 )
 =#
+Ly = 100e3 * 60.0
 gf = GridFiles.CylindricalGridFile(;
         R   = Re,
         Ω   = Ωe,
-        Nx   = 144,
-        Ny   = 90,
-        Ly   = 100e3 * 60,
+        Nx   = 240,
+        Ny   = 120,
+        Ly   = Ly,
         lat0 = 0.0 |> deg2rad,
-        β    = Ωe / Re,
+        β    = 2*Ωe / Re,
 )
 
 gi = PolelikeCoordinate.genGridInfo(gf);
 
-xcutoff = 10
-ycutoff = 20
+xcutoff = 25
+ycutoff = 25
 
 gf.mask                       .= 1
 gf.mask[:, 1:ycutoff]         .= 0 
@@ -88,24 +91,25 @@ gf.mask[end-xcutoff+1:end, :] .= 0
 
 
 topo = similar(gf.mask)
-topo .= -2000
+topo .= -4000
 z_bnd_f = collect(Float64, range(0.0, -500.0, length=21))
-
+#push!(z_bnd_f, -4000)
 ocn_env = BLOHSOM.OcnEnv(
     hrgrid                = gf,
     topo_file             = topo_file,
     topo_varname          = "topo",
-    Δt                    = Δt,
-    substeps_dyn          = 12,
-    substeps_tmd          = 8,
+    Δt                    = Δt_day / coupling,
+    substeps_dyn          = 3,
+    substeps_tmd          = 3,
     z_bnd_f               = z_bnd_f,
-    height_level_counts   = [4, 4, 4, 4, 4],
+    #height_level_counts   = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 5],
+    height_level_counts   = [2, 2, 2, 2, 2, 2, 8],
     NX_passive            = 0,
     deep_threshold        = 1000.0,
     Kh_m                  = 30000.0,
     Kv_m                  = 1e-3,
-    Kh_X                  = [0.0, 1e-3], 
-    Kv_X                  = [1e-3, 1e-3], 
+    Kh_X                  = [1000.0, 1e-5], 
+    Kv_X                  = [1e-5, 1e-5], 
     R                     = 0.48,
     ζ                     = 23.0,
     we_max                = 1e-2,
@@ -139,6 +143,7 @@ du = model.shared_data.data_units
 
 z_mid = (z_bnd_f[1:end-1] + z_bnd_f[2:end]) / 2
 z_mid = repeat(reshape(z_mid, :, 1, 1), outer=(1, gf.Nx, gf.Ny))
+mask3 = repeat(reshape(gf.mask, 1, gf.Nx, gf.Ny), outer=(length(z_bnd_f)-1, 1, 1))
 
 basic_T   = z_mid * 0
 anomaly_T = z_mid * 0
@@ -146,7 +151,8 @@ anomaly_T = z_mid * 0
 @. basic_T = 10 #+ 15 * exp(z_mid / σz)
 
 #warmpool_bnd_z = - 300.0 * exp.(- ( (gi.c_lat * gi.R ).^2 + (gi.R * (gi.c_lon .- π)/2).^2) / (σ_warmpool^2.0) / 2)
-warmpool_bnd_z = - 300.0 * exp.(- ( (gi.c_y .+ 100e3).^2 + (gi.R * (gi.c_lon .- π)/2).^2) / (σ_warmpool^2.0) / 2)
+#warmpool_bnd_z = - 300.0 * exp.(- ( (gi.c_y .- ( Ly/4.0)).^2 + (gi.R * (gi.c_lon .- π)/2).^2) / (σ_warmpool^2.0) / 2)
+warmpool_bnd_z = - 130.0 * exp.(- ( (gi.c_y ).^2 + (gi.R * (gi.c_lon .- π)/2).^2) / (σ_warmpool^2.0) / 2)
 warmpool_bnd_z = repeat(reshape(warmpool_bnd_z, 1, size(warmpool_bnd_z)...), outer=(size(z_mid)[1], 1, 1))
 anomaly_T[z_mid .> warmpool_bnd_z] .= 20.0
 
@@ -154,6 +160,8 @@ total_T = basic_T + anomaly_T
 total_T[1:4, :, :] .= 30.0
 
 h_ML = gf.mask * 0 .+ 10.0
+
+total_T[mask3 .== 0.0] .= 0
 
 @sync for (p, pid) in enumerate(model.job_dist_info.tmd_slave_pids)
     @spawnat pid let
@@ -171,7 +179,7 @@ end
 
 @sync @spawnat model.job_dist_info.dyn_slave_pid let
 
-        BLOHSOM.dyn_slave.model.state.Φ .= 0.01 * exp.(- ( (gi.c_y ).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
+#    BLOHSOM.dyn_slave.model.state.Φ .= 0.01 * exp.(- ( (gi.c_y ).^2 + (gi.R * (gi.c_lon .- π)).^2) / (σ^2.0) / 2)
 
 end
 BLOHSOM.touchTmd!(model, :END_TMD2MAS, :S2M)
@@ -186,11 +194,12 @@ RecordTool.avgAndOutput!(recorder)
 @time for step=1:run_days
     println("##### Run day ", step)
 
-    du[:NSWFLX].data .= (du[:X_ML].odata[:, :, 1] .- 30.0) * 1026*3996*25 / (86400*10)
-    
-    BLOHSOM.stepModel!(model, false)
+#    du[:NSWFLX].data .= (du[:X_ML].odata[:, :, 1] .- 30.0) * 1026*3996*25 / (86400*10)
 
-    #println("sum of Φ: ", sum(du[:Φ].odata))
+    @time for c = 1:coupling    
+        BLOHSOM.stepModel!(model, false)
+    end
+
     RecordTool.record!(recorder)
     RecordTool.avgAndOutput!(recorder)
 end

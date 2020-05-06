@@ -107,7 +107,7 @@ mutable struct TmdCore    # Adam Bashford
         end
 
         println("Making ASUM")
-        @time ASUM = AdvectionSpeedUpMatrix(;
+#=        @time ASUM = AdvectionSpeedUpMatrix(;
                 gi = env.gi,
                 Nz = Nz,
                 Nz_av = env.Nz_av,
@@ -116,6 +116,17 @@ mutable struct TmdCore    # Adam Bashford
                 noflux_y_mask3 = env.noflux_y_mask3,
                 Δz_W = Δz_W,
                 Δz_T = Δz_T,
+        )
+=#
+        @time ASUM = AdvectionSpeedUpMatrix(;
+                gi = env.gi,
+                Nz_bone = Nz,
+                Nz = env.Nz_av,
+                mask3 = env.mask3,
+                noflux_x_mask3 = env.noflux_x_mask3,
+                noflux_y_mask3 = env.noflux_y_mask3,
+                Δzs = Δz_W[2:end-1, :, :],
+                hs = Δz_T,
         )
 
 
