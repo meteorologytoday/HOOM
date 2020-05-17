@@ -59,7 +59,8 @@ function parse_commandline()
             required = true
     
         "--all-active"
-            action = :store_true
+            arg_type = Bool
+            default = false
 
     end
 

@@ -19,6 +19,7 @@ lopts=(
     output-dir
     s-mask-value
     d-mask-value
+    all-active
 )
 
 options=$(getopt -o '' --long $(printf "%s:," "${lopts[@]}") -- "$@")
@@ -67,7 +68,8 @@ if [ ! -d "$output_dir" ] || [ ! -f "$w_file_conserve2nd" ] || [ ! -f "$w_file_b
         --center-lat=yc     \
         --corner-lon=xv     \
         --corner-lat=yv     \
-        --mask-value=${s_mask_value}
+        --mask-value=${s_mask_value} \
+        --all-active=${all_active}
 
     julia $script_root_dir/generate_SCRIP_format.jl \
         --input-file=${d_file}    \
@@ -76,7 +78,8 @@ if [ ! -d "$output_dir" ] || [ ! -f "$w_file_conserve2nd" ] || [ ! -f "$w_file_b
         --center-lat=yc     \
         --corner-lon=xv     \
         --corner-lat=yv     \
-        --mask-value=${d_mask_value}
+        --mask-value=${d_mask_value} \
+        --all-active=${all_active}
 
 
 
