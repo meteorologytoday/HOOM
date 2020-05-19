@@ -67,6 +67,7 @@ function calDiffAdv_QUICK_SpeedUp!(
         CURV_r_bnd          = getSpace!(wksp, :U),
         uΔt_bnd             = getSpace!(wksp, :U),
         X_star_bnd          = getSpace!(wksp, :U),
+
     )
 
     calFluxDensity_abstract!(;
@@ -126,8 +127,8 @@ function calDiffAdv_QUICK_SpeedUp!(
     mul_autoflat!(tmp1,        ASUM.T_DIVy_V, FLUX_DEN_y)
     mul_autoflat!(tmp2,        ASUM.T_DIVz_W, FLUX_DEN_z)
 
-    @. XFLUX_CONV_h = -1.0 * (XFLUX_CONV_h + tmp1)
-    @. XFLUX_CONV = XFLUX_CONV_h - tmp2
+    @. FLUX_CONV_h = -1.0 * (FLUX_CONV_h + tmp1)
+    @. FLUX_CONV = FLUX_CONV_h - tmp2
 
 
    #println("CALMIXEDLAYER")
@@ -181,13 +182,21 @@ function calFluxDensity_abstract!(;
 
     @. uΔt_bnd    = u_bnd * Δt
     mul_autoflat!(X_star_bnd, op_bnd_interp_T, X_T)
+    #verbose && println("interpolated: ", X_T[1,37,23])
     @. X_star_bnd = X_star_bnd - uΔt_bnd / 2.0 * GRAD_bnd + ( K * Δt / 2.0 - Δx_bnd^2.0/6.0 + uΔt_bnd^2.0 / 6.0 ) * CURV_r_bnd
+    #verbose && println("X_star_bnd: ", X_T[1,37,23])
 
     # reuse
     empty = uΔt_bnd
     @. empty = u_bnd * X_star_bnd - K * ( GRAD_bnd - uΔt_bnd / 2.0 * CURV_r_bnd )
+    
+    #verbose && println("Flux: ", empty[1,37,23])
 
     mul_autoflat!(FLUX_DEN_bnd, op_filter_bnd, empty)
+    
+
+    #verbose && println("Flux after filter: ", FLUX_DEN_bnd[1,37,23])
+    #verbose && println("speed bnd : ", u_bnd[1,37,23])
 
     
 

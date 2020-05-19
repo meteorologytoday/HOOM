@@ -7,10 +7,15 @@ function stepOcean_Flow!(
     do_convadjust = cfgs[:do_convadjust]
     Δt         = cfgs[:Δt]
 
+     
+
     if adv_scheme == :static
         return
     end
 
+    reset!(ocn.wksp)
+
+    #old_intT = sum(ocn.ASUM.filter_T * ocn.ASUM.T_Δvol_T * view(ocn.Ts, :))
     # Determine the temperature / salinity of FLDO layer
     @loop_hor ocn i j let
 
@@ -73,6 +78,8 @@ function stepOcean_Flow!(
     )
 =#
     #println("##### QUICK SPEEDUP")
+    #println("before calDiffAdv T_ML[60,70] = ", ocn.T_ML[60,70])
+    
     calDiffAdv_QUICK_SpeedUp!(
         ocn,
         qs          = ocn.Ts,
@@ -86,6 +93,9 @@ function stepOcean_Flow!(
         Dv = ocn.Dv_T,
         Δt = Δt,
     )
+
+    #println("after calDiffAdv T_ML[60,70] = ", ocn.T_ML[60,70])
+    #println("after calDiffAdv TFLUX_CONV[1, 60,70] = ", ocn.TFLUX_CONV[1, 60,70])
 
     calDiffAdv_QUICK_SpeedUp!(
         ocn,
@@ -146,6 +156,10 @@ function stepOcean_Flow!(
         end
 
 
+
+
     end
 
+    #new_intT = sum(ocn.ASUM.filter_T * ocn.ASUM.T_Δvol_T * view(ocn.Ts, :))
+    #println("Total integrated T: ", new_intT, "; change=", (new_intT - old_intT)/old_intT * 100, " % ")
 end

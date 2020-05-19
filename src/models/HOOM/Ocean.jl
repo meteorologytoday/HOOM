@@ -373,10 +373,10 @@ mutable struct Ocean
         hs   = allocate(datakind, Float64, Nz_bone    , Nx, Ny)
         Δzs  = allocate(datakind, Float64, Nz_bone + 1, Nx, Ny)
 
-        zs  .= NaN
+        zs  .= 1.0
         Nz  .= 0
-        hs  .= NaN
-        Δzs .= NaN
+        hs  .= 1.0
+        Δzs .= 1.0
 
         for i=1:Nx, j=1:Ny
 
@@ -652,7 +652,8 @@ mutable struct Ocean
 
         mask3_lnd_idx = (_mask3  .== 0.0)
         mask2_lnd_idx = (_mask  .== 0.0)
-        
+
+        #=        
         for v in [_bs, _Ts, _Ss, _Ts_clim, _Ss_clim]
             if v == nothing
                 continue
@@ -664,7 +665,7 @@ mutable struct Ocean
         for v in [_b_ML, _T_ML, _S_ML, _h_ML, _h_ML_min, _h_ML_max]
             v[mask2_lnd_idx] .= NaN
         end 
-
+        =#
 
         # ===== [END] Mask out data
 
@@ -696,7 +697,8 @@ mutable struct Ocean
         #println("Total  data count: ", total_data)
         #println("Valid  data count: ", valid_grids)
         #println("Masked data count: ", total_data - valid_grids)
-        
+
+        #=        
         if sum(isfinite.(_Ss)) != valid_grids
             throw(ErrorException("Salinity data has holes"))
         end
@@ -712,7 +714,7 @@ mutable struct Ocean
         if _Ss_clim != nothing && sum(isfinite.(_Ss_clim)) != valid_grids
             throw(ErrorException("Salinity climatology has holes"))
         end
-
+        =#
 
         # Check if h_ML_min h_ML_max is negative
         if any(_h_ML_min[mask_idx] .<= 0)

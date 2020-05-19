@@ -39,6 +39,8 @@ function getCompleteVariableList(ocn::Ocean)
             "fric_u"             => ( ocn.fric_u,                   ("Nx", "Ny") ),
             "taux"               => ( ocn.τx,                       ("Nx", "Ny") ),
             "tauy"               => ( ocn.τy,                       ("Nx", "Ny") ),
+            "TFLUX_DEN_x"        => ( toXYZ(ocn.TFLUX_DEN_x, :zxy), ("Nx", "Ny", "Nz_bone") ),
+#            "TFLUX_DEN_y"        => ( toXYZ(ocn.TFLUX_DEN_x, :zxy), ("Nx", "Ny", "Nz_bone") ),
             "TFLUX_DEN_z"        => ( toXYZ(ocn.TFLUX_DEN_z, :zxy), ("Nx", "Ny", "NP_zs_bone") ),
             "SFLUX_DEN_z"        => ( toXYZ(ocn.SFLUX_DEN_z, :zxy), ("Nx", "Ny", "NP_zs_bone") ),
             "div"                => ( toXYZ(ocn.div, :zxy),         ("Nx", "Ny", "Nz_bone") ),

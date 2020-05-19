@@ -97,7 +97,13 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
             end
         end
 
-        
+ 
+    elseif adv_scheme == :test
+                
+        ocn.u .= 1
+#        ocn.v[1:2, :, :] .= 0
+
+       
     elseif adv_scheme == :ekman_codron2012_partition
 
         H_ek =  50.0
