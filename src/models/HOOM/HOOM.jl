@@ -30,16 +30,25 @@ end
         end )
     end
 
-
+    @inline function mul_autoflat!(
+        a :: AbstractArray{Float64},
+        b :: AbstractArray{Float64, 2},
+        c :: AbstractArray{Float64},
+    )
+        mul!(view(a, :), b, view(c, :))
+    end
+ 
     @hinclude("../../share/constants.jl")
     @hinclude("../../share/ocean_state_function.jl")
 
     # classes
     @hinclude("../../share/DisplacedPoleCoordinate.jl")
     @hinclude("../../share/MapInfo.jl")
+    @hinclude("Workspace.jl")
+    @hinclude("MatrixOperators.jl")
+    @hinclude("AdvectionSpeedUpMatrix.jl")
     @hinclude("InputFields.jl")
     @hinclude("AccumulativeVariables.jl")
-    @hinclude("SpeedUpMtx3D.jl")
     @hinclude("Ocean.jl")
 
     # functions

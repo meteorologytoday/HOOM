@@ -25,8 +25,6 @@ mutable struct Ocean
     ϵs       :: AbstractArray{Float64, 2}
 
     mask3    :: AbstractArray{Float64, 3}
-    noflux_x_mask3  :: AbstractArray{Float64, 3}
-    noflux_y_mask3  :: AbstractArray{Float64, 3}
     mask     :: AbstractArray{Float64, 2}
     mask_idx  :: Any
     valid_idx :: AbstractArray{Int64, 2}
@@ -162,9 +160,7 @@ mutable struct Ocean
 
 
     ASUM :: Union{AdvectionSpeedUpMatrix, Nothing}
-    workspace1    :: AbstractArray{Float64, 3}
-    workspace2    :: AbstractArray{Float64, 3}
-    workspace3    :: AbstractArray{Float64, 3}
+    wksp :: Workspace
 
 
     function Ocean(;
@@ -375,7 +371,7 @@ mutable struct Ocean
         Nz   = allocate(datakind, Int64, Nx, Ny)
         zs   = allocate(datakind, Float64, Nz_bone + 1, Nx, Ny)
         hs   = allocate(datakind, Float64, Nz_bone    , Nx, Ny)
-        Δzs  = allocate(datakind, Float64, Nz_bone - 1, Nx, Ny)
+        Δzs  = allocate(datakind, Float64, Nz_bone + 1, Nx, Ny)
 
         zs  .= NaN
         Nz  .= 0
@@ -410,7 +406,10 @@ mutable struct Ocean
 
             # Construct thickness of each layer
             hs[ 1:_Nz,   i, j] = zs[1:_Nz, i, j] - zs[2:_Nz+1, i, j]
-            Δzs[1:_Nz-1, i, j] = (hs[1:_Nz-1, i, j] + hs[2:_Nz, i, j]) / 2.0
+            Δzs[2:_Nz, i, j] = (hs[1:_Nz-1, i, j] + hs[2:_Nz, i, j]) / 2.0
+            Δzs[1, i, j] = Δzs[2, i, j]
+            Δzs[end, i, j] = Δzs[end-1, i, j]
+            
            
         end
         
@@ -562,11 +561,11 @@ mutable struct Ocean
         _v       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _w       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
 
-        _u_bnd   = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _u_bnd   = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _v_bnd   = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
         _w_bnd   = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
 
-        _GRAD_bnd_x   = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _GRAD_bnd_x   = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _GRAD_bnd_y   = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
         _GRAD_bnd_z   = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
 
@@ -574,11 +573,11 @@ mutable struct Ocean
         _CURV_y       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _CURV_z       = allocate(datakind, Float64, Nz_bone, Nx, Ny)
 
-        _TFLUX_DEN_x  = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _TFLUX_DEN_x  = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _TFLUX_DEN_y  = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
         _TFLUX_DEN_z  = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
 
-        _SFLUX_DEN_x  = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
+        _SFLUX_DEN_x  = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _SFLUX_DEN_y  = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
         _SFLUX_DEN_z  = allocate(datakind, Float64, Nz_bone+1, Nx, Ny)
 
@@ -597,13 +596,10 @@ mutable struct Ocean
 
         # ===== [BEGIN] Climatology =====
 
+        _Ts_clim = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         if Ts_clim == nothing
 
-            _Ts_clim = nothing
-
         else
-            
-            _Ts_clim = allocate(datakind, Float64, Nz_bone, Nx, Ny)
             
             if typeof(Ts_clim) <: AbstractArray{Float64, 3}
 
@@ -620,13 +616,10 @@ mutable struct Ocean
         end 
 
 
+        _Ss_clim = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         if Ss_clim == nothing
             
-            _Ss_clim = nothing
-
         else
-            
-            _Ss_clim = allocate(datakind, Float64, Nz_bone, Nx, Ny)
             
             if typeof(Ss_clim) <: AbstractArray{Float64, 3}
 
@@ -648,56 +641,11 @@ mutable struct Ocean
         # ===== [BEGIN] Mask out data =====
 
         _mask3        = allocate(datakind, Float64, Nz_bone, Nx, Ny)
-        _noflux_x_mask3 = allocate(datakind, Float64, Nz_bone, Nx+1, Ny)
-        _noflux_y_mask3 = allocate(datakind, Float64, Nz_bone, Nx, Ny+1)
-        _mask3 .= 1.0
 
+        _mask3 .= 1.0
         # Clean up all variables
         for i=1:Nx, j=1:Ny
             _mask3[Nz[i, j] + 1:end, i, j] .= 0.0
-        end
-
-        # no flow try to avoid the horizontal flow when topography is cutting through a grid box.
-        
-        # x
-        for i=2:Nx, j=1:Ny
-            for k=1:Nz[i, j]
-                _noflux_x_mask3[k, i, j] = ( 
-                    _mask3[k, i  , j] == 0.0
-                 || _mask3[k, i-1, j] == 0.0
-                 || k >= Nz[i-1, j]
-                 || k == Nz[i  , j]
-                 || _topo[i  , j] > -300.0
-                 || _topo[i-1, j] > -300.0
-                ) ? 0.0 : 1.0
-            end
-        end
-        # x - periodic boundary
-        for j=1:Ny
-            for k=1:Nz[1, j]
-                _noflux_x_mask3[k, 1, j] = _noflux_x_mask3[k, Nx+1, j] = (
-                    _mask3[k, 1, j] == 0.0
-                 || _mask3[k, Nx, j] == 0.0
-                 || k >= Nz[Nx, j]
-                 || k == Nz[1, j]
-                 || _topo[1, j] > -300.0
-                 || _topo[Nx, j] > -300.0
-                ) ? 0.0 : 1.0
-            end
-        end
-
-        # y
-        for i=1:Nx, j=2:Ny     # j=1 and Ny+1 are 0 because these are the singular points --- pole
-            for k=1:Nz[i, j]
-                _noflux_y_mask3[k, i, j] = (
-                    _mask3[k, i, j  ] == 0.0
-                 || _mask3[k, i, j-1] == 0.0
-                 || k >= Nz[i, j-1]
-                 || k == Nz[i, j  ]
-                 || _topo[i, j  ] > -300.0
-                 || _topo[i, j-1] > -300.0
-                ) ? 0.0 : 1.0
-            end
         end
 
         #println("sum of _mask3: ", sum(_mask3))
@@ -860,16 +808,12 @@ mutable struct Ocean
 
         if id != 0
             ASUM = AdvectionSpeedUpMatrix(;
-                gi = gridinfo,
-                Nx = Nx,
-                Ny = Ny,
-                Nz_bone = Nz_bone,
-                Nz = Nz,
+                gi    = gridinfo,
+                Nz    = Nz_bone,
+                Nz_av = Nz,
                 mask3 = _mask3,
-                noflux_x_mask3 = _noflux_x_mask3,
-                noflux_y_mask3 = _noflux_y_mask3,
-                Δzs = Δzs,
-                hs  = hs,
+                Δz_W  = Δzs,
+                Δz_T  = hs,
             )
         else
             ASUM = nothing
@@ -887,7 +831,6 @@ mutable struct Ocean
             K_v, Dh_T, Dv_T, Dh_S, Dv_S,
             _fs, _ϵs,
             _mask3,
-            _noflux_x_mask3, _noflux_y_mask3,
             _mask, mask_idx, valid_idx,
             _b_ML, _T_ML, _S_ML, _ΔT, _ΔS, _dΔTdt, _dΔSdt,
             _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,
@@ -921,9 +864,7 @@ mutable struct Ocean
             cols,
             ( id == 0 ) ? nothing : AccumulativeVariables(Nx, Ny, Nz_bone),
             ASUM,
-            allocate(datakind, Float64, Nz_bone, Nx, Ny),  # workspace1
-            allocate(datakind, Float64, Nz_bone, Nx, Ny),  # workspace2
-            allocate(datakind, Float64, Nz_bone, Nx, Ny),  # workspace3
+            Workspace(Nx=Nx, Ny=Ny, Nz=Nz_bone, shape=:zxy)
         )
 
         updateB!(ocn)

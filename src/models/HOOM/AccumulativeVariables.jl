@@ -27,10 +27,10 @@ mutable struct AccumulativeVariables
         return new(
             zeros(Nz, Nx, Ny),
             zeros(Nz, Nx, Ny),
-            zeros(Nz, Nx+1, Ny),
+            zeros(Nz, Nx, Ny),
             zeros(Nz, Nx, Ny+1),
             zeros(Nz+1, Nx, Ny),
-            zeros(Nz, Nx+1, Ny),
+            zeros(Nz, Nx, Ny),
             zeros(Nz, Nx, Ny+1),
             zeros(Nz+1, Nx, Ny),
             zeros(Nz, Nx, Ny),

@@ -141,7 +141,7 @@ struct GridInfo
         weight_n = zeros(Float64, Nx, Ny+1)
 
         DX = zeros(Float64, Nx, Ny+1)
-        DY = zeros(Float64, Nx+1, Ny)
+        DY = zeros(Float64, Nx, Ny)
 
 
 
@@ -275,7 +275,6 @@ struct GridInfo
         for i = 1:Nx, j = 1:Ny
             DY[i, j] = ds4[i, j]
         end
-        DY[Nx+1, :] = DY[1, :]
 
         if sub_yrng == Colon()
             sub_yrng = 1:Ny

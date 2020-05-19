@@ -171,43 +171,14 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
     end
 
 
-    #println("calHorVelBnd!")    
-    #= 
-    calHorVelBnd!(
-        Nx    = ocn.Nx,
-        Ny    = ocn.Ny,
-        Nz    = ocn.Nz,
-        weight_e = ocn.gi.weight_e,
-        weight_n = ocn.gi.weight_n,
-        u     = ocn.u,
-        v     = ocn.v,
-        u_bnd = ocn.u_bnd,
-        v_bnd = ocn.v_bnd,
-        mask3 = ocn.mask3,
-        noflux_x_mask3 = ocn.noflux_x_mask3,
-        noflux_y_mask3 = ocn.noflux_y_mask3,
-    )
-
-
-    calDIV!(
-        gi    = ocn.gi,
-        Nx    = ocn.Nx,
-        Ny    = ocn.Ny,
-        Nz    = ocn.Nz,
-        u_bnd = ocn.u_bnd,
-        v_bnd = ocn.v_bnd,
-        div   = ocn.div,
-        mask3 = ocn.mask3,
-    )
-    =#
-
     #println("calHorVelBnd with spmtx")
-    mul!(view(ocn.u_bnd, :), ocn.ASUM.mtx_interp_U, view(ocn.u, :))
-    mul!(view(ocn.v_bnd, :), ocn.ASUM.mtx_interp_V, view(ocn.v, :))
-    mul!(view(ocn.div, :), ocn.ASUM.mtx_DIV_X, view(ocn.u_bnd, :))
-    mul!(view(ocn.workspace2, :), ocn.ASUM.mtx_DIV_Y, view(ocn.v_bnd, :))
+    tmp = getSpace!(ocn.wksp, :T)
+    mul!(view(ocn.u_bnd, :), ocn.ASUM.U_interp_T, view(ocn.u, :))
+    mul!(view(ocn.v_bnd, :), ocn.ASUM.V_interp_T, view(ocn.v, :))
 
-    ocn.div .+= ocn.workspace2
+    mul_autoflat!(ocn.div,   ocn.ASUM.T_DIVx_U, ocn.u_bnd)
+    mul_autoflat!(tmp      , ocn.ASUM.T_DIVy_V, ocn.v_bnd)
+    @. ocn.div += tmp
 
     calVerVelBnd!(
         gi    = ocn.gi,
@@ -219,54 +190,5 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
         div   = ocn.div,
         mask3 = ocn.mask3,
     )
-#=
-    println("Max nswflx: ", maximum(ocn.in_flds.nswflx[ocn.mask_idx]))
-    println("Min nswflx: ", minimum(ocn.in_flds.nswflx[ocn.mask_idx]))
-    println("Max swflx: ", maximum(abs.(ocn.in_flds.swflx[ocn.mask_idx])))
-    println("Max tau : ", sqrt(maximum(abs.(ocn.in_flds.taux[ocn.mask_idx].^2.0 + ocn.in_flds.tauy[ocn.mask_idx].^2.0))))
-    println("Max taux: ", maximum(abs.(ocn.in_flds.taux[ocn.mask_idx])))
-    println("Max tauy: ", maximum(abs.(ocn.in_flds.tauy[ocn.mask_idx])))
- 
-    println("Max τx: ", maximum(abs.(ocn.τx[ocn.mask_idx])))
-    println("Max τy: ", maximum(abs.(ocn.τy[ocn.mask_idx])))
-    println("Max u: ", maximum(abs.(ocn.u)))
-    println("Max v: ", maximum(abs.(ocn.v)))
-    println("Max w_bnd: ", maximum(abs.(ocn.w_bnd)))
-=#
-    #=    
-    # Calculate ∇⋅v
-    for k=1:ocn.Nz_bone
-        DisplacedPoleCoordinate.DIV!(ocn.gi, ocn.lays.u[k],  ocn.lays.v[k],  ocn.lays.div[k], ocn.lays.mask3[k])
-    end
-
-    # Calculate w
-    @loop_hor ocn i j let
-
-        Nz = ocn.Nz[i, j]
-
-#=
-        ocn.w[1, i, j] = 0.0
-
-#        for k = 2:Nz+1
-#            ocn.w[k, i, j] = ocn.w[k-1, i, j] + ocn.div[k-1, i, j]
-#        end
-
-        for k = 2:Nz
-            ocn.w[k, i, j] = ocn.w[k-1, i, j] + (ocn.hs[k-1, i, j] * ocn.div[k-1, i, j] + ocn.hs[k, i, j] * ocn.div[k, i, j]) / 2.0
-        end
-=#
-
-        ocn.w_bnd[1, i, j] = 0.0
-
-        for k = 2:Nz+1
-            Δw = ocn.hs[k-1, i, j] * ocn.div[k-1, i, j]
-            ocn.w_bnd[k, i, j] = ocn.w_bnd[k-1, i, j] + Δw
-            ocn.w[k-1, i, j]   = ocn.w_bnd[k-1, i, j] + Δw / 2.0
-        end
-        
-    end
-
-    #ocn.w .= -1e-4
-    =#
 end
 

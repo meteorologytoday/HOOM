@@ -45,7 +45,7 @@ function calFlxCorrection!(
             ocn.Ss[1:ocn.Nz[i, j], i, j] .= S_ML
         end
 
-        ocn.qflx_T_correction[i, j] = ΔT * ocn.h_ML[i, j] * ρc    / Δt   # + => warming
+        ocn.qflx_T_correction[i, j] = ΔT * ocn.h_ML[i, j] * ρc_sw    / Δt   # + => warming
         ocn.qflx_S_correction[i, j] = ΔS * ocn.h_ML[i, j]         / Δt   # + => saltier
 
         OC_updateB!(ocn, i, j)
