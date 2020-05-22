@@ -21,12 +21,17 @@ mutable struct AdvectionSpeedUpMatrix
     V_interp_T :: AbstractArray{Float64, 2}  # interpolation of U grid onto V grid
     W_interp_T :: AbstractArray{Float64, 2}  # interpolation of U grid onto V grid
 
-    filter_T       :: AbstractArray{Float64, 2}
-    filter_U       :: AbstractArray{Float64, 2}
-    filter_V       :: AbstractArray{Float64, 2}
-    filter_W       :: AbstractArray{Float64, 2}
+    T_mask_T       :: AbstractArray{Float64, 2}
+    U_mask_U       :: AbstractArray{Float64, 2}
+    V_mask_V       :: AbstractArray{Float64, 2}
+    W_mask_W       :: AbstractArray{Float64, 2}
+    T_bordermask_T :: AbstractArray{Float64, 2}
 
-    borderfilter_T :: AbstractArray{Float64, 2}
+    U_fluxmask_U   :: AbstractArray{Float64, 2}
+    V_fluxmask_V   :: AbstractArray{Float64, 2}
+    W_fluxmask_W   :: AbstractArray{Float64, 2}
+
+
     
     T_Δvol_T :: AbstractArray{Float64, 2}
     
@@ -43,6 +48,7 @@ mutable struct AdvectionSpeedUpMatrix
         mask3          :: AbstractArray{Float64, 3},
         Δz_T           :: AbstractArray{Float64, 3},      # thickness of T grid
         Δz_W           :: AbstractArray{Float64, 3},      # thickness of W grid
+        nomotionmask3  :: Union{Nothing, AbstractArray{Float64, 3}} = nothing,
     )
 
         if size(Δz_T) != (Nz, gi.Nx, gi.Ny) 
@@ -81,12 +87,12 @@ mutable struct AdvectionSpeedUpMatrix
         U_mask = onU_if_unblocked_east_onT  .* onU_if_unblocked_west_onT
         W_mask = onW_if_unblocked_up_onT    .* onW_if_unblocked_dn_onT
 
-        filter_T = spdiagm(0 => mask3_flat)
-        filter_V = spdiagm(0 => V_mask)
-        filter_U = spdiagm(0 => U_mask)
-        filter_W = spdiagm(0 => W_mask)
+        T_mask_T = spdiagm(0 => mask3_flat)
+        V_mask_V = spdiagm(0 => V_mask)
+        U_mask_U = spdiagm(0 => U_mask)
+        W_mask_W = spdiagm(0 => W_mask)
 
-        borderfilter_T = spdiagm( 0 => ( 
+        T_bordermask_T = spdiagm( 0 => ( 
                (op.T_N_T  * mask3_flat)
             .* (op.T_S_T  * mask3_flat)
             .* (op.T_E_T  * mask3_flat)
@@ -94,6 +100,24 @@ mutable struct AdvectionSpeedUpMatrix
             .* (op.T_UP_T * mask3_flat)
             .* (op.T_DN_T * mask3_flat)
         ))
+
+
+        nomotionmask3_flat = view(nomotionmask3,  :)
+
+        onV_if_unblocked_north_onT = op.V_S_T  * nomotionmask3_flat
+        onV_if_unblocked_south_onT = op.V_N_T  * nomotionmask3_flat
+        onU_if_unblocked_east_onT  = op.U_W_T  * nomotionmask3_flat
+        onU_if_unblocked_west_onT  = op.U_E_T  * nomotionmask3_flat
+        onW_if_unblocked_up_onT    = op.W_DN_T * nomotionmask3_flat
+        onW_if_unblocked_dn_onT    = op.W_UP_T * nomotionmask3_flat
+
+        V_fluxmask = onV_if_unblocked_north_onT .* onV_if_unblocked_south_onT
+        U_fluxmask = onU_if_unblocked_east_onT  .* onU_if_unblocked_west_onT
+        W_fluxmask = onW_if_unblocked_up_onT    .* onW_if_unblocked_dn_onT
+
+        V_fluxmask_V = V_mask_V * spdiagm(0 => V_fluxmask)
+        U_fluxmask_U = U_mask_U * spdiagm(0 => U_fluxmask)
+        W_fluxmask_W = W_mask_W * spdiagm(0 => W_fluxmask)
 
         # ===== [ BEGIN face area and lengths on U V ] =====
         
@@ -170,17 +194,17 @@ mutable struct AdvectionSpeedUpMatrix
         # ===== [ BEG making matrix ] =====
         # MAGIC!!
 
-        T_DIVx_U = filter_T * T_invΔσ_T * ( op.T_W_U - op.T_E_U    ) * U_Δy_U  ; dropzeros!(T_DIVx_U);
-        T_DIVy_V = filter_T * T_invΔσ_T * ( op.T_S_V - op.T_N_V    ) * V_Δx_V  ; dropzeros!(T_DIVy_V);
-        T_DIVz_W = filter_T * T_invΔz_T * ( op.T_DN_W - op.T_UP_W  )           ; dropzeros!(T_DIVz_W);
+        T_DIVx_U = T_mask_T * T_invΔσ_T * ( op.T_W_U - op.T_E_U    ) * U_Δy_U  ; dropzeros!(T_DIVx_U);
+        T_DIVy_V = T_mask_T * T_invΔσ_T * ( op.T_S_V - op.T_N_V    ) * V_Δx_V  ; dropzeros!(T_DIVy_V);
+        T_DIVz_W = T_mask_T * T_invΔz_T * ( op.T_DN_W - op.T_UP_W  )           ; dropzeros!(T_DIVz_W);
 
-        U_∂x_T = filter_U * U_invΔx_U * (op.U_W_T  - op.U_E_T)                 ; dropzeros!(U_∂x_T);
-        V_∂y_T = filter_V * V_invΔy_V * (op.V_S_T  - op.V_N_T)                 ; dropzeros!(V_∂y_T);
-        W_∂z_T = filter_W * W_invΔz_W * (op.W_DN_T - op.W_UP_T)                ; dropzeros!(W_∂z_T);
+        U_∂x_T = U_mask_U * U_invΔx_U * (op.U_W_T  - op.U_E_T)                 ; dropzeros!(U_∂x_T);
+        V_∂y_T = V_mask_V * V_invΔy_V * (op.V_S_T  - op.V_N_T)                 ; dropzeros!(V_∂y_T);
+        W_∂z_T = W_mask_W * W_invΔz_W * (op.W_DN_T - op.W_UP_T)                ; dropzeros!(W_∂z_T);
 
-        T_∂x_U  = filter_T * T_invΔx_T * ( op.T_W_U - op.T_E_U )               ; dropzeros!(T_∂x_U);
-        T_∂y_V  = filter_T * T_invΔy_T * ( op.T_S_V - op.T_N_V )               ; dropzeros!(T_∂y_V);
-        T_∂z_W  = filter_T * T_invΔz_T * ( op.T_DN_W - op.T_UP_W )             ; dropzeros!(T_∂z_W);
+        T_∂x_U  = T_mask_T * T_invΔx_T * ( op.T_W_U - op.T_E_U )               ; dropzeros!(T_∂x_U);
+        T_∂y_V  = T_mask_T * T_invΔy_T * ( op.T_S_V - op.T_N_V )               ; dropzeros!(T_∂y_V);
+        T_∂z_W  = T_mask_T * T_invΔz_T * ( op.T_DN_W - op.T_UP_W )             ; dropzeros!(T_∂z_W);
 
 
 
@@ -200,13 +224,13 @@ mutable struct AdvectionSpeedUpMatrix
 
         ones_T = ones(Float64, op.T_pts)
 
-        U_interp_T = (op.U_W_T + op.U_E_T) * filter_T
+        U_interp_T = (op.U_W_T + op.U_E_T) * T_mask_T
         U_interp_T = selfDivision(U_interp_T, ones_T)
 
-        V_interp_T = (op.V_S_T + op.V_N_T) * filter_T
+        V_interp_T = (op.V_S_T + op.V_N_T) * T_mask_T
         V_interp_T = selfDivision(V_interp_T, ones_T)
 
-        W_interp_T = (op.W_DN_T + op.W_UP_T) * filter_T
+        W_interp_T = (op.W_DN_T + op.W_UP_T) * T_mask_T
         W_interp_T = selfDivision(W_interp_T, ones_T)
 
         return new(
@@ -228,12 +252,15 @@ mutable struct AdvectionSpeedUpMatrix
             V_interp_T,
             W_interp_T,
 
-            filter_T,
-            filter_U,
-            filter_V,
-            filter_W,
+            T_mask_T,
+            U_mask_U,
+            V_mask_V,
+            W_mask_W,
+            T_bordermask_T,
 
-            borderfilter_T,
+            U_fluxmask_U,
+            V_fluxmask_V,
+            W_fluxmask_W,
 
             T_Δvol_T,
 

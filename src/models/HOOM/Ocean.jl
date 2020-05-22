@@ -25,6 +25,8 @@ mutable struct Ocean
     ϵs       :: AbstractArray{Float64, 2}
 
     mask3    :: AbstractArray{Float64, 3}
+    nomotionmask3    :: AbstractArray{Float64, 3}
+
     mask     :: AbstractArray{Float64, 2}
     mask_idx  :: Any
     valid_idx :: AbstractArray{Int64, 2}
@@ -653,21 +655,36 @@ mutable struct Ocean
         mask3_lnd_idx = (_mask3  .== 0.0)
         mask2_lnd_idx = (_mask  .== 0.0)
 
-        #=        
         for v in [_bs, _Ts, _Ss, _Ts_clim, _Ss_clim]
             if v == nothing
                 continue
             end
 
-            v[mask3_lnd_idx] .= NaN
+            v[mask3_lnd_idx] .= -999
         end 
 
         for v in [_b_ML, _T_ML, _S_ML, _h_ML, _h_ML_min, _h_ML_max]
-            v[mask2_lnd_idx] .= NaN
+            v[mask2_lnd_idx] .= -999
         end 
-        =#
 
         # ===== [END] Mask out data
+
+        # ==== [BEGIN] Determine nomotionmask3 ====
+        _nomotionmask3 = copy(_mask3)
+        for i=1:Nx, j=1:Ny
+
+            if _topo[i, j] > -300.0
+                _nomotionmask3[:, i, j] .= 0.0
+                continue
+            end
+
+            if _mask[i, j] == 1.0
+                _nomotionmask3[ Nz[i, j], i, j ] = 0.0
+            end
+        
+        end
+        # ==== [END] Determine nomotionmask3 ====
+
 
         # ===== [BEGIN] check integrity =====
 
@@ -816,6 +833,7 @@ mutable struct Ocean
                 mask3 = _mask3,
                 Δz_W  = Δzs,
                 Δz_T  = hs,
+                nomotionmask3 = _nomotionmask3,
             )
         else
             ASUM = nothing
@@ -832,7 +850,7 @@ mutable struct Ocean
             zs_bone, _topo, zs, Nz,
             K_v, Dh_T, Dv_T, Dh_S, Dv_S,
             _fs, _ϵs,
-            _mask3,
+            _mask3, _nomotionmask3,
             _mask, mask_idx, valid_idx,
             _b_ML, _T_ML, _S_ML, _ΔT, _ΔS, _dΔTdt, _dΔSdt,
             _h_ML, _h_MO, _fric_u, _dTdt_ent, _dSdt_ent,

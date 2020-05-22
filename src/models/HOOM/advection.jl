@@ -59,7 +59,7 @@ function calDiffAdv_QUICK_SpeedUp!(
         op_bnd_pos_dir_T    = ASUM.op.U_E_T,
         op_bnd_neg_dir_T    = ASUM.op.U_W_T,
         op_bnd_interp_T     = ASUM.U_interp_T,
-        op_filter_bnd       = ASUM.filter_U,
+        op_filter_bnd       = ASUM.U_fluxmask_U,
 
         pos_u_mask_bnd      = getSpace!(wksp, :U),
         CURV_on_pos_dir_bnd = getSpace!(wksp, :U),
@@ -85,7 +85,7 @@ function calDiffAdv_QUICK_SpeedUp!(
         op_bnd_pos_dir_T    = ASUM.op.V_N_T,
         op_bnd_neg_dir_T    = ASUM.op.V_S_T,
         op_bnd_interp_T     = ASUM.V_interp_T,
-        op_filter_bnd       = ASUM.filter_V,
+        op_filter_bnd       = ASUM.V_fluxmask_V,
 
         pos_u_mask_bnd      = getSpace!(wksp, :V),
         CURV_on_pos_dir_bnd = getSpace!(wksp, :V),
@@ -111,7 +111,7 @@ function calDiffAdv_QUICK_SpeedUp!(
         op_bnd_pos_dir_T    = ASUM.op.W_UP_T,
         op_bnd_neg_dir_T    = ASUM.op.W_DN_T,
         op_bnd_interp_T     = ASUM.W_interp_T,
-        op_filter_bnd       = ASUM.filter_W,
+        op_filter_bnd       = ASUM.W_fluxmask_W,
 
         pos_u_mask_bnd      = getSpace!(wksp, :W),
         CURV_on_pos_dir_bnd = getSpace!(wksp, :W),

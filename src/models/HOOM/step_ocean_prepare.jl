@@ -99,9 +99,19 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
 
  
     elseif adv_scheme == :test
-                
-        ocn.u .= 1
-#        ocn.v[1:2, :, :] .= 0
+
+
+        ocn.u .= 0
+        ocn.v .= 0
+
+        for k=1:2
+             ocn.u[k, :, :] = 1.0 * cos.(ocn.gi.c_lat) .* sin.(ocn.gi.c_lon)
+        end
+
+        for k=3:12
+             ocn.u[k, :, :] = -1.0/5 * cos.(ocn.gi.c_lat) .* sin.(ocn.gi.c_lon)
+        end
+
 
        
     elseif adv_scheme == :ekman_codron2012_partition
