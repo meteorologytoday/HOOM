@@ -25,6 +25,7 @@ function stepOcean_MLDynamics!(
     qflx_T  = ocn.in_flds.qflx_T
     qflx_S  = ocn.in_flds.qflx_S
 
+
 #=
     println("get in hz ##### Ts: ", ocn.Ts[1:5, 48, 89])
     println("get in hz ##### Ss: ", ocn.Ss[1:5, 48, 89])
@@ -265,9 +266,10 @@ function stepOcean_slowprocesses!(
 
     # Climatology relaxation
     if do_relaxation
+        start_layer = ocn.deep_ocn_correction_start_layer
         @loop_hor ocn i j let
-            ocn.TSAS_clim[i, j] = OC_doDeepOcnCorrectionOfT!(ocn, i, j; Δt=Δt)
-            ocn.SSAS_clim[i, j] = OC_doDeepOcnCorrectionOfS!(ocn, i, j; Δt=Δt)
+            ocn.TSAS_clim[i, j] = OC_doDeepOcnCorrectionOfT!(ocn, i, j; Δt=Δt, start_layer=start_layer)
+            ocn.SSAS_clim[i, j] = OC_doDeepOcnCorrectionOfS!(ocn, i, j; Δt=Δt, start_layer=start_layer)
         end
     end
     
