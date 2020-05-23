@@ -155,7 +155,8 @@ module CESMCORE_HOOM
             end
 
             # Qflux_finding mode requires certain output
-            if (length(configs[rec_key]) != 0 ) && (configs[:Qflux_finding] == :on)
+            #if (length(configs[rec_key]) != 0 ) && (configs[:Qflux_finding] == :on)
+            if configs[:Qflux_finding] == :on
                 append!(configs[rec_key], HOOM.getVariableList(ocn, :QFLX_FINDING) |> keys )
             end
  
