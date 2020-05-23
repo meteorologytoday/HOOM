@@ -164,6 +164,7 @@ mutable struct Ocean
     ASUM :: Union{AdvectionSpeedUpMatrix, Nothing}
     wksp :: Workspace
 
+    deep_ocn_correction_start_layer :: Integer
 
     function Ocean(;
         id       :: Integer = 0,  
@@ -840,6 +841,12 @@ mutable struct Ocean
         end
         # ===== [END] Making speed-up matrix
 
+        deep_ocn_correction_start_layer = getLayerFromDepth(;
+            zs = zs_bone,
+            z  = -301.0,
+            Nz = length(zs_bone) - 1
+        )
+
 
         ocn = new(
             id,
@@ -884,7 +891,8 @@ mutable struct Ocean
             cols,
             ( id == 0 ) ? nothing : AccumulativeVariables(Nx, Ny, Nz_bone),
             ASUM,
-            Workspace(Nx=Nx, Ny=Ny, Nz=Nz_bone, shape=:zxy)
+            Workspace(Nx=Nx, Ny=Ny, Nz=Nz_bone, shape=:zxy),
+            deep_ocn_correction_start_layer,
         )
 
         updateB!(ocn)
