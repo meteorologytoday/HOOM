@@ -101,6 +101,7 @@ function getVariableList(ocn::Ocean, keywords...)
                     "qflx_T", "qflx_S",
                     "qflx_T_correction", "qflx_S_correction",
                     "Tclim_feeded", "Sclim_feeded",
+                    "TSAS_clim", "SSAS_clim",
                 ])
 
             elseif keyword == :ESSENTIAL
