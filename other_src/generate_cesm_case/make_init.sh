@@ -123,8 +123,8 @@ done
 
 # Convert 2D variable: MLD, TOPO
 data_files=(
-    HMXL   $input_init_MLD_file $output_init_MLD_file
-    depth  $input_topo_file $output_topo_file
+    HMXL   $input_init_MLD_file   $output_init_MLD_file
+    depth  $input_topo_file       $output_topo_file
 )
 
 for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
@@ -136,7 +136,8 @@ for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
     if [ ! -f "$new_data_file" ]; then
 
         echo "Transforming variable: $varname"
-
+        echo "data_file = $data_file"
+        echo "new_data_file = $new_data_file"
         ncks -O -3 $data_file $tmp
         ncrename -d .nlat,Ny -d .nlon,Nx -d .z_t,Nz -d .ni,Nx -d .nj,Ny $tmp
         ncks -O -4 $tmp $tmp
