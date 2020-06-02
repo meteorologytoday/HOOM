@@ -33,14 +33,14 @@ function calFlxCorrection!(
         T_ML = ocn.T_ML[i, j]
         S_ML = ocn.S_ML[i, j]
         FLDO = ocn.FLDO[i, j]
-        h_ML_approx = (ocn.h_ML[i, j] + ocn.h_ML_min[i, j]) / 2.0
+        h_ML = ocn.h_ML[i, j]
  
         ΔT = rr * (ocn.in_flds.Tclim[i, j] - T_ML)
         ΔS = rr * (ocn.in_flds.Sclim[i, j] - S_ML)
 
         # Assume seaice thickenss = 1.0m
         energy_to_melt_seaice = 1.0 * (ifrac - ocn.in_flds.IFRACclim[i, j]) * ρ_si * Hf_sw
-        ΔT_to_melt_seaice = energy_to_melt_seaice / h_ML_approx / ρc_sw * r
+        ΔT_to_melt_seaice = energy_to_melt_seaice / h_ML / ρc_sw * r
 
         ΔT += ΔT_to_melt_seaice
 
