@@ -127,8 +127,9 @@ module CESMCORE_HOOM
             "VSFLX"  => in_flds.vsflx,
             "QFLX_T" => in_flds.qflx_T,
             "QFLX_S" => in_flds.qflx_S,
-            "T_CLIM"  => in_flds.Tclim,
-            "S_CLIM"  => in_flds.Sclim,
+            "T_CLIM"      => in_flds.Tclim,
+            "S_CLIM"      => in_flds.Sclim,
+            "IFRAC_CLIM"  => in_flds.IFRACclim,
             "MLD"    => in_flds.h_ML,
         )
 

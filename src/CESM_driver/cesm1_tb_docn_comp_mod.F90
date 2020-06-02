@@ -116,7 +116,7 @@ module docn_comp_mod
 
   ! OLD code ktrans = 28, (without tclim, strm_tclim, sclim, strm_sclim)
 
-  integer(IN),parameter :: ktrans = 31
+  integer(IN),parameter :: ktrans = 32
   character(12),parameter  :: avifld(1:ktrans) = &
      (/ "ifrac       ","pslv        ","duu10n      ","taux        ","tauy        ", &
         "swnet       ","lat         ","sen         ","lwup        ","lwdn        ", &
@@ -124,7 +124,7 @@ module docn_comp_mod
         "evap        ","meltw       ","roff        ","ioff        ",                &
         "t           ","u           ","v           ","dhdx        ","dhdy        ", &
         "s           ","q           ","MLD         ","Qflx_T      ","Qflx_S      ", &
-        "T_clim      ","S_clim      "  /)
+        "T_clim      ","S_clim      ","IFRAC_clim"  /)
   character(12),parameter  :: avofld(1:ktrans) = &
      (/ "Si_ifrac    ","Sa_pslv     ","So_duu10n   ","Foxx_taux   ","Foxx_tauy   ", &
         "Foxx_swnet  ","Foxx_lat    ","Foxx_sen    ","Foxx_lwup   ","Faxa_lwdn   ", &
@@ -132,14 +132,14 @@ module docn_comp_mod
         "Foxx_evap   ","Fioi_meltw  ","Forr_roff   ","Forr_ioff   ",                &
         "So_t        ","So_u        ","So_v        ","So_dhdx     ","So_dhdy     ", &
         "So_s        ","Fioo_q      ","strm_MLD    ","strm_Qflx_T ","strm_Qflx_S ", &
-        "strm_T_clim ","strm_S_clim "  /)
+        "strm_T_clim ","strm_S_clim ","strm_IFRAC_clim"  /)
 
 
   ! ===== XTT MODIFIED END =====
 
 
 ! ===== XTT MODIFIED BEGIN =====
-  integer(IN)   :: ktaux, ktauy, kifrac, kprec, kevap, kt_clim, ks_clim  ! field indices
+  integer(IN)   :: ktaux, ktauy, kifrac, kprec, kevap, kt_clim, ks_clim, kifrac_clim  ! field indices
  
   character(1024)             :: x_msg, x_datetime_str, x_cwd, x_real_time
   type(ptm_ProgramTunnelInfo) :: x_PTI
@@ -150,7 +150,8 @@ module docn_comp_mod
   real(R8), pointer     :: x_nswflx(:), x_swflx(:), x_taux(:), x_tauy(:),  &
                            x_ifrac(:), x_q(:), x_frwflx(:), x_vsflx(:),    &
                            x_qflx_t(:), x_qflx_s(:),                       &
-                           x_t_clim(:),  x_s_clim(:), x_mld(:), x_mask(:) 
+                           x_t_clim(:),  x_s_clim(:), x_ifrac_clim(:),     &
+                           x_mld(:), x_mask(:)
 
   real(R8), pointer     :: x_blob_send(:), x_blob_recv(:)
   real(R8)              :: x_nullbin(1) = (/ 0.0 /)
@@ -478,6 +479,7 @@ subroutine docn_comp_init( EClock, cdata, x2o, o2x, NLFilename )
     kqflx_s = mct_aVect_indexRA(avstrm,'strm_Qflx_S')
     kt_clim  = mct_aVect_indexRA(avstrm,'strm_T_clim')
     ks_clim  = mct_aVect_indexRA(avstrm,'strm_S_clim')
+    kifrac_clim  = mct_aVect_indexRA(avstrm,'strm_IFRAC_clim')
     
     ! ===== XTT MODIFIED END =====
 
@@ -746,6 +748,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         allocate(x_qflx_s(lsize))
         allocate(x_t_clim(lsize))
         allocate(x_s_clim(lsize))
+        allocate(x_ifrac_clim(lsize))
         allocate(x_mld(lsize))
         allocate(x_nswflx(lsize))
         allocate(x_swflx(lsize))
@@ -769,6 +772,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_qflx_s(n)    = 0.0_R8
             x_t_clim(n)   = 0.0_R8
             x_s_clim(n)   = 0.0_R8
+            x_ifrac_clim(n)   = 0.0_R8
             x_mld(n)     = 0.0_R8
             x_q(n)       = 0.0_R8 
             x_nswflx(n)  = 0.0_R8
@@ -891,11 +895,12 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_tauy(n)  = x2o%rAttr(ktauy,n)
             x_ifrac(n) = x2o%rAttr(kifrac,n)
 
-            x_qflx_t(n)  = avstrm%rAttr(kqflx_t,n)
-            x_qflx_s(n)  = avstrm%rAttr(kqflx_s,n)
-            x_t_clim(n) = avstrm%rAttr(kt_clim,n)
-            x_s_clim(n) = avstrm%rAttr(ks_clim,n)
-            x_mld(n)   = avstrm%rAttr(kmld,n)
+            x_qflx_t(n)     = avstrm%rAttr(kqflx_t,n)
+            x_qflx_s(n)     = avstrm%rAttr(kqflx_s,n)
+            x_t_clim(n)     = avstrm%rAttr(kt_clim,n)
+            x_s_clim(n)     = avstrm%rAttr(ks_clim,n)
+            x_ifrac_clim(n) = avstrm%rAttr(kifrac_clim,n)
+            x_mld(n)        = avstrm%rAttr(kmld,n)
             
           end if
         end do
@@ -904,14 +909,15 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         call copy_into_blob(x_blob_send, lsize, 2, x_qflx_s) 
         call copy_into_blob(x_blob_send, lsize, 3, x_t_clim) 
         call copy_into_blob(x_blob_send, lsize, 4, x_s_clim) 
-        call copy_into_blob(x_blob_send, lsize, 5, x_mld) 
-        call copy_into_blob(x_blob_send, lsize, 6, x_nswflx) 
-        call copy_into_blob(x_blob_send, lsize, 7, x_swflx) 
-        call copy_into_blob(x_blob_send, lsize, 8, x_taux) 
-        call copy_into_blob(x_blob_send, lsize, 9, x_tauy) 
-        call copy_into_blob(x_blob_send, lsize, 10, x_ifrac) 
-        call copy_into_blob(x_blob_send, lsize, 11, x_frwflx) 
-        call copy_into_blob(x_blob_send, lsize, 12, x_vsflx) 
+        call copy_into_blob(x_blob_send, lsize, 5, x_ifrac_clim) 
+        call copy_into_blob(x_blob_send, lsize, 6, x_mld) 
+        call copy_into_blob(x_blob_send, lsize, 7, x_nswflx) 
+        call copy_into_blob(x_blob_send, lsize, 8, x_swflx) 
+        call copy_into_blob(x_blob_send, lsize, 9, x_taux) 
+        call copy_into_blob(x_blob_send, lsize, 10, x_tauy) 
+        call copy_into_blob(x_blob_send, lsize, 11, x_ifrac) 
+        call copy_into_blob(x_blob_send, lsize, 12, x_frwflx) 
+        call copy_into_blob(x_blob_send, lsize, 13, x_vsflx) 
  
         call stop_if_bad(ptm_sendData(x_PTI, x_msg, x_nullbin),  "RUN_SEND")
         call stop_if_bad(ptm_sendData(x_PTI, "DATA", x_blob_send), "RUN_SEND_DATA")

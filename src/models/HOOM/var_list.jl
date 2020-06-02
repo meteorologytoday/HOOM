@@ -30,8 +30,9 @@ function getCompleteVariableList(ocn::Ocean)
             "qflx_S"             => ( ocn.in_flds.qflx_S,           ("Nx", "Ny") ),
             "qflx_T_correction"  => ( ocn.qflx_T_correction,        ("Nx", "Ny") ),
             "qflx_S_correction"  => ( ocn.qflx_S_correction,        ("Nx", "Ny") ),
-            "Tclim_feeded"       => ( ocn.in_flds.Tclim,            ("Nx", "Ny") ),
-            "Sclim_feeded"       => ( ocn.in_flds.Sclim,            ("Nx", "Ny") ),
+            "Tclim"              => ( ocn.in_flds.Tclim,            ("Nx", "Ny") ),
+            "Sclim"              => ( ocn.in_flds.Sclim,            ("Nx", "Ny") ),
+            "IFRACclim"          => ( ocn.in_flds.IFRACclim,        ("Nx", "Ny") ),
             "TEMP"               => ( ocn.TEMP,                     ("Nx", "Ny") ),
             "dTEMPdt"            => ( ocn.dTEMPdt,                  ("Nx", "Ny") ),
             "SALT"               => ( ocn.SALT,                     ("Nx", "Ny") ),
@@ -100,7 +101,7 @@ function getVariableList(ocn::Ocean, keywords...)
                 append!(output_varnames, [
                     "qflx_T", "qflx_S",
                     "qflx_T_correction", "qflx_S_correction",
-                    "Tclim_feeded", "Sclim_feeded",
+                    "Tclim", "Sclim", "IFRACclim",
                 ])
 
             elseif keyword == :ESSENTIAL
@@ -188,8 +189,9 @@ function getVariableList(ocn::Ocean, keywords...)
                     "qflx_S",
                     "qflx_T_correction",
                     "qflx_S_correction",
-                    "Tclim_feeded",
-                    "Sclim_feeded",
+                    "Tclim",
+                    "Sclim",
+                    "IFRACclim",
                     "TEMP",
                     "dTEMPdt",
                     "SALT",
