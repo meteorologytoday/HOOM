@@ -186,6 +186,12 @@ if [ -f flag_diag_fornow ] ; then
 
     julia $script_analysis_dir/check_ocean_energy_conservation.jl --data-file-prefix="$ocn_hist_dir/$casename.ocn.h.monthly." --data-file-timestamp-form=YEAR_MONTH --domain-file=$ocn_domain --output-file=$ocn_analysis15 --beg-year=$diag_beg_year --end-year=$diag_end_year
     #julia $script_analysis_dir/ocn_total_TEMP_SALT.jl --data-file-prefix="$ocn_hist_dir/$casename.ocn.h.monthly." --data-file-timestamp-form=YEAR_MONTH --domain-file=$ocn_domain --output-file=$ocn_analysis14 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    
+    # Global Ice volume / fraction / area
+    julia $script_analysis_dir/atm_ice.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$ice_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
+
+    # Global Average Temperature analysis
+    #julia $script_analysis_dir/atm_temperature.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis7 --beg-year=$diag_beg_year --end-year=$diag_end_year
  
 fi
 

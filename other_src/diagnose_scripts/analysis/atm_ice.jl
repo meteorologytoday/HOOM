@@ -92,11 +92,26 @@ Dataset(parsed["domain-file"], "r") do ds
 
     global mask_idx = (mask .== 0.0)
     global total_area = sum(area)
+
+
+    global NH_mask_idx = ( mask .== 0.0 ) .& ( lat .>= 0.0 )
+    global SH_mask_idx = ( mask .== 0.0 ) .& ( lat .<  0.0 )
+
 end
+
+area_factor = 4π * Re^2.0 / total_area
 
 total_ice_volume = zeros(Float64, Nt)
 total_ice_area   = zeros(Float64, Nt)
 total_ice_extent_area = zeros(Float64, Nt)
+
+total_ice_volume_NH      = zeros(Float64, Nt)
+total_ice_area_NH        = zeros(Float64, Nt)
+total_ice_extent_area_NH = zeros(Float64, Nt)
+
+total_ice_volume_SH      = zeros(Float64, Nt)
+total_ice_area_SH        = zeros(Float64, Nt)
+total_ice_extent_area_SH = zeros(Float64, Nt)
 
 
 x = collect(Float64, 1:Nt)
@@ -106,24 +121,30 @@ for i = 1:Nt
     a = area .* view(aice, :, :, i)
     #v = a .* view(hi, :, :, i)  
     
-    total_ice_area[i]   = sum( a[mask_idx]  )
+    total_ice_area[i]     = sum( a[mask_idx]  )
+    total_ice_area_NH[i]  = sum( a[NH_mask_idx]  )
+    total_ice_area_SH[i]  = sum( a[SH_mask_idx]  )
     #total_ice_volume[i] = sum( tmp2[mask_idx] )
 end
 
-total_ice_area .*= 4π * Re^2.0 / total_area
-
-
+total_ice_area    .*= area_factor
+total_ice_area_NH .*= area_factor
+total_ice_area_SH .*= area_factor
 
 # total ice extent area
 for i = 1:Nt
     tmp = view(aice, :, :, i)
 
-    total_ice_extent_area = sum(area[mask_idx .& (tmp .> .15)])
+    extent_idx = tmp .>= .15
+
+    total_ice_extent_area    = sum(area[mask_idx .& extent_idx])
+    total_ice_extent_area_NH = sum(area[NH_mask_idx .& extent_idx]  )
+    total_ice_extent_area_SH = sum(area[SH_mask_idx .& extent_idx]  )
 end
 
-total_ice_extent_area .*= 4π * Re^2.0 / total_area
-
-
+total_ice_extent_area    .*= area_factor
+total_ice_extent_area_NH .*= area_factor
+total_ice_extent_area_SH .*= area_factor
 
 Dataset(output_file, "c") do ds
 
@@ -133,9 +154,15 @@ Dataset(output_file, "c") do ds
     defDim(ds, "Ny", Ny)
 
     for (varname, vardata, vardim, attrib) in [
-        ("total_ice_volume",  total_ice_volume, ("time",), Dict()),
-        ("total_ice_area",    total_ice_area  , ("time",), Dict()),
-        ("total_ice_extent_area",    total_ice_area  , ("time",), Dict()),
+        ("total_ice_volume",           total_ice_volume, ("time",), Dict()),
+        ("total_ice_area",             total_ice_area  , ("time",), Dict()),
+        ("total_ice_extent_area",      total_ice_extent_area  , ("time",), Dict()),
+        ("total_ice_volume_NH",        total_ice_volume_NH, ("time",), Dict()),
+        ("total_ice_volume_SH",        total_ice_volume_SH, ("time",), Dict()),
+        ("total_ice_area_NH",          total_ice_area_NH  , ("time",), Dict()),
+        ("total_ice_area_SH",          total_ice_area_SH  , ("time",), Dict()),
+        ("total_ice_extent_area_NH",   total_ice_extent_area_NH  , ("time",), Dict()),
+        ("total_ice_extent_area_SH",   total_ice_extent_area_SH  , ("time",), Dict()),
     ]
 
         println("Doing var: ", varname)

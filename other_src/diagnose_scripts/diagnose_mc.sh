@@ -59,8 +59,16 @@ if [ -f flag_plot_mc ] || [ -f flag_plot_mc_timeseries ]; then
     # sea-ice covered area
     python3 $script_plot_dir/plot_mc_timeseries.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ice_analysis01_volume_area.nc --varname=total_ice_area --ylabel='Area [$ \times\, 10^6 \, \mathrm{km}^2$]' --mavg=12 --extra-title="Yearly average" --colors="$colors" --linestyles="$linestyles" --t-offset=$t_offset --y-offset="0"  --legends=$legends --yrng="" --yscale=1e12
     
+    python3 $script_plot_dir/plot_mc_timeseries.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ice_analysis01_volume_area.nc --varname=total_ice_area_NH --ylabel='Area [$ \times\, 10^6 \, \mathrm{km}^2$]' --mavg=12 --extra-title="(NH) Yearly average" --colors="$colors" --linestyles="$linestyles" --t-offset=$t_offset --y-offset="0"  --legends=$legends --yrng="" --yscale=1e12
+    
+    python3 $script_plot_dir/plot_mc_timeseries.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ice_analysis01_volume_area.nc --varname=total_ice_area_SH --ylabel='Area [$ \times\, 10^6 \, \mathrm{km}^2$]' --mavg=12 --extra-title="(SH) Yearly average" --colors="$colors" --linestyles="$linestyles" --t-offset=$t_offset --y-offset="0"  --legends=$legends --yrng="" --yscale=1e12
+
     # sea-ice extent area
     python3 $script_plot_dir/plot_mc_timeseries.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ice_analysis01_volume_area.nc --varname=total_ice_extent_area --ylabel='Area [$ \times\, 10^6 \, \mathrm{km}^2$]' --mavg=12 --extra-title="Yearly average" --colors="$colors" --linestyles="$linestyles" --t-offset=$t_offset --y-offset="0"  --legends=$legends --yrng="" --yscale=1e12
+    
+    python3 $script_plot_dir/plot_mc_timeseries.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ice_analysis01_volume_area.nc --varname=total_ice_extent_area_NH --ylabel='Area [$ \times\, 10^6 \, \mathrm{km}^2$]' --mavg=12 --extra-title="(NH) Yearly average" --colors="$colors" --linestyles="$linestyles" --t-offset=$t_offset --y-offset="0"  --legends=$legends --yrng="" --yscale=1e12
+    
+    python3 $script_plot_dir/plot_mc_timeseries.py --input-dir=$diag_data_dir --output-dir=$graph_data_dir --casenames=$casenames --data-file=ice_analysis01_volume_area.nc --varname=total_ice_extent_area_SH --ylabel='Area [$ \times\, 10^6 \, \mathrm{km}^2$]' --mavg=12 --extra-title="(SH) Yearly average" --colors="$colors" --linestyles="$linestyles" --t-offset=$t_offset --y-offset="0"  --legends=$legends --yrng="" --yscale=1e12
 
 fi
 
