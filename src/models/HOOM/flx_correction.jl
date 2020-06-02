@@ -42,7 +42,9 @@ function calFlxCorrection!(
         energy_to_melt_seaice = 1.0 * (ifrac - ocn.in_flds.IFRACclim[i, j]) * ρ_si * Hf_sw
         ΔT_to_melt_seaice = energy_to_melt_seaice / h_ML_approx / ρc_sw * r
 
-        T_ML += ΔT + ΔT_to_melt_seaice
+        ΔT += ΔT_to_melt_seaice
+
+        T_ML += ΔT
         S_ML += ΔS
         ocn.T_ML[i, j] = T_ML
         ocn.S_ML[i, j] = S_ML

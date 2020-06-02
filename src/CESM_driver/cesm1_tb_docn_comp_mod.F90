@@ -110,7 +110,8 @@ module docn_comp_mod
   ! ===== XTT MODIFIED BEGIN =====
   ! OLD code ! character(len=*),parameter :: flds_strm = 'strm_h:strm_qbot'
 
-  character(len=*),parameter :: flds_strm = 'strm_MLD:strm_Qflx_T:strm_Qflx_S:strm_T_clim:strm_S_clim:strm_IFRAC_clim'
+  ! strm_IF_clim == strm_IFRAC_clim. I trim it to fit character size of 12
+  character(len=*),parameter :: flds_strm = 'strm_MLD:strm_Qflx_T:strm_Qflx_S:strm_T_clim:strm_S_clim:strm_IF_clim'
 
 
 
@@ -124,7 +125,7 @@ module docn_comp_mod
         "evap        ","meltw       ","roff        ","ioff        ",                &
         "t           ","u           ","v           ","dhdx        ","dhdy        ", &
         "s           ","q           ","MLD         ","Qflx_T      ","Qflx_S      ", &
-        "T_clim      ","S_clim      ","IFRAC_clim"  /)
+        "T_clim      ","S_clim      ","IFRAC_clim  "  /)
   character(12),parameter  :: avofld(1:ktrans) = &
      (/ "Si_ifrac    ","Sa_pslv     ","So_duu10n   ","Foxx_taux   ","Foxx_tauy   ", &
         "Foxx_swnet  ","Foxx_lat    ","Foxx_sen    ","Foxx_lwup   ","Faxa_lwdn   ", &
@@ -132,7 +133,7 @@ module docn_comp_mod
         "Foxx_evap   ","Fioi_meltw  ","Forr_roff   ","Forr_ioff   ",                &
         "So_t        ","So_u        ","So_v        ","So_dhdx     ","So_dhdy     ", &
         "So_s        ","Fioo_q      ","strm_MLD    ","strm_Qflx_T ","strm_Qflx_S ", &
-        "strm_T_clim ","strm_S_clim ","strm_IFRAC_clim"  /)
+        "strm_T_clim ","strm_S_clim ","strm_IF_clim"  /)
 
 
   ! ===== XTT MODIFIED END =====
@@ -479,7 +480,7 @@ subroutine docn_comp_init( EClock, cdata, x2o, o2x, NLFilename )
     kqflx_s      = mct_aVect_indexRA(avstrm,'strm_Qflx_S')
     kt_clim      = mct_aVect_indexRA(avstrm,'strm_T_clim')
     ks_clim      = mct_aVect_indexRA(avstrm,'strm_S_clim')
-    kifrac_clim  = mct_aVect_indexRA(avstrm,'strm_IFRAC_clim')
+    kifrac_clim  = mct_aVect_indexRA(avstrm,'strm_IF_clim')
     
     ! ===== XTT MODIFIED END =====
 
