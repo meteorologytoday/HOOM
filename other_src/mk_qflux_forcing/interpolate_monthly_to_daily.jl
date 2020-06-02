@@ -91,7 +91,7 @@ data_slice = zeros(14)
 for i=1:Nx, j=1:Ny
 
     if mask[i, j] == 0
-        data_interp[i, j, :] .= -999
+        data_interp[i, j, :] .= NaN
         continue
     end
 

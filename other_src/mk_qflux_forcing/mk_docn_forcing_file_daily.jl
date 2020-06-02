@@ -19,7 +19,7 @@ function parse_commandline()
             default  = ""
 
         "--input-clim-file"
-            help     = "If not specified, then output T_clim = S_clim = 0.0"
+            help     = "If not specified, then output T_clim = S_clim = IFRAC_clim = 0.0"
             arg_type = String
             default  = ""
 
@@ -47,6 +47,12 @@ function parse_commandline()
             help = "S_clim variable name in clim file."
             arg_type = String
             default  = "S_clim"
+
+        "--IFRAC_clim-varname"
+            help = "IFRAC_clim variable name in clim file."
+            arg_type = String
+            default  = "IFRAC_clim"
+
 
         "--MLD-varname"
             help = "MLD variable name in MLD file."
@@ -94,7 +100,6 @@ end
 global Qflx_T = empty
 global Qflx_S = empty
 
-
 if parsed["input-Qflx-file"] != ""
 
 
@@ -139,15 +144,17 @@ if parsed["input-clim-file"] == ""
 
     T_clim = empty
     S_clim = empty
+    IFRAC_clim = empty
 
 else
 
     Dataset(parsed["input-clim-file"], "r") do ds
 
-        global T_clim, S_clim
+        global T_clim, S_clim, IFRAC_clim
 
         T_clim = ds[parsed["T_clim-varname"]][:] |> nomissing
         S_clim = ds[parsed["S_clim-varname"]][:] |> nomissing
+        IFRAC_clim = ds[parsed["IFRAC_clim-varname"]][:] |> nomissing
 
     end
 end
@@ -228,6 +235,11 @@ Dataset(parsed["output-file"], "c") do ds
         ("S_clim", S_clim, ("ni", "nj", "time"), Dict(  
             "units"     => "g / kg",
             "long_name" => "Climatology of SSS.",
+        )),
+
+        ("IFRAC_clim", IFRAC_clim, ("ni", "nj", "time"), Dict(  
+            "units"     => "none",
+            "long_name" => "Climatology of sea-ice area fraction.",
         )),
 
         ("MLD", MLD, ("ni", "nj", "time"), Dict(
