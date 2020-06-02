@@ -9,6 +9,10 @@ function parse_commandline()
     s = ArgParseSettings()
     @add_arg_table s begin
 
+        "--verbose"
+            help = "output debug msg"
+            action = :store_true
+
         "--w-file"
             help = "Weighting file."
             arg_type = String
@@ -83,4 +87,5 @@ CoordTrans_ESMF.convertFile(
     ydim = parsed["y-dim"],
     zdim = parsed["z-dim"],
     tdim = parsed["t-dim"],
+    verbose = parsed["verbose"],
 )

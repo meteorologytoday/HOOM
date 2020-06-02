@@ -122,7 +122,7 @@ for t = 13:Nt - 12
         tmp_dTdts = (SST[i, j, t+1] - SST[i, j, t]) / Δts[m] * h * ρ * c_p
         tmp_Fs    = (SURF[i, j, t] + SURF[i, j, t+1]) / 2.0
         
-        tmp_qflux_T = - ( tmp_dTdts - tmp_Fs )
+        tmp_qflux_T = tmp_dTdts - tmp_Fs
         qflux_T[i, j, m]     += tmp_qflux_T
 
     end

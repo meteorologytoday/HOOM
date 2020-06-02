@@ -114,6 +114,7 @@ module CoordTrans_ESMF
         xdim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         ydim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
         zdim_val      :: Union{AbstractArray{Float64, 1}, Nothing} = nothing,
+        verbose       :: Bool = false,
     )
         if typeof(wgt_filename) <: AbstractString
             wi = readWeightInfo(wgt_filename)
@@ -212,7 +213,9 @@ module CoordTrans_ESMF
             v = defVar(ds_out, varname, Float64, cf_var_dimnames, attrib=attrib)
             
             for k = 1:d2
-
+               
+                verbose && println("Transforming layer: ", k)
+                 
                 # Construct reading / writing shape
                 idx = Array{Any}(undef, 0)
                 for i=1:2

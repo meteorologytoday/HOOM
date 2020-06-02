@@ -125,6 +125,8 @@ export ocn_analysis10a_rg=$diag_dir/ocn_analysis10a_rg.nc
 export ocn_analysis11_rg=$diag_dir/ocn_analysis11_rg_EN34.nc
 export ocn_analysis12_rg=$diag_dir/ocn_analysis12_rg_energy.nc
 export ocn_analysis13_rg=$diag_dir/ocn_analysis13_rg_IOET.nc
+export ocn_analysis14=$diag_dir/ocn_analysis14_TEMP_SALT.nc
+export ocn_analysis15=$diag_dir/ocn_analysis15_FLUX_DIV.nc
 
 
 export ocn_mstat_rg=$diag_dir/ocn_mstat_rg.nc
@@ -145,7 +147,7 @@ begin_t=$SECONDS
 if [ ! -f flag_noconcat ]; then
 
 
-    echo "Doing case: ${res}_${casename}"
+    echo "Doing case: ${casename}"
     
 
     # Doing stuff...
@@ -178,15 +180,12 @@ fi
 
 echo "Phase 2: Doing calculation of diagnose"
 begin_t=$SECONDS
-echo "Doing case: ${res}_${casename}"
+echo "Doing case: ${casename}"
 
 if [ -f flag_diag_fornow ] ; then
 
-    # Global Ice volume / fraction / area
-    julia $script_analysis_dir/atm_ice.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$ice_analysis1 --beg-year=$diag_beg_year --end-year=$diag_end_year
-
-    # Global Average Temperature analysis
-    julia $script_analysis_dir/atm_temperature.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis7 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    julia $script_analysis_dir/check_ocean_energy_conservation.jl --data-file-prefix="$ocn_hist_dir/$casename.ocn.h.monthly." --data-file-timestamp-form=YEAR_MONTH --domain-file=$ocn_domain --output-file=$ocn_analysis15 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    #julia $script_analysis_dir/ocn_total_TEMP_SALT.jl --data-file-prefix="$ocn_hist_dir/$casename.ocn.h.monthly." --data-file-timestamp-form=YEAR_MONTH --domain-file=$ocn_domain --output-file=$ocn_analysis14 --beg-year=$diag_beg_year --end-year=$diag_end_year
  
 fi
 
@@ -244,7 +243,9 @@ if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
     # Need to specify --beg-year --end-year
     #julia $script_analysis_dir/SST_correlation.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --SST=T_ML --beg-year=$diag_beg_year --end-year=$diag_end_year
 
-
+    # Analysis total TEMP and SALT
+    julia $script_analysis_dir/ocn_total_TEMP_SALT.jl --data-file-prefix="$ocn_hist_dir/$casename.ocn.h.monthly." --data-file-timestamp-form=YEAR_MONTH --domain-file=$ocn_domain --output-file=$ocn_analysis14 --beg-year=$diag_beg_year --end-year=$diag_end_year
+    
 
     ### Variability ###
 
@@ -259,6 +260,8 @@ if [ -f flag_diag_all ] || [ -f flag_diag_ocn ] ; then
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$concat_dir/$casename.ocn_rg.h.monthly." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$ocn_analysis3_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=h_ML --dims=XYT
     ncwa -O -b -a Nx -B "mask==0" $ocn_analysis3_rg $ocn_analysis3a_rg
  
+    # FLUX DIV
+    julia $script_analysis_dir/check_ocean_energy_conservation.jl --data-file-prefix="$ocn_hist_dir/$casename.ocn.h.monthly." --data-file-timestamp-form=YEAR_MONTH --domain-file=$ocn_domain --output-file=$ocn_analysis15 --beg-year=$diag_beg_year --end-year=$diag_end_year
     # Entrainment
 #    julia $script_analysis_dir/mean_anomaly.jl --data-file=$ocn_concat_rg --domain-file=$atm_domain --output-file=$ocn_analysis4_rg --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=dTdt_ent
 #    ncwa -h -O -a months,Nx $ocn_analysis4_rg $ocn_analysis4a_rg

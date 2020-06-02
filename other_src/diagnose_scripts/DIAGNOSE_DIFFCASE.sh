@@ -41,7 +41,8 @@ source "$case_settings"
 
 function join_by { local IFS="$1"; shift; echo "$*"; }
 
-if [ ] ; then
+
+if [ ]; then
 casenames=()
 legends=()
 colors=()
@@ -85,9 +86,71 @@ if [ ! -f flag_no_cal_diffcase ] ; then
 fi
 fi
 
+
+
+
+
 mkdir -p $graph_dir
 
 if [ -f flag_plot_diffcase ] || [ -f flag_plot_diffcase_Y ]; then
+
+
+    set -x
+    # Diff MLT
+    python3 $script_plot_dir/plot_diffcase_meridional_mean_std.py     \
+        --data-dir=$A_dir                                             \
+        --ref-data-dir=$B_dir                                         \
+        --data-file=ocn_analysis3_rg_MLD.nc                           \
+        --casenames=$( join_by , "${casenames[@]}")                   \
+        --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+        --legends=$( join_by , "${legends[@]}")                       \
+        --domain-file=$atm_domain                                     \
+        --output-dir=$graph_dir                                       \
+        --indexing="0,0,:"                                            \
+        --varname-mean=h_ML_ZONAL_AM                                  \
+        --varname-std=h_ML_ZONAL_AASTD                                \
+        --title="Annual Mean of MLT"                                  \
+        --invert-yaxis                                                \
+        --yscale=1.0                                                  \
+        --ylabel-mean=" \$ \\Delta \$MLT mean [ \$ \\mathrm{m} \$ ]"  \
+        --ylabel-std=" \$ \\Delta \$MLT std [ \$ \\mathrm{m} \$ ]"    \
+        --extra-filename="h_ML"                                       \
+        --colors=$( join_by , "${colors[@]}" )                        \
+        --linestyles=$( join_by , "${linestyles[@]}" )                \
+        --ymax-mean=100                                               \
+        --ymax-std=50                                                 \
+        --tick-levs-mean=25                                           \
+        --tick-levs-std=10                                            \
+        --figsize=15,10
+    
+    for m in $(seq 1 12); do
+        # Diff MLT
+        python3 $script_plot_dir/plot_diffcase_meridional_mean_std.py     \
+            --data-dir=$A_dir                                             \
+            --ref-data-dir=$B_dir                                         \
+            --data-file=ocn_analysis3_rg_MLD.nc                           \
+            --casenames=$( join_by , "${casenames[@]}")                   \
+            --ref-casenames=$( join_by , "${ref_casenames[@]}")           \
+            --legends=$( join_by , "${legends[@]}")                       \
+            --domain-file=$atm_domain                                     \
+            --output-dir=$graph_dir                                       \
+            --indexing="$(( $m - 1 )),0,:"                                \
+            --varname-mean=h_ML_ZONAL_MM                                  \
+            --varname-std=h_ML_ZONAL_MASTD                                \
+            --title="$( printf "MLT of month %d" $m)"                     \
+            --invert-yaxis                                                \
+            --yscale=1.0                                                  \
+            --ylabel-mean=" \$ \\Delta \$MLT mean [ \$ \\mathrm{m} \$ ]"  \
+            --ylabel-std=" \$ \\Delta \$MLT std [ \$ \\mathrm{m} \$ ]"    \
+            --extra-filename=$( printf "h_ML_%02d" $m )                   \
+            --colors=$( join_by , "${colors[@]}" )                        \
+            --linestyles=$( join_by , "${linestyles[@]}" )                \
+            --ymax-mean=200                                               \
+            --ymax-std=50                                                 \
+            --tick-levs-mean=25                                           \
+            --tick-levs-std=10                                            \
+            --figsize=15,10
+    done
 
     # Diff IAET
     python3 $script_plot_dir/plot_diffcase_meridional_mean_std.py     \
@@ -115,7 +178,6 @@ if [ -f flag_plot_diffcase ] || [ -f flag_plot_diffcase_Y ]; then
         --clabel-mean-diff=" Mean difference [ \$ \\mathrm{PW} \$ ]"        \
         --clabel-std-diff=" Standard deviation difference [ \$ \\times 10^{2} \, \\mathrm{PW} \$ ]"        \
         --figsize=8,6
-
 
 
 fi
