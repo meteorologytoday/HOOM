@@ -258,8 +258,6 @@ module CESMCORE_HOOM
             # File must be created AFTER it is output.
             archive_createFileIfNeeded!(MD)
 
-            println("Max of IFRACclim: ", maximum(MD.ocn.in_flds.IFRACclim))
-
             HOOM.run!(
                 MD.ocn;
                 substeps         = MD.configs[:substeps],
