@@ -110,7 +110,7 @@ module docn_comp_mod
   ! ===== XTT MODIFIED BEGIN =====
   ! OLD code ! character(len=*),parameter :: flds_strm = 'strm_h:strm_qbot'
 
-  character(len=*),parameter :: flds_strm = 'strm_MLD:strm_Qflx_T:strm_Qflx_S:strm_T_clim:strm_S_clim'
+  character(len=*),parameter :: flds_strm = 'strm_MLD:strm_Qflx_T:strm_Qflx_S:strm_T_clim:strm_S_clim:strm_IFRAC_clim'
 
 
 
@@ -155,7 +155,7 @@ module docn_comp_mod
 
   real(R8), pointer     :: x_blob_send(:), x_blob_recv(:)
   real(R8)              :: x_nullbin(1) = (/ 0.0 /)
-  
+  real(R8) :: tmp 
   !--- formats   ---
   character(*), parameter :: x_F00 = "(a, '.ssm.', a, '.', a)" 
 
@@ -474,11 +474,11 @@ subroutine docn_comp_init( EClock, cdata, x2o, o2x, NLFilename )
     ! Virtual Salt Flux in kg/s/m^2 (varname in CESM SFWF)
     kvsflx = mct_aVect_indexRA(x2o,'Fioi_salt')
     
-    kmld      = mct_aVect_indexRA(avstrm,'strm_MLD')
-    kqflx_t = mct_aVect_indexRA(avstrm,'strm_Qflx_T')
-    kqflx_s = mct_aVect_indexRA(avstrm,'strm_Qflx_S')
-    kt_clim  = mct_aVect_indexRA(avstrm,'strm_T_clim')
-    ks_clim  = mct_aVect_indexRA(avstrm,'strm_S_clim')
+    kmld         = mct_aVect_indexRA(avstrm,'strm_MLD')
+    kqflx_t      = mct_aVect_indexRA(avstrm,'strm_Qflx_T')
+    kqflx_s      = mct_aVect_indexRA(avstrm,'strm_Qflx_S')
+    kt_clim      = mct_aVect_indexRA(avstrm,'strm_T_clim')
+    ks_clim      = mct_aVect_indexRA(avstrm,'strm_S_clim')
     kifrac_clim  = mct_aVect_indexRA(avstrm,'strm_IFRAC_clim')
     
     ! ===== XTT MODIFIED END =====
@@ -760,7 +760,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         allocate(x_frwflx(lsize))
         allocate(x_vsflx(lsize))
 
-        allocate(x_blob_send(lsize*12))
+        allocate(x_blob_send(lsize*13))
         allocate(x_blob_recv(lsize*2))
 
         do n = 1,lsize
@@ -801,7 +801,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         x_msg = "MSG:INIT;CESMTIME:"//trim(x_datetime_str)//";"//trim(x_msg)
    
         ! Variable order matters
-        x_msg = trim(x_msg)//"VAR2D:QFLX_T,QFLX_S,T_CLIM,S_CLIM,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX,VSFLX;"
+        x_msg = trim(x_msg)//"VAR2D:QFLX_T,QFLX_S,T_CLIM,S_CLIM,IFRAC_CLIM,MLD,NSWFLX,SWFLX,TAUX,TAUY,IFRAC,FRWFLX,VSFLX;"
         if (read_restart) then
             x_msg = trim(x_msg)//"READ_RESTART:TRUE;"
         else
@@ -850,6 +850,7 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
         
         write (x_msg, "(A, A, F10.2, A)") trim(x_msg), "DT:", dt, ";"
 
+        tmp = 0.0
         do n = 1,lsize
           if (imask(n) /= 0) then
 
@@ -901,10 +902,12 @@ subroutine docn_comp_run( EClock, cdata,  x2o, o2x)
             x_s_clim(n)     = avstrm%rAttr(ks_clim,n)
             x_ifrac_clim(n) = avstrm%rAttr(kifrac_clim,n)
             x_mld(n)        = avstrm%rAttr(kmld,n)
-            
+           
+            tmp = tmp + x_ifrac_clim(n) 
           end if
         end do
         
+        print *, "sum of ifrac_clim: ", tmp
         call copy_into_blob(x_blob_send, lsize, 1, x_qflx_t) 
         call copy_into_blob(x_blob_send, lsize, 2, x_qflx_s) 
         call copy_into_blob(x_blob_send, lsize, 3, x_t_clim) 
