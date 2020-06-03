@@ -29,6 +29,7 @@
             Qflx_S  Qflx_S
             T_clim   T_clim
             S_clim   S_clim
+            IFRAC_clim IFRAC_clim
          </variableNames>
          <filePath>
             $FORCING_DIR 
