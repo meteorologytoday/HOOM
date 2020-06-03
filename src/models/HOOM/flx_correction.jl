@@ -43,15 +43,23 @@ function calFlxCorrection!(
         # the solution is to use ifrac as additional information to recover Qflx_T
         ΔT_openocn = rr * (ocn.in_flds.Tclim[i, j] - T_ML)
 
+        # Old method. Keep in comment for safety
         # Assume seaice thickenss = 1.0m
-        energy_to_melt_seaice = 1.0 * (ifrac - ifrac_clim) * ρ_si * Hf_sw
-        ΔT_seaice = energy_to_melt_seaice / h_ML / ρc_sw * r
+        # energy_to_melt_seaice = 1.0 * (ifrac - ifrac_clim) * ρ_si * Hf_sw
+        # ΔT_seaice = 100energy_to_melt_seaice / h_ML / ρc_sw * r
+
+        # New method: observe that between -1~-2 degC, slope of SST - IFRAC is
+        # roughly 100% / 1K. Use this as a diagnostic relation to determine
+        # nudged SST.
+        ΔT_seaice = rr * (ifrac - ifrac_clim)
+
+
         #=
-        0.00 => 0
-        0.05 => 1
-        let ΔT_seaice takeover completely the temperature nudging if ifrac differs by more than 5% 
+        IFRAC
+         0.30 => 1  => dominated by ΔT_seaice
+         0.15 => 0  => dominated by ΔT_openocn
         =#
-        wgt_seaice= max( min( 0 + (1 - 0) / (0.05 - 0.00) * abs(ifrac - ifrac_clim), 1.0), 0.0)
+        wgt_seaice= max( min( (1 - 0) / (.30 - .15) * (ifrac - .15), 1.0), 0.0)
         ΔT = ΔT_openocn * (1.0 - wgt_seaice) + ΔT_seaice * wgt_seaice 
 
 
