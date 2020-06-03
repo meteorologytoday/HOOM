@@ -52,7 +52,7 @@ function calFlxCorrection!(
         let ΔT_seaice takeover completely the temperature nudging if ifrac differs by more than 5% 
         =#
         wgt_seaice= max( min( 0 + (1 - 0) / (0.05 - 0.00) * abs(ifrac - ifrac_clim), 1.0), 0.0)
-        ΔT = ΔT_openocn * (1.0 - wgt_sea_ice) + ΔT_seaice * wgt_sea_ice 
+        ΔT = ΔT_openocn * (1.0 - wgt_seaice) + ΔT_seaice * wgt_seaice 
 
 
         T_ML += ΔT
