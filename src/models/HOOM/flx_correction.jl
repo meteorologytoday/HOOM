@@ -56,7 +56,7 @@ function calFlxCorrection!(
         # If ifrac is too high, then the melting will be intensified
         # Reason is that there is an upper bound for ifrac that limits
         # the relaxation rate.
-        if ifrac > .90 && ΔT_seaice > 0.0
+        if ifrac > .90 
             ΔT_seaice *= 1.0 + 9.0 * (ifrac - .90) / (1.00 - .90)
         end
 
