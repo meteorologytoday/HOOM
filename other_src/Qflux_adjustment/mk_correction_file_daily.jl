@@ -83,13 +83,41 @@ idx       = mask .== 1.0
 _area     = area[idx]
 _area_sum = sum(_area)
 
-function calAreaAvg( field , )
-    return sum(_area .* (field[idx])) / _area_sum
+function calAreaAvg(field, ifrac=nothing)
+    if ifrac == nothing
+        return sum(_area .* (field[idx])) / _area_sum
+    else
+        area_ifrac = _area .* ifrac[idx]
+        return sum(area_ifrac .* (field[idx])) / sum(area_ifrac)
+    end
 end
 
-function calDailyAreaAvg(field)
-    return convert(Array{Float64}, [calAreaAvg(view(field, :, :, d)) for d=1:doy])
+function calDailyAreaAvg(field, ifrac=nothing)
+    if ifrac == nothing
+        return convert(Array{Float64}, [calAreaAvg(view(field, :, :, d)) for d=1:doy])
+    else
+        return convert(Array{Float64}, [calAreaAvg(view(field, :, :, d), ifrac) for d=1:doy])
+    end
 end
+
+function adjust!(;
+    Qflx  :: AbstractArray{Float64, 2}
+    ifrac :: AbstractArray{Float64, 2}
+)
+
+    aavg_all_Qflx = calAreaAvg(Qflx) 
+    
+    aavg_openocean_Qflx = calAreaAvg(Qflx, ifrac) 
+    @. Qflx -= aavg_openocean_Qflx * ( 1.0 - ifrac )
+    
+    aavg_lastall_Qflx = calAreaAvg(Qflx) 
+    @. Qflx -= aavg_lastall_Qflx
+
+    return aavg_all_Qflx, aavg_openocean_Qflx, aavg_lastall_Qflx
+end
+
+
+
 
 Dataset(parsed["input-file"], "r") do ds
 
@@ -117,6 +145,7 @@ let
         "Qflx_S_correction" => "qflx_S_correction",
         "TSAS_clim"         => "TSAS_clim",
         "SSAS_clim"         => "SSAS_clim",
+        "ifrac"             => "ifrac",
     )
     global data = Dict()
 
@@ -198,23 +227,39 @@ let
 
 end
 
+
+
 # calculate average information
 let
 
     global avg     = Dict()
+    
+    global aavg_all_Qflx_T = zeros(Float64, doy)
+    global aavg_all_Qflx_S = zeros(Float64, doy)
+    
+    global aavg_openocean_Qflx_T = zeros(Float64, doy)
+    global aavg_openocean_Qflx_S = zeros(Float64, doy)
+    
+    global aavg_lastall_Qflx_T = zeros(Float64, doy)
+    global aavg_lastall_Qflx_S = zeros(Float64, doy)
 
-    Qflx_T_updated = Qflx_T_old + data["Qflx_T_correction"]
-    Qflx_S_updated = Qflx_S_old + data["Qflx_S_correction"]
+    global Qflx_T_final = Qflx_T_old + data["Qflx_T_correction"]
+    global Qflx_S_final = Qflx_S_old + data["Qflx_S_correction"]
 
-    # Adjusted such that final_Qflx = 0
-    avg_Qflx_T_updated = Qflx_T_updated |> calDailyAreaAvg
-    avg_Qflx_S_updated = Qflx_S_updated |> calDailyAreaAvg
+    for d=1:doy
+         
+        aavg_all_Qflx_T[d], aavg_openocean_Qflx_T[d], aavg_lastall_Qflx_T[d] = adjust!(
+            Qflx  = view(Qflx_T_final :, :, d),
+            ifrac = view(data["ifrac"], :, :, d),
+        )
 
-    mapavg_Qflx_T_updated = repeat( reshape( avg_Qflx_T_updated, 1, 1, doy), outer=(ni, nj, 1) ) 
-    mapavg_Qflx_S_updated = repeat( reshape( avg_Qflx_S_updated, 1, 1, doy), outer=(ni, nj, 1) ) 
+        aavg_all_Qflx_S[d], aavg_openocean_Qflx_S[d], aavg_lastall_Qflx_S[d] = adjust!(
+            Qflx  = view(Qflx_S_final :, :, d),
+            ifrac = view(data["ifrac"], :, :, d),
+        )
 
-    global Qflx_T_final = Qflx_T_updated - mapavg_Qflx_T_updated
-    global Qflx_S_final = Qflx_S_updated - mapavg_Qflx_S_updated
+    end
+
 
     lnd_idx = mask .== 0.0
     for var in [Qflx_T_final, Qflx_S_final]
@@ -223,46 +268,34 @@ let
         end
     end
 
-    # Calculate various mean
-    for (key, varname) in varmap
-        avg[key] = data[key] |> calDailyAreaAvg
-    end
+    global aavg_Qflx_T_old = calDailyAreaAvg(Qflx_T_old)
+    global aavg_Qflx_S_old = calDailyAreaAvg(Qflx_S_old)
 
-    avg_Qflx_T_old = Qflx_T_old |> calDailyAreaAvg
-    avg_Qflx_S_old = Qflx_S_old |> calDailyAreaAvg
-
-    avg_Qflx_T_final = Qflx_T_final |> calDailyAreaAvg
-    avg_Qflx_S_final = Qflx_S_final |> calDailyAreaAvg
-
-    global mean_Qflx_T_old = mean(avg_Qflx_T_old)
-    global mean_Qflx_S_old = mean(avg_Qflx_S_old)
-
-    global mean_Qflx_T_updated = mean(avg_Qflx_T_updated)
-    global mean_Qflx_S_updated = mean(avg_Qflx_S_updated)
-
-    global mean_Qflx_T_final = mean(avg_Qflx_T_final)
-    global mean_Qflx_S_final = mean(avg_Qflx_S_final)
-
-
+    global aavg_Qflx_T_final = calDailyAreaAvg(Qflx_T_final)
+    global aavg_Qflx_S_final = calDailyAreaAvg(Qflx_S_final)
 
     for d = 1:doy
         println(
-            format("[{:03d}] Qflx_T: {:.5e} with TSAS {:.5e} => Adjusted Qflx_T {:.5e} ",
+            format("[{:03d}] Qflx_T: all_avg={:.5e}, openocean_avg={:.5e}, lastall_avg={:.5e}. Double check final avg: {:.5e}. SAS_clim={.5e} ",
                 d,
-                avg_Qflx_T_old[d],
+                aavg_all_Qflx_T[d],
+                aavg_openocean_Qflx_T[d],
+                aavg_lastall_Qflx_T[d],
+                aavg_Qflx_T_final[d],
                 avg["TSAS_clim"][d],
-                avg_Qflx_T_final[d],
             )
         )
     end
 
     for d = 1:doy
         println(
-            format("[{:03d}] Qflx_S: {:.5e} with SSAS {:.5e} => Adjusted net_S {:.5e} ",
+            format("[{:03d}] Qflx_S: all_avg={:.5e}, openocean_avg={:.5e}, lastall_avg={:.5e}. Double check final avg: {:.5e}. SAS_clim={.5e} ",
                 d,
-                avg_Qflx_S_old[d],
+                aavg_all_Qflx_S[d],
+                aavg_openocean_Qflx_S[d],
+                aavg_lastall_Qflx_S[d],
+                aavg_Qflx_S_final[d],
                 avg["SSAS_clim"][d],
-                avg_Qflx_S_final[d],
             )
         )
     end
@@ -270,14 +303,11 @@ let
 end
 
 println("========================")
-println("mean_Qflx_T_old: ", mean_Qflx_T_old)
-println("mean_Qflx_S_old: ", mean_Qflx_S_old)
+println("mean_Qflx_T_old: ", mean(aavg_Qflx_T_old))
+println("mean_Qflx_S_old: ", mean(aavg_Qflx_S_old))
 println("========================")
-println("mean_Qflx_T_updated: ", mean_Qflx_T_updated)
-println("mean_Qflx_S_updated: ", mean_Qflx_S_updated)
-println("========================")
-println("mean_Qflx_T_final: ", mean_Qflx_T_final)
-println("mean_Qflx_S_final: ", mean_Qflx_S_final)
+println("mean_Qflx_T_final: ", mean(aavg_Qflx_T_final)
+println("mean_Qflx_S_final: ", mean(aavg_Qflx_S_final)
 println("========================")
 
 
