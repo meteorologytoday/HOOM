@@ -30,19 +30,38 @@ function calFlxCorrection!(
         # Euler backward method
 
         ifrac = ocn.in_flds.ifrac[i, j]
+        ifrac_clim = ocn.in_flds.IFRACclim[i, j]
         T_ML = ocn.T_ML[i, j]
         S_ML = ocn.S_ML[i, j]
         FLDO = ocn.FLDO[i, j]
         h_ML = ocn.h_ML[i, j]
  
-        ΔT = rr * (ocn.in_flds.Tclim[i, j] - T_ML)
+
         ΔS = rr * (ocn.in_flds.Sclim[i, j] - S_ML)
 
-        # Assume seaice thickenss = 1.0m
-        energy_to_melt_seaice = 1.0 * (ifrac - ocn.in_flds.IFRACclim[i, j]) * ρ_si * Hf_sw
-        ΔT_to_melt_seaice = energy_to_melt_seaice / h_ML / ρc_sw * r
+        # when ifrac == 0 then SST is not changing while energy are still flowing
+        # the solution is to use ifrac as additional information to recover Qflx_T
+        ΔT_openocn = rr * (ocn.in_flds.Tclim[i, j] - T_ML)
 
-        ΔT += ΔT_to_melt_seaice
+        # Old method. Keep in comment for safety
+        # Assume seaice thickenss = 1.0m
+        # energy_to_melt_seaice = 1.0 * (ifrac - ifrac_clim) * ρ_si * Hf_sw
+        # ΔT_seaice = 100energy_to_melt_seaice / h_ML / ρc_sw * r
+
+        # New method: observe that between -1~-2 degC, slope of SST - IFRAC is
+        # roughly 100% / 1K. Use this as a diagnostic relation to determine
+        # nudged SST.
+        ΔT_seaice = rr * (ifrac - ifrac_clim)
+
+
+        #=
+        IFRAC
+         0.30 => 1  => dominated by ΔT_seaice
+         0.15 => 0  => dominated by ΔT_openocn
+        =#
+        wgt_seaice= max( min( (1 - 0) / (.30 - .15) * (ifrac - .15), 1.0), 0.0)
+        ΔT = ΔT_openocn * (1.0 - wgt_seaice) + ΔT_seaice * wgt_seaice 
+
 
         T_ML += ΔT
         S_ML += ΔS
