@@ -57,7 +57,7 @@ function calFlxCorrection!(
         # Reason is that there is an upper bound for ifrac that limits
         # the relaxation rate.
         if ifrac > .90 
-            ΔT_seaice *= 1.0 + 9.0 * (ifrac - .90) / (1.00 - .90)
+            ΔT_seaice *= 1.0 + 1.0 * (ifrac - .90) / (1.00 - .90)
         end
 
         #=

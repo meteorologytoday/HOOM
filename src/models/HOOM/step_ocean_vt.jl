@@ -39,7 +39,7 @@ function stepOcean_MLDynamics!(
         Nz = ocn.Nz[i, j]
 
         fric_u[i, j] = √( √(taux[i, j]^2.0 + tauy[i, j]^2.0) / HOOM.ρ_sw)
-        weighted_fric_u = fric_u[i, j] * (1.0 - ifrac[i, j])
+        weighted_fric_u = fric_u[i, j] #* (1.0 - ifrac[i, j])
 
 
         # Pseudo code
