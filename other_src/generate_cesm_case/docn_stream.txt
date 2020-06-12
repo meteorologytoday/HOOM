@@ -18,12 +18,6 @@
       </domainInfo>
       <fieldInfo>
          <variableNames>
-            T       t
-            S       s
-            U       u
-            V       v
-            dhdx    dhdx
-            dhdy    dhdy
             MLD     MLD
             Qflx_T  Qflx_T
             Qflx_S  Qflx_S
