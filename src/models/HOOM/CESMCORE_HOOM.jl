@@ -47,6 +47,7 @@ module CESMCORE_HOOM
             (:MLD_scheme,                    true, (:prognostic, :datastream,), nothing),
             (:Qflux_scheme,                  true, (:on, :off,),                nothing),
             (:Qflux_finding,                 true, (:on, :off,),                nothing),
+            (:seaice_nudging,                 true, (:on, :off,),                nothing),
             (:vertical_diffusion_scheme,     true, (:on, :off,),                nothing),
             (:horizontal_diffusion_scheme,   true, (:on, :off,),                nothing),
             (:relaxation_scheme,             true, (:on, :off,),                nothing),
@@ -271,6 +272,7 @@ module CESMCORE_HOOM
                 adv_scheme       = MD.configs[:advection_scheme],
                 do_qflx          = MD.configs[:Qflux_scheme] == :on,
                 do_qflx_finding  = MD.configs[:Qflux_finding] == :on,
+                do_seaice_nudging = MD.configs[:seaice_nudging] == :on,
             )
 
             archive_record!(MD)

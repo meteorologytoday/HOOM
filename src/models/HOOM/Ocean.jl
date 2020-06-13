@@ -75,6 +75,8 @@ mutable struct Ocean
     
     qflx_T_correction :: AbstractArray{Float64, 2}
     qflx_S_correction :: AbstractArray{Float64, 2}
+    
+    seaice_nudge_T_energy :: AbstractArray{Float64, 2}
 
     h_ML_min :: AbstractArray{Float64, 2}
     h_ML_max :: AbstractArray{Float64, 2}
@@ -456,6 +458,7 @@ mutable struct Ocean
         _dSALTdt   = allocate(datakind, Float64, Nx, Ny)
         _qflx_T_correction = allocate(datakind, Float64, Nx, Ny)
         _qflx_S_correction = allocate(datakind, Float64, Nx, Ny)
+        _seaice_nudge_T_energy = allocate(datakind, Float64, Nx, Ny)
 
         if typeof(h_ML) <: AbstractArray{Float64, 2}
             _h_ML[:, :] = h_ML
@@ -869,6 +872,7 @@ mutable struct Ocean
             _qflx2atm, _qflx2atm_pos, _qflx2atm_neg,
             _TEMP, _dTEMPdt, _SALT, _dSALTdt,
             _qflx_T_correction, _qflx_S_correction,
+            _seaice_nudge_T_energy,
             _h_ML_min, _h_ML_max, we_max,
             _τx, _τy,
             _u, _v, _w,

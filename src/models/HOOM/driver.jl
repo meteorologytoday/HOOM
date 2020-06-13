@@ -417,7 +417,7 @@ function run!(
     sync_bnd_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO)
     sync_bnd_vars3 = (:Ts,   :Ss)
 
-    sync_to_master_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO, :h_MO, :fric_u, :qflx2atm, :qflx2atm_pos, :qflx2atm_neg, :τx, :τy, :TSAS_clim, :SSAS_clim, :TFLUX_DIV_implied, :SFLUX_DIV_implied, :TEMP, :dTEMPdt, :SALT, :dSALTdt, :dTdt_ent, :dSdt_ent, :TFLUX_bot, :SFLUX_bot, :SFLUX_top, :qflx_T_correction, :qflx_S_correction)
+    sync_to_master_vars2 = (:T_ML, :S_ML, :h_ML, :FLDO, :h_MO, :fric_u, :qflx2atm, :qflx2atm_pos, :qflx2atm_neg, :τx, :τy, :TSAS_clim, :SSAS_clim, :TFLUX_DIV_implied, :SFLUX_DIV_implied, :TEMP, :dTEMPdt, :SALT, :dSALTdt, :dTdt_ent, :dSdt_ent, :TFLUX_bot, :SFLUX_bot, :SFLUX_top, :qflx_T_correction, :qflx_S_correction, :seaice_nudge_energy)
     sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :TFLUX_CONV, :SFLUX_CONV, :TFLUX_DEN_z, :SFLUX_DEN_z, :div)
 
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
@@ -450,8 +450,13 @@ function run!(
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
 
             if cfgs[:do_qflx_finding]
-                calFlxCorrection!(subocn.worker_ocn; Δt = Δt, cfgs...)
+                calFlxCorrection!(subocn.worker_ocn; Δt = Δt, τ=15*86400.0, cfgs...)
             end
+
+            if cfgs[:do_seaice_nudging]
+                nudgeSeaice!(subocn.worker_ocn; Δt = Δt, τ=15*86400.0, cfgs...)
+            end
+
 
             calLatentHeatReleaseOfFreezing!(subocn.worker_ocn; Δt=Δt, do_convadjust=cfgs[:do_convadjust])
 
