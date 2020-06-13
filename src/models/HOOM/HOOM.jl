@@ -65,6 +65,7 @@ end
     @hinclude("deep_ocn_correction.jl")
     @hinclude("shortwave_radiation.jl")
     @hinclude("flx_correction.jl")
+    @hinclude("nudge_seaice.jl")
     
     @hinclude("step_ocean_prepare.jl")
     @hinclude("step_ocean_hz.jl")
