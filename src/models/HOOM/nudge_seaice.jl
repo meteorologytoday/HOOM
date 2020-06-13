@@ -15,6 +15,7 @@ function nudgeSeaice!(
         ifrac = ocn.in_flds.ifrac[i, j]
         ifrac_clim = ocn.in_flds.IFRACclim[i, j]
         T_ML = ocn.T_ML[i, j]
+        FLDO = ocn.FLDO[i, j]
         h_ML = ocn.h_ML[i, j]
  
 
