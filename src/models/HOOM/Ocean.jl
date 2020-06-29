@@ -846,7 +846,7 @@ mutable struct Ocean
 
         deep_ocn_correction_start_layer = getLayerFromDepth(;
             zs = zs_bone,
-            z  = -301.0,
+            z  = -1.0,
             Nz = length(zs_bone) - 1
         )
 
