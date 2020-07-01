@@ -24,21 +24,6 @@ function parse_commandline()
             arg_type = String
             required = true
  
-        "--data-init-T-file"
-            help = "Initial temperature data file and its varname separated by comma. Supposed to be 3D."
-            arg_type = String
-            required = true
-  
-        "--data-init-S-file"
-            help = "Initial salinity data file and its varname separated by comma. Supposed to be 3D."
-            arg_type = String
-            required = true
- 
-        "--data-init-MLD-file"
-            help = "Initial mixed-layer depth data file and its varname separated by comma. Supposed to be 2D."
-            arg_type = String
-            required = true
- 
         "--domain-file"
             help = "Domain file, dimension names of lon, lat and varname of mask. Separated by comma. Ex: xxx.nc,ni,nj,mask"
             arg_type = String
@@ -114,15 +99,15 @@ Dataset(parsed["data-clim-S-file"], "r") do ds
 end
 
 Dataset(parsed["data-init-T-file"], "r") do ds
-    global Ts_init = replace(ds["TEMP"][:, :, :, 1], missing=>NaN)
+    global Ts_init = Ts_clim
 end
 
 Dataset(parsed["data-init-S-file"], "r") do ds
-    global Ss_init = replace(ds["SALT"][:, :, :, 1], missing=>NaN)
+    global Ss_init = Ss_clim
 end
 
 Dataset(parsed["data-init-MLD-file"], "r") do ds
-    global h_ML = replace(ds["HMXL"][:, :, :, 1], missing=>NaN)
+    global h_ML = zeros(Float64, Nx, Ny) .+ 10.0
 end
 
 

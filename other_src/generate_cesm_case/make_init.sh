@@ -75,9 +75,9 @@ fi
 data_files=(
     TEMP $input_clim_T_file $output_clim_T_file
     SALT $input_clim_S_file $output_clim_S_file
-    TEMP $input_init_T_file $output_init_T_file
-    SALT $input_init_S_file $output_init_S_file
 )
+#    TEMP $input_init_T_file $output_init_T_file
+#    SALT $input_init_S_file $output_init_S_file
 
 for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
     varname=${data_files[$((3*(i-1)))]}
@@ -123,9 +123,9 @@ done
 
 # Convert 2D variable: MLD, TOPO
 data_files=(
-    HMXL   $input_init_MLD_file $output_init_MLD_file
     depth  $input_topo_file $output_topo_file
 )
+#HMXL   $input_init_MLD_file $output_init_MLD_file
 
 for i in $( seq 1 $(( ${#data_files[@]} / 3))); do
     varname=${data_files[$((3*(i-1)))]}
