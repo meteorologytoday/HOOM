@@ -196,7 +196,7 @@ mutable struct Ocean
         Ss_clim  :: Union{AbstractArray{Float64, 3}, AbstractArray{Float64, 1}, Nothing},
         topo     :: Union{AbstractArray{Float64, 2}, Nothing},
         fs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = nothing,
-        ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = 1.0/(1.5 * 86400.0),  # Bayesian estimation of 50m thick Ekman layer using CESM LENS POP output WVEL and τ
+        ϵs       :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = 1.0 / 86400.0,  # Bayesian estimation of 50m thick Ekman layer using CESM LENS POP output WVEL and τ
         in_flds  :: Union{InputFields, Nothing} = nothing,
         arrange  :: Symbol = :zxy,
         do_convective_adjustment :: Bool = false,
@@ -846,7 +846,7 @@ mutable struct Ocean
 
         deep_ocn_correction_start_layer = getLayerFromDepth(;
             zs = zs_bone,
-            z  = -301.0,
+            z  = -1.0,
             Nz = length(zs_bone) - 1
         )
 
