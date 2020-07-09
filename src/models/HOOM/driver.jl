@@ -454,7 +454,7 @@ function run!(
             end
 
             if cfgs[:do_seaice_nudging]
-                nudgeSeaice!(subocn.worker_ocn; Δt = Δt, τ=15*86400.0, cfgs...)
+                nudgeSeaice!(subocn.worker_ocn; Δt = Δt, τ=5*86400.0, cfgs...)
             end
 
 
