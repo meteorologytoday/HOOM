@@ -98,18 +98,9 @@ Dataset(parsed["data-clim-S-file"], "r") do ds
     global Ss_clim = replace(ds["SALT"][:, :, :, 1], missing=>NaN)
 end
 
-Dataset(parsed["data-init-T-file"], "r") do ds
-    global Ts_init = Ts_clim
-end
-
-Dataset(parsed["data-init-S-file"], "r") do ds
-    global Ss_init = Ss_clim
-end
-
-Dataset(parsed["data-init-MLD-file"], "r") do ds
-    global h_ML = zeros(Float64, Nx, Ny) .+ 10.0
-end
-
+global Ts_init = Ts_clim
+global Ss_init = Ss_clim
+global h_ML = zeros(Float64, Nx, Ny) .+ 10.0
 
 
 Dataset(parsed["topo-file"], "r") do ds
