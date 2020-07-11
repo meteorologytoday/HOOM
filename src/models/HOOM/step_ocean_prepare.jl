@@ -189,8 +189,8 @@ function stepOcean_prepare!(ocn::Ocean; cfgs...)
 
     #println("calHorVelBnd with spmtx")
     tmp = getSpace!(ocn.wksp, :T)
-    mul!(view(ocn.u_bnd, :), ocn.ASUM.U_interp_T, view(ocn.u, :))
-    mul!(view(ocn.v_bnd, :), ocn.ASUM.V_interp_T, view(ocn.v, :))
+    mul!(view(ocn.u_bnd, :), ocn.ASUM.U_fluxmask_interp_T, view(ocn.u, :))
+    mul!(view(ocn.v_bnd, :), ocn.ASUM.V_fluxmask_interp_T, view(ocn.v, :))
 
     mul_autoflat!(ocn.div,   ocn.ASUM.T_DIVx_U, ocn.u_bnd)
     mul_autoflat!(tmp      , ocn.ASUM.T_DIVy_V, ocn.v_bnd)

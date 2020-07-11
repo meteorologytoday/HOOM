@@ -17,9 +17,13 @@ mutable struct AdvectionSpeedUpMatrix
     T_∂y_V      :: AbstractArray{Float64, 2}
     T_∂z_W      :: AbstractArray{Float64, 2}
 
-    U_interp_T :: AbstractArray{Float64, 2}  # interpolation of U grid onto V grid
-    V_interp_T :: AbstractArray{Float64, 2}  # interpolation of U grid onto V grid
-    W_interp_T :: AbstractArray{Float64, 2}  # interpolation of U grid onto V grid
+    U_interp_T :: AbstractArray{Float64, 2}  # interpolation of T grid onto U grid
+    V_interp_T :: AbstractArray{Float64, 2}  # interpolation of T grid onto V grid
+    W_interp_T :: AbstractArray{Float64, 2}  # interpolation of T grid onto W grid
+
+    U_fluxmask_interp_T :: AbstractArray{Float64, 2}  # interpolation of T grid onto U grid with fluxmask applied
+    V_fluxmask_interp_T :: AbstractArray{Float64, 2}  # interpolation of T grid onto V grid with fluxmask applied
+    W_fluxmask_interp_T :: AbstractArray{Float64, 2}  # interpolation of T grid onto W grid with fluxmask applied
 
     T_mask_T       :: AbstractArray{Float64, 2}
     U_mask_U       :: AbstractArray{Float64, 2}
@@ -233,6 +237,10 @@ mutable struct AdvectionSpeedUpMatrix
         W_interp_T = (op.W_DN_T + op.W_UP_T) * T_mask_T
         W_interp_T = selfDivision(W_interp_T, ones_T)
 
+        U_fluxmask_interp_T = U_fluxmask_U * U_interp_T
+        V_fluxmask_interp_T = V_fluxmask_V * V_interp_T
+        W_fluxmask_interp_T = W_fluxmask_W * W_interp_T
+
         return new(
             op,
 
@@ -251,6 +259,10 @@ mutable struct AdvectionSpeedUpMatrix
             U_interp_T,
             V_interp_T,
             W_interp_T,
+
+            U_fluxmask_interp_T,
+            V_fluxmask_interp_T,
+            W_fluxmask_interp_T,
 
             T_mask_T,
             U_mask_U,
