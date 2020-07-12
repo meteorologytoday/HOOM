@@ -74,7 +74,8 @@ end
 function updateFLDO!(
         ocn :: Ocean,
     )
-    for i=1:ocn.Nx, j=1:ocn.Ny
+
+    @loop_hor ocn i j let
         OC_updateFLDO!(ocn, i, j)
     end
 end
@@ -154,7 +155,7 @@ end
 
 function updateB!(ocn::Ocean)
 
-    for i=1:ocn.Nx, j=1:ocn.Ny
+    @loop_hor ocn i j let
         OC_updateB!(ocn, i, j)
     end
 

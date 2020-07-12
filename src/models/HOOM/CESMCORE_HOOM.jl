@@ -151,7 +151,7 @@ module CESMCORE_HOOM
             var_list = []
             
             if typeof(configs[rec_key]) <: Symbol
-                configs[rec_key] = HOOM.getVariableList(ocn, :ESSENTIAL) |> keys |> collect
+                configs[rec_key] = HOOM.getVariableList(ocn, configs[rec_key]) |> keys |> collect
             else
                 println("Using customized output variables.")
             end

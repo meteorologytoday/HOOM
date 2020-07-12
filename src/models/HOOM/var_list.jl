@@ -8,6 +8,8 @@ function getCompleteVariableList(ocn::Ocean)
             "bs"                 => ( toXYZ(ocn.bs, :zxy),          ("Nx", "Ny", "Nz_bone") ),
             "T_ML"               => ( ocn.T_ML,                     ("Nx", "Ny") ),
             "S_ML"               => ( ocn.S_ML,                     ("Nx", "Ny") ),
+            "b_ML"               => ( ocn.b_ML,                     ("Nx", "Ny") ),
+            "FLDO"               => ( ocn.FLDO,                     ("Nx", "Ny") ),
             "dTdt_ent"           => ( ocn.dTdt_ent,                 ("Nx", "Ny") ),
             "dSdt_ent"           => ( ocn.dSdt_ent,                 ("Nx", "Ny") ),
             "TSAS_clim"          => ( ocn.TSAS_clim,                ("Nx", "Ny") ),
@@ -117,7 +119,7 @@ function getVariableList(ocn::Ocean, keywords...)
                     "SFLUX_top",
                     "TFLUX_DIV_implied", "SFLUX_DIV_implied",
                     "qflx2atm_pos", "qflx2atm_neg",
-                    "h_ML",
+                    "h_ML", "ifrac",
                     "nswflx", "swflx", "frwflx", "vsflx",
                     "qflx_T", "qflx_S",
                     "seaice_nudge_energy",
@@ -128,6 +130,28 @@ function getVariableList(ocn::Ocean, keywords...)
                     "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV",
                 ])
 
+            elseif keyword == :DEBUG
+                
+                append!(output_varnames, [
+                    "Ts", "Ss", "T_ML", "S_ML", "b_ML", "bs", "FLDO", "h_MO",
+                    "TSAS_clim", "SSAS_clim",
+                    "TFLUX_bot", "SFLUX_bot",
+                    "SFLUX_top",
+                    "TFLUX_DIV_implied", "SFLUX_DIV_implied",
+                    "qflx2atm_pos", "qflx2atm_neg",
+                    "h_ML", "ifrac",
+                    "nswflx", "swflx", "frwflx", "vsflx",
+                    "qflx_T", "qflx_S",
+                    "seaice_nudge_energy",
+                    "TEMP", "dTEMPdt", "SALT", "dSALTdt",
+                    "fric_u", "taux", "tauy",
+                    "TFLUX_DEN_z", "SFLUX_DEN_z",
+                    "div",
+                    "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV",
+                ])
+
+
+ 
             elseif keyword == :COORDINATE
 
                 append!(output_varnames, [
