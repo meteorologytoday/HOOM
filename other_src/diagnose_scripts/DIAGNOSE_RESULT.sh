@@ -61,18 +61,21 @@ casenames=()
 legends=()
 colors=()
 linestyles=()
+offset_years=()
 
-for i in $(seq 1 $((${#case_settings[@]}/4))); do
-    casename=${case_settings[$((4*(i-1)))]}
-    legend=${case_settings[$((4*(i-1)+1))]}
-    color=${case_settings[$((4*(i-1)+2))]}
-    linestyle=${case_settings[$((4*(i-1)+3))]}
+for i in $(seq 1 $((${#case_settings[@]}/5))); do
+    casename=${case_settings[$((5*(i-1)))]}
+    legend=${case_settings[$((5*(i-1)+1))]}
+    color=${case_settings[$((5*(i-1)+2))]}
+    linestyle=${case_settings[$((5*(i-1)+3))]}
+    offset_year=${case_settings[$((5*(i-1)+4))]}
     printf "[%s] => [%s, %s]\n" $casename $color $linestyle
 
     casenames+=($casename)
     legends+=($legend)
     colors+=($color)
     linestyles+=($linestyle)
+    offset_years+=( $offset_year )
 done
 
 
@@ -130,11 +133,21 @@ fi
 
 if [ "$plot_mc_only" == "" ]; then
 
-    for casename in "${casenames[@]}"; do
+    for (( k=0; k < ${#casenames[@]} ; k++ )); do
+#    for casename in "${casenames[@]}"; do
 
         ((i=i%ptasks)); ((i++==0)) && wait
 
+        casename=${casenames[$k]}
+        offset_year=${offset_years[$k]}
+
         echo "Case: $casename"
+
+        real_diag_beg_year=$(( offset_year + diag_beg_year ))
+        real_diag_end_year=$(( offset_year + diag_end_year ))
+
+        echo "Diag year: "
+
 
         full_casename=${label}_${res}_${casename}
         $script_dir/diagnose_single_model.sh \
@@ -143,8 +156,8 @@ if [ "$plot_mc_only" == "" ]; then
             --concat-data-dir=$concat_data_dir  \
             --diag-data-dir=$diag_data_dir      \
             --graph-data-dir=$graph_data_dir    \
-            --diag-beg-year=$diag_beg_year      \
-            --diag-end-year=$diag_end_year      \
+            --diag-beg-year=$real_diag_beg_year \
+            --diag-end-year=$real_diag_end_year \
             --atm-domain=$atm_domain            \
             --ocn-domain=$ocn_domain            \
             --wgt-dir=$wgt_dir                  \
@@ -167,7 +180,7 @@ $script_dir/diagnose_mc_txt.sh     \
     --atm-domain=$atm_domain                    \
     --ocn-domain=$ocn_domain                    \
     --diag-beg-year=$diag_beg_year      \
-    --diag-end-year=$diag_end_year      \
+    --diag-end-year=$diag_end_year      
 
 
 $script_dir/diagnose_mc.sh     \
@@ -178,8 +191,6 @@ $script_dir/diagnose_mc.sh     \
     --graph-data-dir=$graph_data_dir            \
     --atm-domain=$atm_domain                    \
     --ocn-domain=$ocn_domain                    \
-    --diag-beg-year=$diag_beg_year      \
-    --diag-end-year=$diag_end_year      \
     --colors=$( join_by , "${colors[@]}")       \
     --linestyles=$( join_by , "${linestyles[@]}"),     # The comma at the end is necessary. Argparse does not parse "--" as a string however it thinks "--," is a string. 
 

@@ -12,8 +12,6 @@ lopts=(
     ocn-domain
     colors
     linestyles
-    diag-beg-year
-    diag-end-year
 )
 
 options=$(getopt -o '' --long $(printf "%s:," "${lopts[@]}") -- "$@")
