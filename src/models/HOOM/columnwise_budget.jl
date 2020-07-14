@@ -9,6 +9,8 @@ function calImplied∂TEMP∂t!(
     frwflx   = ocn.in_flds.frwflx
     qflx_T   = ocn.in_flds.qflx_T
 
+    seaice_nudge_energy = ocn.seaice_nudge_energy
+
     TFLUX_DIV_implied  = ocn.TFLUX_DIV_implied
     qflx2atm           = ocn.qflx2atm
     TFLUX_bot          = ocn.TFLUX_bot
@@ -25,6 +27,13 @@ function calImplied∂TEMP∂t!(
             TFLUX_DIV_implied[i, j] +=  qflx_T[i, j] / ρc_sw
         end
     end
+
+    if cfgs[:do_seaice_nudging]
+        @loop_hor ocn i j let
+            TFLUX_DIV_implied[i, j] +=  seaice_nudge_energy[i, j] / ρc_sw
+        end
+    end
+
 
 end
 

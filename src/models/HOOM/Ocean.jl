@@ -185,7 +185,7 @@ mutable struct Ocean
         T_ML     :: Union{AbstractArray{Float64, 2}, Float64},
         S_ML     :: Union{AbstractArray{Float64, 2}, Float64},
         h_ML     :: Union{AbstractArray{Float64, 2}, Float64, Nothing},
-        h_ML_min :: Union{AbstractArray{Float64, 2}, Float64} = 10.0,
+        h_ML_min :: Union{AbstractArray{Float64, 2}, Float64} = 30.0,
         h_ML_max :: Union{AbstractArray{Float64, 2}, Float64},
         we_max   :: Float64 =  1e-2,
         R        :: Float64 =  0.58,  # See Paulson and Simpson (1977) Type I clear water

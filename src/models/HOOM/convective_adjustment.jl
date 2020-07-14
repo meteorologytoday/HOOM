@@ -209,32 +209,10 @@ function doConvectiveAdjustment!(;
 
                     new_T_ML = mixed_T 
                     new_S_ML = mixed_S
+                    new_b_ML = TS2b(new_T_ML, new_S_ML)
                     
                     # update T, S profile but do not update h_ML and FLDO 
                     setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML= - bot_z, Nz=Nz)
-
-                    #= 
-
-                    new_T_ML = mixed_T
-                    new_S_ML = mixed_S
-                    new_h_ML = - bot_z
-
-                    new_FLDO = setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML=new_h_ML, Nz=Nz)
-                    
-                    if new_h_ML > h_ML_max
-
-                        # modified on 2019/05/10
-                        new_h_ML = h_ML_max
-                        new_FLDO = setMixedLayer!(Ts=Ts, Ss=Ss, zs=zs, T_ML=new_T_ML, S_ML=new_S_ML, h_ML=new_h_ML, Nz=Nz)
-
-                        # original code before 2019/05/10
-                        # new_FLDO = getFLDO(zs=zs, h_ML=h_ML_max, Nz=Nz)   # original code
-                    end
-                    =#
-
-                    #if FLDO > 1 && new_T_ML != Ts[1]
-                    #    println("ERROR ERROR!!! top_layer=", top_layer)
-                    #end
 
 
                 else
@@ -245,7 +223,6 @@ function doConvectiveAdjustment!(;
                 end 
 
                 # update buoyancy
-                new_b_ML = TS2b(new_T_ML, new_S_ML)
                 for k=1:Nz
                     bs[k] = TS2b(Ts[k], Ss[k])
                 end
