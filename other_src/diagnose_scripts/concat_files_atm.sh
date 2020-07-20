@@ -28,8 +28,8 @@ if [ ! -f flag_notrans_atm ] ; then
             if [ ! -f "$concat_dir/$new_file" ]; then 
                 ((i=i%4)); ((i++==0)) && wait
                 echo "$new_file does not exist, need to transform."
-                #ncwa -O -a lon -v T,U,V,UU,VV,VU,VT,ilev $atm_hist_dir/$old_file $concat_dir/$new_file
-                ncwa -O -a lon -v U,V,ilev $atm_hist_dir/$old_file $concat_dir/$new_file
+                ncwa -O -a lon -v T,U,V,VU,VT,VQ,ilev $atm_hist_dir/$old_file $concat_dir/$new_file
+                #ncwa -O -a lon -v U,V,ilev $atm_hist_dir/$old_file $concat_dir/$new_file
             fi
 
         done

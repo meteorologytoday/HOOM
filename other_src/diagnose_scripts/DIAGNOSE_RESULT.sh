@@ -136,7 +136,7 @@ if [ "$plot_mc_only" == "" ]; then
     for (( k=0; k < ${#casenames[@]} ; k++ )); do
 #    for casename in "${casenames[@]}"; do
 
-        ((i=i%ptasks)); ((i++==0)) && wait
+        (( i = (i + 1) % ptasks )); (( i == 0 )) && wait
 
         casename=${casenames[$k]}
         offset_year=${offset_years[$k]}
