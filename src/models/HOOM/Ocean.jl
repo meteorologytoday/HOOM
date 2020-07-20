@@ -903,7 +903,7 @@ mutable struct Ocean
         updateFLDO!(ocn)
 
         if do_convective_adjustment
-            for i=1:Nx, j=1:Ny
+            @loop_hor ocn i j let
                 OC_doConvectiveAdjustment!(ocn, i, j)
             end
         end
