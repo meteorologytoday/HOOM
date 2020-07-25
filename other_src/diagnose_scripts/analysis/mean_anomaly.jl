@@ -217,6 +217,7 @@ elseif  parsed["dims"] == "XYT"
     spatial_rng = (:, :)
     global data = reshape( getData(fh, parsed["varname"], (parsed["beg-year"], parsed["end-year"]), spatial_rng), Nx, Ny, Nt)
     for i=1:Nx, j=1:Ny
+
         d = view(data, i, j, :)
         doit!(months,           d, data_MM, data_MA, data_MAVAR, data_MASTD, nyears, 12, (i, j, 1) )
         
