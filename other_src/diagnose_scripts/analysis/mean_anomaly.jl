@@ -146,8 +146,20 @@ data_AA    = zeros(Float64, Nx, Ny, Nz, Na)
 data_AAVAR = zeros(Float64, Nx, Ny, Nz, 1)
 data_AASTD = zeros(Float64, Nx, Ny, Nz, 1)
 
+data_ZONAL_MM    = zeros(Float64, Ny, Nz, 12)
+data_ZONAL_MA    = zeros(Float64, Ny, Nz, Nt)
+data_ZONAL_MAVAR = zeros(Float64, Ny, Nz, 12)
+data_ZONAL_MASTD = zeros(Float64, Ny, Nz, 12)
 
+data_ZONAL_SM    = zeros(Float64, Ny, Nz, 4)
+data_ZONAL_SA    = zeros(Float64, Ny, Nz, Ns)
+data_ZONAL_SAVAR = zeros(Float64, Ny, Nz, 4)
+data_ZONAL_SASTD = zeros(Float64, Ny, Nz, 4)
 
+data_ZONAL_AM    = zeros(Float64, Ny, Nz, 1)
+data_ZONAL_AA    = zeros(Float64, Ny, Nz, Na)
+data_ZONAL_AAVAR = zeros(Float64, Ny, Nz, 1)
+data_ZONAL_AASTD = zeros(Float64, Ny, Nz, 1)
 
 months  = collect(Float64, 1:Nt)
 seasons = collect(Float64, 1:Ns)
@@ -163,23 +175,21 @@ function doit!(
     AVAR :: AbstractArray{Float64},
     ASTD :: AbstractArray{Float64},
     nyears :: Integer,
-    period :: Integer, 
-    i :: Integer,
-    j :: Integer,
-    k :: Integer,
+    period :: Integer,
+    idx  :: Tuple, 
 )
 
     if ! parsed["no-detrend"]
         d = detrend(t, d, order=2)
     end
     
-    M[i, j, k, :] = mean( reshape(d, period, :), dims=2 )[:, 1]
-    A[i, j, k, :] = d - repeat( M[i, j, k, :], outer=nyears)
+    M[idx..., :] = mean( reshape(d, period, :), dims=2 )[:, 1]
+    A[idx..., :] = d - repeat( M[idx..., :], outer=nyears)
     
     for m = 1:period
-        d_yy = view(A, i, j, k, m:period:(m+nyears*period-1))
-        AVAR[i, j, k, m] = var(d_yy)
-        ASTD[i, j, k, m] = std(d_yy)
+        d_yy = view(A, idx..., m:period:(m+nyears*period-1))
+        AVAR[idx..., m] = var(d_yy)
+        ASTD[idx..., m] = std(d_yy)
     end
 
 end
@@ -208,14 +218,29 @@ elseif  parsed["dims"] == "XYT"
     global data = reshape( getData(fh, parsed["varname"], (parsed["beg-year"], parsed["end-year"]), spatial_rng), Nx, Ny, Nt)
     for i=1:Nx, j=1:Ny
         d = view(data, i, j, :)
-        doit!(months,           d, data_MM, data_MA, data_MAVAR, data_MASTD, nyears, 12, i, j, 1) 
+        doit!(months,           d, data_MM, data_MA, data_MAVAR, data_MASTD, nyears, 12, (i, j, 1) )
         
         seasonal_d = mean(reshape( circshift(d, -2), 3, :), dims=1)[1, :]
-        doit!(seasons, seasonal_d, data_SM, data_SA, data_SAVAR, data_SASTD, nyears,  4, i, j, 1)    
+        doit!(seasons, seasonal_d, data_SM, data_SA, data_SAVAR, data_SASTD, nyears,  4, (i, j, 1) )   
 
         annual_d = mean(reshape( d, 12, :), dims=1)[1, :]
-        doit!(years, annual_d, data_AM, data_AA, data_AAVAR, data_AASTD,     nyears,  1, i, j, 1)    
+        doit!(years, annual_d, data_AM, data_AA, data_AAVAR, data_AASTD,     nyears,  1, (i, j, 1) )
 
+    end
+
+    # === zonal mean ====
+    data_zonal = nanmean( data, dims=(1,) )
+    for j=1:Ny        
+
+        montly_d = view(data_zonal, 1, j, :)
+        doit!(months, monthly_d, data_ZONAL_MM, data_ZONAL_MA, data_ZONAL_MAVAR, data_ZONAL_MASTD, nyears, 12, (j, 1))
+ 
+        seasonal_d = mean(reshape( circshift(monthly_d, -2), 3, :), dims=1)[1, :]
+        doit!(seasons, seasonal_d, data_ZONAL_SM, data_ZONAL_SA, data_ZONAL_SAVAR, data_ZONAL_SASTD, nyears, 4, (j, 1))
+        
+        annual_d = mean(reshape( d, 12, : ), dims=1)[1, :]
+        doit!(years,   annual_d, data_ZONAL_AM, data_ZONAL_AA, data_ZONAL_AAVAR, data_ZONAL_AASTD, nyears, 1, (j, 1))
+ 
     end 
 
 elseif parsed["dims"] in ["YZT", "YZ"]
@@ -225,13 +250,13 @@ elseif parsed["dims"] in ["YZT", "YZ"]
     for j=1:Ny, k=1:Nz
         
         d = view(data, j, k, :)
-        doit!(months,           d, data_MM, data_MA, data_MAVAR, data_MASTD, nyears, 12, 1, j, k) 
+        doit!(months,           d, data_MM, data_MA, data_MAVAR, data_MASTD, nyears, 12, 1, (j, k)    )
         
         seasonal_d = mean(reshape( circshift(d, -2 ), 3, :), dims=1)[1, :]
-        doit!(seasons, seasonal_d, data_SM, data_SA, data_SAVAR, data_SASTD, nyears,  4, 1, j, k)    
+        doit!(seasons, seasonal_d, data_SM, data_SA, data_SAVAR, data_SASTD, nyears,  4, 1, (j, k)    )
 
         annual_d = mean(reshape( d, 12, :), dims=1)[1, :]
-        doit!(years, annual_d, data_AM, data_AA, data_AAVAR, data_AASTD,     nyears,  1, 1, j, k)    
+        doit!(years, annual_d, data_AM, data_AA, data_AAVAR, data_AASTD,     nyears,  1, 1, (j, k)    )
 
     end 
 
@@ -253,23 +278,23 @@ Dataset(output_file, "c") do ds
         (format("{:s}_MM",    parsed["varname"]),       data_MM,    ("Nx", "Ny", "Nz", "months"), Dict()),
         (format("{:s}_MAVAR", parsed["varname"]),       data_MAVAR, ("Nx", "Ny", "Nz", "months"), Dict()),
         (format("{:s}_MASTD", parsed["varname"]),       data_MASTD, ("Nx", "Ny", "Nz", "months"), Dict()),
-        (format("{:s}_ZONAL_MM", parsed["varname"]),    nanmean( data_MM,    dims=(1,) )[1, :, :, :], ("Ny", "Nz", "months"), Dict()),
-        (format("{:s}_ZONAL_MAVAR", parsed["varname"]), nanmean( data_MAVAR, dims=(1,) )[1, :, :, :], ("Ny", "Nz", "months"), Dict()),
-        (format("{:s}_ZONAL_MASTD", parsed["varname"]), nanmean( data_MASTD, dims=(1,) )[1, :, :, :], ("Ny", "Nz", "months"), Dict()),
+        (format("{:s}_ZONAL_MM", parsed["varname"]),    data_ZONAL_MM, ("Ny", "Nz", "months"), Dict()),
+        (format("{:s}_ZONAL_MAVAR", parsed["varname"]), data_ZONAL_MAVAR, ("Ny", "Nz", "months"), Dict()),
+        (format("{:s}_ZONAL_MASTD", parsed["varname"]), data_ZONAL_MASTD, ("Ny", "Nz", "months"), Dict()),
 
         (format("{:s}_SM",    parsed["varname"]),       data_SM,    ("Nx", "Ny", "Nz", "seasons"), Dict()),
         (format("{:s}_SAVAR", parsed["varname"]),       data_SAVAR, ("Nx", "Ny", "Nz", "seasons"), Dict()),
         (format("{:s}_SASTD", parsed["varname"]),       data_SASTD, ("Nx", "Ny", "Nz", "seasons"), Dict()),
-        (format("{:s}_ZONAL_SM", parsed["varname"]),    nanmean( data_SM,    dims=(1,) )[1, :, :, :], ("Ny", "Nz", "seasons"), Dict()),
-        (format("{:s}_ZONAL_SAVAR", parsed["varname"]), nanmean( data_SAVAR, dims=(1,) )[1, :, :, :], ("Ny", "Nz", "seasons"), Dict()),
-        (format("{:s}_ZONAL_SASTD", parsed["varname"]), nanmean( data_SASTD, dims=(1,) )[1, :, :, :], ("Ny", "Nz", "seasons"), Dict()),
+        (format("{:s}_ZONAL_SM", parsed["varname"]),    data_ZONAL_SM, ("Ny", "Nz", "seasons"), Dict()),
+        (format("{:s}_ZONAL_SAVAR", parsed["varname"]), data_ZONAL_SAVAR, ("Ny", "Nz", "seasons"), Dict()),
+        (format("{:s}_ZONAL_SASTD", parsed["varname"]), data_ZONAL_SASTD, ("Ny", "Nz", "seasons"), Dict()),
 
         (format("{:s}_AM",    parsed["varname"]),       data_AM,    ("Nx", "Ny", "Nz", "years"), Dict()),
         (format("{:s}_AAVAR", parsed["varname"]),       data_AAVAR, ("Nx", "Ny", "Nz", "years"), Dict()),
         (format("{:s}_AASTD", parsed["varname"]),       data_AASTD, ("Nx", "Ny", "Nz", "years"), Dict()),
-        (format("{:s}_ZONAL_AM", parsed["varname"]),    nanmean( data_AM,    dims=(1,) )[1, :, :, :], ("Ny", "Nz", "years"), Dict()),
-        (format("{:s}_ZONAL_AAVAR", parsed["varname"]), nanmean( data_AAVAR, dims=(1,) )[1, :, :, :], ("Ny", "Nz", "years"), Dict()),
-        (format("{:s}_ZONAL_AASTD", parsed["varname"]), nanmean( data_AASTD, dims=(1,) )[1, :, :, :], ("Ny", "Nz", "years"), Dict()),
+        (format("{:s}_ZONAL_AM", parsed["varname"]),    data_ZONAL_AM, ("Ny", "Nz", "years"), Dict()),
+        (format("{:s}_ZONAL_AAVAR", parsed["varname"]), data_ZONAL_AAVAR, ("Ny", "Nz", "years"), Dict()),
+        (format("{:s}_ZONAL_AASTD", parsed["varname"]), data_ZONAL_AASTD, ("Ny", "Nz", "years"), Dict()),
 
     ])
 
