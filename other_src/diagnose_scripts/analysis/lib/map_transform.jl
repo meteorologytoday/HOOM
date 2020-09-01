@@ -9,7 +9,7 @@ module MapTransform
         
         lat_bnd  :: AbstractArray{Float64, 1}
         ∂a       :: AbstractArray{Float64, 1}
-       
+        A        :: Float64 
         indices  :: Any     
 
         function Relation(;
@@ -47,6 +47,7 @@ module MapTransform
                 mask,
                 lat_bnd,
                 ∂a,
+                sum(∂a),
                 indices,            
             )
 
@@ -92,4 +93,10 @@ module MapTransform
 
     end
 
+    function mean(
+        r :: Relation,
+        f :: AbstractArray{Float64, 2},
+    )
+        return ∫∂a(r, f)[end] / r.A
+    end
 end

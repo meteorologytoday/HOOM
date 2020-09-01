@@ -5,17 +5,14 @@ using ArgParse
 using Statistics
 using JSON
 
-include("./lib/map_transform.jl")
 include("constants.jl")
 include("CESMReader.jl")
 
 using .CESMReader
-using .MapTransform
 
 function mreplace(x)
     return replace(x, missing=>NaN)
 end
-
 
 function parse_commandline()
 
@@ -66,24 +63,25 @@ Dataset(parsed["domain-file"], "r") do ds
     global lat  = mreplace(ds["yc"][:])
 
     area .*= 4π * Re^2 / sum(area)
+
+    global idx_GLB = ( mask .== 1.0 )
+    global idx_NH  = ( mask .== 1.0 ) .& ( lat .>= 0.0 )
+    global idx_SH  = ( mask .== 1.0 ) .& ( lat .<  0.0 )
+
 end
 
-lat_bnd = collect(Float64, -90:1:90) # 181 elements
-r = MapTransform.Relation(
-    lat = lat,
-    area = area,
-    mask = mask,
-    lat_bnd = lat_bnd,
-)
+function calAreaWeightedSum(v, idx)
+    return sum( area[idx] .* v[idx] )
+end
 
-_proxy = area * 0 .+ 1.0
-sum_valid_area = MapTransform.∫∂a(r, _proxy)[end]
-
-println("Sum of valid area: ", sum_valid_area, "; ratio: ", sum_valid_area / sum(area))
+function calAreaWeightedSumTimeseries(v, idx)
+    return [ calAreaWeightedSum( view(v, :, :, t), idx ) for t=1:size(v)[3] ]
+end
 
 
 let
-    global TFLUX_DIV_implied, OHT, TSAS_clim, OHT_TSAS_clim
+    global ice_volume_GLB, ice_volume_NH, ice_volume_SH
+    global ice_area_GLB, ice_area_NH, ice_area_SH
 
     if parsed["data-file-timestamp-form"] == "YEAR"
         filename_format = format("{:s}{{:04d}}.nc", joinpath(parsed["data-file-prefix"]))
@@ -97,58 +95,30 @@ let
 
     beg_t = (parsed["beg-year"] - 1) * 12 + 1
     end_t = (parsed["end-year"] - 1) * 12 + 12
-
-    Nt = end_t - beg_t + 1
-
-    TFLUX_DIV_implied = zeros(Float64, length(r.lat_bnd)-1, Nt)
-    OHT               = zeros(Float64, length(r.lat_bnd)  , Nt)
-    TSAS_clim         = zeros(Float64, length(r.lat_bnd)-1, Nt)
-    OHT_TSAS_clim     = zeros(Float64, length(r.lat_bnd)  , Nt)
-    
-    OHT_TSAS_clim     = zeros(Float64, length(r.lat_bnd)  , Nt)
-
  
-    TFLUX_DIV, seaice_nudge_energy, _TSAS_clim = getData(fh, ["TFLUX_DIV_implied", "seaice_nudge_energy", "TSAS_clim"], (parsed["beg-year"], parsed["end-year"]), (:, :))
+    vice, aice = getData(fh, ["vice", "aice"], (parsed["beg-year"], parsed["end-year"]), (:, :))
 
-    adjust_TFLUX_DIV = TFLUX_DIV * ρc + seaice_nudge_energy
-    for t = 1:Nt
-        _data = view(adjust_TFLUX_DIV, :, :, t)
-        TFLUX_DIV_implied[:, t] = MapTransform.transform(r, _data) 
-        OHT[:, t] = MapTransform.∫∂a(r, _data)
-    end
+    ice_volume_GLB = calAreaWeightedSumTimeseries(vice, idx_GLB)
+    ice_volume_NH  = calAreaWeightedSumTimeseries(vice, idx_NH)
+    ice_volume_SH  = calAreaWeightedSumTimeseries(vice, idx_SH)
 
-    adjust_TSAS_clim = _TSAS_clim * ρc
-    for t = 1:Nt
-        _data = view(adjust_TSAS_clim, :, :, t)
-        TSAS_clim[:, t] = MapTransform.transform(r, _data) 
-        OHT_TSAS_clim[:, t] = - MapTransform.∫∂a(r, _data .- MapTransform.mean(r, _data)) 
-    end
+    ice_area_GLB = calAreaWeightedSumTimeseries(aice, idx_GLB)
+    ice_area_NH  = calAreaWeightedSumTimeseries(aice, idx_NH)
+    ice_area_SH  = calAreaWeightedSumTimeseries(aice, idx_SH)
 
 end
-
-
-
-
-
 
 Dataset(parsed["output-file"], "c") do ds
 
     defDim(ds, "time", Inf)
-    defDim(ds, "lat_bnd", length(r.lat_bnd))
-    defDim(ds, "lat",     length(r.lat_bnd)-1)
 
     for (varname, vardata, vardim, attrib) in [
-        ("TFLUX_DIV_implied", TFLUX_DIV_implied, ("lat", "time"), Dict()),
-        ("OHT",               OHT,               ("lat_bnd", "time"), Dict()),
-        ("TSAS_clim",         TSAS_clim,         ("lat", "time"), Dict()),
-        ("OHT_TSAS_clim",     OHT_TSAS_clim,     ("lat_bnd", "time"), Dict()),
-        ("OHT_TOTAL",         OHT + OHT_TSAS_clim,     ("lat_bnd", "time"), Dict()),
-
-        ("TFLUX_DIV_implied_MEAN", mean(TFLUX_DIV_implied, dims=2)[:, 1],    ("lat",), Dict()),
-        ("OHT_MEAN",               mean(OHT, dims=2)[:, 1],                  ("lat_bnd",), Dict()),
-        ("TSAS_clim_MEAN",         mean(TSAS_clim, dims=2)[:, 1],            ("lat",), Dict()),
-        ("OHT_TSAS_clim_MEAN",     mean(OHT_TSAS_clim, dims=2)[:, 1],        ("lat_bnd",), Dict()),
-        ("OHT_TOTAL_MEAN",         mean(OHT + OHT_TSAS_clim, dims=2)[:, 1],  ("lat_bnd",), Dict()),
+        ("ice_volume_GLB", ice_volume_GLB, ("time",), Dict()),
+        ("ice_volume_NH",  ice_volume_NH,  ("time",), Dict()),
+        ("ice_volume_SH",  ice_volume_SH,  ("time",), Dict()),
+        ("ice_area_GLB",   ice_area_GLB,   ("time",), Dict()),
+        ("ice_area_NH",    ice_area_NH,    ("time",), Dict()),
+        ("ice_area_SH",    ice_area_SH,    ("time",), Dict()),
     ]
 
         println("Doing var: ", varname)

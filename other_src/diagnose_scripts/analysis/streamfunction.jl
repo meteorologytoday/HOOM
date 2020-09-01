@@ -52,7 +52,7 @@ function parse_commandline()
             required = true
  
         "--ilev-varname"
-            help = "Variable name of pressure level."
+            help = "Variable name of pressure level. Assume in unit of hPa."
             arg_type = String
             default = "ilev"
 
@@ -106,7 +106,7 @@ for y=parsed["beg-year"]:parsed["end-year"], m=1:12
 
             if ilev == nothing
                 global Ny, Nz = size(v)
-                global ilev = ( ds[parsed["ilev-varname"]][:] |> mreplace )
+                global ilev = ( ds[parsed["ilev-varname"]][:] |> mreplace ) * 100.0
 
                 global Ψ = zeros(Float64, Ny, length(ilev))
             end

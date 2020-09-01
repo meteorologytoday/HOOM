@@ -233,13 +233,13 @@ elseif  parsed["dims"] == "XYT"
     data_zonal = nanmean( data, dims=(1,) )
     for j=1:Ny        
 
-        montly_d = view(data_zonal, 1, j, :)
+        monthly_d = view(data_zonal, 1, j, :)
         doit!(months, monthly_d, data_ZONAL_MM, data_ZONAL_MA, data_ZONAL_MAVAR, data_ZONAL_MASTD, nyears, 12, (j, 1))
  
         seasonal_d = mean(reshape( circshift(monthly_d, -2), 3, :), dims=1)[1, :]
         doit!(seasons, seasonal_d, data_ZONAL_SM, data_ZONAL_SA, data_ZONAL_SAVAR, data_ZONAL_SASTD, nyears, 4, (j, 1))
         
-        annual_d = mean(reshape( d, 12, : ), dims=1)[1, :]
+        annual_d = mean(reshape( monthly_d, 12, : ), dims=1)[1, :]
         doit!(years,   annual_d, data_ZONAL_AM, data_ZONAL_AA, data_ZONAL_AAVAR, data_ZONAL_AASTD, nyears, 1, (j, 1))
  
     end 
@@ -251,16 +251,31 @@ elseif parsed["dims"] in ["YZT", "YZ"]
     for j=1:Ny, k=1:Nz
         
         d = view(data, j, k, :)
-        doit!(months,           d, data_MM, data_MA, data_MAVAR, data_MASTD, nyears, 12, 1, (j, k)    )
+        doit!(months,           d, data_MM, data_MA, data_MAVAR, data_MASTD, nyears, 12, (1, j, k)    )
         
         seasonal_d = mean(reshape( circshift(d, -2 ), 3, :), dims=1)[1, :]
-        doit!(seasons, seasonal_d, data_SM, data_SA, data_SAVAR, data_SASTD, nyears,  4, 1, (j, k)    )
+        doit!(seasons, seasonal_d, data_SM, data_SA, data_SAVAR, data_SASTD, nyears,  4, (1, j, k)    )
 
         annual_d = mean(reshape( d, 12, :), dims=1)[1, :]
-        doit!(years, annual_d, data_AM, data_AA, data_AAVAR, data_AASTD,     nyears,  1, 1, (j, k)    )
+        doit!(years, annual_d, data_AM, data_AA, data_AAVAR, data_AASTD,     nyears,  1, (1, j, k)    )
 
     end 
 
+
+    data_ZONAL_MM .= data_MM[1, :, :, :]
+    data_ZONAL_MA .= data_MA[1, :, :, :]
+    data_ZONAL_MAVAR .= data_MAVAR[1, :, :, :]
+    data_ZONAL_MASTD .= data_MASTD[1, :, :, :]
+
+    data_ZONAL_SM .= data_SM[1, :, :, :]
+    data_ZONAL_SA .= data_SA[1, :, :, :]
+    data_ZONAL_SAVAR .= data_SAVAR[1, :, :, :]
+    data_ZONAL_SASTD .= data_SASTD[1, :, :, :]
+
+    data_ZONAL_AM .= data_AM[1, :, :, :]
+    data_ZONAL_AA .= data_AA[1, :, :, :]
+    data_ZONAL_AAVAR .= data_AAVAR[1, :, :, :]
+    data_ZONAL_AASTD .= data_AASTD[1, :, :, :]
 
 end
 

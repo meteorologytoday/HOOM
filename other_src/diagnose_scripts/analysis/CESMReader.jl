@@ -107,7 +107,7 @@ module CESMReader
 
                 for (k, varname) in enumerate(varnames)
 
-                    partial_data = nomissing(ds[varname][idxes[k]..., 1])
+                    partial_data = replace(ds[varname][idxes[k]..., 1], missing=>NaN)
                     if flag_1s[k]
                         new_size = size(partial_data)
                         new_idxes[k]  = [Colon() for _ in 1:length(new_size)]
