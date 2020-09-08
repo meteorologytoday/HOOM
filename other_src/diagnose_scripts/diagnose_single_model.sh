@@ -107,6 +107,7 @@ export atm_analysis18=$diag_dir/atm_analysis18_hadleycell.nc
 export atm_analysis19=$diag_dir/atm_analysis19_LHFLX.nc
 export atm_analysis20=$diag_dir/atm_analysis20_SWCF.nc
 export atm_analysis21=$diag_dir/atm_analysis21_LWCF.nc
+export atm_analysis22=$diag_dir/atm_analysis22_ts_zm_PREC.nc
 
 
 
@@ -197,12 +198,20 @@ echo "Doing case: ${casename}"
 
 if [ -f flag_diag_fornow ] ; then
     
+    
+    julia $script_analysis_dir/timeseries_zonal_mean.jl --data-file-prefix="$concat_dir/$casename.cam_extra.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis22 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PREC_TOTAL --dims=XYT 
+#    julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis20 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=SWCF --dims=XYT
+#    julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis21 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=LWCF --dims=XYT
+
+
+#    julia $script_analysis_dir/ocean_heat_transport.jl --data-file-prefix="$ocn_hist_dir/$casename.ocn.h.monthly." --data-file-timestamp-form=YEAR_MONTH --domain-file=$ocn_domain --output-file=$ocn_analysis12_rg --beg-year=$diag_beg_year --end-year=$diag_end_year
+    
     #julia $script_analysis_dir/atm_hadleycells_strength.jl --data-file-prefix="$concat_dir/$casename.cam_extra3_streamfunction.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --ilev-file=$diag_dir/atm_ilev.nc --output-file=$atm_analysis18 --varname=psi --beg-year=$diag_beg_year --end-year=$diag_end_year
  #   julia $script_analysis_dir/atm_heat_transport.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis3 --beg-year=$diag_beg_year --end-year=$diag_end_year
  
-     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis19 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=LHFLX --dims=XYT
-    julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis20 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=SWCF --dims=XYT
-    julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis21 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=LWCF --dims=XYT
+     #julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis19 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=LHFLX --dims=XYT
+    #julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis20 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=SWCF --dims=XYT
+    #julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis21 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=LWCF --dims=XYT
 
 
 fi
@@ -243,6 +252,10 @@ if [ -f flag_diag_all ] || [ -f flag_diag_atm ] ; then
     # Total precipitation
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$concat_dir/$casename.cam_extra.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis4 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PREC_TOTAL --dims=XYT 
     ncwa -h -O -a Nx $atm_analysis4 $atm_analysis4a
+
+    # Precipitation timeseries
+    julia $script_analysis_dir/timeseries_zonal_mean.jl --data-file-prefix="$concat_dir/$casename.cam_extra.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis22 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=PREC_TOTAL --dims=XYT 
+
 
     # TAUX
     julia $script_analysis_dir/mean_anomaly.jl --data-file-prefix="$atm_hist_dir/$casename.cam.h0." --data-file-timestamp-form=YEAR_MONTH --domain-file=$atm_domain --output-file=$atm_analysis17 --beg-year=$diag_beg_year --end-year=$diag_end_year --varname=TAUX --dims=XYT 
