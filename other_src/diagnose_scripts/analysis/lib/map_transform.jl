@@ -25,10 +25,10 @@ module MapTransform
             end
 
             indices = []
-                
-            push!(indices, lat_bnd[1] .<= lat .<= lat_bnd[2])
+            mask_is_one = mask .== 1.0
+            push!(indices, (lat_bnd[1] .<= lat .<= lat_bnd[2]) .& mask_is_one)
             for i = 2:length(lat_bnd)-1
-                push!(indices, (lat_bnd[i] .< lat .<= lat_bnd[i+1]) .& ( mask .== 1.0 ) )
+                push!(indices, (lat_bnd[i] .< lat .<= lat_bnd[i+1]) .& mask_is_one )
             end
 
             ∂a = zeros(Float64, length(lat_bnd)-1)
@@ -38,6 +38,7 @@ module MapTransform
 
             area_chk = sum(area[mask.==1.0])
             if abs((sum(∂a) - area_chk) / area_chk) > 1e-10
+                print(abs((sum(∂a))), "; area_chk=", area_chk)
                 throw(ErrorException("Sum area not equal."))
             end
 
