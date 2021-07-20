@@ -79,8 +79,8 @@ mutable struct Ocean
     SALT             :: AbstractArray{Float64, 2} # Total salt
     dSALTdt          :: AbstractArray{Float64, 2} # Total salt change rate
     
-    qflx_T_correction :: AbstractArray{Float64, 2}
-    qflx_S_correction :: AbstractArray{Float64, 2}
+    qflx_T_correction :: AbstractArray{Float64, 3}
+    qflx_S_correction :: AbstractArray{Float64, 3}
     
     seaice_nudge_energy :: AbstractArray{Float64, 2}
 
@@ -462,8 +462,8 @@ mutable struct Ocean
         _dTEMPdt      = allocate(datakind, Float64, Nx, Ny)
         _SALT      = allocate(datakind, Float64, Nx, Ny)
         _dSALTdt   = allocate(datakind, Float64, Nx, Ny)
-        _qflx_T_correction = allocate(datakind, Float64, Nx, Ny)
-        _qflx_S_correction = allocate(datakind, Float64, Nx, Ny)
+        _qflx_T_correction = allocate(datakind, Float64, Nz_bone, Nx, Ny)
+        _qflx_S_correction = allocate(datakind, Float64, Nz_bone, Nx, Ny)
         _seaice_nudge_energy = allocate(datakind, Float64, Nx, Ny)
 
         if typeof(h_ML) <: AbstractArray{Float64, 2}
@@ -808,6 +808,8 @@ mutable struct Ocean
                 rad_absorp_coes = Array{SubArray}(undef, Nx, Ny),
                 Ts_clim = (Ts_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
                 Ss_clim = (Ss_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
+                qflx_T_correction = Array{SubArray}(undef, Nx, Ny),
+                qflx_S_correction = Array{SubArray}(undef, Nx, Ny),
             ))
             
             for i=1:Nx, j=1:Ny
@@ -823,6 +825,8 @@ mutable struct Ocean
                 cols.Ss_mixed[i, j]        = view(_Ss_mixed, :, i, j)
                 cols.rad_decay_coes[i, j]  = view(_rad_decay_coes,  :, i, j)
                 cols.rad_absorp_coes[i, j] = view(_rad_absorp_coes, :, i, j)
+                cols.qflx_T_correction[i, j] = view(_qflx_T_correction, :, i, j)
+                cols.qflx_S_correction[i, j] = view(_qflx_S_correction, :, i, j)
             end
 
             if Ts_clim != nothing
