@@ -1,20 +1,6 @@
-
-#=
-function doFluxCorrection!(;
-    qs        :: AbstractArray{Float64, 2},
-    qs_target :: AbstractArray{Float64, 2},
-    Δt        :: Float64,
-    τ         :: Float64 = 15 * 86400,
-)
-
-
-
-end
-=#
-
 function calFlxCorrection!(
     ocn :: Ocean;
-    τ   :: Float64 = 15 * 86400.0,
+    τ   :: Float64 = 10 * 86400.0,
     cfgs...
 )
     do_convadjust = cfgs[:do_convadjust]
@@ -23,70 +9,89 @@ function calFlxCorrection!(
     r = Δt / τ
     rr = r / (1.0 + r)
 
+    calTsSsMixed!(ocn)
+
+    # Euler backward method
+    @. ΔT_mixed = rr * (ocn.in_fld.Tclim - ocn.Ts_mixed)
+    @. ΔS_mixed = rr * (ocn.in_fld.Sclim - ocn.Ss_mixed)
 
 
     @loop_hor ocn i j let
-       
-        # Euler backward method
-
-        ifrac = ocn.in_flds.ifrac[i, j]
-        ifrac_clim = ocn.in_flds.IFRACclim[i, j]
+ 
         T_ML = ocn.T_ML[i, j]
         S_ML = ocn.S_ML[i, j]
         FLDO = ocn.FLDO[i, j]
         h_ML = ocn.h_ML[i, j]
+
+        if FLDO == -1  # Whole ocean layer. In the future I want to restrict FLDO so that code can be cleaner.
+            
+            ΔT_ML = 0.0
+            for k=1:ocn.Nz[i, j]
+                ΔT_ML += ΔT_mixed[k, i, j] * ocn.hs[k, i, j]
+            end
+            ΔT_ML /= h_ML
+            
+            
+            ΔS_ML = 0.0
+            for k=1:ocn.Nz[i, j]
+                ΔS_ML += ΔS_mixed[k, i, j] * ocn.hs[k, i, j]
+            end
+            ΔS_ML /= h_ML
+
+
+            T_ML += ΔT_ML
+            S_ML += ΔS_ML
+            ocn.T_ML[i, j] = T_ML
+            ocn.S_ML[i, j] = S_ML
+
+            ocn.Ts[:, i, j] .= T_ML
+            ocn.Ss[:, i, j] .= S_ML
+  
+        else
+            # With in mixed-layer
+            if FLDO > 1
  
-
-        ΔS = rr * (ocn.in_flds.Sclim[i, j] - S_ML)
-
-        # when ifrac == 0 then SST is not changing while energy are still flowing
-        # the solution is to use ifrac as additional information to recover Qflx_T
-        ΔT_openocn = rr * (ocn.in_flds.Tclim[i, j] - T_ML)
-
-        # Old method. Keep in comment for safety
-        # Assume seaice thickenss = 1.0m
-        # energy_to_melt_seaice = 1.0 * (ifrac - ifrac_clim) * ρ_si * Hf_sw
-        # ΔT_seaice = 100energy_to_melt_seaice / h_ML / ρc_sw * r
-
-        # New method: observe that between -1~-2 degC, slope of SST - IFRAC is
-        # roughly 100% / 1K. Use this as a diagnostic relation to determine
-        # nudged SST.
-        ΔT_seaice = rr * (ifrac - ifrac_clim)
-
-        # If ifrac is too high, then the melting will be intensified
-        # Reason is that there is an upper bound for ifrac that limits
-        # the relaxation rate.
-        if ifrac > .90 
-            ΔT_seaice *= 1.0 + 1.0 * (ifrac - .90) / (1.00 - .90)
-        end
-
-        #=
-        IFRAC
-         0.30 => 1  => dominated by ΔT_seaice
-         0.15 => 0  => dominated by ΔT_openocn
-        =#
-        wgt_seaice= max( min( (1 - 0) / (.30 - .15) * (ifrac - .15), 1.0), 0.0)
-        ΔT = ΔT_openocn * (1.0 - wgt_seaice) + ΔT_seaice * wgt_seaice 
+                ΔT_ML = 0.0
+                for k=1:FLDO-1
+                    ΔT_ML += ΔT_mixed[k, i, j] * ocn.hs[k, i, j]
+                end
+                ΔT_ML += ΔT_mixed[FLDO, k, j] * (ocn.zs[FLDO, i, j] + h_ML)
+                ΔT_ML /= h_ML
 
 
-        T_ML += ΔT
-        S_ML += ΔS
-        ocn.T_ML[i, j] = T_ML
-        ocn.S_ML[i, j] = S_ML
-        if FLDO > 1
-            ocn.Ts[1:FLDO-1, i, j] .= T_ML
-            ocn.Ss[1:FLDO-1, i, j] .= S_ML
-        elseif FLDO == -1
-            ocn.Ts[1:ocn.Nz[i, j], i, j] .= T_ML
-            ocn.Ss[1:ocn.Nz[i, j], i, j] .= S_ML
-        end
+                ΔS_ML = 0.0
+                for k=1:FLDO-1
+                    ΔS_ML += ΔS_mixed[k, i, j] * ocn.hs[k, i, j]
+                end
+                ΔS_ML += ΔS_mixed[FLDO, k, j] * (ocn.zs[FLDO, i, j] + h_ML)
+                ΔS_ML /= h_ML
 
-        ocn.qflx_T_correction[i, j] = ΔT * ocn.h_ML[i, j] * ρc_sw   / Δt   # + => warming
-        ocn.qflx_S_correction[i, j] = ΔS * ocn.h_ML[i, j]           / Δt   # + => saltier
+
+                T_ML += ΔT_ML
+                S_ML += ΔS_ML
+                ocn.T_ML[i, j] = T_ML
+                ocn.S_ML[i, j] = S_ML
+
+                ocn.Ts[1:FLDO-1, i, j] .= T_ML
+                ocn.Ss[1:FLDO-1, i, j] .= S_ML
+            
+            end
+
+            # Deeper ocean
+            if FLDO != -1
+                @. ocn.Ts[FLDO:end, i, j] += ΔT_mixed[FLDO:end, i, j]           
+                @. ocn.Ss[FLDO:end, i, j] += ΔS_mixed[FLDO:end, i, j]           
+            end
+        
+        end 
 
         OC_updateB!(ocn, i, j)
 
     end
+
+    @. ocn.qflx_T_correction = ΔT_mixed * ocn.hs * ρc_sw   / Δt   # + => warming
+    @. ocn.qflx_S_correction = ΔS_mixed * ocn.hs           / Δt   # + => saltier
+
 
     if do_convadjust
         @loop_hor ocn i j let
