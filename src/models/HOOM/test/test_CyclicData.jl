@@ -2,6 +2,7 @@ include("../CyclicData.jl")
 
 using .CyclicData
 using Plots
+using CFTime
 
 varnames = ["vice_target"]
 
@@ -21,9 +22,12 @@ for varname in varnames
 end
 
 data_shaped = reshape(data["vice_target"], 320, 384)
+raw_data_shaped = reshape(cdm.data["vice_target"], 320, 384, :)
 
 t_needed = range(0, 365, length=366) |> collect
 data_needed = t_needed |> copy
+
+first_day_of_month = [ timeencode( DateTimeNoLeap(0, m, 1), "days since 0000-01-01 00:00:00", "noleap") for m=1:12]
 
 for (i, t) in enumerate(t_needed)
 
@@ -32,5 +36,7 @@ for (i, t) in enumerate(t_needed)
 
 end
 
+days_of_month = 
+p = scatter(t_needed, data_needed, ticks=first_day_of_month)
+scatter!(p, cdm.t_vec, raw_data_shaped[217, 15, :])
 
-scatter(t_needed, data_needed)
