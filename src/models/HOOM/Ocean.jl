@@ -58,8 +58,14 @@ mutable struct Ocean
     SFLUX_DIV_implied      :: AbstractArray{Float64, 2}
 
     bs       :: AbstractArray{Float64, 3}
+
     Ts       :: AbstractArray{Float64, 3}
     Ss       :: AbstractArray{Float64, 3}
+
+    # Ts and Ss with FLDO mixed so that it represents the temp and salt of the whole grid
+    # Only master need this to output data
+    Ts_mixed :: Union{Nothing, AbstractArray{Float64, 3}}
+    Ss_mixed :: Union{Nothing, AbstractArray{Float64, 3}}
 
     FLDO           :: AbstractArray{Int64,   2}
     FLDO_ratio_top :: AbstractArray{Float64,   2}
@@ -510,6 +516,9 @@ mutable struct Ocean
             _Ss .= Ss
         end
 
+        _Ts_mixed = copy(_Ts)
+        _Ss_mixed = copy(_Ts)
+
         # ===== [END] Column information =====
 
         # ===== [BEGIN] Radiation =====
@@ -793,6 +802,8 @@ mutable struct Ocean
                 bs = Array{SubArray}(undef, Nx, Ny),
                 Ts = Array{SubArray}(undef, Nx, Ny),
                 Ss = Array{SubArray}(undef, Nx, Ny),
+                Ts_mixed = Array{SubArray}(undef, Nx, Ny),
+                Ss_mixed = Array{SubArray}(undef, Nx, Ny),
                 rad_decay_coes  = Array{SubArray}(undef, Nx, Ny),
                 rad_absorp_coes = Array{SubArray}(undef, Nx, Ny),
                 Ts_clim = (Ts_clim == nothing) ? nothing : Array{SubArray}(undef, Nx, Ny),
@@ -808,6 +819,8 @@ mutable struct Ocean
                 cols.bs[i, j]              = view(_bs, :, i, j)
                 cols.Ts[i, j]              = view(_Ts, :, i, j)
                 cols.Ss[i, j]              = view(_Ss, :, i, j)
+                cols.Ts_mixed[i, j]        = view(_Ts_mixed, :, i, j)
+                cols.Ss_mixed[i, j]        = view(_Ss_mixed, :, i, j)
                 cols.rad_decay_coes[i, j]  = view(_rad_decay_coes,  :, i, j)
                 cols.rad_absorp_coes[i, j] = view(_rad_absorp_coes, :, i, j)
             end
@@ -868,6 +881,7 @@ mutable struct Ocean
             _TFLUX_bot, _SFLUX_bot, _SFLUX_top,
             _TFLUX_DIV_implied, _SFLUX_DIV_implied,
             _bs,   _Ts,   _Ss,
+            _Ts_mixed,   _Ss_mixed,
             _FLDO, _FLDO_ratio_top, _FLDO_ratio_bot,
             _qflx2atm, _qflx2atm_pos, _qflx2atm_neg,
             _TEMP, _dTEMPdt, _SALT, _dSALTdt,

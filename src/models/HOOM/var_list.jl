@@ -5,6 +5,8 @@ function getCompleteVariableList(ocn::Ocean)
             # RECORD
             "Ts"                 => ( toXYZ(ocn.Ts, :zxy),          ("Nx", "Ny", "Nz_bone") ),
             "Ss"                 => ( toXYZ(ocn.Ss, :zxy),          ("Nx", "Ny", "Nz_bone") ),
+            "Ts_mixed"           => ( toXYZ(ocn.Ts_mixed, :zxy),    ("Nx", "Ny", "Nz_bone") ),
+            "Ss_mixed"           => ( toXYZ(ocn.Ss_mixed, :zxy),    ("Nx", "Ny", "Nz_bone") ),
             "bs"                 => ( toXYZ(ocn.bs, :zxy),          ("Nx", "Ny", "Nz_bone") ),
             "T_ML"               => ( ocn.T_ML,                     ("Nx", "Ny") ),
             "S_ML"               => ( ocn.S_ML,                     ("Nx", "Ny") ),
@@ -113,7 +115,8 @@ function getVariableList(ocn::Ocean, keywords...)
             elseif keyword == :ESSENTIAL
                 
                 append!(output_varnames, [
-                    "Ts", "Ss", "T_ML", "S_ML",
+                    "T_ML", "S_ML",
+                    "Ts_mixed", "Ss_mixed",
                     "TSAS_clim", "SSAS_clim",
                     "TFLUX_bot", "SFLUX_bot",
                     "SFLUX_top",
@@ -134,6 +137,7 @@ function getVariableList(ocn::Ocean, keywords...)
                 
                 append!(output_varnames, [
                     "Ts", "Ss", "T_ML", "S_ML", "b_ML", "bs", "FLDO", "h_MO",
+                    "Ts_mixed", "Ss_mixed",
                     "TSAS_clim", "SSAS_clim",
                     "TFLUX_bot", "SFLUX_bot",
                     "SFLUX_top",

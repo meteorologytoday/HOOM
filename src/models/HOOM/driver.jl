@@ -418,7 +418,7 @@ function run!(
     sync_bnd_vars3 = (:Ts,   :Ss)
 
     sync_to_master_vars2 = (:T_ML, :S_ML, :b_ML, :h_ML, :FLDO, :h_MO, :fric_u, :qflx2atm, :qflx2atm_pos, :qflx2atm_neg, :τx, :τy, :TSAS_clim, :SSAS_clim, :TFLUX_DIV_implied, :SFLUX_DIV_implied, :TEMP, :dTEMPdt, :SALT, :dSALTdt, :dTdt_ent, :dSdt_ent, :TFLUX_bot, :SFLUX_bot, :SFLUX_top, :qflx_T_correction, :qflx_S_correction, :seaice_nudge_energy)
-    sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :TFLUX_CONV, :SFLUX_CONV, :TFLUX_DEN_z, :SFLUX_DEN_z, :div)
+    sync_to_master_vars3 = (:Ts, :Ss, :bs, :u, :v, :w_bnd, :TFLUX_CONV, :SFLUX_CONV, :TFLUX_DEN_z, :SFLUX_DEN_z, :div, :Ts_mixed, :Ss_mixed)
 
     #accumulative_vars2 = (:dTdt_ent, :dSdt_ent)
     #accumulative_vars3 = (:TFLUX_CONV, :T_vflux_ML, :SFLUX_CONV, :S_vflux_ML)
@@ -450,7 +450,7 @@ function run!(
             stepOcean_slowprocesses!(subocn.worker_ocn; Δt = Δt, cfgs...)
 
             if cfgs[:do_qflx_finding]
-                calFlxCorrection!(subocn.worker_ocn; Δt = Δt, τ=15*86400.0, cfgs...)
+                calFlxCorrection!(subocn.worker_ocn; Δt = Δt, τ=10*86400.0, cfgs...)
             end
 
             if cfgs[:do_seaice_nudging]
@@ -466,7 +466,11 @@ function run!(
             calDirect∂SALT∂t!(subocn.worker_ocn; Δt=Δt)
             calImplied∂TEMP∂t!(subocn.worker_ocn; cfgs...)
             calImplied∂SALT∂t!(subocn.worker_ocn; cfgs...)
-    
+  
+
+            # Special: calculate Ts_mixed and Ss_mixed
+            calTsSsMixed!(subocn.worker_ocn)
+ 
             syncToMaster!(
                 subocn;
                 vars2 = sync_to_master_vars2,
