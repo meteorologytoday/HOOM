@@ -6,23 +6,19 @@ using Distributed
 using SharedArrays
 
 
-include(normpath(joinpath(dirname(@__FILE__), "..", "share", "ModelClockSystem.jl")))
-include(normpath(joinpath(dirname(@__FILE__), "..", "share", "MapInfo.jl")))
-
+if !(:ModelClockSystem in names(Main))
+    include(normpath(joinpath(dirname(@__FILE__), "..", "share", "ModelClockSystem.jl")))
+end
 using .ModelClockSystem
-using .ModelMap
 
 function runModel(
     OMMODULE     :: Any,
     t_start      :: DateTimeNoLeap,
-    Δt           :: TimePeriod,
+    Δt           :: Second,
     steps        :: Integer,
     read_restart :: Bool, 
     configs      :: Dict,  
 )
-
-    println("Loading domain file: ", configs[:domain_file])
-    map = MapInfo{Float64}(configs[:domain_file])
 
     # copy the start time
     beg_datetime = t_start + Dates.Second(0)
@@ -39,30 +35,19 @@ function runModel(
     println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
     OMDATA = OMMODULE.init(
         casename     = configs[:casename],
-        map          = map,
         clock        = clock,
         configs      = configs,
         read_restart = read_restart,
     )
 
-    addAlarm!(clock, "end_date_reached", end_datetime)
+    addAlarm!(clock, "end_date_reached", end_datetime, 1)
 
-    add_next = function (clk, alm = nothing)
-        addAlarm!(clk, "Every 2 hours alarm", clk.time + Hour(2), add_next)
-    end
-
-
-
-
-
-
-    add_next(clock, nothing)
-
+    println("Ready to run the model.")
     for step=1:steps
         
         println(format("Current time: {:s}", clock2str(clock)))
-        
         advanceClock!(clock, Δt)
+
     end
         
     println("Program Ends.")

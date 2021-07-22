@@ -1,4 +1,7 @@
-include(joinpath(@__DIR__, "HOOM.jl"))
+
+if ! ( :HOOM in names(Main) )
+    include(joinpath(@__DIR__, "HOOM.jl"))
+end
 
 module CESMCORE_HOOM
 
@@ -6,12 +9,13 @@ module CESMCORE_HOOM
     include(joinpath(@__DIR__, "..", "..", "share", "CheckDict.jl"))
     include(joinpath(@__DIR__, "..", "..", "share", "AppendLine.jl"))
 
+    using Dates
     using Formatting
-    using ..ModelMap
     using ..HOOM
     using ..ModelClockSystem
     using NCDatasets
     using .RecordTool
+
 
     name = "HOOM"
 
@@ -19,7 +23,6 @@ module CESMCORE_HOOM
 
     mutable struct HOOM_DATA
         casename    :: AbstractString
-        map         :: MapInfo
         ocn         :: HOOM.Ocean
         clock       :: ModelClock
 
@@ -34,7 +37,6 @@ module CESMCORE_HOOM
 
     function init(;
         casename     :: AbstractString,
-        map          :: MapInfo,
         clock        :: ModelClock,
         configs      :: Dict,
         read_restart :: Bool,
@@ -196,7 +198,6 @@ module CESMCORE_HOOM
 
         MD = HOOM_DATA(
             casename,
-            map,
             ocn,
             clock,
             x2o,
@@ -205,12 +206,104 @@ module CESMCORE_HOOM
             recorders,
         )
 
+
+        # Must create the record file first because the
+        # run of the first day is not called in CESM
+        if MD.configs[:enable_archive]
+
+            if length(MD.configs[:daily_record]) != 0
+                recorder_day = recorders[:daily_record]
+                addAlarm!(
+                    clock,
+                    "[Daily] Create daily output file.",
+                    clock.time,
+                    2;
+                    callback = function (clk, alm)
+                        createRecordFile!(MD, "h1.day", recorder_day)
+                    end,
+                    recurring = Month(1),
+                )
+
+
+                addAlarm!(
+                    clock,
+                    "[Daily] Daily output",
+                    clock.time,
+                    1;
+                    callback = function (clk, alm)
+                        record!(recorder_day)
+                        avgAndOutput!(recorder_day) # This is important
+                    end,
+                    recurring = Day(1),
+                )
+
+
+            end
+
+            if length(MD.configs[:monthly_record]) != 0
+
+                # Design alarm such that
+                # (1) Create output file first
+                # (2) Record the initial condition
+                # (3) Record simulation after one day is stepped
+                # (4) If it is the first day of next month
+                #     (i)   avg and output data
+                #     (ii)  create next monthly file
+                #     (iii) record this step in the new file in (ii)
+                #     
+
+                recorder_mon = recorders[:monthly_record]
+
+                addAlarm!(
+                    clock,
+                    "[Monthly] Create monthly output file.",
+                    clock.time, # Rings immediately
+                    2;
+                    callback = function (clk, alm)
+                        createRecordFile!(MD, "h0.mon", recorder_mon)
+                    end,
+                    recurring = Month(1),
+                )
+                
+                addAlarm!(
+                    clock,
+                    "[Monthly] Daily accumulation using record!",
+                    clock.time, # Remember we need to record the first one. So alarm rings immediately.
+                    1;
+                    callback = function (clk, alm)
+                        record!(recorder_mon)
+                    end,
+                    recurring = Day(1),
+                )
+
+                addAlarm!(
+                    clock,
+                    "[Monthly] Average and output monthly data.",
+                    clock.time + Month(1), # Start from next month
+                    3;  # Higher priority so it outputs data before creating next new monthly file
+                    callback = function (clk, alm)
+                        avgAndOutput!(recorder_mon)
+                    end,
+                    recurring = Month(1),
+                )
+ 
+            end
+
+
+        end
+
+
+
+
+
+#=
         run!(
             MD;
             Δt            = 0.0,
             write_restart = false,
             first_run     = true,
         )
+=#
 
         return MD
 
@@ -223,64 +316,54 @@ module CESMCORE_HOOM
         first_run     :: Bool = false,
     )
 
-        if first_run
-
-            # Must create the record file first because the
-            # run of the first day is not called in CESM
-            archive_createFileIfNeeded!(MD)
-            archive_record!(MD)
-
-        else
-
-            # Record (not output) happens AFTER the simulation.
-            # Output of the current simulation happens at the
-            # BEGINNING of the next simulation.
-            #
-            # Reason 1:
-            # CESM does not simulate the first day of a `continue` run.
-            # The first day has been simulated which is the last day of
-            # the last run which is exactly the restart file. This is 
-            # also why we have to call archive_record! function in the 
-            # end of initialization.
-            #
-            # Reason 2:
-            # Output happens at the beginning the next simulation. By
-            # doing this we can get rid of the problem of deciding which
-            # day is the end of month.
-            #
-            # This is also the way CAM chooses to do detect the end of
-            # current month. 
-            # See: http://www.cesm.ucar.edu/models/cesm1.0/cesm/cesmBbrowser/html_code/cam/time_manager.F90.html
-            #      is_end_curr_month
-            #
-            archive_outputIfNeeded!(MD)
+        # Record (not output) happens AFTER the simulation.
+        # Output of the current simulation happens at the
+        # BEGINNING of the next simulation.
+        #
+        # Reason 1:
+        # CESM does not simulate the first day of a `continue` run.
+        # The first day has been simulated which is the last day of
+        # the last run which is exactly the restart file. This is 
+        # also why we have to call archive_record! function in the 
+        # end of initialization.
+        #
+        # Reason 2:
+        # Output happens at the beginning the next simulation. By
+        # doing this we can get rid of the problem of deciding which
+        # day is the end of month.
+        #
+        # This is also the way CAM chooses to do detect the end of
+        # current month. 
+        # See: http://www.cesm.ucar.edu/models/cesm1.0/cesm/cesmBbrowser/html_code/cam/time_manager.F90.html
+        #      is_end_curr_month
+        #
+#            archive_outputIfNeeded!(MD)
 
             # File must be created AFTER it is output.
-            archive_createFileIfNeeded!(MD)
+#            archive_createFileIfNeeded!(MD)
 
-            HOOM.run!(
-                MD.ocn;
-                substeps         = MD.configs[:substeps],
-                use_h_ML         = MD.configs[:MLD_scheme] == :datastream,
-                Δt               = Δt,
-                do_vert_diff     = MD.configs[:vertical_diffusion_scheme] == :on,
-                do_horz_diff     = MD.configs[:horizontal_diffusion_scheme] == :on,
-                do_relaxation    = MD.configs[:relaxation_scheme] == :on,
-                do_convadjust    = MD.configs[:convective_adjustment_scheme] == :on,
-                rad_scheme       = MD.configs[:radiation_scheme],
-                adv_scheme       = MD.configs[:advection_scheme],
-                do_qflx          = MD.configs[:Qflux_scheme] == :on,
-                do_qflx_finding  = MD.configs[:Qflux_finding] == :on,
-                do_seaice_nudging = MD.configs[:seaice_nudging] == :on,
-            )
+        HOOM.run!(
+            MD.ocn;
+            substeps         = MD.configs[:substeps],
+            use_h_ML         = MD.configs[:MLD_scheme] == :datastream,
+            Δt               = Δt,
+            do_vert_diff     = MD.configs[:vertical_diffusion_scheme] == :on,
+            do_horz_diff     = MD.configs[:horizontal_diffusion_scheme] == :on,
+            do_relaxation    = MD.configs[:relaxation_scheme] == :on,
+            do_convadjust    = MD.configs[:convective_adjustment_scheme] == :on,
+            rad_scheme       = MD.configs[:radiation_scheme],
+            adv_scheme       = MD.configs[:advection_scheme],
+            do_qflx          = MD.configs[:Qflux_scheme] == :on,
+            do_qflx_finding  = MD.configs[:Qflux_finding] == :on,
+            do_seaice_nudging = MD.configs[:seaice_nudging] == :on,
+        )
 
-            archive_record!(MD)
-            
-            if write_restart #|| MD.timeinfo.t_flags[:new_month]
-                writeRestart(MD)
-            end
-
+        archive_record!(MD)
+        
+        if write_restart #|| MD.timeinfo.t_flags[:new_month]
+            writeRestart(MD)
         end
+
     end
 
     function final(MD::HOOM_DATA)
@@ -288,6 +371,32 @@ module CESMCORE_HOOM
     end
 
 
+    function createRecordFile!(
+        MD     :: HOOM_DATA, 
+        group  :: String,
+        recorder :: RecordTool.Recorder,
+    )
+
+        t = dt2tuple(MD.clock.time)
+
+        filename = format("{}.HOOM.{}.{:04d}-{:02d}.nc", MD.casename, group, t[1], t[2])
+
+        setNewNCFile!(
+            recorder,
+            joinpath(MD.configs[:caserun], filename)
+        )
+            
+        appendLine(MD.configs[:archive_list], 
+            format("mv,{:s},{:s},{:s}",
+                filename,
+                MD.configs[:caserun],
+                joinpath(MD.configs[:archive_root], "ocn", "hist"),
+            )
+        )
+
+    end
+
+#=
     function archive_createFileIfNeeded!(
         MD :: HOOM_DATA;
     )
@@ -340,49 +449,15 @@ module CESMCORE_HOOM
 
            
     end
+=#
 
-    function archive_record!(
-        MD               :: HOOM_DATA;
-    )
 
-        if ! MD.configs[:enable_archive]
-            return
-        end
- 
-        t_flags = MD.timeinfo.t_flags
-        t = MD.timeinfo.t
+    function output!(
         
-        # Daily record block
-        if length(MD.configs[:daily_record]) != 0
-
-            #println("## RECORD DAILY!")
-            RecordTool.record!(MD.recorders[:daily_record])
-        
-        end
- 
- 
-        if length(MD.configs[:monthly_record]) != 0
-
-            #println("## RECORD MONTHLY!")
-            RecordTool.record!(MD.recorders[:monthly_record])
-
-        end
-             
-    end
-
-
-    function archive_outputIfNeeded!(
         MD               :: HOOM_DATA;
         force_output     :: Bool = false,
     )
 
-        if ! MD.configs[:enable_archive]
-            return
-        end
- 
-        t_flags = MD.timeinfo.t_flags
-        t = MD.timeinfo.t
-        
         # Daily record block
         if (length(MD.configs[:daily_record]) != 0) && t_flags[:new_day]
 

@@ -2,10 +2,11 @@ include("HOOM/src/driver/pseudo_driver.jl")
 include("HOOM/src/models/HOOM/CESMCORE_HOOM.jl")
 
 using CFTime
+using Dates
 
 t_start = DateTimeNoLeap(1, 1, 1)
-Δt = Dates.Second(1800)
-steps = Int64(2*86400 / Δt.value)
+Δt = Second(86400)
+steps = 59
 
 configs = Dict(
     :substeps    => 8, # This controls how many steps will occur for each CESM coupling. Example: ocean couple to atmosphere every 24 hours but itself steps every 3 hours. This means we would expect `Δt` = 86400, and we set `substeps` = 8.
@@ -16,27 +17,27 @@ configs = Dict(
     :rpointer_file             => "rpointer.hoom",
 
     :casename     => "Sandbox",
-    :caseroot     => @__DIR__,
-    :caserun      => @__DIR__,
+    :caseroot     => joinpath(@__DIR__, "Sandbox", "caseroot"),
+    :caserun      => joinpath(@__DIR__, "Sandbox", "caserun"),
     :domain_file  => "domain.lnd.fv4x5_gx3v7.091218.nc",
-    :archive_root => joinpath(@__DIR__, "hist"),
+    :archive_root => joinpath(@__DIR__, "Sandbox", "hist"),
     :enable_archive             => true,
-    :daily_record               => [],
+    :daily_record               => :ESSENTIAL,
     :monthly_record             => :ESSENTIAL,
     :yearly_snapshot            => true,
     :substeps                   => 8,
-    :init_file                  => nothing,
+    :init_file                  => joinpath(@__DIR__, "ocn_init.nc"),
     
     :MLD_scheme                   => :datastream,
-    :Qflux_scheme                 => :on,
+    :Qflux_scheme                 => :off,
     :Qflux_finding                => :off,
     :seaice_nudging               => :off,
     :vertical_diffusion_scheme    => :off,
     :horizontal_diffusion_scheme  => :off,
-    :relaxation_scheme            => :on,
-    :convective_adjustment_scheme => :on,
+    :relaxation_scheme            => :off,
+    :convective_adjustment_scheme => :off,
     :radiation_scheme             => :step,
-    :advection_scheme             => :ekman_codron2012_partition,
+    :advection_scheme             => :static,#ekman_codron2012_partition,
 )
 
 read_restart = false

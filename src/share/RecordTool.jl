@@ -2,6 +2,9 @@ module RecordTool
     using NCDatasets
     using Formatting
     using Dates
+
+    export Recorder, setNewNCFile!, record!, avgAndOutput! 
+
     missing_value = 1e20
  
     mutable struct NonStatObj 
