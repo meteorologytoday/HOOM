@@ -1,37 +1,60 @@
 using CFTime
 using Dates
 using Formatting
+using JSON
+using Distributed
+using SharedArrays
 
-include("../share/ModelClockSystem.jl")
+
+include(normpath(joinpath(dirname(@__FILE__), "..", "share", "ModelClockSystem.jl")))
+include(normpath(joinpath(dirname(@__FILE__), "..", "share", "MapInfo.jl")))
 
 using .ModelClockSystem
+using .ModelMap
 
-
-function runOfflineModel(
-    t_start :: DateTimeNoLeap,
-    Δt      :: TimePeriod,
-    steps   :: Integer, 
-    map,
-    configs, 
+function runModel(
+    OMMODULE     :: Any,
+    t_start      :: DateTimeNoLeap,
+    Δt           :: TimePeriod,
+    steps        :: Integer,
+    read_restart :: Bool, 
+    configs      :: Dict,  
 )
 
-    Δt = Second(Δt)
+    println("Loading domain file: ", configs[:domain_file])
+    map = MapInfo{Float64}(configs[:domain_file])
+
     # copy the start time
     beg_datetime = t_start + Dates.Second(0)
     end_datetime = beg_datetime + Δt * steps 
     println(format("Begin datetime: {:s}", dt2str(beg_datetime) ))
     println(format("End   datetime: {:s}", dt2str(end_datetime) ))
-    println(format("Δt            : {:d} seconds", Δt.value))
+    println(format("Δt            : {:d} seconds", Second(Δt).value))
     println(format("steps         : {:d}", steps))
 
-    # run model
+    # Construct model clock
     clock = ModelClock("Model", beg_datetime)
+
+    # initializing
+    println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
+    OMDATA = OMMODULE.init(
+        casename     = configs[:casename],
+        map          = map,
+        clock        = clock,
+        configs      = configs,
+        read_restart = read_restart,
+    )
 
     addAlarm!(clock, "end_date_reached", end_datetime)
 
     add_next = function (clk, alm = nothing)
         addAlarm!(clk, "Every 2 hours alarm", clk.time + Hour(2), add_next)
     end
+
+
+
+
+
 
     add_next(clock, nothing)
 

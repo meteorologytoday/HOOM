@@ -1,4 +1,5 @@
 include(joinpath(@__DIR__, "HOOM.jl"))
+
 module CESMCORE_HOOM
 
     include(joinpath(@__DIR__, "..", "..", "share", "RecordTool.jl"))
@@ -6,12 +7,11 @@ module CESMCORE_HOOM
     include(joinpath(@__DIR__, "..", "..", "share", "AppendLine.jl"))
 
     using Formatting
-    using ..NetCDFIO
+    using ..ModelMap
     using ..HOOM
-    using ..ModelTime
+    using ..ModelClockSystem
     using NCDatasets
     using .RecordTool
-
 
     name = "HOOM"
 
@@ -19,9 +19,9 @@ module CESMCORE_HOOM
 
     mutable struct HOOM_DATA
         casename    :: AbstractString
-        map         :: NetCDFIO.MapInfo
+        map         :: MapInfo
         ocn         :: HOOM.Ocean
-        timeinfo    :: ModelTime.TimeInfo
+        clock       :: ModelClock
 
         x2o         :: Dict
         o2x         :: Dict
@@ -29,14 +29,13 @@ module CESMCORE_HOOM
         configs       :: Dict
 
         recorders   :: Dict
-
     end
 
 
     function init(;
         casename     :: AbstractString,
-        map          :: NetCDFIO.MapInfo,
-        timeinfo     :: ModelTime.TimeInfo,
+        map          :: MapInfo,
+        clock        :: ModelClock,
         configs      :: Dict,
         read_restart :: Bool,
     )
@@ -199,7 +198,7 @@ module CESMCORE_HOOM
             casename,
             map,
             ocn,
-            timeinfo,
+            clock,
             x2o,
             o2x,
             configs,
