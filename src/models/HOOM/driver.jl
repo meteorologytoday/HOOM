@@ -479,7 +479,7 @@ function run!(
         end
     end
 
-
+    calDiagnostics!(ocn)
 
     println(format("### Cost: prep={:.1f}s , main={:.1f}s, final={:.1f}s. ###", cost_prep, cost_main, cost_final))
 

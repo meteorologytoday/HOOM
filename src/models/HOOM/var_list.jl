@@ -83,7 +83,12 @@ function getCompleteVariableList(ocn::Ocean)
             "zeta"               => ( :ζ,                           :SCALAR      ),
             "Ts_clim_relax_time" => ( :Ts_clim_relax_time,          :SCALAR      ),
             "Ss_clim_relax_time" => ( :Ss_clim_relax_time,          :SCALAR      ),
-            
+
+            # DIAGNOSTIC            
+            "total_heat" => ( ocn.diag[:total_heat],                ("scalar",)  ),
+            "total_salt" => ( ocn.diag[:total_salt],                ("scalar",)  ),
+            "total_heat_budget_residue" => ( ocn.diag[:total_heat_budget_residue], ("scalar",)  ),
+            "total_salt_budget_residue" => ( ocn.diag[:total_salt_budget_residue], ("scalar",)  ),
         )
 end
 
@@ -131,6 +136,8 @@ function getVariableList(ocn::Ocean, keywords...)
                     "TFLUX_DEN_z", "SFLUX_DEN_z",
                     "div",
                     "w_bnd", "u", "v", "TFLUX_CONV", "SFLUX_CONV",
+                    "total_heat", "total_heat_budget_residue",
+                    "total_salt", "total_salt_budget_residue",
                 ])
 
             elseif keyword == :DEBUG

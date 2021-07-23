@@ -174,6 +174,9 @@ mutable struct Ocean
 
     deep_ocn_correction_start_layer :: Integer
 
+
+    diag :: Dict
+
     function Ocean(;
         id       :: Integer = 0,  
         gridinfo_file :: AbstractString,
@@ -846,7 +849,7 @@ mutable struct Ocean
 
         # ===== [BEGIN] Making speed-up matrix
 
-        if id != 0
+        if true || id != 0
             ASUM = AdvectionSpeedUpMatrix(;
                 gi    = gridinfo,
                 Nz    = Nz_bone,
@@ -865,6 +868,13 @@ mutable struct Ocean
             zs = zs_bone,
             z  = -1.0,
             Nz = length(zs_bone) - 1
+        )
+
+        diag = Dict(
+            :total_heat => zeros(Float64, 1),
+            :total_salt => zeros(Float64, 1),
+            :total_heat_budget_residue => zeros(Float64, 1),
+            :total_salt_budget_residue => zeros(Float64, 1),
         )
 
 
@@ -915,6 +925,7 @@ mutable struct Ocean
             ASUM,
             Workspace(Nx=Nx, Ny=Ny, Nz=Nz_bone, shape=:zxy),
             deep_ocn_correction_start_layer,
+            diag,
         )
 
         updateB!(ocn)

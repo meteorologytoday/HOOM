@@ -18,7 +18,6 @@ function calImplied∂TEMP∂t!(
     dTEMPdt            = ocn.dTEMPdt
 
     @loop_hor ocn i j let
-        #TFLUX_DIV_implied[i, j] = - TSAS_clim[i, j] - ( nswflx[i, j] + swflx[i, j] ) + TFLUX_bot[i, j] * ρc + max(qflx2atm[i, j], 0.0) - dTEMPdt[i, j]
         TFLUX_DIV_implied[i, j] =  ( - ( nswflx[i, j] + swflx[i, j] ) + max(qflx2atm[i, j], 0.0) ) / ρc_sw + TSAS_clim[i, j] + TFLUX_bot[i, j] - dTEMPdt[i, j]
     end
 
@@ -73,23 +72,6 @@ function calDirect∂TEMP∂t!(ocn::Ocean; Δt::Float64)
 
     end
 
-
-    #=
-    tmp_budget = 0.0
-    tmp_σ = 0.0
-    @loop_hor ocn i j let
-        #tmp_budget += (ocn.dTEMPdt[i, j] - ocn.wT[i, j] * ρc ) * ocn.mi.area[i, j]
-        #tmp_σ      += ocn.mi.area[i, j]
-
-        tmp_budget += (ocn.dTEMPdt[i, j] - ocn.wT[i, j] * ρc ) * ocn.gi.dσ[i, j]
-        tmp_σ      += ocn.gi.dσ[i, j]
-
-    end
-
-    println("total balance check inside NKOM (W / m^2): ", tmp_budget / tmp_σ)
-    
-    =#
-
 end
 
 function calTEMP!(ocn::Ocean)
@@ -107,20 +89,7 @@ function calDirect∂SALT∂t!(ocn::Ocean; Δt::Float64)
         ocn.SALT[i, j], ocn.dSALTdt[i, j] = tmp_SALT, (tmp_SALT - ocn.SALT[i, j]) / Δt
 
     end
-    #=
-    tmp_budget = 0.0
-    tmp_σ = 0.0
-    @loop_hor ocn i j let
-
-        tmp_budget += (ocn.dSALTdt[i, j] - ocn.wS[i, j] ) * ocn.gi.dσ[i, j]
-        tmp_σ      += ocn.gi.dσ[i, j]
-
-    end
-
-    println("total SALT balance check inside NKOM (W / m^2): ", tmp_budget / tmp_σ)
-    
-    =#
-
+i
 end
 
 function calSALT!(ocn::Ocean)

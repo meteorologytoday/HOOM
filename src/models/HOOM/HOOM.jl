@@ -84,7 +84,7 @@ end
     @hinclude("var_desc.jl")
     @hinclude("var_list.jl")
 
-
+    @hinclude("diagnostics.jl")
 
 
 end

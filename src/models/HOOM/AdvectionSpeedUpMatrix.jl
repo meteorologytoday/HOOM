@@ -43,7 +43,8 @@ mutable struct AdvectionSpeedUpMatrix
     Δy_V :: AbstractArray{Float64, 3}
     Δz_W :: AbstractArray{Float64, 3}
 
-    T_invΔz_T
+    T_invΔz_T :: AbstractArray{Float64}
+    sumΔvol_T :: AbstractArray{Float64}
 
     function AdvectionSpeedUpMatrix(;
         gi             :: DisplacedPoleCoordinate.GridInfo,
@@ -241,6 +242,8 @@ mutable struct AdvectionSpeedUpMatrix
         V_fluxmask_interp_T = V_fluxmask_V * V_interp_T
         W_fluxmask_interp_T = W_fluxmask_W * W_interp_T
 
+        sumΔvol_T = reshape(ones(Float64, op.T_pts), 1, :) * T_mask_T * T_Δvol_T
+
         return new(
             op,
 
@@ -281,6 +284,7 @@ mutable struct AdvectionSpeedUpMatrix
             Δz_W,
 
             T_invΔz_T,
+            sumΔvol_T,
         )
     end
 end

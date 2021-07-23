@@ -188,6 +188,7 @@ module CESMCORE_HOOM
                     "Ny" => ocn.Ny,
                     "Nz_bone" => ocn.Nz_bone,
                     "NP_zs_bone" => length(ocn.zs_bone),
+                    "scalar" => 1,
                 ),
                 var_list,
                 HOOM.var_desc;
