@@ -11,22 +11,20 @@ if !(:ModelClockSystem in names(Main))
 end
 using .ModelClockSystem
 
+
 function runModel(
-    OMMODULE     :: Any,
-    t_start      :: DateTimeNoLeap,
-    Δt           :: Second,
-    steps        :: Integer,
-    read_restart :: Bool, 
-    configs      :: Dict,  
+    OMMODULE      :: Any,
+    configs       :: Dict,
+    coupler_funcs :: Any, 
 )
+
+
+    t_start, read_restart = coupler_funcs.before_model_init!()
 
     # copy the start time
     beg_datetime = t_start + Dates.Second(0)
-    end_datetime = beg_datetime + Δt * steps 
     println(format("Begin datetime: {:s}", dt2str(beg_datetime) ))
-    println(format("End   datetime: {:s}", dt2str(end_datetime) ))
-    println(format("Δt            : {:d} seconds", Second(Δt).value))
-    println(format("steps         : {:d}", steps))
+    println(format("Read restart  : {}", read_restart))
 
     # Construct model clock
     clock = ModelClock("Model", beg_datetime)
@@ -40,16 +38,39 @@ function runModel(
         read_restart = read_restart,
     )
 
-    addAlarm!(clock, "end_date_reached", end_datetime, 1)
-
+    coupler_funcs.after_model_init!(OMMODULE, OMDATA)
+    
     println("Ready to run the model.")
-    for step=1:steps
+    step = 0
+    while true
+
+        step += 1
         
         println(format("Current time: {:s}", clock2str(clock)))
-        advanceClock!(clock, Δt)
 
+        stage, Δt, write_restart = coupler_funcs.before_model_run!(OMMODULE, OMDATA)
+
+        if stage == :RUN 
+            cost = @elapsed let
+
+                OMMODULE.run!(
+                    OMDATA;
+                    Δt = Δt,
+                    write_restart = write_restart,
+                )
+
+            end
+            advanceClock!(clock, Δt)
+            coupler_funcs.after_model_run!(OMMODULE, OMDATA)
+
+        elseif stage == :END
+            println("stage == :END. Break loop now.")
+            break
+        end
     end
         
+    coupler_funcs.finalize!(OMMODULE, OMDATA)
+    
     println("Program Ends.")
 
 end

@@ -61,7 +61,7 @@ module CORE_NULLOM
         write_restart :: Bool,
     )
 
-        println(format("Model Run with Δt = {:d} seconds", Second(Δt).instant.period.value))
+        println(format("Model Run with Δt = {:d} seconds", Second(Δt).value))
 
         if write_restart
             println("`write_restart` is ture.")

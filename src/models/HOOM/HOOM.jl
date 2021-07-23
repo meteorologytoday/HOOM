@@ -60,6 +60,7 @@ end
     @hinclude("convective_adjustment.jl")
     @hinclude("diffusion.jl")
     @hinclude("mixUnmix.jl")
+    @hinclude("calTsSsMixed.jl")
     @hinclude("calFLDOPartition.jl")
     @hinclude("columnwise_integration.jl")
     @hinclude("deep_ocn_correction.jl")

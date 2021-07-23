@@ -95,6 +95,9 @@ function doConvectiveAdjustment!(;
                 Δb = bs[i] - ((i==FLDO) ? new_b_ML : bs[i-1])
                 #println("FLDO:", FLDO, "; i:", i, "; Δb:", Δb)
                 if Δb > 0.0  # Instability
+                    #println("i = ", i, ", FLDO = ", FLDO, ", bs[i] = ", bs[i], ", b_ML = ", b_ML)
+                    #println(bs)
+                    #throw(ErrorException("Instability!"))
                     if_adjust = true
                     stage = :search_top_layer
                     peak_layer = i

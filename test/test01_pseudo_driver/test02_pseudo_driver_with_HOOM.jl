@@ -6,7 +6,9 @@ using Dates
 
 t_start = DateTimeNoLeap(1, 1, 1)
 Δt = Second(86400)
-steps = 59
+steps = 31
+t_end = t_start + Δt * steps
+
 
 configs = Dict(
     :substeps    => 8, # This controls how many steps will occur for each CESM coupling. Example: ocean couple to atmosphere every 24 hours but itself steps every 3 hours. This means we would expect `Δt` = 86400, and we set `substeps` = 8.
@@ -19,7 +21,7 @@ configs = Dict(
     :casename     => "Sandbox",
     :caseroot     => joinpath(@__DIR__, "Sandbox", "caseroot"),
     :caserun      => joinpath(@__DIR__, "Sandbox", "caserun"),
-    :domain_file  => "domain.lnd.fv4x5_gx3v7.091218.nc",
+    :domain_file  => "domain.ocn_aqua.fv4x5_gx3v7.091218.nc",
     :archive_root => joinpath(@__DIR__, "Sandbox", "hist"),
     :enable_archive             => true,
     :daily_record               => :ESSENTIAL,
@@ -36,17 +38,50 @@ configs = Dict(
     :horizontal_diffusion_scheme  => :off,
     :relaxation_scheme            => :off,
     :convective_adjustment_scheme => :off,
-    :radiation_scheme             => :step,
+    :radiation_scheme             => :exponential,
     :advection_scheme             => :static,#ekman_codron2012_partition,
 )
 
 read_restart = false
 
+coupler_funcs = (
+    before_model_init! = function()
+        println("[Coupler] before model init")
+        return t_start, read_restart
+    end,
+    after_model_init! = function(OMMODULE, OMDATA)
+        println("[Coupler] After model init")
+    end,
+    before_model_run! = function(OMMODULE, OMDATA)
+        println("[Coupler] Before model run")
+        t_end_reached = OMDATA.clock.time >= t_end
+       
+        if t_end_reached
+            return :END, Δt, t_end_reached
+        else
+
+            # compute flux
+            lat = OMDATA.ocn.mi.yc
+            lon = OMDATA.ocn.mi.xc
+
+            OMDATA.x2o["SWFLX"] .= - 1000.0
+            OMDATA.x2o["TAUX"]  .= 1e-2 * cos.(deg2rad.(lat))
+
+            return :RUN, Δt, t_end_reached
+        end
+    end,
+    after_model_run! = function(OMMODULE, OMDATA)
+        println("[Coupler] After model run")
+    end,
+    finalize! = function(OMMODULE, OMDATA)
+        println("[Coupler] Finalize")
+    end 
+)
+
+
+
 runModel(
     CESMCORE_HOOM, 
-    t_start,
-    Δt,
-    steps,
-    read_restart,
     configs,
+    coupler_funcs,
 )

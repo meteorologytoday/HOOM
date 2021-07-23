@@ -207,6 +207,29 @@ module CESMCORE_HOOM
         )
 
 
+
+        # Record (not output) happens AFTER the simulation.
+        # Output of the current simulation happens at the
+        # BEGINNING of the next simulation.
+        #
+        # Reason 1:
+        # CESM does not simulate the first day of a `continue` run.
+        # The first day has been simulated which is the last day of
+        # the last run which is exactly the restart file. This is 
+        # also why we have to call archive_record! function in the 
+        # end of initialization.
+        #
+        # Reason 2:
+        # Output happens at the beginning the next simulation. By
+        # doing this we can get rid of the problem of deciding which
+        # day is the end of month.
+        #
+        # This is also the way CAM chooses to do detect the end of
+        # current month. 
+        # See: http://www.cesm.ucar.edu/models/cesm1.0/cesm/cesmBbrowser/html_code/cam/time_manager.F90.html
+        #      is_end_curr_month
+        #
+
         # Must create the record file first because the
         # run of the first day is not called in CESM
         if MD.configs[:enable_archive]
@@ -292,61 +315,21 @@ module CESMCORE_HOOM
 
         end
 
-
-
-
-
-#=
-        run!(
-            MD;
-            Δt            = 0.0,
-            write_restart = false,
-            first_run     = true,
-        )
-=#
-
         return MD
 
     end
 
     function run!(
         MD            :: HOOM_DATA;
-        Δt            :: Float64,
+        Δt            :: Second,
         write_restart :: Bool,
-        first_run     :: Bool = false,
     )
-
-        # Record (not output) happens AFTER the simulation.
-        # Output of the current simulation happens at the
-        # BEGINNING of the next simulation.
-        #
-        # Reason 1:
-        # CESM does not simulate the first day of a `continue` run.
-        # The first day has been simulated which is the last day of
-        # the last run which is exactly the restart file. This is 
-        # also why we have to call archive_record! function in the 
-        # end of initialization.
-        #
-        # Reason 2:
-        # Output happens at the beginning the next simulation. By
-        # doing this we can get rid of the problem of deciding which
-        # day is the end of month.
-        #
-        # This is also the way CAM chooses to do detect the end of
-        # current month. 
-        # See: http://www.cesm.ucar.edu/models/cesm1.0/cesm/cesmBbrowser/html_code/cam/time_manager.F90.html
-        #      is_end_curr_month
-        #
-#            archive_outputIfNeeded!(MD)
-
-            # File must be created AFTER it is output.
-#            archive_createFileIfNeeded!(MD)
 
         HOOM.run!(
             MD.ocn;
             substeps         = MD.configs[:substeps],
             use_h_ML         = MD.configs[:MLD_scheme] == :datastream,
-            Δt               = Δt,
+            Δt               = Float64(Δt.value),
             do_vert_diff     = MD.configs[:vertical_diffusion_scheme] == :on,
             do_horz_diff     = MD.configs[:horizontal_diffusion_scheme] == :on,
             do_relaxation    = MD.configs[:relaxation_scheme] == :on,
@@ -358,9 +341,7 @@ module CESMCORE_HOOM
             do_seaice_nudging = MD.configs[:seaice_nudging] == :on,
         )
 
-        archive_record!(MD)
-        
-        if write_restart #|| MD.timeinfo.t_flags[:new_month]
+        if write_restart 
             writeRestart(MD)
         end
 
