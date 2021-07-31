@@ -44,12 +44,15 @@ end
     # classes
     @hinclude("../../share/DisplacedPoleCoordinate.jl")
     @hinclude("../../share/MapInfo.jl")
+    @hinclude("CyclicData.jl")
+    using .CyclicData
     @hinclude("Workspace.jl")
     @hinclude("MatrixOperators.jl")
     @hinclude("AdvectionSpeedUpMatrix.jl")
     @hinclude("InputFields.jl")
     @hinclude("AccumulativeVariables.jl")
     @hinclude("Ocean.jl")
+
 
     # functions
     @hinclude("latent_heat_release_of_freezing.jl")
