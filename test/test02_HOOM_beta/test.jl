@@ -13,4 +13,6 @@ ev = HOOM.Env(;
         τ_TEMP   = nothing,
         τ_SALT   = nothing,
 )
+
+m = HOOM.Model(ev)
  

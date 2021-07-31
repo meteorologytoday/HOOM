@@ -31,8 +31,11 @@ end
     @hinclude("../../share/AdvancedMatrixOperators.jl")
 
     @hinclude("Env.jl")
-#    @hinclude("State.jl")
-#    @hinclude("Core.jl")
+    @hinclude("Field.jl")
+    @hinclude("Core.jl")
+    
+    @hinclude("ModelBlock.jl")
+    @hinclude("Model.jl")
 
 end
 
