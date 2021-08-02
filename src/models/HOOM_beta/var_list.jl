@@ -9,6 +9,7 @@ function getCompleteVariableList(mb::ModelBlock)
             "VVEL"               => ( mb.fi.sv[:VVEL], :V ),
             "WVEL"               => ( mb.fi.sv[:WVEL], :W ),
             "TAUX"               => ( mb.fi.τx,        :sT ),
+            "TAUY"               => ( mb.fi.τy,        :sT ),
 
             # COORDINATEi
 #=

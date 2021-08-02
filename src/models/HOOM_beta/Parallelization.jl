@@ -1,9 +1,13 @@
 module Parallization
+
+    using ..DataManager
+    using MPI
   
-    export JobDistributionInfo, getYsplitInfoByRank
+    export JobDistributionInfo, getYsplitInfoByRank, syncField!
  
     mutable struct YSplitInfo
         pull_fr_rng      :: UnitRange
+        pull_to_rng      :: UnitRange
         push_fr_rng      :: UnitRange
         push_to_rng      :: UnitRange
         
@@ -34,6 +38,7 @@ module Parallization
 
             (
                 pull_fr_rngs,
+                pull_to_rngs,
                 push_fr_rngs,
                 push_to_rngs,
                 pull_fr_rngs_bnd,
@@ -55,6 +60,7 @@ module Parallization
 
                 y_split_infos[i] = YSplitInfo(
                     pull_fr_rngs[i],
+                    pull_to_rngs[i],
                     push_fr_rngs[i],
                     push_to_rngs[i],
                     pull_fr_rngs_bnd[i, :],
@@ -90,8 +96,12 @@ module Parallization
         n̄ = floor(Integer, N / P)
         R = N - n̄ * P
 
+        # "Here" is slave, "there" is master.
+        # So "pull" means receiving data from master.
+        # and "push" means sending data to master.
 
         pull_fr_rngs = Array{Union{UnitRange, Nothing}}(undef, P)
+        pull_to_rngs = Array{Union{UnitRange, Nothing}}(undef, P)
         push_fr_rngs = Array{Union{UnitRange, Nothing}}(undef, P)
         push_to_rngs = Array{Union{UnitRange, Nothing}}(undef, P)
         
@@ -107,8 +117,8 @@ module Parallization
         for p = 1:P
             m = (p <= R) ? n̄ + 1 : n̄  # assigned grids
 
-
             pull_fr_rngs[p] = cnt-L:cnt+m-1+L
+            pull_to_rngs[p] = 1:length(pull_fr_rngs[p])
             push_fr_rngs[p] = L+1:L+m
             push_to_rngs[p] = cnt:cnt+m-1
 
@@ -143,6 +153,10 @@ module Parallization
         # Adjust the first and last range (south pole and north pole)
         pull_fr_rngs[1] = (pull_fr_rngs[1][1]+L):pull_fr_rngs[1][end]
         pull_fr_rngs[end] = pull_fr_rngs[end][1]:(pull_fr_rngs[end][end]-L)
+
+        pull_to_rngs[1] = 1:length(pull_fr_rngs[1])
+        pull_to_rngs[end] = 1:length(pull_fr_rngs[end])
+ 
         push_fr_rngs[1] = 1:length(push_fr_rngs[1])
 
 
@@ -153,6 +167,7 @@ module Parallization
         end
 
         return pull_fr_rngs,
+               pull_to_rngs,
                push_fr_rngs,
                push_to_rngs,
                pull_fr_rngs_bnd,
@@ -167,5 +182,64 @@ module Parallization
         rank :: Integer,
     )
         return jdi.y_split_infos[jdi.wrank_to_idx[rank]]
+    end
+
+
+    mutable struct SyncInfo
+        vars         :: AbstractArray{DataUnit, 1}
+        y_split_info :: AbstractArray{DataUnit, 1}
+    end
+
+    function syncField!(
+        vars         :: AbstractArray{DataUnit},
+        jdi          :: JobDistributionInfo,
+        direction    :: Symbol,
+        sync_type    :: Symbol,
+    )
+
+        comm = MPI.COMM_WORLD
+        rank = MPI.Comm_rank(comm)
+
+        is_master = (rank == 0)
+        
+        reqs = Array{MPI.Request}(undef,0)
+
+        if direction == :S2M  # Slave to master
+            if sync_type == :BLOCK
+                if is_master
+                    for (i, _rank) in enumerate(jdi.wranks)
+                        for (j, var) in enumerate(vars)
+                            v = view(var.data, :, :, getYsplitInfoByRank(jdi, _rank).push_to_rng) 
+                            push!(reqs, MPI.Irecv!(v, i, j, comm))
+                        end
+                    end
+                else
+                    for (j, var) in enumerate(vars)
+                        v = view(var.data, :, :, getYsplitInfoByRank(jdi, rank).push_fr_rng) 
+                        push!(reqs, MPI.Isend(v, 0, j, comm))
+                    end
+                end
+            end
+
+        elseif direction == :M2S  # Master to slave
+            if sync_type == :BLOCK
+                if is_master
+                    for (i, _rank) in enumerate(jdi.wranks)
+                        for (j, var) in enumerate(vars)
+                            v = view(var.data, :, :, getYsplitInfoByRank(jdi, _rank).pull_fr_rng) 
+                            push!(reqs, MPI.Isend(v, i, j, comm))
+                        end
+                    end
+                else
+                    for (j, var) in enumerate(vars)
+                        v = view(var.data, :, :, getYsplitInfoByRank(jdi, rank).pull_to_rng) 
+                        push!(reqs, MPI.Irecv!(v, 0, j, comm))
+                    end
+                end
+            end
+        end
+
+        MPI.Waitall!(reqs)
+        
     end
 end

@@ -41,6 +41,8 @@ module CESMCORE_HOOM
         recorders   :: Union{Dict, Nothing}
 
         jdi        :: JobDistributionInfo
+
+        sync_data   :: Dict
     end
 
 
@@ -202,6 +204,30 @@ module CESMCORE_HOOM
             regVariable!(data_table, k, grid_type, varref) 
         end
 
+        # Synchronizing Data
+        sync_data_list = Dict(
+            :forcing => (
+                "TAUX",
+                "TAUY",
+            ),
+            :state   => (
+                "TEMP",
+                "SALT",
+                "UVEL",
+                "VVEL",
+                "WVEL",
+            )
+        )
+        
+        sync_data = Dict()
+        for (k, l) in sync_data_list
+            sync_data[k] = Array{DataUnit, 1}(undef, length(l))
+            for (n, varname) in enumerate(l)
+                sync_data[k][n] = data_table.data_units[varname]
+            end
+        end
+
+
         MD = HOOM_DATA(
             casename,
             my_mb,
@@ -212,6 +238,7 @@ module CESMCORE_HOOM
             data_table,
             nothing,
             jdi,
+            sync_data,
         )
 
 
@@ -379,9 +406,6 @@ module CESMCORE_HOOM
 
         MPI.Barrier(comm)
 
-        # Synchronizing Data
-
-
 
         return MD
 
@@ -393,6 +417,22 @@ module CESMCORE_HOOM
         write_restart :: Bool,
     )
 
+        comm = MPI.COMM_WORLD
+        rank = MPI.Comm_rank(comm)
+
+        syncField!(
+            MD.sync_data[:forcing],
+            MD.jdi,
+            :M2S,
+            :BLOCK,
+        ) 
+
+        is_master = rank == 0
+
+        if ! is_master
+            MD.mb.fi.sv[:TEMP][1, :, :] .= MD.mb.fi.τx[1, :, :]
+        end
+        
         #=
         HOOM.run!(
             MD.ocn;
@@ -414,6 +454,14 @@ module CESMCORE_HOOM
             writeRestart(MD)
         end
         =#
+
+        syncField!(
+            MD.sync_data[:state],
+            MD.jdi,
+            :S2M,
+            :BLOCK,
+        ) 
+ 
     end
 
     function final(MD::HOOM_DATA)

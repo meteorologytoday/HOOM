@@ -106,6 +106,7 @@ coupler_funcs = (
         
         is_master = rank == 0
         
+        # Test if t_end is reached
         return_values = nothing
         if is_master
             t_end_reached = OMDATA.clock.time >= t_end
@@ -114,25 +115,33 @@ coupler_funcs = (
                 return_values = ( :END, Δt, t_end_reached )
             else
 
-                writeLog("[Coupler] Need to broadcast forcing fields.")
-                # compute flux
-                lat = gf.yc
-                lon = gf.xc
-
-                println("Size of lat", size(lat))
-                println("Size of TAUX", size(OMDATA.x2o["TAUX"]))
-
-                OMDATA.x2o["SWFLX"] .= - 1000.0
-                OMDATA.x2o["TAUX"][1, :, :]  .= 1e-2 * cos.(deg2rad.(lat))
-                
-                OMDATA.mb.fi.τx .= OMDATA.x2o["TAUX"]
-                
                 return_values = ( :RUN, Δt, t_end_reached )
             end
         end
 
         return_values = MPI.bcast(return_values, 0, comm)
+
+        # Deal with coupling
+        if is_master
+
+            writeLog("[Coupler] Need to broadcast forcing fields.")
+            # compute flux
+            lat = gf.yc
+            lon = gf.xc
+
+            println("Size of lat", size(lat))
+            println("Size of TAUX", size(OMDATA.x2o["TAUX"]))
+
+            OMDATA.x2o["SWFLX"] .= - 1000.0
+            OMDATA.x2o["TAUX"][1, :, :]  .= cos.(deg2rad.(lat))
+            
+            OMDATA.mb.fi.τx .= OMDATA.x2o["TAUX"]
         
+        else
+            OMDATA.mb.fi.τx .= rank
+        end
+
+
         return return_values
 
     end,

@@ -60,6 +60,7 @@ function runModel(
         stage, Δt, write_restart = coupler_funcs.before_model_run!(OMMODULE, OMDATA)
 
         if stage == :RUN 
+
             cost = @elapsed let
 
                 OMMODULE.run!(
@@ -69,8 +70,9 @@ function runModel(
                 )
 
             end
-            advanceClock!(clock, Δt)
             coupler_funcs.after_model_run!(OMMODULE, OMDATA)
+            
+            advanceClock!(clock, Δt)
 
         elseif stage == :END
             is_master && println("stage == :END. Break loop now.")
