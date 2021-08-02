@@ -1,4 +1,4 @@
-function writeLog(args...; force :: Bool = true)
+function writeLog(args...; force :: Bool = false)
     
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)

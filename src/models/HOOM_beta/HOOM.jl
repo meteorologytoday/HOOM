@@ -8,6 +8,7 @@ end
 
 @everywhere module HOOM
 
+    using MPI
     using Dates
     using Printf
     using Formatting
@@ -29,6 +30,7 @@ end
     @hinclude("../../share/PolelikeCoordinate.jl")
     @hinclude("../../share/BasicMatrixOperators.jl")
     @hinclude("../../share/AdvancedMatrixOperators.jl")
+    @hinclude("../../share/Log.jl")
 
     @hinclude("Env.jl")
     @hinclude("Field.jl")
@@ -36,6 +38,9 @@ end
     
     @hinclude("ModelBlock.jl")
     @hinclude("Model.jl")
+    
+    @hinclude("var_list.jl")
+    @hinclude("var_desc.jl")
 
 end
 

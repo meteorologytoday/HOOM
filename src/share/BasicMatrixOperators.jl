@@ -7,11 +7,19 @@ end
 # Assuming x-direction is periodic
 struct BasicMatrixOperators
 
+    U_dim
+    V_dim
+    W_dim
+    T_dim
+    UV_dim
+
     U_pts
     V_pts
     W_pts
     T_pts
     UV_pts
+
+
 
 
     # Nomenclature:
@@ -22,6 +30,7 @@ struct BasicMatrixOperators
 
     U_I_U
     V_I_V
+    W_I_W
     T_I_T
     UV_I_UV
 
@@ -256,8 +265,15 @@ struct BasicMatrixOperators
         W_UP_T = T_DN_W' |> sparse
 
         return new(
+            U_dim,
+            V_dim,
+            W_dim,
+            T_dim,
+            UV_dim,
+
+
             U_pts, V_pts, W_pts, T_pts, UV_pts,
-            U_I_U, V_I_V, T_I_T, UV_I_UV,
+            U_I_U, V_I_V, T_I_T, W_I_W, UV_I_UV,
 
             U_W_T, U_E_T,
             U_W_U, U_E_U,

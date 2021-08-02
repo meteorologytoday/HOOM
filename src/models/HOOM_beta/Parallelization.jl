@@ -1,5 +1,7 @@
 module Parallization
-    
+  
+    export JobDistributionInfo, getYsplitInfoByRank
+ 
     mutable struct YSplitInfo
         pull_fr_rng      :: UnitRange
         push_fr_rng      :: UnitRange
@@ -14,23 +16,21 @@ module Parallization
     mutable struct JobDistributionInfo
 
         overlap       :: Int64
-        pids          :: AbstractArray{Integer, 1}
-        slave_pids    :: AbstractArray{Integer, 1}
+        nworkers      :: Int64
+        wranks        :: Array{Int64, 1} # worker ranks
+        wrank_to_idx  :: Dict{Int64, Int64}
         y_split_infos :: AbstractArray{YSplitInfo, 1}
 
         function JobDistributionInfo(;
-            Ny :: Int64,
-            overlap :: Int64 = 2,
+            nworkers :: Int64,
+            Ny       :: Int64,
+            overlap  :: Int64 = 2,
         )
-                
-            pids  =  workers()
-            if length(pids) >= 2
-                slave_pids = pids[2:end]
-            elseif length(pids) == 1
-                slave_pids = copy(pids)
-            else
+            if nworkers == 0
                 throw(ErrorException("No available workers!"))
             end
+
+            wranks = collect(1:nworkers)
 
             (
                 pull_fr_rngs,
@@ -41,11 +41,17 @@ module Parallization
                 push_fr_rngs_bnd,
                 push_to_rngs_bnd 
 
-            ) = calParallizationRange(N=Ny, P=length(tmd_slave_pids), L=overlap)
-        
-            y_split_infos = Array{YSplitInfo}(undef, length(slave_pids))
+            ) = calParallizationRange(N=Ny, P=nworkers, L=overlap)
+      
+            wrank_to_idx = Dict() 
+            for i = 1:nworkers
+                wrank_to_idx[i] = i
+            end
 
-            for (i, p) in enumerate(slave_pids)
+ 
+            y_split_infos = Array{YSplitInfo}(undef, nworkers)
+
+            for (i, p) in enumerate(wranks)
 
                 y_split_infos[i] = YSplitInfo(
                     pull_fr_rngs[i],
@@ -61,8 +67,9 @@ module Parallization
           
             return new(
                 overlap,
-                pids,
-                slave_pids,
+                nworkers,
+                wranks,
+                wrank_to_idx,
                 y_split_infos,
             ) 
 
@@ -153,5 +160,12 @@ module Parallization
                push_fr_rngs_bnd,
                push_to_rngs_bnd
 
+    end
+
+    function getYsplitInfoByRank(
+        jdi :: JobDistributionInfo,
+        rank :: Integer,
+    )
+        return jdi.y_split_infos[jdi.wrank_to_idx[rank]]
     end
 end

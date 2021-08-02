@@ -1,94 +1,24 @@
-function getCompleteVariableList(ocn::Ocean)
+function getCompleteVariableList(mb::ModelBlock)
 
         return Dict(
 
             # RECORD
-            "Ts"                 => ( toXYZ(ocn.Ts, :zxy),          ("Nx", "Ny", "Nz_bone") ),
-            "Ss"                 => ( toXYZ(ocn.Ss, :zxy),          ("Nx", "Ny", "Nz_bone") ),
-            "Ts_mixed"           => ( toXYZ(ocn.Ts_mixed, :zxy),    ("Nx", "Ny", "Nz_bone") ),
-            "Ss_mixed"           => ( toXYZ(ocn.Ss_mixed, :zxy),    ("Nx", "Ny", "Nz_bone") ),
-            "bs"                 => ( toXYZ(ocn.bs, :zxy),          ("Nx", "Ny", "Nz_bone") ),
-            "T_ML"               => ( ocn.T_ML,                     ("Nx", "Ny") ),
-            "S_ML"               => ( ocn.S_ML,                     ("Nx", "Ny") ),
-            "b_ML"               => ( ocn.b_ML,                     ("Nx", "Ny") ),
-            "FLDO"               => ( ocn.FLDO,                     ("Nx", "Ny") ),
-            "dTdt_ent"           => ( ocn.dTdt_ent,                 ("Nx", "Ny") ),
-            "dSdt_ent"           => ( ocn.dSdt_ent,                 ("Nx", "Ny") ),
-            "TSAS_clim"          => ( ocn.TSAS_clim,                ("Nx", "Ny") ),
-            "SSAS_clim"          => ( ocn.SSAS_clim,                ("Nx", "Ny") ),
-            "TFLUX_bot"          => ( ocn.TFLUX_bot,                ("Nx", "Ny") ),
-            "SFLUX_bot"          => ( ocn.SFLUX_bot,                ("Nx", "Ny") ),
-            "SFLUX_top"          => ( ocn.SFLUX_top,                ("Nx", "Ny") ),
-            "TFLUX_DIV_implied"  => ( ocn.TFLUX_DIV_implied,        ("Nx", "Ny") ),
-            "SFLUX_DIV_implied"  => ( ocn.SFLUX_DIV_implied,        ("Nx", "Ny") ),
-            "qflx2atm"           => ( ocn.qflx2atm,                 ("Nx", "Ny") ),
-            "qflx2atm_pos"       => ( ocn.qflx2atm_pos,             ("Nx", "Ny") ),
-            "qflx2atm_neg"       => ( ocn.qflx2atm_neg,             ("Nx", "Ny") ),
-            "h_ML"               => ( ocn.h_ML,                     ("Nx", "Ny") ),
-            "h_MO"               => ( ocn.h_MO,                     ("Nx", "Ny") ),
-            "nswflx"             => ( ocn.in_flds.nswflx,           ("Nx", "Ny") ),
-            "swflx"              => ( ocn.in_flds.swflx,            ("Nx", "Ny") ),
-            "frwflx"             => ( ocn.in_flds.frwflx,           ("Nx", "Ny") ),
-            "vsflx"              => ( ocn.in_flds.vsflx,            ("Nx", "Ny") ),
-            "qflx_T"             => ( ocn.in_flds.qflx_T,           ("Nx", "Ny") ),
-            "qflx_S"             => ( ocn.in_flds.qflx_S,           ("Nx", "Ny") ),
-            "ifrac"              => ( ocn.in_flds.ifrac,            ("Nx", "Ny") ),
-            "qflx_T_correction"  => ( toXYZ(ocn.qflx_T_correction, :zxy),        ("Nx", "Ny", "Nz_bone") ),
-            "qflx_S_correction"  => ( toXYZ(ocn.qflx_S_correction, :zxy),        ("Nx", "Ny", "Nz_bone") ),
-            "seaice_nudge_energy" => ( ocn.seaice_nudge_energy,     ("Nx", "Ny") ),
-            "Tclim"              => ( ocn.in_flds.Tclim,            ("Nx", "Ny") ),
-            "Sclim"              => ( ocn.in_flds.Sclim,            ("Nx", "Ny") ),
-            "IFRACclim"          => ( ocn.in_flds.IFRACclim,        ("Nx", "Ny") ),
-            "TEMP"               => ( ocn.TEMP,                     ("Nx", "Ny") ),
-            "dTEMPdt"            => ( ocn.dTEMPdt,                  ("Nx", "Ny") ),
-            "SALT"               => ( ocn.SALT,                     ("Nx", "Ny") ),
-            "dSALTdt"            => ( ocn.dSALTdt,                  ("Nx", "Ny") ),
-            "fric_u"             => ( ocn.fric_u,                   ("Nx", "Ny") ),
-            "taux"               => ( ocn.τx,                       ("Nx", "Ny") ),
-            "tauy"               => ( ocn.τy,                       ("Nx", "Ny") ),
-            "TFLUX_DEN_x"        => ( toXYZ(ocn.TFLUX_DEN_x, :zxy), ("Nx", "Ny", "Nz_bone") ),
-#            "TFLUX_DEN_y"        => ( toXYZ(ocn.TFLUX_DEN_x, :zxy), ("Nx", "Ny", "Nz_bone") ),
-            "TFLUX_DEN_z"        => ( toXYZ(ocn.TFLUX_DEN_z, :zxy), ("Nx", "Ny", "NP_zs_bone") ),
-            "SFLUX_DEN_z"        => ( toXYZ(ocn.SFLUX_DEN_z, :zxy), ("Nx", "Ny", "NP_zs_bone") ),
-            "div"                => ( toXYZ(ocn.div, :zxy),         ("Nx", "Ny", "Nz_bone") ),
-            "w_bnd"              => ( toXYZ(ocn.w_bnd, :zxy),       ("Nx", "Ny", "NP_zs_bone") ),
-            "u"                  => ( toXYZ(ocn.u, :zxy),           ("Nx", "Ny", "Nz_bone") ),
-            "v"                  => ( toXYZ(ocn.v, :zxy),           ("Nx", "Ny", "Nz_bone") ),
-            "TFLUX_CONV"         => ( toXYZ(ocn.TFLUX_CONV, :zxy),  ("Nx", "Ny", "Nz_bone") ),
-            "SFLUX_CONV"         => ( toXYZ(ocn.SFLUX_CONV, :zxy),  ("Nx", "Ny", "Nz_bone") ),
+            "TEMP"               => ( mb.fi.sv[:TEMP], :T ),
+            "SALT"               => ( mb.fi.sv[:SALT], :T ),
+            "UVEL"               => ( mb.fi.sv[:UVEL], :U ),
+            "VVEL"               => ( mb.fi.sv[:VVEL], :V ),
+            "WVEL"               => ( mb.fi.sv[:WVEL], :W ),
+            "TAUX"               => ( mb.fi.τx,        :sT ),
 
-            # COORDINATE
+            # COORDINATEi
+#=
             "area"               => ( ocn.mi.area,                  ("Nx", "Ny") ),
             "mask"               => ( ocn.mi.mask,                  ("Nx", "Ny") ),
             "frac"               => ( ocn.mi.frac,                  ("Nx", "Ny") ),
             "c_lon"              => ( ocn.mi.xc,                    ("Nx", "Ny") ),
             "c_lat"              => ( ocn.mi.yc,                    ("Nx", "Ny") ),
             "zs_bone"            => ( ocn.zs_bone,                  ("NP_zs_bone",) ),
-
-            # BACKGROUND
-            "Ts_clim"            => ( toXYZ(ocn.Ts_clim, :zxy),     ("Nx", "Ny", "Nz_bone") ),
-            "Ss_clim"            => ( toXYZ(ocn.Ss_clim, :zxy),     ("Nx", "Ny", "Nz_bone") ),
-            "h_ML_min"           => ( ocn.h_ML_min,                 ("Nx", "Ny") ),
-            "h_ML_max"           => ( ocn.h_ML_max,                 ("Nx", "Ny") ),
-            "topo"               => ( ocn.topo,                     ("Nx", "Ny") ),
-            "fs"                 => ( ocn.fs,                       ("Nx", "Ny") ),
-            "epsilons"           => ( ocn.ϵs,                       ("Nx", "Ny") ),
-            "K_v"                => ( :K_v,                         :SCALAR      ),
-            "Dh_T"               => ( :Dh_T,                        :SCALAR      ),
-            "Dv_T"               => ( :Dv_T,                        :SCALAR      ),
-            "Dh_S"               => ( :Dh_S,                        :SCALAR      ),
-            "Dv_S"               => ( :Dv_S,                        :SCALAR      ),
-            "we_max"             => ( :we_max,                      :SCALAR      ),
-            "R"                  => ( :R,                           :SCALAR      ),
-            "zeta"               => ( :ζ,                           :SCALAR      ),
-            "Ts_clim_relax_time" => ( :Ts_clim_relax_time,          :SCALAR      ),
-            "Ss_clim_relax_time" => ( :Ss_clim_relax_time,          :SCALAR      ),
-
-            # DIAGNOSTIC            
-            "total_heat" => ( ocn.diag[:total_heat],                ("scalar",)  ),
-            "total_salt" => ( ocn.diag[:total_salt],                ("scalar",)  ),
-            "total_heat_budget_residue" => ( ocn.diag[:total_heat_budget_residue], ("scalar",)  ),
-            "total_salt_budget_residue" => ( ocn.diag[:total_salt_budget_residue], ("scalar",)  ),
+=#
         )
 end
 
@@ -96,16 +26,24 @@ function getVarDesc(varname)
     return haskey(HOOM.var_desc, varname) ? HOOM.var_desc[varname] : Dict()
 end
 
-function getVariableList(ocn::Ocean, keywords...)
+function getVariableList(mb::ModelBlock, keywords...)
 
-        all_varlist = getCompleteVariableList(ocn)
+        all_varlist = getCompleteVariableList(mb)
 
-        output_varnames = []
+        output_varnames = Dict()
+
+        function makeSubset(dict, keys)
+            subset_dict = Dict()
+            for k in keys
+                subset_dict[k] = dict[k]
+            end
+            return subset_dict
+        end
 
         for keyword in keywords
             if keyword == :ALL
 
-                append!(output_varnames, keys(all_varlist))
+                return makeSubset(all_varlist, keys(all_varlist))
 
             elseif keyword == :QFLX_FINDING
 

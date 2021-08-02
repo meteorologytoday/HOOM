@@ -5,13 +5,14 @@ mutable struct ModelBlock
     co :: Union{Core, Nothing}
 
     function ModelBlock(
-        ev :: Env,
+        ev :: Env;
+        init_core :: Bool = false,
     ) 
 
         return new(
             ev,
-            Field(ev, (ev.id == 0) ? :shared : :local),
-            (ev.id == 0) ? nothing : Core(ev),
+            Field(ev),
+            (init_core) ? Core(ev) : nothing,
         )
     end
 end

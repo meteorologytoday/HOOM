@@ -1,11 +1,11 @@
 mutable struct DataUnit
-    id          :: Symbol
+    id          :: Union{Symbol, String}
     grid        :: Symbol    # could be ('', s) x (T, U, V, W, UV)
     data        :: AbstractArray  # original data
     odata       :: AbstractArray  # oriented data with shape (x, y, z, X)
     
     function DataUnit(
-        id          :: Symbol,
+        id          :: Union{Symbol, String},
         grid        :: Symbol,   # could be (f, c, s) x (T, U, V, W)
         data        :: AbstractArray,
     )

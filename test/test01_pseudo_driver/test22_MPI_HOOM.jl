@@ -1,30 +1,27 @@
 include("HOOM/src/driver/pseudo_driver_MPI.jl")
 include("HOOM/src/models/HOOM_beta/CESMCORE_HOOM.jl")
 include("HOOM/src/share/Log.jl")
+include("HOOM/src/share/PolelikeCoordinate.jl")
 
 using MPI
 using CFTime
 using Dates
+using .PolelikeCoordinate
+
+
 
 MPI.Init()
 
-function mpi_info()
-
-    comm = MPI.COMM_WORLD
-    rank = MPI.Comm_rank(comm)
-    
-    return comm, rank 
-
-end
-
-comm, rank = mpi_info()
+comm = MPI.COMM_WORLD
+rank = MPI.Comm_rank(comm)
 
 if rank == 0
 
     t_start = DateTimeNoLeap(1, 1, 1)
     Δt = Second(86400)
     steps = 31
-    t_end = t_start + Δt * steps
+    t_end = DateTimeNoLeap(1, 5, 1)
+    #t_end = t_start + Δt * steps
     read_restart = false
 
     configs = Dict(
@@ -41,11 +38,11 @@ if rank == 0
         :domain_file                  => "domain.ocn_aqua.fv4x5_gx3v7.091218.nc",
         :archive_root                 => joinpath(@__DIR__, "Sandbox", "hist"),
         :enable_archive               => true,
-        :daily_record                 => :ESSENTIAL,
-        :monthly_record               => :ESSENTIAL,
+        :daily_record                 => :ALL,
+        :monthly_record               => :ALL,
         :yearly_snapshot              => true,
         :substeps                     => 8,
-        :init_file                    => joinpath(@__DIR__, "ocn_init.nc"),
+        :init_file                    => nothing,#joinpath(@__DIR__, "ocn_init.nc"),
         
         :MLD_scheme                   => :datastream,
         :Qflux_scheme                 => :off,
@@ -59,6 +56,13 @@ if rank == 0
         :advection_scheme             => :static,#ekman_codron2012_partition,
     )
 
+    gf = PolelikeCoordinate.CurvilinearSphericalGridFile(
+        configs[:domain_file],
+        R  = 6371229.0,
+        Ω  = 2π / (86400 / (1 + 365/365)),
+    )
+
+
 
 
 end
@@ -71,7 +75,7 @@ coupler_funcs = (
         global comm, rank
         global t_start, read_restart, configs
          
-        is_master = rank == 0
+        is_master = (rank == 0)
         println("My rank: ", rank) 
         writeLog("[Coupler] before model init.")
         writeLog("Reading configuration.")
@@ -98,7 +102,8 @@ coupler_funcs = (
         writeLog("[Coupler] Before model run")
         writeLog("[Coupler] This is where flux exchange happens.")
 
-        comm, rank = mpi_info()
+        global comm, rank
+        
         is_master = rank == 0
         
         return_values = nothing
@@ -111,12 +116,17 @@ coupler_funcs = (
 
                 writeLog("[Coupler] Need to broadcast forcing fields.")
                 # compute flux
-                lat = OMDATA.ocn.mi.yc
-                lon = OMDATA.ocn.mi.xc
+                lat = gf.yc
+                lon = gf.xc
+
+                println("Size of lat", size(lat))
+                println("Size of TAUX", size(OMDATA.x2o["TAUX"]))
 
                 OMDATA.x2o["SWFLX"] .= - 1000.0
-                OMDATA.x2o["TAUX"]  .= 1e-2 * cos.(deg2rad.(lat))
-
+                OMDATA.x2o["TAUX"][1, :, :]  .= 1e-2 * cos.(deg2rad.(lat))
+                
+                OMDATA.mb.fi.τx .= OMDATA.x2o["TAUX"]
+                
                 return_values = ( :RUN, Δt, t_end_reached )
             end
         end
