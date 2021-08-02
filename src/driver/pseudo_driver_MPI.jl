@@ -4,7 +4,7 @@ using Formatting
 using JSON
 using Distributed
 using SharedArrays
-
+using MPI
 
 if !(:ModelClockSystem in names(Main))
     include(normpath(joinpath(dirname(@__FILE__), "..", "share", "ModelClockSystem.jl")))
@@ -14,23 +14,32 @@ using .ModelClockSystem
 
 function runModel(
     OMMODULE      :: Any,
-    configs       :: Dict,
     coupler_funcs :: Any, 
 )
 
+    comm = MPI.COMM_WORLD
+    rank = MPI.Comm_rank(comm)
+    println("Hello world, I am $(rank) of $(MPI.Comm_size(comm))")
+    MPI.Barrier(comm)
 
-    t_start, read_restart = coupler_funcs.before_model_init!()
+    is_master = rank == 0
+
+    t_start, read_restart, configs = coupler_funcs.before_model_init!()
 
     # copy the start time
     beg_datetime = t_start + Dates.Second(0)
-    println(format("Begin datetime: {:s}", dt2str(beg_datetime) ))
-    println(format("Read restart  : {}", read_restart))
+
+    if is_master
+        println(format("Begin datetime: {:s}", dt2str(beg_datetime) ))
+        println(format("Read restart  : {}", read_restart))
+    end
 
     # Construct model clock
     clock = ModelClock("Model", beg_datetime)
 
     # initializing
-    println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
+    is_master && println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
+    
     OMDATA = OMMODULE.init(
         casename     = configs[:casename],
         clock        = clock,
@@ -40,13 +49,13 @@ function runModel(
 
     coupler_funcs.after_model_init!(OMMODULE, OMDATA)
     
-    println("Ready to run the model.")
+    is_master && println("Ready to run the model.")
     step = 0
     while true
 
         step += 1
         
-        println(format("Current time: {:s}", clock2str(clock)))
+        is_master && println(format("Current time: {:s}", clock2str(clock)))
 
         stage, Δt, write_restart = coupler_funcs.before_model_run!(OMMODULE, OMDATA)
 
@@ -64,14 +73,14 @@ function runModel(
             coupler_funcs.after_model_run!(OMMODULE, OMDATA)
 
         elseif stage == :END
-            println("stage == :END. Break loop now.")
+            is_master && println("stage == :END. Break loop now.")
             break
         end
     end
         
     coupler_funcs.finalize!(OMMODULE, OMDATA)
     
-    println("Program Ends.")
+    is_master && println("Program Ends.")
 
 end
   

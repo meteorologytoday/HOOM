@@ -26,7 +26,7 @@ mutable struct Env
     τ_SALT    :: Union{Float64, Nothing}
 
     function Env(;
-        id              :: Integer = 0,  
+        id          :: Integer,  
         gf_filename :: AbstractString,
         sub_yrng :: Union{UnitRange, Nothing} = nothing,
         z_w      :: AbstractArray{Float64, 1},

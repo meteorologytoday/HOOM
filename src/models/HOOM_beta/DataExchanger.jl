@@ -27,28 +27,13 @@ struct DataBinding
 
         here_push_yrng        :: Any,
         there_push_yrng       :: Any,
-
     )
 
-        if ! (here.shape in (:xyz, :zxy, :xy))
-            throw(ErrorException("Unknown shape: " * string(here.shape)))
-        end
+        here_pull_view  = view( here.data, :, :,  here_pull_yrng)
+        there_pull_view = view(there.data, :, :, there_pull_yrng)
 
-        if ! (there.shape in (:xyz, :zxy, :xy))
-            throw(ErrorException("Unknown shape: " * string(there.shape)))
-        end
-
-
-        if here.has_Xdim != there.has_Xdim
-            throw(ErrorException("has_Xdim does not match"))
-        end
-
-
-        here_pull_view  = _helper_genView(here,   here_pull_yrng)
-        there_pull_view = _helper_genView(there, there_pull_yrng)
-
-        here_push_view  = _helper_genView(here,   here_push_yrng)
-        there_push_view = _helper_genView(there, there_push_yrng)
+        here_push_view  = view( here.data, :, :,  here_push_yrng)
+        here_push_view  = view(there.data, :, :, there_push_yrng)
 
 
         if length(here_pull_view) != length(there_pull_view)
@@ -155,16 +140,6 @@ function addToGroup!(
 
 end
 
-#=
-function SUM(arr)
-    tmp = 0.0
-    for i=1:size(arr)[1], j=1:size(arr)[2]
-        tmp+=arr[i, j]
-    end
-    return tmp
-end
-=#
-
 function syncData!(
     data_exchanger :: DataExchanger,
     group_label    :: Symbol,
@@ -219,49 +194,4 @@ function syncData!(
         throw(ErrorException("Unknown direction keyword: " * string(direction)))
     end
 end
-
-# input dataunit and yrange, output a view of corresponding yrng with shape :xy or :xyz
-function _helper_genView(
-    du,
-    yrng,
-)
-     
-    if du.shape == :xy
-
-        rng = [Colon(), yrng]
-
-        if du.has_Xdim
-            push!(rng, Colon())
-        end
-
-        new_view = view( du.data, rng...)
-
-    else 
-
-        permute_xyz = [1, 2, 3]
-        permute_zxy = [2, 3, 1]
-
-        if du.has_Xdim
-            push!(permute_xyz, 4)
-            push!(permute_zxy, 4)
-        end
-        
-        if du.shape == :zxy
-            new_view = PermutedDimsArray(du.data, permute_zxy)
-        else
-            new_view = du.data
-        end
-
-        # at this point views are arranged in :xyz
-        rng  = [Colon(), yrng, Colon()]
-
-        if du.has_Xdim
-            push!(rng, Colon())
-        end
-
-        new_view = view( new_view, rng...)
-    end
-   
-end
-
 

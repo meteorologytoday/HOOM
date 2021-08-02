@@ -16,20 +16,20 @@ mutable struct Field
 
     function Field(
         ev :: Env,
+        datakind :: Symbol
     )
-        
-        
+
         Nx, Ny, Nz = ev.gd.Nx, ev.gd.Ny, ev.gd.Nz
         
         U_pts = Nx * Ny * Nz
         V_pts = Nx * (Ny+1) * Nz
         W_pts = Nx * Ny * (Nz+1)
 
-        _X_ = zeros(Float64, Nz, Ny, Nx, 2)
+        _X_ = allocate(datakind, Float64, Nz, Ny, Nx, 2)
         _X  = view(_X_, :)
 
 
-        _vel = zeros(Float64, U_pts + V_pts + W_pts)
+        _vel = allocate(datakind, Float64, U_pts + V_pts + W_pts)
 
         idx = 0;
         _u = view(_vel, (idx+1):(idx+U_pts)) ; idx+=U_pts
@@ -37,9 +37,9 @@ mutable struct Field
         _w = view(_vel, (idx+1):(idx+W_pts)) ; idx+=W_pts
 
 
-        HMXL = zeros(Float64, Nx, Ny)
-        τx = zeros(Float64, Nx, Ny)
-        τy = zeros(Float64, Nx, Ny)
+        HMXL = allocate(datakind, Float64, Nx, Ny)
+        τx = allocate(datakind, Float64, Nx, Ny)
+        τy = allocate(datakind, Float64, Nx, Ny)
 
         return new(
 

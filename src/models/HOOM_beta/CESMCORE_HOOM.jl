@@ -23,7 +23,7 @@ module CESMCORE_HOOM
 
     mutable struct HOOM_DATA
         casename    :: AbstractString
-        ocn         :: HOOM.Ocean
+        ocn         :: HOOM.ModelBlock
         clock       :: ModelClock
 
         x2o         :: Dict
