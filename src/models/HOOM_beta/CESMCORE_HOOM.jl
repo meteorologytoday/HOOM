@@ -462,13 +462,13 @@ module CESMCORE_HOOM
             MD.jdi,
             :M2S,
             :BLOCK,
-        ) 
+        )
 
         syncField!(
             MD.sync_data[:state],
             MD.jdi,
             :M2S,
-            :BND,
+            :BLOCK,
         ) 
 
         Δt_float = Float64(Δt.value)
@@ -479,7 +479,7 @@ module CESMCORE_HOOM
             HOOM.setupForcing!(MD.mb, MD.configs)
         end
         
-        substeps = 8
+        substeps = 1
         for substep = 1:substeps
         
             if ! is_master
@@ -488,20 +488,19 @@ module CESMCORE_HOOM
             end
 
             syncField!(
-                MD.sync_data[:bnd_state],
+                MD.sync_data[:state],
                 MD.jdi,
                 :S2M,
-                :BND,
+                :BLOCK,
             )
 
             syncField!(
-                MD.sync_data[:bnd_state],
+                MD.sync_data[:state],
                 MD.jdi,
                 :M2S,
-                :BND,
+                :BLOCK,
             )
         end
-
 
         if ! is_master
             HOOM.stepColumn!(MD.mb, Δt_float)
