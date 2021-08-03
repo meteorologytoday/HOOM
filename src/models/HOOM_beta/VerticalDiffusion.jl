@@ -72,12 +72,12 @@ mutable struct VerticalDiffusion
 end
 
 function calOp_vdiff(
-    vd   :: VerticalDiffusion,
-    input :: AbstractArray{Float64},
+    vd    :: VerticalDiffusion,
+    _b    :: AbstractArray{Float64, 1},
+    _HMXL :: AbstractArray{Float64, 1},
 )
 
-    input_flat = view(input, :)
-    dbdz = vd.amo.W_∂z_T * input_flat
+    dbdz = vd.amo.W_∂z_T * _b
     #println("size of dbdz: ", size(dbdz))
     op_vdiff = sparse(vd.amo.T_DIVz_W * vd.amo.W_mask_W * spdiagm( 0 => vd.K_func.(dbdz) ) * vd.amo.W_∂z_T)
     dropzeros!(op_vdiff)

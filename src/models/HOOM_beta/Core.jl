@@ -2,7 +2,6 @@ mutable struct Core
 
     gf          :: Union{PolelikeCoordinate.GridFile, Nothing}
 
-
     gd       :: PolelikeCoordinate.Grid
     gd_slab  :: PolelikeCoordinate.Grid
 
@@ -74,9 +73,21 @@ mutable struct Core
         nswflx_factor_W = 0.0 * gd.z_W
         nswflx_factor_W[1, :, :] .= 1.0
 
+
+
+        # f and ϵ matrices
+        f_sT = 2 * gd.Ω * sin.(gd_slab.ϕ_T)
+        ϵ_sT = f_sT * 0 .+ ev.ϵ
+        D_sT = f_sT.^2 + ϵ_sT.^2
+        invD_sT = D_sT.^(-1.0)
+
         mtx = Dict(
             :T_swflxConv_sT  => - amo.T_DIVz_W * spdiagm(0 => view(swflx_factor_W, :)) * W_broadcast_sT,
             :T_nswflxConv_sT => - amo.T_DIVz_W * spdiagm(0 => view(nswflx_factor_W, :)) * W_broadcast_sT,
+            :invD_sT         => invD_sT,
+            :f_sT            => f_sT,
+            :ϵ_sT            => ϵ_sT,
+            :D_sT            => D_sT,
         ) 
 
         vd = VerticalDiffusion(amo; K_iso=ev.Ks_V, K_cva=ev.Ks_V_cva)

@@ -21,6 +21,9 @@ mutable struct Field
     _TMP_CHKX_   :: AbstractArray{Float64, 2} # Used to store the ∫ X dz before steping
     _TMP_CHKX    :: AbstractArray{Float64, 1}
 
+    _TMP_SUBSTEP_BUDGET_   :: AbstractArray{Float64, 2} # Used to store substep tracer budget
+
+
     HMXL     :: AbstractArray{Float64, 3}
 
     SWFLX    :: AbstractArray{Float64, 3}
@@ -58,6 +61,8 @@ mutable struct Field
  
         _TMP_CHKX_ = zeros(Float64, sT_pts, 2)
         _TMP_CHKX  = view(_TMP_CHKX_, :)
+    
+        _TMP_SUBSTEP_BUDGET_ = zeros(Float64, sT_pts, 2)
         
         _vel = zeros(Float64, U_pts + V_pts + W_pts)
 
@@ -89,6 +94,7 @@ mutable struct Field
             :WVEL => reshape(_w, Nz+1, Nx, Ny),
             :CHKTEMP => reshape(view(_CHKX_, :, 1), 1, Nx, Ny),
             :CHKSALT => reshape(view(_CHKX_, :, 2), 1, Nx, Ny),
+            :ADVT => reshape(view(_ADVX_, :, 1), Nz, Nx, Ny),
         )
 
 
@@ -114,6 +120,7 @@ mutable struct Field
             _TMP_CHKX_,
             _TMP_CHKX,
 
+            _TMP_SUBSTEP_BUDGET_,
             HMXL,
 
             SWFLX,

@@ -20,8 +20,13 @@ mutable struct Env
     ζ1        :: Float64   # Light penetration depth of DO ( = ζ2 in Paulson and Simpson (1977) )
     ζ2        :: Float64   # Light penetration depth of DO ( = ζ2 in Paulson and Simpson (1977) )
 
+    ϵ         :: Float64
+
     τ_TEMP    :: Union{Float64, Nothing}
     τ_SALT    :: Union{Float64, Nothing}
+
+    Ekman_layers :: Integer
+    Returnflow_layers :: Integer
 
     function Env(;
         gf_filename :: AbstractString,
@@ -37,6 +42,8 @@ mutable struct Env
         R        :: Float64 = 0.58,
         ζ1       :: Float64 = 0.35,
         ζ2       :: Float64 = 23.0,
+        Ekman_layers      :: Integer = 1,
+        Returnflow_layers :: Integer = 1,
         verbose  :: Bool = false,
     )
         
@@ -107,8 +114,13 @@ mutable struct Env
             ζ1,
             ζ2,
 
+            ϵ,
+
             τ_TEMP,
             τ_SALT,
+        
+            Ekman_layers,
+            Returnflow_layers,
         )
     end
 

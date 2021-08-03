@@ -26,14 +26,14 @@ mutable struct DataTable
 
 
         grid_dims = Dict(
-            :T  => [Nz,   Nx  , Ny  ],
-            :U  => [Nz,   Nx  , Ny  ],
-            :V  => [Nz,   Nx  , Nyp1],
-            :W  => [Nzp1, Nx  , Ny  ],
-            :sT => [N1, Nx, Ny  ],
-            :sU => [N1, Nx, Ny  ],
-            :sV => [N1, Nx, Nyp1],
-            :SCALAR => [N1, N1, N1],
+            :T  => (Nz,   Nx  , Ny  ),
+            :U  => (Nz,   Nx  , Ny  ),
+            :V  => (Nz,   Nx  , Nyp1),
+            :W  => (Nzp1, Nx  , Ny  ),
+            :sT => (N1, Nx, Ny  ),
+            :sU => (N1, Nx, Ny  ),
+            :sV => (N1, Nx, Nyp1),
+            :SCALAR => (N1, N1, N1),
         )
 
         # This is used for RecordTool output
@@ -111,6 +111,7 @@ function regVariable!(
     end
 
     dt.data_units[id] = DataUnit(
+        dt,
         id,
         grid,
         data,

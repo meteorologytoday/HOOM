@@ -68,7 +68,7 @@ module CESMCORE_HOOM
 
         checkDict!(configs, [
             (:init_file,                    false, (nothing, String,),          nothing),
-            (:advection_scheme,              true, (:static, :ekman_all_in_ML, :ekman_simple_partition, :ekman_codron2012_partition,),  nothing),
+            (:advection_scheme,              true, (:static, :ekman_codron2012_partition,),  nothing),
             (:MLD_scheme,                    true, (:prognostic, :datastream,), nothing),
             (:Qflux_scheme,                  true, (:on, :off,),                nothing),
             (:Qflux_finding,                 true, (:on, :off,),                nothing),
@@ -127,12 +127,23 @@ module CESMCORE_HOOM
 
                 master_ev = HOOM.Env(;
                     gf_filename = configs[:domain_file],
-                    z_w = collect(Float64, 0:-10:-200),
+                    z_w = collect(Float64, 0:-10:-350),
+                    Ekman_layers = 5,
+                    Returnflow_layers = 25,
                 )
                 
                 master_mb = HOOM.ModelBlock(master_ev; init_core = false)
-                master_mb.fi.sv[:TEMP][:, :, :]   .= 10
+                master_mb.fi.sv[:TEMP][:, :, :]  .= 10
                 master_mb.fi.sv[:TEMP][1, 20, :] .= 30
+
+                master_mb.fi.sv[:TEMP][1, :, 21] .= 21
+                master_mb.fi.sv[:TEMP][1, :, 22] .= 22
+                master_mb.fi.sv[:TEMP][1, :, 23] .= 23
+                master_mb.fi.sv[:TEMP][1, :, 24] .= 24
+                master_mb.fi.sv[:TEMP][1, :, 25] .= 25
+                master_mb.fi.sv[:TEMP][1, :, 26] .= 26
+                master_mb.fi.sv[:TEMP][1, :, 27] .= 27
+                master_mb.fi.sv[:TEMP][1, :, 28] .= 28
 
                 #throw(ErrorException("Variable `init_file` is absent in `configs`."))
 
@@ -155,12 +166,14 @@ module CESMCORE_HOOM
 
         # Create plans
         if is_master
-            jdi = JobDistributionInfo(nworkers = comm_size - 1, Ny = master_ev.Ny)
+            jdi = JobDistributionInfo(nworkers = comm_size - 1, Ny = master_ev.Ny; overlap=3)
+            printJobDistributionInfo(jdi)
         end
      
         # First, broadcast ev and create plan 
         master_ev = MPI.bcast(master_ev, 0, comm)
-        jdi = JobDistributionInfo(nworkers = comm_size - 1, Ny = master_ev.Ny)
+        jdi = JobDistributionInfo(nworkers = comm_size - 1, Ny = master_ev.Ny; overlap=3)
+
 
 
         # Second, create ModelBlocks based on ysplit_info
@@ -213,8 +226,8 @@ module CESMCORE_HOOM
                 "NSWFLX",
                 "TAUX_east",
                 "TAUY_north",
-                
             ),
+
             :state   => (
                 "TEMP",
                 "SALT",
@@ -225,7 +238,14 @@ module CESMCORE_HOOM
                 "CHKSALT",
                 "TAUX",
                 "TAUY",
+                "ADVT",
+            ),
+
+            :bnd_state   => (
+                "TEMP",
+                "SALT",
             )
+
         )
         
         sync_data = Dict()
@@ -423,7 +443,6 @@ module CESMCORE_HOOM
         ) 
 
 
-
         return MD
 
     end
@@ -445,46 +464,55 @@ module CESMCORE_HOOM
             :BLOCK,
         ) 
 
-        MPI.Barrier(comm) 
+        syncField!(
+            MD.sync_data[:state],
+            MD.jdi,
+            :M2S,
+            :BND,
+        ) 
+
+        Δt_float = Float64(Δt.value)
+        
+        if ! is_master
+            #MD.mb.fi.sv[:UVEL] .= (2π / 86400 / 20) * MD.mb.co.gd.R * cos.(MD.mb.co.gd.ϕ_T)
+            HOOM.checkBudget!(MD.mb, Δt_float; stage=:BEFORE_STEPPING)
+            HOOM.setupForcing!(MD.mb, MD.configs)
+        end
+        
+        substeps = 8
+        for substep = 1:substeps
+        
+            if ! is_master
+                HOOM.stepAdvection!(MD.mb, Δt_float/substeps)
+                HOOM.checkBudget!(MD.mb, Δt_float; stage=:SUBSTEPS, substeps=substeps)
+            end
+
+            syncField!(
+                MD.sync_data[:bnd_state],
+                MD.jdi,
+                :S2M,
+                :BND,
+            )
+
+            syncField!(
+                MD.sync_data[:bnd_state],
+                MD.jdi,
+                :M2S,
+                :BND,
+            )
+        end
+
 
         if ! is_master
-            Δt_float = Float64(Δt.value)
-            println(size(MD.mb.fi._u)) 
-            println(size(MD.mb.co.gd.ϕ_T)) 
-            MD.mb.fi.sv[:UVEL] .= 0.1 * cos.(MD.mb.co.gd.ϕ_T)
-            HOOM.checkBudget!(MD.mb, Δt_float; stage=:BEFORE_STEPPING)
-            HOOM.setupForcing!(MD.mb)
-
-            for substep = 1:8
-                HOOM.stepAdvection!(MD.mb, Δt_float/8)
-            end
             HOOM.stepColumn!(MD.mb, Δt_float)
-
             HOOM.checkBudget!(MD.mb, Δt_float; stage=:AFTER_STEPPING)
         end
         
-        MPI.Barrier(comm) 
-        #=
-        HOOM.run!(
-            MD.ocn;
-            substeps         = MD.configs[:substeps],
-            use_h_ML         = MD.configs[:MLD_scheme] == :datastream,
-            Δt               = Float64(Δt.value),
-            do_vert_diff     = MD.configs[:vertical_diffusion_scheme] == :on,
-            do_horz_diff     = MD.configs[:horizontal_diffusion_scheme] == :on,
-            do_relaxation    = MD.configs[:relaxation_scheme] == :on,
-            do_convadjust    = MD.configs[:convective_adjustment_scheme] == :on,
-            rad_scheme       = MD.configs[:radiation_scheme],
-            adv_scheme       = MD.configs[:advection_scheme],
-            do_qflx          = MD.configs[:Qflux_scheme] == :on,
-            do_qflx_finding  = MD.configs[:Qflux_finding] == :on,
-            do_seaice_nudging = MD.configs[:seaice_nudging] == :on,
-        )
-
-        if write_restart 
-            writeRestart(MD)
-        end
-        =#
+        #if write_restart 
+        #    writeRestart(MD)
+        #end
+        
+        #MPI.Barrier(comm) 
 
         syncField!(
             MD.sync_data[:state],
@@ -492,7 +520,6 @@ module CESMCORE_HOOM
             :S2M,
             :BLOCK,
         ) 
- 
     end
 
     function final(MD::HOOM_DATA)

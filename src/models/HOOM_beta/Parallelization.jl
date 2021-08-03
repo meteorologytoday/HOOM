@@ -2,9 +2,12 @@ module Parallization
 
     using ..DataManager
     using MPI
+    using Formatting
   
     export JobDistributionInfo, getYsplitInfoByRank, syncField!
- 
+    export printJobDistributionInfo
+
+
     mutable struct YSplitInfo
         pull_fr_rng      :: UnitRange
         pull_to_rng      :: UnitRange
@@ -28,7 +31,7 @@ module Parallization
         function JobDistributionInfo(;
             nworkers :: Int64,
             Ny       :: Int64,
-            overlap  :: Int64 = 2,
+            overlap  :: Int64 = 3,
         )
             if nworkers == 0
                 throw(ErrorException("No available workers!"))
@@ -221,7 +224,31 @@ module Parallization
                 end
             end
 
+            if sync_type == :BND
+                if is_master
+                    for (i, _rank) in enumerate(jdi.wranks)
+                        for (k, push_to_rng_bnd) in enumerate(getYsplitInfoByRank(jdi, _rank).push_to_rng_bnd)
+                            (push_to_rng_bnd == nothing) && continue
+                            for (j, var) in enumerate(vars)
+                                v = view(var.data, :, :, push_to_rng_bnd) 
+                                push!(reqs, MPI.Irecv!(v, i, k*length(vars) + j, comm))
+                            end
+                        end
+                    end
+                else
+                    for (k, push_fr_rng_bnd) in enumerate(getYsplitInfoByRank(jdi, rank).push_fr_rng_bnd)
+                        (push_fr_rng_bnd == nothing) && continue
+                        for (j, var) in enumerate(vars)
+                            v = view(var.data, :, :, push_fr_rng_bnd) 
+                            push!(reqs, MPI.Isend(v, 0, k*length(vars) + j, comm))
+                        end
+                    end
+                end
+            end
+
+
         elseif direction == :M2S  # Master to slave
+
             if sync_type == :BLOCK
                 if is_master
                     for (i, _rank) in enumerate(jdi.wranks)
@@ -237,9 +264,66 @@ module Parallization
                     end
                 end
             end
+
+            if sync_type == :BND
+                if is_master
+                    for (i, _rank) in enumerate(jdi.wranks)
+                        for (k, pull_fr_rng_bnd) in enumerate(getYsplitInfoByRank(jdi, _rank).pull_fr_rng_bnd)
+                            (pull_fr_rng_bnd == nothing) && continue
+                            for (j, var) in enumerate(vars)
+                                v = view(var.data, :, :, pull_fr_rng_bnd) 
+                                push!(reqs, MPI.Isend(v, i, k * length(vars) + j, comm))
+                            end
+                        end
+                    end
+                else
+                    for (k, pull_to_rng_bnd) in enumerate(getYsplitInfoByRank(jdi, rank).pull_to_rng_bnd)
+                        (pull_to_rng_bnd == nothing) && continue
+                        for (j, var) in enumerate(vars)
+                            v = view(var.data, :, :, pull_to_rng_bnd) 
+                            push!(reqs, MPI.Irecv!(v, 0, k*length(vars) + j, comm))
+                        end
+                    end
+                end
+            end
         end
 
         MPI.Waitall!(reqs)
-        
+      
+        MPI.Barrier(comm) 
+        #= 
+        if direction == :M2S && rank==1
+            for (_, var) in enumerate(vars)
+                if var.id == "TEMP"
+                    println("detect TEMP.")
+                    if var.sdata1[1, 1, end] == 0
+                        println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+                    end
+                end
+            end
+        end  # Master to slave
+        =#
     end
+
+    function printJobDistributionInfo(jdi :: JobDistributionInfo)
+        println(format("overlap  = {:d}", jdi.overlap))
+        println(format("nworkers = {:d}", jdi.nworkers))
+        println(format("wranks   = {:s}", string(jdi.wranks)))
+        println(format("wrank_to_idx = {:s}", string(jdi.wrank_to_idx)))
+
+        for (i, y_split_info) in enumerate(jdi.y_split_infos)
+            println(format("[{:d}] pull_fr_rng = {:s}", i, string(y_split_info.pull_fr_rng)))
+            println(format("[{:d}] pull_to_rng = {:s}", i, string(y_split_info.pull_to_rng)))
+            println(format("[{:d}] push_fr_rng = {:s}", i, string(y_split_info.push_fr_rng)))
+            println(format("[{:d}] push_to_rng = {:s}", i, string(y_split_info.push_to_rng)))
+
+            for j = 1:length(y_split_info.pull_fr_rng_bnd)
+                println(format("[{:d}] pull_fr_rng_bnd[{:d}] = {:s}", i, j, string(y_split_info.pull_fr_rng_bnd[j])))
+                println(format("[{:d}] pull_to_rng_bnd[{:d}] = {:s}", i, j, string(y_split_info.pull_to_rng_bnd[j])))
+                println(format("[{:d}] push_fr_rng_bnd[{:d}] = {:s}", i, j, string(y_split_info.push_fr_rng_bnd[j])))
+                println(format("[{:d}] push_to_rng_bnd[{:d}] = {:s}", i, j, string(y_split_info.push_to_rng_bnd[j])))
+            end
+        end
+    end
+ 
 end

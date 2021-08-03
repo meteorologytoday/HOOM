@@ -16,6 +16,7 @@ function getCompleteVariableList(mb::ModelBlock)
             "NSWFLX"             => ( mb.fi.NSWFLX,    :sT ),
             "CHKTEMP"           => ( mb.fi.sv[:CHKTEMP],  :sT ),
             "CHKSALT"           => ( mb.fi.sv[:CHKSALT],  :sT ),
+            "ADVT"               => ( mb.fi.sv[:ADVT],   :T ),
 
             # COORDINATEi
 #=

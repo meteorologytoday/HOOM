@@ -52,7 +52,7 @@ if rank == 0
         :relaxation_scheme            => :off,
         :convective_adjustment_scheme => :off,
         :radiation_scheme             => :exponential,
-        :advection_scheme             => :static,#ekman_codron2012_partition,
+        :advection_scheme             => :ekman_codron2012_partition,
     )
 
     gf = PolelikeCoordinate.CurvilinearSphericalGridFile(
@@ -128,10 +128,10 @@ coupler_funcs = (
             lat = gf.yc
             lon = gf.xc
 
-            #OMDATA.x2o["SWFLX"][1, :, :] .= + (cos.(deg2rad.(lat)) .+ 1) / 2 .* (sin.(deg2rad.(lon)) .+ 1)/2 * 100.0
+            OMDATA.x2o["SWFLX"][1, :, :] .= - (cos.(deg2rad.(lat).+0.1) .+ 1) / 2 .* (sin.(deg2rad.(lon)) .+ 1)/2 * 100.0
             #OMDATA.x2o["SWFLX"][1, :, :] .= + 200.0
-            OMDATA.x2o["TAUX_east"][1, :, :]   .= 1.0
-            OMDATA.x2o["TAUY_north"][1, :, :]  .= 0.0
+            OMDATA.x2o["TAUX_east"][1, :, :]   .= 0.2 * (cos.(deg2rad.(lat).+0.1) .+ 1) / 2
+            OMDATA.x2o["TAUY_north"][1, :, :]  .= 0.1 * (sin.(deg2rad.(lon)) .+ 1) / 2
 #cos.(deg2rad.(lat))
             
         end

@@ -323,7 +323,7 @@ module PolelikeCoordinate
             end
 
             new_Ny = length(sub_yrng)
-            sub_yrng_ext = sub_yrng[1]:sub_yrng[end]+1
+            sub_yrng_ext = (sub_yrng[1]):(sub_yrng[end]+1)
           
             return new(
                 R,

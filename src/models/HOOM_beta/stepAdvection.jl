@@ -41,6 +41,7 @@ function stepAdvection!(
         )
 
         @. _x += Δt * _ADVx_
+        #_x[:] = co.amo.bmo.T_N_T * _x
 
     end
 

@@ -86,6 +86,7 @@ mutable struct AdvancedMatrixOperators
 
         # define a converter to make 2D variable repeat in z direction for Nz times
         cvt3_diagm = (x,) -> spdiagm( 0 => view(x, :) )
+        cvt_diagm = (x,) -> spdiagm( 0 => view(x, :) )
 
 
         Nx = gd.Nx

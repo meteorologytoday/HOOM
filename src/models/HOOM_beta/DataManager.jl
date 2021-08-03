@@ -8,6 +8,8 @@ module DataManager
     export Recorder, setNewNCFile!, record!, avgAndOutput! 
 
     missing_value = 1e20
+
+    
     
     include("DataUnit.jl")
     include("DataTable.jl")

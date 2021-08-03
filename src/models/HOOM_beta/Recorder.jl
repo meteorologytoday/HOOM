@@ -42,37 +42,48 @@ end
 mutable struct Recorder
 
     data_table :: DataTable
-
-    filename :: Union{Nothing, AbstractString}
-    time_ptr :: Integer  # The position of next record
-    
     sobjs    :: Dict
     nsobjs   :: Dict
-
+    masks    :: Union{Dict, Nothing}
     desc     :: Dict
-
-    function Recorder(data_table :: DataTable, varnames, desc; other_varnames = nothing)
+    filename :: Union{Nothing, AbstractString}
+    time_ptr :: Integer  # The position of next record
+ 
+    function Recorder(
+        data_table :: DataTable,
+        varnames   :: AbstractArray,
+        desc       :: Dict;
+        other_varnames = nothing,
+        masks      :: Union{Nothing, Dict} = nothing,
+    )
 
         sobjs  = Dict()
         nsobjs = Dict()
 
         for varname in varnames
             du = data_table.data_units[varname]
-            sobjs[varname] = StatObj(varname, du.odata, data_table.grid_odims_str[du.grid])
+            sobjs[varname] = StatObj(varname, du.sdata2, data_table.grid_odims_str[du.grid])
         end
 
         if other_varnames == nothing
             
         else
 
-
             for varname in other_varnames
                 du = data_table.data_units[varname]
-                sobjs[varname] = NonStatObj(varname, du.odata, data_table.grid_odims_str[du.grid])
+                sobjs[varname] = NonStatObj(varname, du.sdata2, data_table.grid_odims_str[du.grid])
             end
         end
 
-        return new(data_table, nothing, 1, sobjs, nsobjs, desc)
+        return new(
+            data_table,
+            sobjs,
+            nsobjs,
+            masks,
+            desc,
+            nothing,
+            1,
+        )
     end
 
 end

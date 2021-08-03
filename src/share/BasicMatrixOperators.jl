@@ -104,48 +104,48 @@ struct BasicMatrixOperators
 
        #println("Making MatrixOperators")
         # Making operator
+        T_dim = (Nz, Nx, Ny)
         U_dim = (Nz, Nx, Ny)
         V_dim = (Nz, Nx, Ny+1)
         W_dim = (Nz+1, Nx, Ny)
-        T_dim = (Nz, Nx, Ny)
         UV_dim = (Nz, Nx, Ny+1)
 
+        T_pts = reduce(*, T_dim)
         U_pts = reduce(*, U_dim)
         V_pts = reduce(*, V_dim)
         W_pts = reduce(*, W_dim)
-        T_pts = reduce(*, T_dim)
         UV_pts = reduce(*, UV_dim)
 
+        T_I_T = speye(Float64, T_pts)
         U_I_U = speye(Float64, U_pts)
         V_I_V = speye(Float64, V_pts)
         W_I_W = speye(Float64, W_pts)
-        T_I_T = speye(Float64, T_pts)
         UV_I_UV = speye(Float64, UV_pts)
 
+        T_I_T_expand = vcat(T_I_T, zeros(Float64, 1, T_pts))
         U_I_U_expand = vcat(U_I_U, zeros(Float64, 1, U_pts))
         V_I_V_expand = vcat(V_I_V, zeros(Float64, 1, V_pts))
         W_I_W_expand = vcat(W_I_W, zeros(Float64, 1, W_pts))
-        T_I_T_expand = vcat(T_I_T, zeros(Float64, 1, T_pts))
         UV_I_UV_expand = vcat(UV_I_UV, zeros(Float64, 1, UV_pts))
 
 
+        num_T = zeros(Int64, T_dim...)
         num_U = zeros(Int64, U_dim...)
         num_V = zeros(Int64, V_dim...)
         num_W = zeros(Int64, W_dim...)
-        num_T = zeros(Int64, T_dim...)
         num_UV = zeros(Int64, UV_dim...)
 
+        num_T[:] = 1:length(num_T)
         num_U[:] = 1:length(num_U)
         num_V[:] = 1:length(num_V)
         num_W[:] = 1:length(num_W)
-        num_T[:] = 1:length(num_T)
         num_UV[:] = 1:length(num_UV)
         
+        T = num_T * 0
         U = num_U * 0
         V = num_V * 0
         W = num_W * 0
-        T = num_T * 0
-        F = num_T * 0
+        F = num_UV * 0
 
         #smb = SparseMatrixBuilder(Nx*(Ny+1)*(Nz+1)*4)
         function build!(id_mtx, idx; wipe=:none)
