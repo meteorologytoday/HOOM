@@ -1,6 +1,7 @@
 mutable struct AdvancedMatrixOperators
 
     bmo       :: BasicMatrixOperators
+    gd        :: PolelikeCoordinate.Grid
 
     T_DIVx_U    :: AbstractArray{Float64, 2}
     T_DIVy_V    :: AbstractArray{Float64, 2}
@@ -288,6 +289,7 @@ mutable struct AdvancedMatrixOperators
         return new(
 
             bmo,
+            gd,
 
             T_DIVx_U,
             T_DIVy_V,

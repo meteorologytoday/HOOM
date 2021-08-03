@@ -33,6 +33,7 @@ end
     @hinclude("../../share/AdvancedMatrixOperators.jl")
     @hinclude("../../share/Log.jl")
 
+    @hinclude("Leonard1979.jl")
     @hinclude("VerticalDiffusion.jl")
 
     @hinclude("Env.jl")
@@ -42,6 +43,7 @@ end
     @hinclude("ModelBlock.jl")
 
     @hinclude("setupForcing.jl")
+    @hinclude("stepAdvection.jl")
     @hinclude("stepColumn.jl")
     @hinclude("checkBudget.jl")
     

@@ -33,8 +33,8 @@ if rank == 0
         :casename                     => "Sandbox",
         :caseroot                     => joinpath(@__DIR__, "Sandbox", "caseroot"),
         :caserun                      => joinpath(@__DIR__, "Sandbox", "caserun"),
-        #:domain_file                  => "domain.ocn_aqua.fv4x5_gx3v7.091218.nc",
-        :domain_file                  => "domain.ocn.gx1v6.090206.nc",
+        :domain_file                  => "domain.ocn_aqua.fv4x5_gx3v7.091218.nc",
+        #:domain_file                  => "domain.ocn.gx1v6.090206.nc",
         :archive_root                 => joinpath(@__DIR__, "Sandbox", "hist"),
         :enable_archive               => true,
         :daily_record                 => :ALL,
@@ -129,7 +129,7 @@ coupler_funcs = (
             lon = gf.xc
 
             #OMDATA.x2o["SWFLX"][1, :, :] .= + (cos.(deg2rad.(lat)) .+ 1) / 2 .* (sin.(deg2rad.(lon)) .+ 1)/2 * 100.0
-            OMDATA.x2o["SWFLX"][1, :, :] .= + 200.0
+            #OMDATA.x2o["SWFLX"][1, :, :] .= + 200.0
             OMDATA.x2o["TAUX_east"][1, :, :]   .= 1.0
             OMDATA.x2o["TAUY_north"][1, :, :]  .= 0.0
 #cos.(deg2rad.(lat))

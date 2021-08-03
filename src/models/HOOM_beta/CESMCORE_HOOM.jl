@@ -127,12 +127,12 @@ module CESMCORE_HOOM
 
                 master_ev = HOOM.Env(;
                     gf_filename = configs[:domain_file],
-                    z_w = collect(Float64, 0:-10:-600),
+                    z_w = collect(Float64, 0:-10:-200),
                 )
                 
                 master_mb = HOOM.ModelBlock(master_ev; init_core = false)
                 master_mb.fi.sv[:TEMP][:, :, :]   .= 10
-#                master_mb.fi.sv[:TEMP][1:3, :, :] .= 30
+                master_mb.fi.sv[:TEMP][1, 20, :] .= 30
 
                 #throw(ErrorException("Variable `init_file` is absent in `configs`."))
 
@@ -447,15 +447,17 @@ module CESMCORE_HOOM
 
         MPI.Barrier(comm) 
 
-        #if ! is_master
-        #    MD.mb.fi.sv[:TEMP][1, :, :] .= MD.mb.fi.τx[1, :, :]
-        #end
         if ! is_master
             Δt_float = Float64(Δt.value)
-            
+            println(size(MD.mb.fi._u)) 
+            println(size(MD.mb.co.gd.ϕ_T)) 
+            MD.mb.fi.sv[:UVEL] .= 0.1 * cos.(MD.mb.co.gd.ϕ_T)
             HOOM.checkBudget!(MD.mb, Δt_float; stage=:BEFORE_STEPPING)
             HOOM.setupForcing!(MD.mb)
 
+            for substep = 1:8
+                HOOM.stepAdvection!(MD.mb, Δt_float/8)
+            end
             HOOM.stepColumn!(MD.mb, Δt_float)
 
             HOOM.checkBudget!(MD.mb, Δt_float; stage=:AFTER_STEPPING)

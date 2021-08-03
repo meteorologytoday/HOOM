@@ -8,6 +8,13 @@ mutable struct Field
     _v        :: AbstractArray{Float64, 1}
     _w        :: AbstractArray{Float64, 1}
 
+    _Xflx_U_  :: AbstractArray{Float64, 2}
+    _Xflx_V_  :: AbstractArray{Float64, 2}
+    _Xflx_W_  :: AbstractArray{Float64, 2}
+
+    _ADVX_    :: AbstractArray{Float64, 2}
+
+
     _CHKX_   :: AbstractArray{Float64, 2}
     _CHKX    :: AbstractArray{Float64, 1}
 
@@ -59,6 +66,11 @@ mutable struct Field
         _v = view(_vel, (idx+1):(idx+V_pts)) ; idx+=V_pts
         _w = view(_vel, (idx+1):(idx+W_pts)) ; idx+=W_pts
 
+        _Xflx_U_ = zeros(Float64, U_pts, 2)
+        _Xflx_V_ = zeros(Float64, V_pts, 2)
+        _Xflx_W_ = zeros(Float64, W_pts, 2)
+        
+        _ADVX_ = zeros(Float64, T_pts, 2)
 
         HMXL = zeros(Float64, 1, Nx, Ny)
         SWFLX = zeros(Float64, 1, Nx, Ny)
@@ -89,6 +101,12 @@ mutable struct Field
             _u,
             _v,
             _w,
+
+            _Xflx_U_,
+            _Xflx_V_,
+            _Xflx_W_,
+
+            _ADVX_,
 
             _CHKX_,
             _CHKX,
