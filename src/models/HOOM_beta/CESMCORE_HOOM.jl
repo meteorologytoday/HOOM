@@ -127,7 +127,7 @@ module CESMCORE_HOOM
 
                 master_ev = HOOM.Env(;
                     gf_filename = configs[:domain_file],
-                    z_w = collect(Float64, 0:-10:-300),
+                    z_w = collect(Float64, 0:-10:-600),
                 )
                 
                 master_mb = HOOM.ModelBlock(master_ev; init_core = false)

@@ -17,7 +17,7 @@ function stepColumn!(
     op_vdiff = calOp_vdiff(co.vd, view(fi._X_, :, 1))
 
     op = op_vdiff
-    println("size of op : ", size(op_vdiff))
+    #println("size of op : ", size(op_vdiff))
     F_EBM = lu( I - Δt * op)
     rad = ( co.mtx[:T_swflxConv_sT] * view(fi.SWFLX, :) + co.mtx[:T_nswflxConv_sT] * view(fi.NSWFLX, :)) / ρcp_sw
     fi._X_[:, 1] = F_EBM \ ( fi._X_[:, 1] + Δt * rad)

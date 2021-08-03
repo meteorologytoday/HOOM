@@ -19,15 +19,13 @@ if rank == 0
 
     t_start = DateTimeNoLeap(1, 1, 1)
     Δt = Second(86400)
-    steps = 31
-    t_end = DateTimeNoLeap(1, 5, 1)
+#    steps = 31
+    t_end = DateTimeNoLeap(1, 2, 1)
     #t_end = t_start + Δt * steps
     read_restart = false
 
     configs = Dict(
         :substeps    => 8, # This controls how many steps will occur for each CESM coupling. Example: ocean couple to atmosphere every 24 hours but itself steps every 3 hours. This means we would expect `Δt` = 86400, and we set `substeps` = 8.
-        :daily_record       => [],
-        :monthly_record     => :ESSENTIAL,
         :enable_archive     => true,
         :archive_list       => "archive_list.txt",
         :rpointer_file      => "rpointer.hoom",
@@ -35,7 +33,8 @@ if rank == 0
         :casename                     => "Sandbox",
         :caseroot                     => joinpath(@__DIR__, "Sandbox", "caseroot"),
         :caserun                      => joinpath(@__DIR__, "Sandbox", "caserun"),
-        :domain_file                  => "domain.ocn_aqua.fv4x5_gx3v7.091218.nc",
+        #:domain_file                  => "domain.ocn_aqua.fv4x5_gx3v7.091218.nc",
+        :domain_file                  => "domain.ocn.gx1v6.090206.nc",
         :archive_root                 => joinpath(@__DIR__, "Sandbox", "hist"),
         :enable_archive               => true,
         :daily_record                 => :ALL,

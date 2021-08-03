@@ -69,10 +69,15 @@ function runModel(
                     write_restart = write_restart,
                 )
 
+                MPI.Barrier(comm)
+
             end
+            is_master && println(format("Computation cost: {:f} secs.", cost))
             coupler_funcs.after_model_run!(OMMODULE, OMDATA)
             
             advanceClock!(clock, Δt)
+
+            
 
         elseif stage == :END
             is_master && println("stage == :END. Break loop now.")
