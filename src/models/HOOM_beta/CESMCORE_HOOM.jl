@@ -145,6 +145,9 @@ module CESMCORE_HOOM
                 master_mb.fi.sv[:TEMP][1, :, 27] .= 27
                 master_mb.fi.sv[:TEMP][1, :, 28] .= 28
 
+                master_mb.fi.HMXL .= 50.0
+                master_mb.fi.HMXL[1, 20:25, 21:24] .= 75.0
+
                 #throw(ErrorException("Variable `init_file` is absent in `configs`."))
 
             end
@@ -239,6 +242,7 @@ module CESMCORE_HOOM
                 "TAUX",
                 "TAUY",
                 "ADVT",
+                "HMXL",
             ),
 
             :bnd_state   => (
@@ -465,10 +469,10 @@ module CESMCORE_HOOM
         )
 
         syncField!(
-            MD.sync_data[:state],
+            MD.sync_data[:bnd_state],
             MD.jdi,
             :M2S,
-            :BLOCK,
+            :BND,
         ) 
 
         Δt_float = Float64(Δt.value)
@@ -488,17 +492,17 @@ module CESMCORE_HOOM
             end
 
             syncField!(
-                MD.sync_data[:state],
+                MD.sync_data[:bnd_state],
                 MD.jdi,
                 :S2M,
-                :BLOCK,
+                :BND,
             )
 
             syncField!(
-                MD.sync_data[:state],
+                MD.sync_data[:bnd_state],
                 MD.jdi,
                 :M2S,
-                :BLOCK,
+                :BND,
             )
         end
 

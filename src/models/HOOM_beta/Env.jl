@@ -1,14 +1,12 @@
 mutable struct Env
 
     gf_filename :: Union{AbstractString, Nothing}
-#    gf          :: Union{PolelikeCoordinate.GridFile, Nothing}
+    cd_filename :: Union{AbstractString, Nothing}  # Cyclic data filename
 
     sub_yrng    :: Any
     Nx :: Integer
     Ny :: Integer
     Nz :: Integer
-#    gd       :: PolelikeCoordinate.Grid
-#    gd_slab  :: PolelikeCoordinate.Grid
 
     z_w      :: AbstractArray{Float64, 1} # Unmasked zs bone
 
@@ -30,6 +28,7 @@ mutable struct Env
 
     function Env(;
         gf_filename :: AbstractString,
+        cd_filename :: String = "",
         sub_yrng :: Union{UnitRange, Nothing} = nothing,
         z_w      :: AbstractArray{Float64, 1},
         Ks_H     :: Float64 = 1e3,
@@ -38,7 +37,6 @@ mutable struct Env
         τ_TEMP   :: Union{Float64, Nothing} = nothing,
         τ_SALT   :: Union{Float64, Nothing} = nothing,
         ϵ        :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = 1.0 / 86400.0,
-        qflx_finding_forcing_file :: String = "",
         R        :: Float64 = 0.58,
         ζ1       :: Float64 = 0.35,
         ζ2       :: Float64 = 23.0,
@@ -67,38 +65,11 @@ mutable struct Env
         #mask_T  = repeat( mask_sT, outer=(gd.Nz, gd.Nx, gd.Ny) )
         
 
-        # ===== [BEGIN] Q-flux finding forcing file =====
-        qflx_finding_cdm = nothing
-        
-        #if rank == 0
-            # do nothing 
-        #else
-            #if sub_yrng == nothing
-            #    thorw(ErrorException("Init worker ocean, sub_yrng must be provided."))
-            #end
-
-            #=
-            if qflx_finding_forcing_file != ""
-
-                println("Load qflx file: ", qflx_finding_forcing_file)
-                qflx_finding_cdm = CyclicDataManager(;
-                    filename     = qflx_finding_forcing_file,
-                    varname_time = "time", 
-                    varnames     = ["TEMP", "SALT"],
-                    beg_time     = 0.0,
-                    cyc_time     = 365.0,
-                    spatial_rng  = (:, sub_yrng, :),  # in the shape of the file
-                    xyz2zxy      = true,
-                )
-            end
-            =# 
-        #end
-
         return new(
-            #rank,
             
             gf_filename,
-    
+            cd_filename,
+ 
             sub_yrng,        
             Nx,
             Ny,

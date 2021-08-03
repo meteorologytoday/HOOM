@@ -37,7 +37,6 @@ mutable struct Field
 
     # sugar view
     sv       :: Dict 
-
     diag     :: Dict
 
     function Field(
@@ -139,13 +138,4 @@ mutable struct Field
 
 end
 
-
-mutable struct SugarView
-    
-    f :: Field
-
-    TEMP     :: AbstractArray{Float64, 3}
-    SALT     :: AbstractArray{Float64, 3}
-
-end
 

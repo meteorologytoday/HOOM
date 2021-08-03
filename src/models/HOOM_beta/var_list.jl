@@ -12,11 +12,12 @@ function getCompleteVariableList(mb::ModelBlock)
             "TAUY"               => ( mb.fi.TAUY,        :sT ),
             "TAUX_east"          => ( mb.fi.TAUX_east,   :sT ),
             "TAUY_north"         => ( mb.fi.TAUY_north,  :sT ),
-            "SWFLX"              => ( mb.fi.SWFLX,     :sT ),
-            "NSWFLX"             => ( mb.fi.NSWFLX,    :sT ),
-            "CHKTEMP"           => ( mb.fi.sv[:CHKTEMP],  :sT ),
-            "CHKSALT"           => ( mb.fi.sv[:CHKSALT],  :sT ),
-            "ADVT"               => ( mb.fi.sv[:ADVT],   :T ),
+            "SWFLX"              => ( mb.fi.SWFLX,       :sT ),
+            "NSWFLX"             => ( mb.fi.NSWFLX,      :sT ),
+            "CHKTEMP"            => ( mb.fi.sv[:CHKTEMP],  :sT ),
+            "CHKSALT"            => ( mb.fi.sv[:CHKSALT],  :sT ),
+            "ADVT"               => ( mb.fi.sv[:ADVT],     :T ),
+            "HMXL"               => ( mb.fi.HMXL,          :sT ),
 
             # COORDINATEi
 #=
