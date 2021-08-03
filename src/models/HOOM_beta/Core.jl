@@ -9,9 +9,12 @@ mutable struct Core
     mask_sT :: AbstractArray{Float64, 3}
     mask_T :: AbstractArray{Float64, 3}
  
-  
-    amo      :: Union{AdvancedMatrixOperators, Nothing}
     amo_slab :: Union{AdvancedMatrixOperators, Nothing}
+    amo      :: Union{AdvancedMatrixOperators, Nothing}
+
+    mtx      :: Dict
+
+    vd :: VerticalDiffusion
 
     function Core(
         ev :: Env;
@@ -27,14 +30,9 @@ mutable struct Core
         gd      = PolelikeCoordinate.genGrid(gf, ev.z_w ; sub_yrng=ev.sub_yrng) 
         gd_slab = PolelikeCoordinate.genGrid(gf, [0, -1.0]; sub_yrng=ev.sub_yrng) 
 
-        mask_sT = reshape(gf.mask[:, ev.sub_yrng], 1, :, ev.Ny)
+        mask_sT = reshape(gf.mask[:, ev.sub_yrng], 1, ev.Nx, ev.Ny)
         mask_T  = repeat( mask_sT, outer=(gd.Nz, 1, 1) )
  
-        writeLog("Mask shape sT {:s}", string(size(mask_sT)); force=true)       
-        writeLog("Mask shape T  {:s}", string(size(mask_T)); force=true)       
-
-        writeLog("gd      shape: {:d} {:d} {:d}", gd.Nz, gd.Nx, gd.Ny; force=true)       
-        writeLog("gd_slab shape: {:d} {:d} {:d}", gd_slab.Nz, gd_slab.Nx, gd_slab.Ny; force=true)       
         @time amo_slab = AdvancedMatrixOperators(;
             gd = gd_slab,
             mask_T = mask_sT,
@@ -49,13 +47,6 @@ mutable struct Core
 
         # Build Advection Matrix
 
-        # Build Radiation Matrix
-        swflx_factor_W = (1.0 - ev.R) * exp.(gd.z_W / ev.ζ2)
-        lwflx_factor_W =        ev.R  * exp.(gd.z_W / ev.ζ1)
-
-        # Bottom absorbs everything
-        swflx_factor_W[end, :, :] .= 0.0
-        lwflx_factor_W[end, :, :] .= 0.0
 
         function build!(id_mtx, idx)
             local result
@@ -76,8 +67,19 @@ mutable struct Core
         mapping_T = repeat(num_sT, outer=(ev.Nz+1, 1, 1))
         W_broadcast_sT = build!(amo_slab.bmo.T_I_T, mapping_T)
 
-        swflx_conv = - amo.T_DIVz_W * spdiagm(0 => view(swflx_factor_W, :)) * W_broadcast_sT
-        lwflx_conv = - amo.T_DIVz_W * spdiagm(0 => view(lwflx_factor_W, :)) * W_broadcast_sT 
+        # Build Radiation Matrix
+        swflx_factor_W =  ev.R  * exp.(gd.z_W / ev.ζ1) + (1.0 - ev.R) * exp.(gd.z_W / ev.ζ2)
+        swflx_factor_W[end, :, :] .= 0.0 # Bottom absorbs everything
+
+        nswflx_factor_W = 0.0 * gd.z_W
+        nswflx_factor_W[1, :, :] .= 1.0
+
+        mtx = Dict(
+            :T_swflxConv_sT  => - amo.T_DIVz_W * spdiagm(0 => view(swflx_factor_W, :)) * W_broadcast_sT,
+            :T_nswflxConv_sT => - amo.T_DIVz_W * spdiagm(0 => view(nswflx_factor_W, :)) * W_broadcast_sT,
+        ) 
+
+        vd = VerticalDiffusion(amo; K_iso=ev.Ks_V, K_cva=ev.Ks_V_cva)
 
         return new(
             gf,
@@ -86,7 +88,13 @@ mutable struct Core
 
             mask_sT,
             mask_T,
+
+            amo_slab,
             amo,
+
+            mtx,    
+
+            vd,
         )
     end
 

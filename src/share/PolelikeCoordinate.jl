@@ -375,18 +375,21 @@ module PolelikeCoordinate
 
     function project(
         gi    :: CurvilinearSphericalGrid,
-        ivf_e :: AbstractArray{Float64, 2},     # input vector field east
-        ivf_n :: AbstractArray{Float64, 2};     # input vector field north
+        ivf_x :: AbstractArray{Float64, 3},     # input vector field east
+        ivf_y :: AbstractArray{Float64, 3};     # input vector field north
         grid      :: Symbol,
         direction :: Symbol = :Forward,
     )
-        ovf_e = similar(ivf_e)
-        ovf_n = similar(ivf_n)
+
+        if ovf_x == nothing || ovf_y == nothing
+            ovf_x = similar(ivf_x)
+            ovf_y = similar(ivf_y)
+        end
 
         project!(
             gi,
-            ivf_e, ivf_n,
-            ovf_e, ovf_n;
+            ivf_x, ivf_y,
+            ovf_x, ovf_y;
             direction=direction,
             grid=grid,
         )
@@ -397,10 +400,10 @@ module PolelikeCoordinate
 
     function project!(
         gi    :: CurvilinearSphericalGrid,
-        ivf_e :: AbstractArray{Float64, 2},     # input vector field east
-        ivf_n :: AbstractArray{Float64, 2},     # input vector field north
-        ovf_e :: AbstractArray{Float64, 2},    # output vector field east
-        ovf_n :: AbstractArray{Float64, 2};    # output vector field north
+        ivf_x :: AbstractArray{Float64, 3},     # input vector field east
+        ivf_y :: AbstractArray{Float64, 3},     # input vector field north
+        ovf_x :: AbstractArray{Float64, 3},    # output vector field east
+        ovf_y :: AbstractArray{Float64, 3};    # output vector field north
         grid      :: Symbol,
         direction :: Symbol = :Forward,
     )
@@ -415,19 +418,26 @@ module PolelikeCoordinate
             throw(ErrorException("Unrecognized grid: " * string(grid)))
         end
         if direction == :Forward   # from outside world onto dispalced pole grid
-            @. ovf_e =   ivf_e * COSα + ivf_n * SINα
-            @. ovf_n = - ivf_e * SINα + ivf_n * COSα
-            #for i=1:gi.Nx, j=1:gi.Ny
-            #    ovf_e[i, j] =   ivf_e[i, j] * gi.cosα[i, j] - ivf_n[i, j] * gi.sinα[i, j]
-            #    ovf_n[i, j] =   ivf_e[i, j] * gi.sinα[i, j] + ivf_n[i, j] * gi.cosα[i, j]
-            #end
+            
+            for k=1:size(ivf_x)[1]
+                ovf_x_view = view(ovf_x, k, :, :)
+                ovf_y_view = view(ovf_y, k, :, :)
+                ivf_x_view = view(ivf_x, k, :, :)
+                ivf_y_view = view(ivf_y, k, :, :)
+
+                @. ovf_x_view =   ivf_x_view * COSα + ivf_y_view * SINα
+                @. ovf_y_view = - ivf_x_view * SINα + ivf_y_view * COSα
+            end
         elseif direction == :Backward   # from displaced pole grid onto outside world
-            @. ovf_e = ivf_e * COSα - ivf_n * SINα
-            @. ovf_n = ivf_e * SINα + ivf_n * COSα
-            #for i=1:gi.Nx, j=1:gi.Ny
-            #    ovf_e[i, j] =   ivf_e[i, j] * gi.cosα[i, j] + ivf_n[i, j] * gi.sinα[i, j]
-            #    ovf_n[i, j] = - ivf_e[i, j] * gi.sinα[i, j] + ivf_n[i, j] * gi.cosα[i, j]
-            #end
+            for k=1:size(ivf_x)[1]
+                ovf_x_view = view(ovf_x, k, :, :)
+                ovf_y_view = view(ovf_y, k, :, :)
+                ivf_x_view = view(ivf_x, k, :, :)
+                ivf_y_view = view(ivf_y, k, :, :)
+
+                @. ovf_x_view = ivf_x_view * COSα - ivf_y_view * SINα
+                @. ovf_y_view = ivf_x_view * SINα + ivf_y_view * COSα
+            end
         else
             throw(ErrorException("Unsupported direction: " * string(direction)))
         end

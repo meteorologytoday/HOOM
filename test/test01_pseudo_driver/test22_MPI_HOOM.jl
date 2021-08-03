@@ -129,16 +129,12 @@ coupler_funcs = (
             lat = gf.yc
             lon = gf.xc
 
-            println("Size of lat", size(lat))
-            println("Size of TAUX", size(OMDATA.x2o["TAUX"]))
-
-            OMDATA.x2o["SWFLX"] .= - 1000.0
-            OMDATA.x2o["TAUX"][1, :, :]  .= cos.(deg2rad.(lat))
+            #OMDATA.x2o["SWFLX"][1, :, :] .= + (cos.(deg2rad.(lat)) .+ 1) / 2 .* (sin.(deg2rad.(lon)) .+ 1)/2 * 100.0
+            OMDATA.x2o["SWFLX"][1, :, :] .= + 200.0
+            OMDATA.x2o["TAUX_east"][1, :, :]   .= 1.0
+            OMDATA.x2o["TAUY_north"][1, :, :]  .= 0.0
+#cos.(deg2rad.(lat))
             
-            OMDATA.mb.fi.τx .= OMDATA.x2o["TAUX"]
-        
-        else
-            OMDATA.mb.fi.τx .= rank
         end
 
 

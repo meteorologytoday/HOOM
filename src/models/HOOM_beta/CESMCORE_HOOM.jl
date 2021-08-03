@@ -127,10 +127,12 @@ module CESMCORE_HOOM
 
                 master_ev = HOOM.Env(;
                     gf_filename = configs[:domain_file],
-                    z_w = collect(Float64, 0:-50:-300),
+                    z_w = collect(Float64, 0:-10:-300),
                 )
                 
                 master_mb = HOOM.ModelBlock(master_ev; init_core = false)
+                master_mb.fi.sv[:TEMP][:, :, :]   .= 10
+#                master_mb.fi.sv[:TEMP][1:3, :, :] .= 30
 
                 #throw(ErrorException("Variable `init_file` is absent in `configs`."))
 
@@ -178,10 +180,10 @@ module CESMCORE_HOOM
 
         empty_arr_sT = zeros(Float64, 1, my_ev.Nx, my_ev.Ny)
         x2o = Dict(
-            "SWFLX"  => copy(empty_arr_sT),
-            "NSWFLX" => copy(empty_arr_sT),
-            "TAUX"   => copy(empty_arr_sT),
-            "TAUY"   => copy(empty_arr_sT),
+            "SWFLX"  => my_mb.fi.SWFLX,
+            "NSWFLX" => my_mb.fi.NSWFLX,
+            "TAUX_east"    => my_mb.fi.TAUX_east,
+            "TAUY_north"   => my_mb.fi.TAUY_north,
             "IFRAC"  => copy(empty_arr_sT),
             "FRWFLX" => copy(empty_arr_sT),
             "VSFLX"  => copy(empty_arr_sT),
@@ -207,8 +209,11 @@ module CESMCORE_HOOM
         # Synchronizing Data
         sync_data_list = Dict(
             :forcing => (
-                "TAUX",
-                "TAUY",
+                "SWFLX",
+                "NSWFLX",
+                "TAUX_east",
+                "TAUY_north",
+                
             ),
             :state   => (
                 "TEMP",
@@ -216,6 +221,10 @@ module CESMCORE_HOOM
                 "UVEL",
                 "VVEL",
                 "WVEL",
+                "CHKTEMP",
+                "CHKSALT",
+                "TAUX",
+                "TAUY",
             )
         )
         
@@ -406,6 +415,14 @@ module CESMCORE_HOOM
 
         MPI.Barrier(comm)
 
+        syncField!(
+            MD.sync_data[:state],
+            MD.jdi,
+            :M2S,
+            :BLOCK,
+        ) 
+
+
 
         return MD
 
@@ -419,6 +436,7 @@ module CESMCORE_HOOM
 
         comm = MPI.COMM_WORLD
         rank = MPI.Comm_rank(comm)
+        is_master = rank == 0
 
         syncField!(
             MD.sync_data[:forcing],
@@ -427,12 +445,23 @@ module CESMCORE_HOOM
             :BLOCK,
         ) 
 
-        is_master = rank == 0
+        MPI.Barrier(comm) 
 
+        #if ! is_master
+        #    MD.mb.fi.sv[:TEMP][1, :, :] .= MD.mb.fi.τx[1, :, :]
+        #end
         if ! is_master
-            MD.mb.fi.sv[:TEMP][1, :, :] .= MD.mb.fi.τx[1, :, :]
+            Δt_float = Float64(Δt.value)
+            
+            HOOM.checkBudget!(MD.mb, Δt_float; stage=:BEFORE_STEPPING)
+            HOOM.setupForcing!(MD.mb)
+
+            HOOM.stepColumn!(MD.mb, Δt_float)
+
+            HOOM.checkBudget!(MD.mb, Δt_float; stage=:AFTER_STEPPING)
         end
         
+        MPI.Barrier(comm) 
         #=
         HOOM.run!(
             MD.ocn;

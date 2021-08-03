@@ -12,10 +12,9 @@ mutable struct Env
 
     z_w      :: AbstractArray{Float64, 1} # Unmasked zs bone
 
-    Dh_T      :: Float64           # Horizontal diffusion coe of temperature
-    Dv_T      :: Float64           # Vertical   diffusion coe of temperature
-    Dh_S      :: Float64           # Horizontal diffusion coe of salinity
-    Dv_S      :: Float64           # Vertical   diffusion coe of salinity
+    Ks_H      :: Float64
+    Ks_V      :: Float64
+    Ks_V_cva  :: Float64
 
     R         :: Float64   # Fast absorption portion of sunlight.
     ζ1        :: Float64   # Light penetration depth of DO ( = ζ2 in Paulson and Simpson (1977) )
@@ -28,17 +27,16 @@ mutable struct Env
         gf_filename :: AbstractString,
         sub_yrng :: Union{UnitRange, Nothing} = nothing,
         z_w      :: AbstractArray{Float64, 1},
-        Dh_T     :: Float64 = 1e3,
-        Dv_T     :: Float64 = 1e-5,
-        Dh_S     :: Float64 = 1e3,
-        Dv_S     :: Float64 = 1e-5,
+        Ks_H     :: Float64 = 1e3,
+        Ks_V     :: Float64 = 1e-5,
+        Ks_V_cva :: Float64 = 1.0,
         τ_TEMP   :: Union{Float64, Nothing} = nothing,
         τ_SALT   :: Union{Float64, Nothing} = nothing,
         ϵ        :: Union{AbstractArray{Float64, 2}, Float64, Nothing} = 1.0 / 86400.0,
         qflx_finding_forcing_file :: String = "",
         R        :: Float64 = 0.58,
-        ζ1       :: Float64 = 23.0,
-        ζ2       :: Float64 = 0.35,
+        ζ1       :: Float64 = 0.35,
+        ζ2       :: Float64 = 23.0,
         verbose  :: Bool = false,
     )
         
@@ -101,10 +99,9 @@ mutable struct Env
 
             z_w,
 
-            Dh_T,
-            Dv_T,
-            Dh_S,
-            Dv_S,
+            Ks_H,
+            Ks_V,
+            Ks_V_cva,
 
             R,
             ζ1,

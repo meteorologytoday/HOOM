@@ -13,7 +13,7 @@ const Re     = 6.37122e6  # m            copied from models/csm_share/shr/shr_co
 const Hf_sw = 3.337e5     # J / kg  latent heat of fusion  copied from models/csm_share/shr/shr_const_mod.F90
 
 
-const ρc_sw  = ρ_sw * c_p_sw
+const ρcp_sw  = ρ_sw * c_p_sw
 
 const missing_value = 1e20
 

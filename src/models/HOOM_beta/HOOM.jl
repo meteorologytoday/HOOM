@@ -8,6 +8,7 @@ end
 
 @everywhere module HOOM
 
+    using LinearAlgebra
     using MPI
     using Dates
     using Printf
@@ -32,12 +33,17 @@ end
     @hinclude("../../share/AdvancedMatrixOperators.jl")
     @hinclude("../../share/Log.jl")
 
+    @hinclude("VerticalDiffusion.jl")
+
     @hinclude("Env.jl")
     @hinclude("Field.jl")
     @hinclude("Core.jl")
     
     @hinclude("ModelBlock.jl")
-    @hinclude("Model.jl")
+
+    @hinclude("setupForcing.jl")
+    @hinclude("stepColumn.jl")
+    @hinclude("checkBudget.jl")
     
     @hinclude("var_list.jl")
     @hinclude("var_desc.jl")

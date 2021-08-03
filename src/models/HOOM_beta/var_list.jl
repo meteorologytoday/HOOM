@@ -8,8 +8,14 @@ function getCompleteVariableList(mb::ModelBlock)
             "UVEL"               => ( mb.fi.sv[:UVEL], :U ),
             "VVEL"               => ( mb.fi.sv[:VVEL], :V ),
             "WVEL"               => ( mb.fi.sv[:WVEL], :W ),
-            "TAUX"               => ( mb.fi.τx,        :sT ),
-            "TAUY"               => ( mb.fi.τy,        :sT ),
+            "TAUX"               => ( mb.fi.TAUX,        :sT ),
+            "TAUY"               => ( mb.fi.TAUY,        :sT ),
+            "TAUX_east"          => ( mb.fi.TAUX_east,   :sT ),
+            "TAUY_north"         => ( mb.fi.TAUY_north,  :sT ),
+            "SWFLX"              => ( mb.fi.SWFLX,     :sT ),
+            "NSWFLX"             => ( mb.fi.NSWFLX,    :sT ),
+            "CHKTEMP"           => ( mb.fi.sv[:CHKTEMP],  :sT ),
+            "CHKSALT"           => ( mb.fi.sv[:CHKSALT],  :sT ),
 
             # COORDINATEi
 #=
