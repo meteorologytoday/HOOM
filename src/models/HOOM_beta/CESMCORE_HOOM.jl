@@ -62,30 +62,14 @@ module CESMCORE_HOOM
         end
 
         is_master = ( rank == 0 )
-        
-       
-        
-
-        checkDict!(configs, [
-            (:init_file,                    false, (nothing, String,),          nothing),
-            (:advection_scheme,              true, (:static, :ekman_codron2012_partition,),  nothing),
-            (:MLD_scheme,                    true, (:prognostic, :datastream,), nothing),
-            (:Qflux_scheme,                  true, (:on, :off,),                nothing),
-            (:Qflux_finding,                 true, (:on, :off,),                nothing),
-            (:vertical_diffusion_scheme,     true, (:on, :off,),                nothing),
-            (:horizontal_diffusion_scheme,   true, (:on, :off,),                nothing),
-            (:relaxation_scheme,             true, (:on, :off,),                nothing),
-            (:convective_adjustment_scheme,  true, (:on, :off,),                nothing),
-            (:daily_record,                  true, (AbstractArray, Symbol),                 []),
-            (:monthly_record,                true, (AbstractArray, Symbol),                 []),
-        ])
-
 
         local master_mb = nothing
         local master_ev = nothing
+
         if is_master
 
-            init_file = configs[:init_file]
+            init_file_config = HOOM.validateConfig(configs, HOOM.genConfigEntryList(:INIT_FILE)) 
+            init_file = init_file_config[:init_file]
 
             # If `read_restart` is true then read restart file: configs[:rpointer_file]
             # If not then initialize ocean with default profile if `initial_file`
@@ -93,18 +77,15 @@ module CESMCORE_HOOM
 
             if read_restart
 
-                println("`read_restart` is on")
-                checkDict!( configs, [
-                    (:rpointer_file, true, (String,), nothing),
-                ])
+                println("`read_restart` is on. Look for rpointer file...")
 
-                if !isfile(configs[:rpointer_file])
-                    throw(ErrorException(configs[:rpointer_file] * " does not exist!"))
+                if !isfile(init_file_config[:rpointer_file])
+                    throw(ErrorException(init_file_config[:rpointer_file] * " does not exist!"))
                 end
                 
-                println("Going to read restart pointer file: ", configs[:rpointer_file])
+                println("Going to read restart pointer file: ", init_file_config[:rpointer_file])
 
-                open(configs[:rpointer_file], "r") do file
+                open(init_file_config[:rpointer_file], "r") do file
                     init_file = readline(file)
                 end
 
@@ -115,7 +96,7 @@ module CESMCORE_HOOM
             end
 
 
-            if typeof(init_file) <: AbstractString
+            if init_file != ""
 
                 println("Initial ocean with profile: ", init_file)
                 println("Initial ocean with domain file: ", configs[:domain_file])
@@ -127,12 +108,13 @@ module CESMCORE_HOOM
 
                 master_ev = HOOM.Env(;
                     gf_filename = configs[:domain_file],
+                    cdata_filename = configs[:cdata_file],
                     z_w = collect(Float64, 0:-10:-350),
                     Ekman_layers = 5,
                     Returnflow_layers = 25,
                 )
                 
-                master_mb = HOOM.ModelBlock(master_ev; init_core = false)
+                master_mb = HOOM.ModelBlock(master_ev; init_core=false, configs=configs)
                 master_mb.fi.sv[:TEMP][:, :, :]  .= 10
                 master_mb.fi.sv[:TEMP][1, 20, :] .= 30
 
@@ -151,9 +133,6 @@ module CESMCORE_HOOM
                 #throw(ErrorException("Variable `init_file` is absent in `configs`."))
 
             end
-
-            #println("Initializing parallization...")
-            #HOOM.init(ocn)
 
             #in_flds = ocn.in_flds
             #
@@ -294,7 +273,7 @@ module CESMCORE_HOOM
                 configs[rec_key] = HOOM.getVariableList(my_mb, configs[rec_key]) |> keys |> collect
 
                 # Qflux_finding mode requires certain output
-                if configs[:Qflux_finding] == :on
+                if configs[:Qflx_finding] == :on
                     append!(configs[rec_key], HOOM.getVariableList(ocn, :QFLX_FINDING) |> keys )
                 end
      

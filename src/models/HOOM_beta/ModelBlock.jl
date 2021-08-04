@@ -7,12 +7,13 @@ mutable struct ModelBlock
     function ModelBlock(
         ev :: Env;
         init_core :: Bool = false,
+        configs   :: Dict,
     ) 
 
         return new(
             ev,
             Field(ev),
-            (init_core) ? Core(ev) : nothing,
+            (init_core) ? Core(ev, configs) : nothing,
         )
     end
 end

@@ -35,6 +35,7 @@ mutable struct Field
     TAUX_east    :: AbstractArray{Float64, 3}
     TAUY_north   :: AbstractArray{Float64, 3}
 
+    QFLX2ATM     :: AbstractArray{Float64, 3}
     # sugar view
     sv       :: Dict 
     diag     :: Dict
@@ -85,6 +86,8 @@ mutable struct Field
         TAUX = zeros(Float64, 1, Nx, Ny)
         TAUY = zeros(Float64, 1, Nx, Ny)
         
+        QFLX2ATM = zeros(Float64, 1, Nx, Ny)
+        
         sv = Dict(
             :TEMP => reshape(view(_X_, :, 1), Nz, Nx, Ny),
             :SALT => reshape(view(_X_, :, 2), Nz, Nx, Ny),
@@ -96,7 +99,7 @@ mutable struct Field
             :ADVT => reshape(view(_ADVX_, :, 1), Nz, Nx, Ny),
         )
 
-
+        diag = Dict()
         return new(
 
             _X_,
@@ -131,7 +134,10 @@ mutable struct Field
             TAUX_east,
             TAUY_north,
 
+            QFLX2ATM,
+
             sv,
+            diag,
         )
 
     end

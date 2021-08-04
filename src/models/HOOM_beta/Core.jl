@@ -18,7 +18,8 @@ mutable struct Core
     cdatam    :: Union{CyclicDataManager, Nothing}
 
     function Core(
-        ev :: Env;
+        ev :: Env,
+        configs :: Dict,
     )
 
         gf = PolelikeCoordinate.CurvilinearSphericalGridFile(
@@ -98,7 +99,7 @@ mutable struct Core
         cdata_varnames = []
 
         if configs[:MLD_scheme] == :datastream
-            push!(cdata_varnames, "MLD")
+            push!(cdata_varnames, "HBLT")
         end
 
         if configs[:Qflx] == :on

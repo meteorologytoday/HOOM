@@ -32,6 +32,13 @@ end
     @hinclude("../../share/BasicMatrixOperators.jl")
     @hinclude("../../share/AdvancedMatrixOperators.jl")
     @hinclude("../../share/Log.jl")
+    @hinclude("../../share/CyclicData.jl")
+    using .CyclicData
+
+    @hinclude("../../share/ConfigCheck.jl")
+    using .ConfigCheck
+
+    @hinclude("entry_list.jl")
 
     @hinclude("Leonard1979.jl")
     @hinclude("VerticalDiffusion.jl")
