@@ -39,9 +39,10 @@ module CyclicData
             Dataset(filename, "r") do ds
                     
                 t_vec = nomissing(ds[varname_time][:])
-
+                println("typeof t_vec: ", typeof(t_vec))
                 t_attrib = ds[varname_time].attrib
-                t_vec = [ timeencode(t_vec[i], t_attrib["units"], t_attrib["calendar"]) for i = 1:length(t_vec) ]
+                #t_vec = [ timeencode(t_vec[i], t_attrib["units"], t_attrib["calendar"]) for i = 1:length(t_vec) ]
+                t_vec = [ timeencode(t_vec[i], "seconds since 0001-01-01 00:00:00", "noleap") for i = 1:length(t_vec) ]
 
             end
 

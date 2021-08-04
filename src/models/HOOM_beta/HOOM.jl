@@ -1,12 +1,24 @@
-using Distributed
+if !(:ModelClockSystem in names(Main))
+    include(normpath(joinpath(dirname(@__FILE__), "..", "..", "share", "ModelClockSystem.jl")))
+end
+
+if !(:ConfigCheck in names(Main))
+    include(normpath(joinpath(dirname(@__FILE__), "..", "..", "share", "ConfigCheck.jl")))
+end
+
+if !(:CyclicData in names(Main))
+    include(normpath(joinpath(dirname(@__FILE__), "..", "..", "share", "CyclicData.jl")))
+end
+
+if !(:LogSystem in names(Main))
+    include(normpath(joinpath(dirname(@__FILE__), "..", "..", "share", "LogSystem.jl")))
+end
 
 macro hinclude(path)
     return :(include(normpath(joinpath(@__DIR__, $path))))
 end
 
-
-
-@everywhere module HOOM
+module HOOM
 
     using LinearAlgebra
     using MPI
@@ -17,6 +29,10 @@ end
     using Distributed
     using SparseArrays
     using NCDatasets
+    using ..ModelClockSystem
+    using ..ConfigCheck
+    using ..CyclicData
+    using ..LogSystem
 
     macro hinclude(path)
         return :(include(normpath(joinpath(@__DIR__, $path))))
@@ -31,12 +47,8 @@ end
     @hinclude("../../share/PolelikeCoordinate.jl")
     @hinclude("../../share/BasicMatrixOperators.jl")
     @hinclude("../../share/AdvancedMatrixOperators.jl")
-    @hinclude("../../share/Log.jl")
-    @hinclude("../../share/CyclicData.jl")
-    using .CyclicData
 
-    @hinclude("../../share/ConfigCheck.jl")
-    using .ConfigCheck
+
 
     @hinclude("entry_list.jl")
 

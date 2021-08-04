@@ -3,7 +3,7 @@ module ConfigCheck
 
     using Formatting
 
-    export ConfigEntry, validateConfig
+    export ConfigEntry, validateConfigEntries, validateByConfigGroup
 
     mutable struct ConfigEntry
         name      :: Symbol
@@ -30,21 +30,40 @@ module ConfigCheck
 
     end
 
-    """
+    function validateByConfigGroup(
+        cfg                :: Dict,
+        cfg_desc           :: Dict{Symbol, AbstractArray{ConfigEntry, 1}},
+        target_group_names :: Union{AbstractArray{Symbol}, Nothing} = nothing,
+    )
 
-    infos is a list of four elements:
-        1. name of the key, 
-        2. A boolean value indicating it is required or not.
-        3. A list of valid values or data types. For example: (Bool, ) only allows true/false value, (:on, :off, String) means it can be :on, :off, or any subtype of String
-        4. Default value if key is not required and does not exist in the dict yet.
+        # cfg_desc is a Dict whose key is the name of a config group and 
+        # value is an Array of ConfigEntry
 
-    """
-    function validateConfig(
+        all_group_names = keys(cfg_desc.groups)
+        if target_group_names == nothing
+            target_group_names = all_group_names
+        end
+
+        new_cfg = Dict{Symbol,Any}()
+        for group_name in all_group_names
+            if group_name in target_group_names
+                new_cfg[group_name] = validateConfig(cfg[group_name], cfg_desc[group_name])
+            else
+                # simply transfer it
+                new_cfg[group_name] = cfg[group_name]
+            end 
+        end
+
+        return new_cfg
+    end
+
+
+    function validateConfigEntries(
         cfg         :: Dict,
         cfg_entries :: AbstractArray{ConfigEntry, 1},
     )
 
-        new_cfg = Dict()
+        new_cfg = Dict{Symbol, Any}()
         
         for entry in cfg_entries
 
@@ -80,7 +99,7 @@ module ConfigCheck
                 if pass
                     
                     new_cfg[name] = cfg[name]
-                    println(format("[Validation] Config `{:s}` is validated and the value is : {:s}", string(name), string(new_cfg[name])))
+                    println(format("[Validation] Config `{:s}` : {:s}", string(name), string(new_cfg[name])))
                 else
                     throw(ErrorException(format(
                         "[Error] Invalid value of key `{:s}`: {:s}. Valid values/types: `{:s}`.",

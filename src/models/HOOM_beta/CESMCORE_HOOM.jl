@@ -68,8 +68,10 @@ module CESMCORE_HOOM
 
         if is_master
 
-            init_file_config = HOOM.validateConfig(config, HOOM.genConfigEntryList(:INIT_FILE)) 
-            init_file = init_file_config[:init_file]
+            cfg_desc = HOOM.getConfigDescriptor()
+
+            misc_config = HOOM.validateConfigEntries(config[:MODEL_MISC], cfg_desc[:MODEL_MISC])
+            init_file = misc_config[:init_file]
 
             # If `read_restart` is true then read restart file: config[:rpointer_file]
             # If not then initialize ocean with default profile if `initial_file`
@@ -95,18 +97,21 @@ module CESMCORE_HOOM
      
             end
 
+            core_config = HOOM.validateConfigEntries(config[:MODEL_CORE], cfg_desc[:MODEL_CORE])
 
             if init_file != ""
 
                 println("Initial ocean with profile: ", init_file)
-                println("Initial ocean with domain file: ", config[:domain_file])
-                master_mb = HOOM.loadSnapshot(init_file; gridinfo_file=config[:domain_file])
+                println("Initial ocean with domain file: ", core_config[:domain_file])
+                master_mb = HOOM.loadSnapshot(init_file; gridinfo_file=core_config[:domain_file])
             
             else
 
                 writeLog("Debugging status. Initialize an empty ocean.")
 
-                master_ev = HOOM.Env(config)
+                
+
+                master_ev = HOOM.Env(core_config)
 
                 
                 master_mb = HOOM.ModelBlock(master_ev; init_core=false)
@@ -251,7 +256,7 @@ module CESMCORE_HOOM
 
         if is_master
 
-            MD.config[:activated_record] = []
+            activated_record = []
             MD.recorders = Dict()
             complete_variable_list = HOOM.getVariableList(my_mb, :ALL)
 
@@ -265,15 +270,17 @@ module CESMCORE_HOOM
 
                 var_list = []
                 
-                config[rec_key] = HOOM.getVariableList(my_mb, config[rec_key]) |> keys |> collect
+                if typeof(misc_config[rec_key]) <: Symbol 
+                    misc_config[rec_key] = HOOM.getVariableList(my_mb, misc_config[rec_key]) |> keys |> collect
+                end
 
                 # Qflux_finding mode requires certain output
-                if config[:Qflx_finding] == :on
-                    append!(config[rec_key], HOOM.getVariableList(ocn, :QFLX_FINDING) |> keys )
+                if my_ev.config[:Qflx_finding] == :on
+                    append!(misc_config[rec_key], HOOM.getVariableList(my_mb, :QFLX_FINDING) |> keys )
                 end
      
                 # Load variables information as a list
-                for varname in config[rec_key]
+                for varname in misc_config[rec_key]
 
                     println(format("Request output variable: {:s}", varname))
                     if haskey(complete_variable_list, varname)
@@ -299,7 +306,7 @@ module CESMCORE_HOOM
                 )
                 
                 if length(var_list) != 0
-                    push!(MD.config[:activated_record], rec_key) 
+                    push!(activated_record, rec_key) 
                 end
             end
  
@@ -327,9 +334,9 @@ module CESMCORE_HOOM
 
             # Must create the record file first because the
             # run of the first day is not called in CESM
-            if MD.config[:enable_archive]
+            if misc_config[:enable_archive]
 
-                if :daily_record in MD.config[:activated_record]
+                if :daily_record in activated_record
                     recorder_day = MD.recorders[:daily_record]
                     addAlarm!(
                         clock,
@@ -358,7 +365,7 @@ module CESMCORE_HOOM
 
                 end
 
-                if :monthly_record in MD.config[:activated_record]
+                if :monthly_record in activated_record
 
                     # Design alarm such that
                     # (1) Create output file first
@@ -488,8 +495,6 @@ module CESMCORE_HOOM
         #    writeRestart(MD)
         #end
         
-        #MPI.Barrier(comm) 
-
         syncField!(
             MD.sync_data[:state],
             MD.jdi,
@@ -515,14 +520,14 @@ module CESMCORE_HOOM
 
         setNewNCFile!(
             recorder,
-            joinpath(MD.config[:caserun], filename)
+            joinpath(MD.config[:DRIVER][:caserun], filename)
         )
             
-        appendLine(MD.config[:archive_list], 
+        appendLine(MD.config[:DRIVER][:archive_list], 
             format("mv,{:s},{:s},{:s}",
                 filename,
-                MD.config[:caserun],
-                joinpath(MD.config[:archive_root], "ocn", "hist"),
+                MD.config[:DRIVER][:caserun],
+                joinpath(MD.config[:DRIVER][:archive_root], "ocn", "hist"),
             )
         )
 

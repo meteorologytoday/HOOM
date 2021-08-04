@@ -24,43 +24,47 @@ if rank == 0
     #t_end = t_start + Δt * steps
     read_restart = false
 
-    configs = Dict(
-        :substeps    => 8, # This controls how many steps will occur for each CESM coupling. Example: ocean couple to atmosphere every 24 hours but itself steps every 3 hours. This means we would expect `Δt` = 86400, and we set `substeps` = 8.
-        :enable_archive     => true,
-        :archive_list       => "archive_list.txt",
-        :rpointer_file      => "rpointer.hoom",
+    config = Dict{Any, Any}(
 
-        :casename                     => "Sandbox",
-        :caseroot                     => joinpath(@__DIR__, "Sandbox", "caseroot"),
-        :caserun                      => joinpath(@__DIR__, "Sandbox", "caserun"),
-        :domain_file                  => "domain.ocn_aqua.fv4x5_gx3v7.091218.nc",
-        :cdata_file                   => "paper2021_CTL_POP2.100years.nc",
-        #:domain_file                  => "domain.ocn.gx1v6.090206.nc",
-        :archive_root                 => joinpath(@__DIR__, "Sandbox", "hist"),
-        :enable_archive               => true,
-        :daily_record                 => :ALL,
-        :monthly_record               => :ALL,
-        :yearly_snapshot              => true,
-        :substeps                     => 8,
-        :init_file                    => "",#nothing,#joinpath(@__DIR__, "ocn_init.nc"),
-        
-        :MLD_scheme                   => :datastream,
-        :Qflx                        => :off,
-        :Qflx_finding                => :off,
-        :weak_restoring               => :off,
-        :convective_adjustment_scheme => :off,
-        :radiation_scheme             => :exponential,
-        :advection_scheme             => :ekman_codron2012_partition,
+        :DRIVER => Dict(
+            :casename           => "Sandbox",
+            :caseroot           => joinpath(@__DIR__, "Sandbox", "caseroot"),
+            :caserun            => joinpath(@__DIR__, "Sandbox", "caserun"),
+            :archive_root       => joinpath(@__DIR__, "Sandbox", "hist"),
+        ),
 
-        
-        :z_w               => collect(Float64, 0:-10:-350),
-        :Ekman_layers      => 5,
-        :Returnflow_layers => 25,
+        :MODEL_MISC => Dict(
+            :init_file          => "",#nothing,#joinpath(@__DIR__, "ocn_init.nc"),
+            :rpointer_file      => "rpointer.hoom",
+            :daily_record                 => :ALL,
+            :monthly_record               => :ALL,
+            :enable_archive               => true,
+        ),
+
+        :MODEL_CORE => Dict(
+            #:domain_file                  => "domain.ocn.gx1v6.090206.nc",
+            :domain_file                  => "domain.ocn_aqua.fv4x5_gx3v7.091218.nc",
+            :cdata_file                   => "paper2021_CTL_POP2.100years.nc",
+
+            :z_w               => collect(Float64, 0:-10:-350),
+
+            :substeps           => 8,
+            :MLD_scheme                   => :datastream,
+            :Qflx                        => :off,
+            :Qflx_finding                => :off,
+            :weak_restoring               => :off,
+            :convective_adjustment_scheme => :off,
+            :radiation_scheme             => :exponential,
+            :advection_scheme             => :ekman_codron2012_partition,
+
+            :Ekman_layers      => 5,
+            :Returnflow_layers => 25,
+        ),
 
     )
 
     gf = PolelikeCoordinate.CurvilinearSphericalGridFile(
-        configs[:domain_file],
+        config[:MODEL_CORE][:domain_file],
         R  = 6371229.0,
         Ω  = 2π / (86400 / (1 + 365/365)),
     )
@@ -76,7 +80,7 @@ coupler_funcs = (
     before_model_init! = function()
 
         global comm, rank
-        global t_start, read_restart, configs
+        global t_start, read_restart, config
          
         is_master = (rank == 0)
         println("My rank: ", rank) 
@@ -87,14 +91,14 @@ coupler_funcs = (
         if ! is_master
             t_start = nothing 
             read_restart = nothing
-            configs = nothing
+            config = nothing
         end
         
         t_start = MPI.bcast(t_start, 0, comm) 
         read_restart = MPI.bcast(read_restart, 0, comm) 
-        configs = MPI.bcast(configs, 0, comm) 
+        config = MPI.bcast(config, 0, comm) 
 
-        return t_start, read_restart, configs
+        return t_start, read_restart, config
     end,
 
     after_model_init! = function(OMMODULE, OMDATA)

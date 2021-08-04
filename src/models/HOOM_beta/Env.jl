@@ -11,8 +11,9 @@ mutable struct Env
         config;
         sub_yrng = nothing,
     )
-        
-        validated_config = validateConfig(config, genConfigEntryList(:ENV)) 
+       
+        writeLog("Validating config: :MODEL_CORE") 
+        validated_config = validateConfigEntries(config, getConfigDescriptor()[:MODEL_CORE]) 
            
         # mask =>   lnd = 0, ocn = 1
         gf = PolelikeCoordinate.CurvilinearSphericalGridFile(

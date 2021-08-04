@@ -1,8 +1,10 @@
 
-function genConfigEntryList(phase)
+function getConfigDescriptor()
 
-    if phase == :INIT_FILE
-        return [
+    return Dict(
+
+
+        :MODEL_MISC => [
 
             ConfigEntry(
                 :init_file,
@@ -19,11 +21,58 @@ function genConfigEntryList(phase)
                 desc="If read_restart of the init function is set true, then this entry has to contain a valid rpointer filename.",
             ),
 
-        ]
+            ConfigEntry(
+                :enable_archive,
+                :required,
+                [Bool,],
+            ),
 
-    elseif phase == :ENV
 
-        return [
+            ConfigEntry(
+                :daily_record,
+                :optional,
+                [AbstractArray{String}, Symbol],
+                [],
+            ),
+
+            ConfigEntry(
+                :monthly_record,
+                :optional,
+                [AbstractArray{String}, Symbol],
+                [],
+            ),
+
+        ],
+        
+        :MODEL_CORE => [
+
+            ConfigEntry(
+                :domain_file,
+                :required,
+                [String,],
+            ),
+
+            ConfigEntry(
+                :cdata_file,
+                :optional,
+                [String,],
+                nothing,
+            ),
+
+            ConfigEntry(
+                :z_w,
+                :optional,
+                [AbstractArray{Float64, 1}],
+                nothing;
+                desc = "Will be overwritten if :init_file is used.",
+            ),
+
+            ConfigEntry(
+                :substeps,
+                :optional,
+                [Integer,],
+                8;
+            ),
 
             ConfigEntry(
                 :advection_scheme,
@@ -65,41 +114,6 @@ function genConfigEntryList(phase)
                 :off,
             ),
 
-            ConfigEntry(
-                :daily_record,
-                :optional,
-                [AbstractArray{String}, Symbol],
-                [],
-            ),
-
-            ConfigEntry(
-                :monthly_record,
-                :optional,
-                [AbstractArray{String}, Symbol],
-                [],
-            ),
-
-
-            ConfigEntry(
-                :domain_file,
-                :required,
-                [String,],
-            ),
-
-            ConfigEntry(
-                :cdata_file,
-                :optional,
-                [String,],
-                nothing,
-            ),
-
-            ConfigEntry(
-                :z_w,
-                :optional,
-                [AbstractArray{Float64, 1}],
-                nothing;
-                desc = "Will be overwritten if :init_file is used.",
-            ),
 
             ConfigEntry(
                 :Ks_H,
@@ -185,8 +199,6 @@ function genConfigEntryList(phase)
                 [Integer,],
                 5;
             ),
-        ]
-    else
-        println("Unknown phase: " * string(phase))
-    end
+        ],
+    )
 end

@@ -11,6 +11,12 @@ if !(:ModelClockSystem in names(Main))
 end
 using .ModelClockSystem
 
+if !(:ConfigCheck in names(Main))
+    include(normpath(joinpath(dirname(@__FILE__), "..", "share", "ConfigCheck.jl")))
+end
+using .ConfigCheck
+
+
 
 function runModel(
     OMMODULE      :: Any,
@@ -19,12 +25,19 @@ function runModel(
 
     comm = MPI.COMM_WORLD
     rank = MPI.Comm_rank(comm)
-    println("Hello world, I am $(rank) of $(MPI.Comm_size(comm))")
+
+    writeLog("===== [ Master Created ] =====")
+
     MPI.Barrier(comm)
 
     is_master = rank == 0
 
     t_start, read_restart, config = coupler_funcs.before_model_init!()
+
+    if is_master
+        writeLog("Validate driver config.")
+        config[:DRIVER] = validateConfigEntries(config[:DRIVER], getDriverConfigDescriptor())
+    end
 
     # copy the start time
     beg_datetime = t_start + Dates.Second(0)
@@ -41,7 +54,7 @@ function runModel(
     is_master && println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
     
     OMDATA = OMMODULE.init(
-        casename     = config[:casename],
+        casename     = config[:DRIVER][:casename],
         clock        = clock,
         config      = config,
         read_restart = read_restart,
@@ -90,4 +103,40 @@ function runModel(
     is_master && println("Program Ends.")
 
 end
-  
+
+function getDriverConfigDescriptor()
+
+    return [
+            ConfigEntry(
+                :casename,
+                :required,
+                [String,],
+            ),
+
+            ConfigEntry(
+                :caseroot,
+                :required,
+                [String,],
+            ),
+
+            ConfigEntry(
+                :caserun,
+                :required,
+                [String,],
+            ),
+
+            ConfigEntry(
+                :archive_root,
+                :required,
+                [String,],
+            ),
+
+            ConfigEntry(
+                :archive_list,
+                :optional,
+                [String,],
+                "archive_list.txt",
+            ),
+   ]
+end
+

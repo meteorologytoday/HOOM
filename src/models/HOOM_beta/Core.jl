@@ -125,7 +125,7 @@ mutable struct Core
                     varname_time = "time", 
                     varnames     = cdata_varnames,
                     beg_time     = 0.0,
-                    cyc_time     = 365.0,
+                    cyc_time     = 365 * 86400.0,
                     sub_yrng     = ev.sub_yrng,
                 )
             end
