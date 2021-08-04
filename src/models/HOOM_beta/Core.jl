@@ -1,19 +1,21 @@
 mutable struct Core
 
-    gf          :: Union{PolelikeCoordinate.GridFile, Nothing}
+    gf        :: Union{PolelikeCoordinate.GridFile, Nothing}
 
-    gd       :: PolelikeCoordinate.Grid
-    gd_slab  :: PolelikeCoordinate.Grid
+    gd        :: PolelikeCoordinate.Grid
+    gd_slab   :: PolelikeCoordinate.Grid
 
-    mask_sT :: AbstractArray{Float64, 3}
-    mask_T :: AbstractArray{Float64, 3}
+    mask_sT   :: AbstractArray{Float64, 3}
+    mask_T    :: AbstractArray{Float64, 3}
  
-    amo_slab :: Union{AdvancedMatrixOperators, Nothing}
-    amo      :: Union{AdvancedMatrixOperators, Nothing}
+    amo_slab  :: Union{AdvancedMatrixOperators, Nothing}
+    amo       :: Union{AdvancedMatrixOperators, Nothing}
 
-    mtx      :: Dict
+    mtx       :: Dict
 
-    vd :: VerticalDiffusion
+    vd        :: VerticalDiffusion
+
+    cdatam    :: Union{CyclicDataManager, Nothing}
 
     function Core(
         ev :: Env;
@@ -92,6 +94,41 @@ mutable struct Core
 
         vd = VerticalDiffusion(amo; K_iso=ev.Ks_V, K_cva=ev.Ks_V_cva)
 
+
+        cdata_varnames = []
+
+        if configs[:MLD_scheme] == :datastream
+            push!(cdata_varnames, "MLD")
+        end
+
+        if configs[:Qflx] == :on
+            push!(cdata_varnames, "Qflx_T")
+            push!(cdata_varnames, "Qflx_S")
+        end
+        
+        if configs[:weak_restoring] == :on || configs[:Qflx_finding] == :on
+            push!(cdata_varnames, "TEMP")
+            push!(cdata_varnames, "SALT")
+        end
+
+        if length(cdata_varnames) == 0
+            cdatam = nothing
+        else
+            
+            if ev.cdata_filename == ""
+                throw(ErrorException("Some configs requires cyclic data forcing file"))
+            else
+                cdatam = CyclicDataManager(;
+                    filename     = ev.cdata_filename,
+                    varname_time = "time", 
+                    varnames     = cdata_varnames,
+                    beg_time     = 0.0,
+                    cyc_time     = 365.0,
+                    sub_yrng     = ev.sub_yrng,
+                )
+            end
+        end
+
         return new(
             gf,
             gd,
@@ -106,6 +143,8 @@ mutable struct Core
             mtx,    
 
             vd,
+
+            cdatam,
         )
     end
 

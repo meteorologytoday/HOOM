@@ -187,7 +187,7 @@ module CESMCORE_HOOM
             my_ev          = deepcopy(master_ev) 
             my_ev.sub_yrng = getYsplitInfoByRank(jdi, rank).pull_fr_rng
             my_ev.Ny       = length(my_ev.sub_yrng)
-            my_mb          = HOOM.ModelBlock(my_ev; init_core = true)
+            my_mb          = HOOM.ModelBlock(my_ev; init_core = true, configs = configs)
         end
 
         MPI.Barrier(comm)
@@ -210,8 +210,8 @@ module CESMCORE_HOOM
 
 
         o2x = Dict(
-#            "SST"      => ocn.T_ML,
-#            "QFLX2ATM" => ocn.qflx2atm,
+            "SST"      => view(my_mb.fi.sv[:TEMP], 1, :, :),
+            "QFLX2ATM" => my_mb.fi.QFLX2ATM,
         )
 
         # Create DataTable
@@ -445,8 +445,7 @@ module CESMCORE_HOOM
             :M2S,
             :BLOCK,
         ) 
-
-
+        
         return MD
 
     end
@@ -554,61 +553,6 @@ module CESMCORE_HOOM
         )
 
     end
-
-#=
-    function archive_createFileIfNeeded!(
-        MD :: HOOM_DATA;
-    )
-
-        if ! MD.configs[:enable_archive]
-            return
-        end
-
-        t_flags = MD.timeinfo.t_flags
-        t = MD.timeinfo.t
- 
-        if (length(MD.configs[:daily_record]) != 0) && t_flags[:new_month]
-            filename = format("{}.ocn.h.daily.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
-            
-            #println("CREATE NEW DAILY FILE:", filename)
-            RecordTool.setNewNCFile!(
-                MD.recorders[:daily_record],
-                joinpath(MD.configs[:caserun], filename)
-            )
-            
-            appendLine(MD.configs[:archive_list], 
-                format("mv,{:s},{:s},{:s}",
-                    filename,
-                    MD.configs[:caserun],
-                    joinpath(MD.configs[:archive_root], "ocn", "hist"),
-                )
-            )
-
-
-        end
- 
-        # Monthly record block
-        if (length(MD.configs[:monthly_record]) != 0) && t_flags[:new_month]
-
-            filename = format("{}.ocn.h.monthly.{:04d}-{:02d}.nc", MD.casename, t[1], t[2])
-            RecordTool.setNewNCFile!(
-                MD.recorders[:monthly_record],
-                joinpath(MD.configs[:caserun], filename)
-            )
-
-            appendLine(MD.configs[:archive_list], 
-                format("mv,{:s},{:s},{:s}",
-                    filename,
-                    MD.configs[:caserun],
-                    joinpath(MD.configs[:archive_root], "ocn", "hist"),
-                )
-            )
-
-        end
-
-           
-    end
-=#
 
 
     function output!(
