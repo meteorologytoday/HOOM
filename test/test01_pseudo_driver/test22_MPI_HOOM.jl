@@ -47,13 +47,16 @@ if rank == 0
         :MLD_scheme                   => :datastream,
         :Qflx                        => :off,
         :Qflx_finding                => :off,
-        :seaice_nudging               => :off,
-        :vertical_diffusion_scheme    => :off,
-        :horizontal_diffusion_scheme  => :off,
         :weak_restoring               => :off,
         :convective_adjustment_scheme => :off,
         :radiation_scheme             => :exponential,
         :advection_scheme             => :ekman_codron2012_partition,
+
+        
+        :z_w               => collect(Float64, 0:-10:-350),
+        :Ekman_layers      => 5,
+        :Returnflow_layers => 25,
+
     )
 
     gf = PolelikeCoordinate.CurvilinearSphericalGridFile(

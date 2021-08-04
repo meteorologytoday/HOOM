@@ -6,7 +6,7 @@ function stepAdvection!(
     ev = mb.ev
     fi = mb.fi
     co = mb.co
-
+    cfg = ev.config
     for x = 1:2
 
         _x      = view(fi._X_, :, x)
@@ -26,7 +26,7 @@ function stepAdvection!(
             fi._w,
 
             co.amo,
-            ev.Ks_H,
+            cfg[:Ks_H],
             0.0,
             Δt,
             

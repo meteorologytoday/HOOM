@@ -24,7 +24,7 @@ function runModel(
 
     is_master = rank == 0
 
-    t_start, read_restart, configs = coupler_funcs.before_model_init!()
+    t_start, read_restart, config = coupler_funcs.before_model_init!()
 
     # copy the start time
     beg_datetime = t_start + Dates.Second(0)
@@ -41,9 +41,9 @@ function runModel(
     is_master && println("===== INITIALIZING MODEL: ", OMMODULE.name , " =====")
     
     OMDATA = OMMODULE.init(
-        casename     = configs[:casename],
+        casename     = config[:casename],
         clock        = clock,
-        configs      = configs,
+        config      = config,
         read_restart = read_restart,
     )
 

@@ -1079,3 +1079,13 @@ mv,Sandbox.HOOM.h1.day.0001-01.nc,/billevans/projects/HOOM/test/test01_pseudo_dr
 mv,Sandbox.HOOM.h0.mon.0001-01.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
 mv,Sandbox.HOOM.h1.day.0001-02.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
 mv,Sandbox.HOOM.h0.mon.0001-02.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
+mv,Sandbox.HOOM.h1.day.0001-01.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
+mv,Sandbox.HOOM.h0.mon.0001-01.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
+mv,Sandbox.HOOM.h1.day.0001-01.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
+mv,Sandbox.HOOM.h0.mon.0001-01.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
+mv,Sandbox.HOOM.h1.day.0001-01.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
+mv,Sandbox.HOOM.h0.mon.0001-01.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
+mv,Sandbox.HOOM.h1.day.0001-01.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
+mv,Sandbox.HOOM.h0.mon.0001-01.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
+mv,Sandbox.HOOM.h1.day.0001-02.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist
+mv,Sandbox.HOOM.h0.mon.0001-02.nc,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/caserun,/billevans/projects/HOOM/test/test01_pseudo_driver/Sandbox/hist/ocn/hist

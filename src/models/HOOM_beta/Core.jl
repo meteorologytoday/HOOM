@@ -19,17 +19,18 @@ mutable struct Core
 
     function Core(
         ev :: Env,
-        configs :: Dict,
     )
 
+        cfg = ev.config
+
         gf = PolelikeCoordinate.CurvilinearSphericalGridFile(
-            ev.gf_filename;
+            cfg[:domain_file];
             R  = 6371229.0,
             Ω  = 2π / (86400 / (1 + 365/365)),
         )
 
 
-        gd      = PolelikeCoordinate.genGrid(gf, ev.z_w ; sub_yrng=ev.sub_yrng) 
+        gd      = PolelikeCoordinate.genGrid(gf, cfg[:z_w] ; sub_yrng=ev.sub_yrng) 
         gd_slab = PolelikeCoordinate.genGrid(gf, [0, -1.0]; sub_yrng=ev.sub_yrng) 
 
         mask_sT = reshape(gf.mask[:, ev.sub_yrng], 1, ev.Nx, ev.Ny)
@@ -70,7 +71,7 @@ mutable struct Core
         W_broadcast_sT = build!(amo_slab.bmo.T_I_T, mapping_T)
 
         # Build Radiation Matrix
-        swflx_factor_W =  ev.R  * exp.(gd.z_W / ev.ζ1) + (1.0 - ev.R) * exp.(gd.z_W / ev.ζ2)
+        swflx_factor_W =  cfg[:rad_R]  * exp.(gd.z_W / cfg[:rad_ζ1]) + (1.0 - cfg[:rad_R]) * exp.(gd.z_W / cfg[:rad_ζ2])
         swflx_factor_W[end, :, :] .= 0.0 # Bottom absorbs everything
 
         nswflx_factor_W = 0.0 * gd.z_W
@@ -80,7 +81,7 @@ mutable struct Core
 
         # f and ϵ matrices
         f_sT = 2 * gd.Ω * sin.(gd_slab.ϕ_T)
-        ϵ_sT = f_sT * 0 .+ ev.ϵ
+        ϵ_sT = f_sT * 0 .+ cfg[:ϵ]
         D_sT = f_sT.^2 + ϵ_sT.^2
         invD_sT = D_sT.^(-1.0)
 
@@ -93,21 +94,21 @@ mutable struct Core
             :D_sT            => D_sT,
         ) 
 
-        vd = VerticalDiffusion(amo; K_iso=ev.Ks_V, K_cva=ev.Ks_V_cva)
+        vd = VerticalDiffusion(amo; K_iso=cfg[:Ks_V], K_cva=cfg[:Ks_V_cva])
 
 
         cdata_varnames = []
 
-        if configs[:MLD_scheme] == :datastream
+        if cfg[:MLD_scheme] == :datastream
             push!(cdata_varnames, "HBLT")
         end
 
-        if configs[:Qflx] == :on
+        if cfg[:Qflx] == :on
             push!(cdata_varnames, "Qflx_T")
             push!(cdata_varnames, "Qflx_S")
         end
         
-        if configs[:weak_restoring] == :on || configs[:Qflx_finding] == :on
+        if cfg[:weak_restoring] == :on || cfg[:Qflx_finding] == :on
             push!(cdata_varnames, "TEMP")
             push!(cdata_varnames, "SALT")
         end
@@ -116,11 +117,11 @@ mutable struct Core
             cdatam = nothing
         else
             
-            if ev.cdata_filename == ""
-                throw(ErrorException("Some configs requires cyclic data forcing file"))
+            if cfg[:cdata_file] == ""
+                throw(ErrorException("Some config require cyclic data forcing file"))
             else
                 cdatam = CyclicDataManager(;
-                    filename     = ev.cdata_filename,
+                    filename     = cfg[:cdata_file],
                     varname_time = "time", 
                     varnames     = cdata_varnames,
                     beg_time     = 0.0,

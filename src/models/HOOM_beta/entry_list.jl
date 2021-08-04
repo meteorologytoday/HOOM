@@ -26,7 +26,7 @@ function genConfigEntryList(phase)
         return [
 
             ConfigEntry(
-                :advection_scheme
+                :advection_scheme,
                 :required,
                 [:static, :ekman_codron2012_partition],
             ),
