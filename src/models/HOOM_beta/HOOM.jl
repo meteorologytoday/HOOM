@@ -68,6 +68,8 @@ module HOOM
     
     @hinclude("var_list.jl")
     @hinclude("var_desc.jl")
+    
+    @hinclude("updateDatastream.jl")
 
 end
 

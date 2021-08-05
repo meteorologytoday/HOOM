@@ -44,7 +44,7 @@ if rank == 0
         :MODEL_CORE => Dict(
             #:domain_file                  => "domain.ocn.gx1v6.090206.nc",
             :domain_file                  => "domain.ocn_aqua.fv4x5_gx3v7.091218.nc",
-            :cdata_file                   => "paper2021_CTL_POP2.100years.nc",
+            :cdata_file                   => "forcing.nc",
 
             :z_w               => collect(Float64, 0:-10:-350),
 

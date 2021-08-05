@@ -2,26 +2,28 @@ include("share/CyclicData.jl")
 
 using Plots
 using .CyclicData
+using CFTime
 
 cdm =  CyclicDataManager(;
+    timetype     = DateTimeNoLeap,
     filename     = "paper2021_CTL_POP2.100years.nc",
-    varname_time = "time",
     varnames     = ["HBLT", "TEMP", "SALT", "TAUX", "TAUY"],
-    beg_time     = 0.0,
-    cyc_time     = 365.0,
+    beg_time     = DateTimeNoLeap(0, 1, 1, 0, 0, 0),
+    end_time     = DateTimeNoLeap(1, 1, 1, 0, 0, 0),
+    align_time   = DateTimeNoLeap(0, 1, 1, 0, 0, 0),
 )
 
-#t_vec = cdm.t_vec#collect(Float64, 0:5:365)
-t_vec = collect(Float64, 0:2:365)
+t_vec = timedecode(collect(Float64, 0:2:365), "days since 0001-01-01 00:00:00", DateTimeNoLeap)
+
+t_num_vec = timeencode(t_vec, "days since 0001-01-01 00:00:00", DateTimeNoLeap)
 
 
 d_vec = Dict()
-
 for v in ["HBLT", "TEMP", "SALT", "TAUX", "TAUY"]
-    d_vec[v] = t_vec * 0.0
+    d_vec[v] = zeros(length(t_vec))
 end
 
-data = interpData!(cdm, 0.0 ; create = true)
+data = interpData!(cdm, t_vec[1] ; create = true)
 
 for (i, t) in enumerate(t_vec)
     
@@ -37,7 +39,7 @@ p = []
 
 
 for (k, v) in d_vec
-    push!(p, plot(t_vec, d_vec[k], markershape=:circle, label=k))
+    push!(p, plot(t_num_vec, d_vec[k], markershape=:circle, label=k))
 end
 
 plot(p...)

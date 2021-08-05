@@ -441,6 +441,10 @@ module CESMCORE_HOOM
         rank = MPI.Comm_rank(comm)
         is_master = rank == 0
 
+        if ! is_master
+            HOOM.updateDatastream!(MD.mb)
+        end
+
         syncField!(
             MD.sync_data[:forcing],
             MD.jdi,

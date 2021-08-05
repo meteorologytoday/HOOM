@@ -1,59 +1,94 @@
 using NCDatasets
+using CFTime
+using Dates
 
+output_file = "forcing.nc"
 domain_file = "domain.ocn_aqua.fv4x5_gx3v7.091218.nc"
-zdomain_file = ""
-topo_file = ""
-output_file = "ocn_init.nc"
+z_w = collect(Float64, 0:-10:-350)
+
+
 Dataset(domain_file, "r") do ds
     global Nx = ds.dim["ni"]
     global Ny = ds.dim["nj"]
+    global lat = ds["yc"][:]
+    global lon = ds["xc"][:]
     global mask = convert(Array{Float64}, replace(ds["mask"][:], missing=>NaN))
 end
 
-mask .= 1.0
-mask[:, 1]   .= 0.0
-mask[:, end] .= 0.0
+Nz = length(z_w) - 1
 
-if zdomain_file != ""
-    Dataset(zdomain_file, "r") do ds
-        global zs  = replace(ds["zs"][:], missing=>NaN)
-    end
-else
-    zs = collect(Float64, 0:-50:-1000)
+dom = [ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 ]
+sum(dom) == 365 || throw(ErrorException("Sum is not 365"))
+
+beg_of_mon = zeros(Float64, 12)
+for m = 2:12
+    beg_of_mon[m] = beg_of_mon[m-1] + dom[m-1]
 end
 
-if topo_file != ""
-    Dataset(topo_file, "r") do ds
-        global topo  = - replace(ds["depth"][:], missing=>NaN)
-    end
-else
-    global topo = nothing
+mid_of_mon = [ beg_of_mon[m] + dom[m]/2.0 for m=1:12 ]
+
+
+HMXL = zeros(Float64, Nx, Ny, 12)
+TEMP = zeros(Float64, Nx, Ny, Nz, 12)
+SALT = zeros(Float64, Nx, Ny, Nz, 12)
+
+for t=1:12
+    HMXL[:, :, t] = 50.0 .+ 25.0 * sin.(2*deg2rad.(lon) .+ deg2rad.(lat) .- 2π/365 * mid_of_mon[t])
+    TEMP[:, :, :, t] = ( 20.0 .+
+         5.0 * reshape( (1.0 .+ sin.(2*deg2rad.(lon) .+ deg2rad.(lat) .- 2π/365 * mid_of_mon[t]) ) / 2.0, Nx, Ny, 1 ) .* reshape(exp.(z_w[1:end-1] / 100.0), 1, 1, :)
+    )
 end
 
+Dataset(output_file, "c") do ds
 
+    defDim(ds, "time", Inf)
+    defDim(ds, "nlon", Nx)
+    defDim(ds, "nlat", Ny)
+    defDim(ds, "z_t",  Nz)
 
+    for (varname, vardata, vardim, attrib) in [
 
-ocn = HOOM.Ocean(
-    gridinfo_file = domain_file,
-    Nx       = Nx,
-    Ny       = Ny,
-    zs_bone  = zs,
-    Ts       = 15.0,
-    Ss       = 35.0,
-    T_ML     = 15.0,
-    S_ML     = 35.0,
-    h_ML     = 10.0, 
-    h_ML_min = 10.0,
-    h_ML_max = 1e5,             # make it unrestricted
-    topo     = topo,
-    Ts_clim_relax_time = 86400.0 * 10,
-    Ts_clim            = nothing, #Ts_clim,
-    Ss_clim_relax_time = 86400.0 * 10,
-    Ss_clim            = nothing, #Ss_clim,
-    arrange  = :xyz,
-    do_convective_adjustment = true,
-)
+        ("time", mid_of_mon, ("time",), Dict(
+            "units"     => "days since 0001-01-01 00:00:00",
+            "calendar"  => "noleap",
+            "long_name" => "total seaice area",
+        )),
 
-HOOM.takeSnapshot(ocn, output_file)
+        ("HMXL", HMXL, ("nlon", "nlat", "time",), Dict(
+            "units"     => "m",
+            "long_name" => "Mixed layer depth",
+        )),
 
+        ("TEMP", TEMP, ("nlon", "nlat", "z_t", "time",), Dict(
+            "units"     => "degC",
+            "long_name" => "Temperature",
+        )),
 
+        ("SALT", SALT, ("nlon", "nlat", "z_t", "time",), Dict(
+            "units"     => "PSU",
+            "long_name" => "Salinity",
+        )),
+
+    ]
+
+        var = defVar(ds, varname, Float64, vardim)
+        var.attrib["_FillValue"] = 1e20
+        
+        var = ds[varname]
+        
+        for (k, v) in attrib
+            var.attrib[k] = v
+        end
+
+        println(var.attrib)
+
+        rng = []
+        for i in 1:length(vardim)-1
+            push!(rng, Colon())
+        end
+        push!(rng, 1:size(vardata)[end])
+        var[rng...] = vardata
+
+    end
+
+end 
