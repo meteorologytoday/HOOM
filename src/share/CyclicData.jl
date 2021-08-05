@@ -223,9 +223,9 @@ module CyclicData
                 #println(s)
 
                 if length(s) == 4  # 3D case
-                    data[varname] = zeros(Float64, s[[3,1,2]]...)
+                    data[varname] = zeros(Float64, s[3], s[1], length(cdm.sub_yrng))
                 elseif length(s) == 3  # 2D case
-                    data[varname] = zeros(Float64, 1, s[1], s[2])
+                    data[varname] = zeros(Float64, 1, s[1], length(cdm.sub_yrng))
                 else
                     throw(ErrorException("Unknown dimension: " * string(s)))
                 end

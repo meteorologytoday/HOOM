@@ -18,7 +18,7 @@ rank = MPI.Comm_rank(comm)
 if rank == 0
 
     t_start = DateTimeNoLeap(1, 1, 1)
-    t_end   = DateTimeNoLeap(2, 1, 1)
+    t_end   = DateTimeNoLeap(3, 1, 1)
     read_restart = false
     Δt = Second(86400)
 
