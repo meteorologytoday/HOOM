@@ -18,11 +18,9 @@ rank = MPI.Comm_rank(comm)
 if rank == 0
 
     t_start = DateTimeNoLeap(1, 1, 1)
-    Δt = Second(86400)
-#    steps = 31
-    t_end = DateTimeNoLeap(1, 2, 1)
-    #t_end = t_start + Δt * steps
+    t_end   = DateTimeNoLeap(2, 1, 1)
     read_restart = false
+    Δt = Second(86400)
 
     config = Dict{Any, Any}(
 
@@ -45,17 +43,24 @@ if rank == 0
             #:domain_file                  => "domain.ocn.gx1v6.090206.nc",
             :domain_file                  => "domain.ocn_aqua.fv4x5_gx3v7.091218.nc",
             :cdata_file                   => "forcing.nc",
+            :cdata_timetype               => DateTimeNoLeap,
+            :cdata_beg_time               => DateTimeNoLeap(1, 1, 1, 0, 0, 0),
+            :cdata_end_time               => DateTimeNoLeap(2, 1, 1, 0, 0, 0),
+            :cdata_align_time             => DateTimeNoLeap(1, 1, 1, 0, 0, 0),
 
             :z_w               => collect(Float64, 0:-10:-350),
 
             :substeps           => 8,
-            :MLD_scheme                   => :datastream,
-            :Qflx                        => :off,
-            :Qflx_finding                => :off,
-            :weak_restoring               => :off,
-            :convective_adjustment_scheme => :off,
-            :radiation_scheme             => :exponential,
+            :MLD_scheme                   => :static,
+            :Qflx                         => :off,
+            :Qflx_finding                 => :off,
+            :weak_restoring               => :on,
+            :convective_adjustment        => :off,
             :advection_scheme             => :ekman_codron2012_partition,
+
+            :τwk_TEMP => 86400.0 * 30.0,
+            :τwk_SALT => 86400.0 * 30.0,
+
 
             :Ekman_layers      => 5,
             :Returnflow_layers => 25,
@@ -136,10 +141,10 @@ coupler_funcs = (
             lat = gf.yc
             lon = gf.xc
 
-            OMDATA.x2o["SWFLX"][1, :, :] .= - (cos.(deg2rad.(lat).+0.1) .+ 1) / 2 .* (sin.(deg2rad.(lon)) .+ 1)/2 * 100.0
+            #OMDATA.x2o["SWFLX"][1, :, :] .= - (cos.(deg2rad.(lat).+0.1) .+ 1) / 2 .* (sin.(deg2rad.(lon)) .+ 1)/2 * 100.0
             #OMDATA.x2o["SWFLX"][1, :, :] .= + 200.0
-            OMDATA.x2o["TAUX_east"][1, :, :]   .= 0.2 * (cos.(deg2rad.(lat).+0.1) .+ 1) / 2
-            OMDATA.x2o["TAUY_north"][1, :, :]  .= 0.1 * (sin.(deg2rad.(lon)) .+ 1) / 2
+            #OMDATA.x2o["TAUX_east"][1, :, :]   .= 0.2 * (cos.(deg2rad.(lat).+0.1) .+ 1) / 2
+            #OMDATA.x2o["TAUY_north"][1, :, :]  .= 0.1 * (sin.(deg2rad.(lon)) .+ 1) / 2
 #cos.(deg2rad.(lat))
             
         end

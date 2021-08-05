@@ -23,7 +23,7 @@ for v in ["HBLT", "TEMP", "SALT", "TAUX", "TAUY"]
     d_vec[v] = zeros(length(t_vec))
 end
 
-data = interpData!(cdm, t_vec[1] ; create = true)
+data = makeDataContainer(cdm)
 
 for (i, t) in enumerate(t_vec)
     

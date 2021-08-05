@@ -112,9 +112,9 @@ module CESMCORE_HOOM
                 
 
                 master_ev = HOOM.Env(core_config)
-
-                
                 master_mb = HOOM.ModelBlock(master_ev; init_core=false)
+
+                #=
                 master_mb.fi.sv[:TEMP][:, :, :]  .= 10
                 master_mb.fi.sv[:TEMP][1, 20, :] .= 30
 
@@ -131,7 +131,7 @@ module CESMCORE_HOOM
                 master_mb.fi.HMXL[1, 20:25, 21:24] .= 75.0
 
                 #throw(ErrorException("Variable `init_file` is absent in `config`."))
-
+                =#
             end
 
             #in_flds = ocn.in_flds
@@ -442,7 +442,7 @@ module CESMCORE_HOOM
         is_master = rank == 0
 
         if ! is_master
-            HOOM.updateDatastream!(MD.mb)
+            HOOM.updateDatastream!(MD.mb, MD.clock)
         end
 
         syncField!(

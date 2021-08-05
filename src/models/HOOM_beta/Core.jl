@@ -15,8 +15,8 @@ mutable struct Core
 
     vd        :: VerticalDiffusion
 
-    cdatam    :: Union{CyclicDataManager, Nothing}
-
+    cdatam     :: Union{CyclicDataManager, Nothing}
+    datastream :: Dict 
     function Core(
         ev :: Env,
     )
@@ -94,13 +94,17 @@ mutable struct Core
             :D_sT            => D_sT,
         ) 
 
-        vd = VerticalDiffusion(amo; K_iso=cfg[:Ks_V], K_cva=cfg[:Ks_V_cva])
+        vd = VerticalDiffusion(
+            amo;
+            K_iso=cfg[:Ks_V],
+            K_cva=(cfg[:convective_adjustment] == :on) ? cfg[:Ks_V_cva] : cfg[:Ks_V],
+        )
 
 
         cdata_varnames = []
 
         if cfg[:MLD_scheme] == :datastream
-            push!(cdata_varnames, "HBLT")
+            push!(cdata_varnames, "HMXL")
         end
 
         if cfg[:Qflx] == :on
@@ -116,21 +120,30 @@ mutable struct Core
         if length(cdata_varnames) == 0
             cdatam = nothing
         else
+
+            println("The Following datastream will be activated: ", cdata_varnames)
             
             if cfg[:cdata_file] == ""
                 throw(ErrorException("Some config require cyclic data forcing file"))
             else
                 cdatam = CyclicDataManager(;
+                    timetype     = cfg[:cdata_timetype],
                     filename     = cfg[:cdata_file],
-                    varname_time = "time", 
                     varnames     = cdata_varnames,
-                    beg_time     = 0.0,
-                    cyc_time     = 365 * 86400.0,
+                    beg_time     = cfg[:cdata_beg_time],
+                    end_time     = cfg[:cdata_end_time],
+                    align_time   = cfg[:cdata_align_time],
                     sub_yrng     = ev.sub_yrng,
                 )
+
+                datastream = makeDataContainer(cdatam)
             end
         end
 
+        if cfg[:weak_restoring] == :on
+            mtx[:T_invτwk_TEMP_T] = - amo.T_mask_T * spdiagm(0 => ones(Float64, amo.bmo.T_pts)) / cfg[:τwk_TEMP]
+            mtx[:T_invτwk_SALT_T] = - amo.T_mask_T * spdiagm(0 => ones(Float64, amo.bmo.T_pts)) / cfg[:τwk_SALT]
+        end
         return new(
             gf,
             gd,
@@ -147,6 +160,7 @@ mutable struct Core
             vd,
 
             cdatam,
+            datastream,
         )
     end
 

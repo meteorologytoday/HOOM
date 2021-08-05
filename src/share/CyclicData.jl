@@ -5,7 +5,7 @@ module CyclicData
     using CFTime
     using Formatting
 
-    export CyclicDataManager, interpData!
+    export CyclicDataManager, interpData!, makeDataContainer
  
     mutable struct CyclicDataManager
 
@@ -113,9 +113,9 @@ module CyclicData
             time_idx_end = findlast(test)
 
             if time_idx_end == nothing || time_idx_beg == nothing
-                println(beg_time)
-                println(end_time)
-                println(t_vec_raw)
+                #println(beg_time)
+                #println(end_time)
+                #println(t_vec_raw)
                 throw(ErrorException("Time range is wrong that no time is within scope."))
             end
 
@@ -129,8 +129,7 @@ module CyclicData
                 second(align_time),
             )
             
-            println("unit_fmt = ", unit_fmt)
-            println(timeencode(t_vec_raw[1], unit_fmt, timetype))
+            #println(timeencode(t_vec_raw[1], unit_fmt, timetype))
 
             t_vec = [ timeencode(t_vec_raw[i], unit_fmt, timetype) for i=time_idx_beg:time_idx_end ]
 
@@ -146,7 +145,7 @@ module CyclicData
             idx_l_arr[1]   = length(idx_l_arr) - 1
             
 
-            return new(
+            obj = new(
                 timetype,
                 filename,
                 beg_time,
@@ -167,6 +166,11 @@ module CyclicData
                 nothing,
                 nothing,
             )
+
+            obj.data_l = makeDataContainer(obj)
+            obj.data_r = makeDataContainer(obj)
+
+            return obj
         end
         
     end
@@ -183,7 +187,7 @@ module CyclicData
 
         t_c = mod( Second(t - cdm.align_time).value, cdm.period)
         for i = 1:length(cdm.phantom_t_vec)-1
-            println(format("t_c={}, left={}, right={} ", t_c,  cdm.phantom_t_vec[i], cdm.phantom_t_vec[i+1]))
+            #println(format("t_c={}, left={}, right={} ", t_c,  cdm.phantom_t_vec[i], cdm.phantom_t_vec[i+1]))
 
             if cdm.phantom_t_vec[i] <= t_c <= cdm.phantom_t_vec[i+1]
                 idx_l = cdm.idx_l_arr[i]
@@ -200,38 +204,13 @@ module CyclicData
                 break
             end
         end
-        #=
-        if t_c >= cdm.t_vec[end]
-            idx_l = length(cdm.t_vec)
-            idx_r = 1
-            t_l = cdm.t_vec[idx_l]
-            t_r = cdm.t_vec[idx_r] + cdm.cyc_time
-        elseif t_c < cdm.t_vec[1]
-            idx_l = length(cdm.t_vec)
-            idx_r = 1
-            t_l = cdm.t_vec[idx_l]
-            t_r = cdm.t_vec[idx_r] + cdm.cyc_time
-            t_c += cdm.cyc_time
-        else
-            for i = 1:length(cdm.t_vec)-1
-                if cdm.t_vec[i] <= t_c <= cdm.t_vec[i+1]
-                    idx_l = i
-                    idx_r = i+1
-                    t_l = cdm.t_vec[idx_l]
-                    t_r = cdm.t_vec[idx_r]
-                    break
-                end
-            end
-        end
-        =#
 
         return idx_l, idx_r, t_l, t_c, t_r 
 
     end
 
-    function loadData(
+    function makeDataContainer(
         cdm      :: CyclicDataManager,
-        t_idx    :: Int64,
     )
 
         local data = Dict()
@@ -239,13 +218,14 @@ module CyclicData
         Dataset(cdm.filename, "r") do ds
 
             for varname in cdm.varnames
-                var = ds[varname]
-                s = size(var)
+                s = size(ds[varname])
+
+                #println(s)
 
                 if length(s) == 4  # 3D case
-                    data[varname] = permutedims(nomissing(ds[varname][:, cdm.sub_yrng, :, t_idx], NaN), [3,1,2]) 
+                    data[varname] = zeros(Float64, s[[3,1,2]]...)
                 elseif length(s) == 3  # 2D case
-                    data[varname] = reshape(nomissing(ds[varname][cdm.sub_yrng, :, t_idx], NaN), 1, s[1:2]...)
+                    data[varname] = zeros(Float64, 1, s[1], s[2])
                 else
                     throw(ErrorException("Unknown dimension: " * string(s)))
                 end
@@ -258,41 +238,66 @@ module CyclicData
     end
 
 
+    function loadData!(
+        cdm      :: CyclicDataManager,
+        t_idx    :: Int64,
+        data     :: Dict 
+    )
+
+        Dataset(cdm.filename, "r") do ds
+
+            for varname in cdm.varnames
+                var = ds[varname]
+                s = size(var)
+
+                if length(s) == 4  # 3D case
+                    data[varname][:, :, :] = permutedims(nomissing(ds[varname][:, cdm.sub_yrng, :, t_idx], NaN), [3,1,2]) 
+                elseif length(s) == 3  # 2D case
+                    #println(varname, "; cdm.sub_yrng: ", cdm.sub_yrng)
+                    #println("size: ", size(ds[varname][cdm.sub_yrng, :, t_idx]))
+                    data[varname][:, :, :] = reshape(nomissing(ds[varname][:, cdm.sub_yrng, t_idx], NaN), 1, s[1:2]...)
+                else
+                    throw(ErrorException("Unknown dimension: " * string(s)))
+                end
+
+            end
+
+        end
+        
+    end
+
+
     function interpData!(
         cdm      :: CyclicDataManager,
         t        :: AbstractCFDateTime,
-        data     :: Union{Dict, Nothing} = nothing;
+        data     :: Dict;
         create   :: Bool = false,
     )
 
-        if data == nothing
-            data = Dict()
-        end
-
         idx_l, idx_r, t_l, t_c, t_r = detectTimeBoundary(cdm, t)
 
-        println(format("{:d}, {:d}, {:.1f}", idx_l, idx_r, t_c))
+        #println(format("{:d}, {:d}, {:.1f}", idx_l, idx_r, t_c))
 
         if cdm.t_ptr_l == 0 && cdm.t_ptr_r == 0 # Initialization
 
-            #println("Initialization")
             # load idx_l into data_l
             # load idx_r into data_r
 
             cdm.t_ptr_l, cdm.t_ptr_r = idx_l, idx_r
 
-            cdm.data_l = loadData(cdm, cdm.t_ptr_l)
-            cdm.data_r = loadData(cdm, cdm.t_ptr_r)
+            loadData!(cdm, cdm.t_ptr_l, cdm.data_l)
+            loadData!(cdm, cdm.t_ptr_r, cdm.data_r)
 
         elseif cdm.t_ptr_r == idx_l
 
-            #println("Move on!")
             # move data_r to data_l
             cdm.t_ptr_l, cdm.t_ptr_r = cdm.t_ptr_r, idx_r
-            cdm.data_l = cdm.data_r
+            
+            # swap data_l and data_r 
+            cdm.data_l, cdm.data_r = cdm.data_r, cdm.data_l
     
             # load idx_r into data_r
-            cdm.data_r = loadData(cdm, cdm.t_ptr_r)
+            loadData!(cdm, cdm.t_ptr_r, cdm.data_r)
 
         elseif cdm.t_ptr_l == idx_l && cdm.t_ptr_r == idx_r
 
@@ -307,13 +312,9 @@ module CyclicData
         Δt_lc = t_c - t_l 
         Δt_cr = t_r - t_c
 
-#        println(Δt_lr, "; ", Δt_lc, "; ", Δt_cr)
-
         coe_r = Δt_lc / Δt_lr
         coe_l = Δt_cr / Δt_lr
  
-        #println(format("{:.2f}, {:.2f}", coe_l, coe_r))
-
         if any([Δt_lr, Δt_lc, Δt_cr] .< 0)
             println("[Δt_lr, Δt_lc, Δt_cr] = ", [Δt_lr, Δt_lc, Δt_cr]) 
             throw(ErrorException("Δt sign error."))
@@ -321,23 +322,13 @@ module CyclicData
 
         for varname in cdm.varnames
     
-            if ! haskey(data, varname)
-                if create
-                    data[varname] = zeros(Float64, size(cdm.data_l[varname])...)
-                else
-                    continue
-                end
-            end
-
             tmp = view(data[varname], :)
 
             # interpolation happens here
             data_l = view(cdm.data_l[varname], :)
             data_r = view(cdm.data_r[varname], :)
-            #println(size(data_l), "; ", size(data_r))            
             @. tmp = data_l * coe_l + data_r * coe_r
-        end
 
-        return data
+        end
     end 
 end

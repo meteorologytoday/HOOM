@@ -31,14 +31,14 @@ function getConfigDescriptor()
             ConfigEntry(
                 :daily_record,
                 :optional,
-                [AbstractArray{String}, Symbol],
+                [AbstractArray, Symbol],
                 [],
             ),
 
             ConfigEntry(
                 :monthly_record,
                 :optional,
-                [AbstractArray{String}, Symbol],
+                [AbstractArray, Symbol],
                 [],
             ),
 
@@ -57,6 +57,30 @@ function getConfigDescriptor()
                 :optional,
                 [String,],
                 nothing,
+            ),
+
+            ConfigEntry(
+                :cdata_timetype,
+                :optional,
+                [Any,],
+            ),
+
+            ConfigEntry(
+                :cdata_beg_time,
+                :optional,
+                [Any,],
+            ),
+
+            ConfigEntry(
+                :cdata_end_time,
+                :optional,
+                [Any,],
+            ),
+
+            ConfigEntry(
+                :cdata_align_time,
+                :optional,
+                [Any,],
             ),
 
             ConfigEntry(
@@ -83,7 +107,7 @@ function getConfigDescriptor()
             ConfigEntry(
                 :MLD_scheme,
                 :required,
-                [:prognostic, :datastream],
+                [:prognostic, :datastream, :static],
             ),
 
             ConfigEntry(
