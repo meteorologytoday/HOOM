@@ -31,14 +31,14 @@ function getConfigDescriptor()
             ConfigEntry(
                 :daily_record,
                 :optional,
-                [AbstractArray, Symbol],
+                [AbstractArray,],
                 [],
             ),
 
             ConfigEntry(
                 :monthly_record,
                 :optional,
-                [AbstractArray, Symbol],
+                [AbstractArray,],
                 [],
             ),
 
@@ -83,13 +83,6 @@ function getConfigDescriptor()
                 [Any,],
             ),
 
-            ConfigEntry(
-                :z_w,
-                :optional,
-                [AbstractArray{Float64, 1}],
-                nothing;
-                desc = "Will be overwritten if :init_file is used.",
-            ),
 
             ConfigEntry(
                 :substeps,
@@ -138,6 +131,13 @@ function getConfigDescriptor()
                 :off,
             ),
 
+            ConfigEntry(
+                :z_w,
+                :optional,
+                [AbstractArray{Float64, 1}],
+                nothing;
+                desc = "Will be overwritten if :init_file is used.",
+            ),
 
             ConfigEntry(
                 :Ks_H,
@@ -208,6 +208,7 @@ function getConfigDescriptor()
                 :optional,
                 [Float64,],
                 1.0 / 86400.0;
+                desc = "Rayleigh friction of momentum. Will be overwritten if :init_file is used",
             ),
 
             ConfigEntry(
@@ -215,6 +216,7 @@ function getConfigDescriptor()
                 :optional,
                 [Integer,],
                 5;
+                desc = "Number of Ekman layers. Will be overwritten if :init_file is used",
             ),
 
             ConfigEntry(
@@ -222,6 +224,7 @@ function getConfigDescriptor()
                 :optional,
                 [Integer,],
                 5;
+                desc = "Number of Ekman return flows. Will be overwritten if :init_file is used",
             ),
         ],
     )

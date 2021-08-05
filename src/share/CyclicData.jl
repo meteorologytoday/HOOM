@@ -120,6 +120,10 @@ module CyclicData
             end
 
             unit_fmt = format(
+                "seconds since {:s}",
+                Dates.format(align_time, "yyyy-mm-dd HH:MM:SS")
+            )
+            #=
                 "seconds since {:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}",
                 year(align_time),
                 month(align_time),
@@ -128,7 +132,7 @@ module CyclicData
                 minute(align_time),
                 second(align_time),
             )
-            
+            =#
             #println(timeencode(t_vec_raw[1], unit_fmt, timetype))
 
             t_vec = [ timeencode(t_vec_raw[i], unit_fmt, timetype) for i=time_idx_beg:time_idx_end ]

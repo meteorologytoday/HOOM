@@ -97,8 +97,9 @@ function runModel(
             break
         end
     end
-        
-    coupler_funcs.finalize!(OMMODULE, OMDATA)
+    
+    OMMODULE.final(OMDATA) 
+    coupler_funcs.final(OMMODULE, OMDATA)
     
     is_master && println("Program Ends.")
 

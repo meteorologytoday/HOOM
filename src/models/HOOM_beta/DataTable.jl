@@ -3,7 +3,7 @@ mutable struct DataTable
 
     dims        :: Dict
     grid_dims   :: Dict
-    grid_odims_str  :: Dict
+    grid_dims2_str  :: Dict
     data_units  :: Dict
     flags       :: Dict    # What are flags for? 
 
@@ -38,7 +38,7 @@ mutable struct DataTable
 
         # This is used for RecordTool output
         # Notice that this is oriented dimension so z is the last one
-        grid_odims_str = Dict(
+        grid_dims2_str = Dict(
             :T  => ("Nx", "Ny", "Nz"),
             :U  => ("Nx", "Ny", "Nz"),
             :V  => ("Nx", "Nyp1", "Nz"),
@@ -57,7 +57,7 @@ mutable struct DataTable
         return new(
             dims,
             grid_dims,
-            grid_odims_str,
+            grid_dims2_str,
             data_units,
             flags,
         )

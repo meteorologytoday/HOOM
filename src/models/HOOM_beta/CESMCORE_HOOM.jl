@@ -5,22 +5,25 @@ end
 
 module CESMCORE_HOOM
 
+    using MPI
+    using Dates
+    using Formatting
+    using NCDatasets
+
     include(joinpath(@__DIR__, "..", "..", "share", "CheckDict.jl"))
     include(joinpath(@__DIR__, "..", "..", "share", "AppendLine.jl"))
     include(joinpath(@__DIR__, "..", "..", "share", "Log.jl"))
     include(joinpath(@__DIR__, "DataManager.jl"))
     include(joinpath(@__DIR__, "Parallelization.jl"))
 
-    using MPI
-    using Dates
-    using Formatting
-
     using ..HOOM
     using .DataManager
     using .Parallization
-
     using ..ModelClockSystem
-    using NCDatasets
+
+    include(joinpath(@__DIR__, "snapshot_funcs.jl"))
+
+
 
 
     name = "HOOM_beta"
@@ -197,7 +200,7 @@ module CESMCORE_HOOM
         data_table = DataTable(Nz = my_ev.Nz, Nx = my_ev.Nx, Ny = my_ev.Ny)
 
         
-        for (k, (varref, grid_type)) in HOOM.getVariableList(my_mb, :ALL)
+        for (k, (varref, grid_type)) in HOOM.getDynamicVariableList(my_mb; varsets=[:ALL,])
             regVariable!(data_table, k, grid_type, varref) 
         end
 
@@ -258,7 +261,7 @@ module CESMCORE_HOOM
 
             activated_record = []
             MD.recorders = Dict()
-            complete_variable_list = HOOM.getVariableList(my_mb, :ALL)
+            complete_variable_list = HOOM.getDynamicVariableList(my_mb; varsets=[:ALL,])
 
 #            additional_variable_list = HOOM.getVariableList(ocn, :COORDINATE)
 
@@ -268,8 +271,22 @@ module CESMCORE_HOOM
  
                 println("# For record key: " * string(rec_key))
 
-                var_list = []
+                varnames = Array{String}(undef, 0)
+                varsets  = Array{Symbol}(undef, 0)
                 
+                for v in misc_config[rec_key]
+                    if typeof(v) <: Symbol
+                        push!(varsets, v)
+                    elseif typeof(v) <: String
+                        push!(varnames, v)
+                    else
+                        throw(ErrorException("Unknown record list element type: " * string(typeof(v))))
+                    end
+                end
+                    
+                rec_varnames = HOOM.getDynamicVariableList(my_mb; varnames=varnames, varsets=varsets) |> keys |> collect
+               
+                #= 
                 if typeof(misc_config[rec_key]) <: Symbol 
                     misc_config[rec_key] = HOOM.getVariableList(my_mb, misc_config[rec_key]) |> keys |> collect
                 end
@@ -290,22 +307,25 @@ module CESMCORE_HOOM
                         throw(ErrorException("Unknown varname in " * string(rec_key) * ": " * varname))
                     end
                 end
+                =#
 
-                # additional variables
-                add_var_list = []
-                #for (k, v) in additional_variable_list
-                #   push!(add_var_list, ( k, v... ) )
-                #end
+                if length(rec_varnames) != 0
+                    
+                    # additional variables
+                    add_var_list = []
+                    #for (k, v) in additional_variable_list
+                    #   push!(add_var_list, ( k, v... ) )
+                    #end
 
-                     
-                MD.recorders[rec_key] = Recorder(
-                    data_table,
-                    var_list,
-                    HOOM.var_desc;
-                    other_varnames=add_var_list,
-                )
-                
-                if length(var_list) != 0
+                         
+                    MD.recorders[rec_key] = Recorder(
+                        data_table,
+                        rec_varnames,
+                        HOOM.var_desc;
+                        other_varnames=add_var_list,
+                    )
+                    
+
                     push!(activated_record, rec_key) 
                 end
             end
@@ -426,7 +446,8 @@ module CESMCORE_HOOM
             :M2S,
             :BLOCK,
         ) 
-        
+      
+ 
         return MD
 
     end
@@ -508,7 +529,29 @@ module CESMCORE_HOOM
     end
 
     function final(MD::HOOM_DATA)
+ 
+        comm = MPI.COMM_WORLD
+        rank = MPI.Comm_rank(comm)
+        comm_size = MPI.Comm_size(comm)
         
+        is_master = ( rank == 0 )
+
+        if is_master
+            takeSnapshot(
+                MD.mb,
+                MD.clock,
+                MD.data_table,
+                joinpath(
+                    MD.config[:DRIVER][:caserun],
+                    format(
+                        "{:s}.snapshot.{:s}.nc",
+                        MD.config[:DRIVER][:casename],
+                        Dates.format(MD.clock.time, "yyyy-mm-dd_HHMMSS"),
+                    )
+                ),
+            )
+        end
+       
     end
 
 

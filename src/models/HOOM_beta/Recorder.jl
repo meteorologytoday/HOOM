@@ -62,7 +62,7 @@ mutable struct Recorder
 
         for varname in varnames
             du = data_table.data_units[varname]
-            sobjs[varname] = StatObj(varname, du.sdata2, data_table.grid_odims_str[du.grid])
+            sobjs[varname] = StatObj(varname, du.sdata2, data_table.grid_dims2_str[du.grid])
         end
 
         if other_varnames == nothing

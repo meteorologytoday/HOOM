@@ -18,7 +18,7 @@ rank = MPI.Comm_rank(comm)
 if rank == 0
 
     t_start = DateTimeNoLeap(1, 1, 1)
-    t_end   = DateTimeNoLeap(3, 1, 1)
+    t_end   = DateTimeNoLeap(1, 2, 1)
     read_restart = false
     Δt = Second(86400)
 
@@ -34,8 +34,8 @@ if rank == 0
         :MODEL_MISC => Dict(
             :init_file          => "",#nothing,#joinpath(@__DIR__, "ocn_init.nc"),
             :rpointer_file      => "rpointer.hoom",
-            :daily_record                 => :ALL,
-            :monthly_record               => :ALL,
+            :daily_record                 => [:ALL,],
+            :monthly_record               => [:ALL,],
             :enable_archive               => true,
         ),
 
@@ -156,7 +156,7 @@ coupler_funcs = (
     after_model_run! = function(OMMODULE, OMDATA)
         writeLog("[Coupler] After model run")
     end,
-    finalize! = function(OMMODULE, OMDATA)
+    final = function(OMMODULE, OMDATA)
         writeLog("[Coupler] Finalize")
     end 
 )
