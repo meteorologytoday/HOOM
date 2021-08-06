@@ -2,7 +2,7 @@ mutable struct Env
 
     config :: Dict
     
-    sub_yrng    :: Any
+    sub_yrng :: Union{UnitRange, Colon, Nothing}
     Nx :: Integer
     Ny :: Integer
     Nz :: Integer

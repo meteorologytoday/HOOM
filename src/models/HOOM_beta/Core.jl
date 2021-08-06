@@ -127,7 +127,7 @@ mutable struct Core
                 throw(ErrorException("Some config require cyclic data forcing file"))
             else
                 cdatam = CyclicDataManager(;
-                    timetype     = cfg[:cdata_timetype],
+                    timetype     = getproperty(CFTime, Symbol(cfg[:timetype])),
                     filename     = cfg[:cdata_file],
                     varnames     = cdata_varnames,
                     beg_time     = cfg[:cdata_beg_time],

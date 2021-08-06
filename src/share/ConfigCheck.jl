@@ -122,7 +122,7 @@ module ConfigCheck
                     throw(ErrorException(format("[Required] {:s}", msg)))
                 else
                     new_cfg[name] = default
-                    println(format("[Optional] {:s} Set to default: {:s}", string(name), string(new_cfg[name])))
+                    println(format("[Optional] {:s} is set to default: {:s}", string(name), string(new_cfg[name])))
 
                 end
             end

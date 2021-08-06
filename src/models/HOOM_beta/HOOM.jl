@@ -14,6 +14,11 @@ if !(:LogSystem in names(Main))
     include(normpath(joinpath(dirname(@__FILE__), "..", "..", "share", "LogSystem.jl")))
 end
 
+if ! ( :DataManager in names(Main) )
+    include(joinpath(@__DIR__, "..", "..", "share", "DataManager.jl"))
+end
+
+
 macro hinclude(path)
     return :(include(normpath(joinpath(@__DIR__, $path))))
 end
@@ -33,6 +38,7 @@ module HOOM
     using ..ConfigCheck
     using ..CyclicData
     using ..LogSystem
+    using ..DataManager
 
     macro hinclude(path)
         return :(include(normpath(joinpath(@__DIR__, $path))))
@@ -60,6 +66,7 @@ module HOOM
     @hinclude("Core.jl")
     
     @hinclude("ModelBlock.jl")
+
 
     @hinclude("setupForcing.jl")
     @hinclude("stepAdvection.jl")

@@ -467,7 +467,7 @@ module CESMCORE_HOOM
         restart_file = format("{}.ocn.r.{:04d}{:02d}{:02d}_{:05d}.nc", MD.configs[:casename], t[1], t[2], t[3], t[4])
         HOOM.takeSnapshot(MD.ocn, restart_file)
          
-        open(MD.configs[:rpointer_file], "w") do file
+        open(MD.configs[:MODEL_MISC][:rpointer_file], "w") do file
             write(file, restart_file)
         end
 

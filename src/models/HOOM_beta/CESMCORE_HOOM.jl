@@ -3,24 +3,29 @@ if ! ( :HOOM in names(Main) )
     include(joinpath(@__DIR__, "HOOM.jl"))
 end
 
+if ! ( :DataManager in names(Main) )
+    include(joinpath(@__DIR__, "..", "..", "share", "DataManager.jl"))
+end
+
+if ! ( :Parallelization in names(Main) )
+    include(joinpath(@__DIR__, "Parallelization.jl"))
+end
+
 module CESMCORE_HOOM
 
     using MPI
     using Dates
     using Formatting
     using NCDatasets
-
-    include(joinpath(@__DIR__, "..", "..", "share", "CheckDict.jl"))
-    include(joinpath(@__DIR__, "..", "..", "share", "AppendLine.jl"))
-    include(joinpath(@__DIR__, "..", "..", "share", "Log.jl"))
-    include(joinpath(@__DIR__, "DataManager.jl"))
-    include(joinpath(@__DIR__, "Parallelization.jl"))
+    using JSON
 
     using ..HOOM
-    using .DataManager
-    using .Parallization
+    using ..DataManager
+    using ..Parallization
     using ..ModelClockSystem
 
+    include(joinpath(@__DIR__, "..", "..", "share", "AppendLine.jl"))
+    include(joinpath(@__DIR__, "..", "..", "share", "Log.jl"))
     include(joinpath(@__DIR__, "snapshot_funcs.jl"))
 
 
@@ -40,7 +45,6 @@ module CESMCORE_HOOM
 
         config     :: Dict
 
-        data_table  :: DataTable
         recorders   :: Union{Dict, Nothing}
 
         jdi        :: JobDistributionInfo
@@ -68,6 +72,14 @@ module CESMCORE_HOOM
 
         local master_mb = nothing
         local master_ev = nothing
+
+        if is_master
+            archive_list_file = joinpath(config[:DRIVER][:caserun], config[:DRIVER][:archive_list])
+            if isfile(archive_list_file)
+                writeLog("File {:s} already exists. Remove it.", archive_list_file)
+                rm(archive_list_file)
+            end
+        end
 
         if is_master
 
@@ -196,14 +208,6 @@ module CESMCORE_HOOM
             "QFLX2ATM" => my_mb.fi.QFLX2ATM,
         )
 
-        # Create DataTable
-        data_table = DataTable(Nz = my_ev.Nz, Nx = my_ev.Nx, Ny = my_ev.Ny)
-
-        
-        for (k, (varref, grid_type)) in HOOM.getDynamicVariableList(my_mb; varsets=[:ALL,])
-            regVariable!(data_table, k, grid_type, varref) 
-        end
-
         # Synchronizing Data
         sync_data_list = Dict(
             :forcing => (
@@ -238,7 +242,7 @@ module CESMCORE_HOOM
         for (k, l) in sync_data_list
             sync_data[k] = Array{DataUnit, 1}(undef, length(l))
             for (n, varname) in enumerate(l)
-                sync_data[k][n] = data_table.data_units[varname]
+                sync_data[k][n] = my_mb.dt.data_units[varname]
             end
         end
 
@@ -250,7 +254,6 @@ module CESMCORE_HOOM
             x2o,
             o2x,
             config,
-            data_table,
             nothing,
             jdi,
             sync_data,
@@ -319,7 +322,7 @@ module CESMCORE_HOOM
 
                          
                     MD.recorders[rec_key] = Recorder(
-                        data_table,
+                        my_mb.dt,
                         rec_varnames,
                         HOOM.var_desc;
                         other_varnames=add_var_list,
@@ -537,19 +540,75 @@ module CESMCORE_HOOM
         is_master = ( rank == 0 )
 
         if is_master
+
+            clock_time = MD.clock.time
+
+            timestamp_str = format(
+                "{:s}-{:05d}",
+                Dates.format(clock_time, "yyyy-mm-dd"),
+                floor(Int64, Dates.hour(clock_time)*3600+Dates.minute(clock_time)*60+Dates.second(clock_time)),
+            )
+
+            filename_nc = format(
+                "{:s}.snapshot.{:s}.nc",
+                MD.config[:DRIVER][:casename],
+                timestamp_str,
+            )
+
+            filename_cfg = format(
+                "{:s}.config.{:s}.nc",
+                MD.config[:DRIVER][:casename],
+                timestamp_str,
+            )
+
+
             takeSnapshot(
+                MD.clock.time,
                 MD.mb,
-                MD.clock,
-                MD.data_table,
                 joinpath(
                     MD.config[:DRIVER][:caserun],
-                    format(
-                        "{:s}.snapshot.{:s}.nc",
-                        MD.config[:DRIVER][:casename],
-                        Dates.format(MD.clock.time, "yyyy-mm-dd_HHMMSS"),
-                    )
+                    filename_nc,
+                ),
+
+                joinpath(
+                    MD.config[:DRIVER][:caserun],
+                    filename_cfg,
                 ),
             )
+
+            println("(Over)write restart pointer file: ", MD.config[:MODEL_MISC][:rpointer_file])
+            open(joinpath(MD.config[:DRIVER][:caserun], MD.config[:MODEL_MISC][:rpointer_file]), "w") do io
+                write(io, filename_nc,  "\n")
+                write(io, filename_cfg, "\n")
+            end
+
+
+
+            appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
+                format("cp,{:s},{:s},{:s}",
+                    filename_nc,
+                    MD.config[:DRIVER][:caserun],
+                    joinpath(MD.config[:DRIVER][:archive_root], "rest", timestamp_str),
+                )
+            )
+
+            appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
+                format("cp,{:s},{:s},{:s}",
+                    filename_cfg,
+                    MD.config[:DRIVER][:caserun],
+                    joinpath(MD.config[:DRIVER][:archive_root], "rest", timestamp_str),
+                )
+            )
+ 
+            appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
+                format("cp,{:s},{:s},{:s}",
+                    MD.config[:MODEL_MISC][:rpointer_file],
+                    MD.config[:DRIVER][:caserun],
+                    joinpath(MD.config[:DRIVER][:archive_root], "rest", timestamp_str),
+                )
+            )
+            
+
         end
        
     end
@@ -570,7 +629,7 @@ module CESMCORE_HOOM
             joinpath(MD.config[:DRIVER][:caserun], filename)
         )
             
-        appendLine(MD.config[:DRIVER][:archive_list], 
+        appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
             format("mv,{:s},{:s},{:s}",
                 filename,
                 MD.config[:DRIVER][:caserun],

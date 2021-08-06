@@ -39,6 +39,9 @@ function runModel(
         config[:DRIVER] = validateConfigEntries(config[:DRIVER], getDriverConfigDescriptor())
     end
 
+    writeLog("Setting working directory: {:s}", config[:DRIVER][:caserun])
+    cd(config[:DRIVER][:caserun])
+
     # copy the start time
     beg_datetime = t_start + Dates.Second(0)
 
@@ -100,7 +103,14 @@ function runModel(
     
     OMMODULE.final(OMDATA) 
     coupler_funcs.final(OMMODULE, OMDATA)
-    
+  
+    if is_master
+        archive(joinpath(
+            config[:DRIVER][:caserun],
+            config[:DRIVER][:archive_list],
+        ))
+    end
+ 
     is_master && println("Program Ends.")
 
 end
@@ -141,3 +151,58 @@ function getDriverConfigDescriptor()
    ]
 end
 
+function archive(
+    archive_list_file :: String,
+)
+
+    println("===== Archiving files BEGIN =====")
+    
+    for line in eachline(archive_list_file)
+
+        args = split(line, ",")
+
+        if length(args) == 0
+            continue
+        end
+      
+        action = args[1]
+        args = args[2:end]
+
+        if action in ["mv", "cp"]
+
+            fname, src_dir, dst_dir = args
+
+            if ! isdir(dst_dir)
+                mkpath(dst_dir)
+            end
+ 
+            src_file = joinpath(src_dir, fname)
+            dst_file = joinpath(dst_dir, fname)
+
+            if isfile(src_file)
+
+                if action == "mv"
+                    mv(src_file, dst_file, force=true)
+                    println(format("Moving file: {:s} ( {:s} => {:s} )", fname, src_dir, dst_dir))
+                elseif action == "cp"
+                    cp(src_file, dst_file, force=true)
+                    println(format("Copying file: {:s} ( {:s} => {:s} )", fname, src_dir, dst_dir))
+                end
+
+            else
+                println("File does not exist: ", src_file)
+            end
+
+        elseif action == "rm"
+            fname, fdir = args
+            rm(joinpath(fdir, fname), force=true)
+            println(format("Removing file: {:s} in {:s}", fname, fdir))
+        else
+            throw(ErrorException(format("Unknown action in archive list: {:s}", action)))
+        end
+
+    end
+
+    println("===== Archiving files END =====")
+
+end

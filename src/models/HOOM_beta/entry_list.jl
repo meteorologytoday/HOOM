@@ -6,6 +6,7 @@ function getConfigDescriptor()
 
         :MODEL_MISC => [
 
+
             ConfigEntry(
                 :init_file,
                 :optional,
@@ -47,6 +48,13 @@ function getConfigDescriptor()
         :MODEL_CORE => [
 
             ConfigEntry(
+                :timetype,
+                :optional,
+                [String,],
+                "DateTimeNoLeap",
+            ),
+
+            ConfigEntry(
                 :domain_file,
                 :required,
                 [String,],
@@ -59,11 +67,6 @@ function getConfigDescriptor()
                 nothing,
             ),
 
-            ConfigEntry(
-                :cdata_timetype,
-                :optional,
-                [Any,],
-            ),
 
             ConfigEntry(
                 :cdata_beg_time,

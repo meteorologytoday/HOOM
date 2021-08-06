@@ -1,15 +1,67 @@
-
-function takeSnapshot(
-    mb         :: HOOM.ModelBlock,
-    clock      :: ModelClock,
-    data_table :: DataTable,
-    filename::AbstractString;
-    missing_value::Float64=1e20,
+#=
+"""
+loadSnapshot
+Usage: It loads a netcdf snapshot file and a config JSON file that is used in Env.
+       If `timestamp` is provided, the function will check if it matches the 
+       timestamp recorded in the netcdf file.
+"""
+function loadSnapshot(
+    data_table    :: DataTable,
+    cfg           :: Dict,
+    filename_nc   :: AbstractString,   # Field
+    filename_cfg  :: AbstractString;   # Configuration
+    timestamp     :: Union{AbstractCFDateTime, Nothing} = nothing,
 )
 
     writeLog("Outputting file: {:s}", filename)
 
-    Dataset(filename, "c") do ds
+    timestamp_str = Dates.format(timestamp, "yyyy-mm-dd HH:MM:SS")
+
+    Dataset(filename_nc, "r") do ds
+
+        if timestamp_str != nothing && timestamp_str != ds.attrib["timestamp"]
+            throw(ErrorException(format
+                "The provided timestamp is {:s}, but the netcdf file timestamp is {:s}",
+                timestamp_str,
+                ds.attrib["timestamp"], 
+            ))
+        end
+
+        for (varname, data_unit) in data_table.data_units # HOOM.getDynamicVariableList(mb; varsets = [:ALL,])
+
+            println("Reading ", varname, "... ")
+            data_unit.sdata2[:, :, :] = nomissing(ds[varname][:, :, :, 1], NaN)
+
+        end
+
+    end
+
+    open(filename_nc, "r") do ds
+        cfg = JSON.json(filename_cfg)
+    end
+
+    return 
+end
+=#
+
+"""
+takeSnapshot
+
+Usage: It output netcdf file that is a copy of variables in the given DataTable
+       It also converts a config Dict into JSON text file
+"""
+function takeSnapshot(
+    timestamp     :: AbstractCFDateTime,
+    mb            :: HOOM.ModelBlock,
+    filename_nc   :: AbstractString,   # Field
+    filename_cfg  :: AbstractString;   # Configuration
+    missing_value :: Float64=1e20,
+)
+
+    timestamp_str = Dates.format(timestamp, "yyyy-mm-dd HH:MM:SS")
+    data_table = mb.dt
+
+    Dataset(filename_nc, "c") do ds
 
         defDim(ds, "time",   Inf)
         for (dimname, dimvalue) in data_table.dims
@@ -17,13 +69,14 @@ function takeSnapshot(
         end
 
         ds.attrib["_FillValue"] = missing_value
-        ds.attrib["timetype"]  = string(typeof(clock))
-        ds.attrib["timestamp"] = Dates.format(now(), "yyyy-mm-dd HH:MM:SS")
+        ds.attrib["timestamp"] = timestamp_str
 
-        for (varname, _) in HOOM.getDynamicVariableList(mb; varsets = [:ALL,])
+        varnames = keys(HOOM.getDynamicVariableList(mb; varsets = [:ALL,]))
+        for (varname, data_unit) in data_table.data_units
 
-            data_unit = data_table.data_units[varname] 
-            println("Taking snapshot of variable: ", varname, "... ")
+            data_unit = data_table.data_units[varname]
+
+            println("Writing ", varname, "... ")
             ds_var = defVar(ds, varname, eltype(data_unit.sdata2), (data_table.grid_dims2_str[data_unit.grid]..., "time"))
             ds_var.attrib["_FillValue"] = missing_value 
             ds_var = ds[varname]
@@ -34,164 +87,11 @@ function takeSnapshot(
 
     end
 
-end
-
-#=
-
-
-
-function loadSnapshot(
-    filename::AbstractString;
-    gridinfo_file::AbstractString
-)
-    local ocn
-
-    Dataset(filename, "r") do ds
-
-        Ts_clim_relax_time = nothing
-        Ss_clim_relax_time = nothing
-
-        Ts_clim = nothing
-        Ss_clim = nothing
-
-        if haskey(ds, "Ts_clim")
-            Ts_clim_relax_time = ds.attrib["Ts_clim_relax_time"]
-            Ts_clim = toZXY(nomissing(ds["Ts_clim"][:], NaN), :xyz)
-        end
-
-        if haskey(ds, "Ss_clim")
-            Ss_clim_relax_time = ds.attrib["Ss_clim_relax_time"]
-            Ss_clim = toZXY(nomissing(ds["Ss_clim"][:], NaN), :xyz)
-        end
-
-        ocn = Ocean(
-            id            = 0,
-            gridinfo_file = gridinfo_file,
-            Nx            = ds.dim["Nx"],
-            Ny            = ds.dim["Ny"],
-            zs_bone       = nomissing(ds["zs_bone"][:], NaN);
-            Ts            = toZXY( nomissing(ds["Ts"][:], NaN), :xyz),
-            Ss            = toZXY( nomissing(ds["Ss"][:], NaN), :xyz),
-            K_v           = ds.attrib["K_v"],
-            Dh_T          = ds.attrib["Dh_T"],
-            Dv_T          = ds.attrib["Dv_T"],
-            Dh_S          = ds.attrib["Dh_S"],
-            Dv_S          = ds.attrib["Dv_S"],
-            fs            = nomissing(ds["fs"][:], NaN),
-            ϵs            = nomissing(ds["epsilons"][:], NaN),
-            T_ML          = nomissing(ds["T_ML"][:], NaN),
-            S_ML          = nomissing(ds["S_ML"][:], NaN),
-            h_ML          = nomissing(ds["h_ML"][:], NaN),
-            h_ML_min      = nomissing(ds["h_ML_min"][:], NaN),
-            h_ML_max      = nomissing(ds["h_ML_max"][:], NaN),
-            we_max        = ds.attrib["we_max"],
-            R             = ds.attrib["R"],
-            ζ             = ds.attrib["zeta"],
-            Ts_clim_relax_time = Ts_clim_relax_time,
-            Ss_clim_relax_time = Ss_clim_relax_time,
-            Ts_clim       = Ts_clim,
-            Ss_clim       = Ss_clim,
-            topo          = nomissing(ds["topo"][:], NaN),
-            in_flds       = nothing,
-        )
-
-        for (varname, (var, dim) ) in getVariableList(ocn, :RECORD)
-
-            println("Restoring :RECORD variable: ", varname)
-
-            if typeof(var) <: AbstractArray
-                var .= nomissing(ds[varname][:])
-            else
-                throw(ErrorException("Non vector variable cannot be part of :RECORD variables"))
-            end
-        end
-
-    end
-
-
-
-    return ocn 
-end
-
-function _createNCFile(
-    mb :: ModelBlock,
-    filename::AbstractString,
-    missing_value::Float64,
-)
-
-    Dataset(filename, "c") do ds
-
-        defDim(ds, "N_ocs", ocn.N_ocs)
-        defDim(ds, "Nx", ocn.Nx)
-        defDim(ds, "Ny", ocn.Ny)
-        defDim(ds, "Nz_bone", ocn.Nz_bone)
-        defDim(ds, "NP_zs_bone",   length(ocn.zs_bone))
-        defDim(ds, "time",   Inf)
-        
-        ds.attrib["_FillValue"] = missing_value
-       
-        
-    end
-
-end
-
-
-function _write2NCFile(
-    ds            :: Dataset,
-    varname       :: AbstractString,
-    dim           :: Tuple,
-    var_data      :: AbstractArray{T},
-    missing_value :: G) where T where G
-
-    #println("Write : ", varname)
-
-    ds_var = defVar(ds, varname, eltype(var_data), dim)
-
-    ds_var.attrib["_FillValue"] = missing_value
-    for (k, v) in getVarDesc(varname)
-        ds_var.attrib[k] = v
-    end
-
-
-    ds_var[:] = var_data
-
-
-end
-
-"""
-    This function is meant to append field into an NC file
-    along the time dimension
-"""
-function _write2NCFile_time(
-    ds            :: Dataset,
-    varname       :: String,
-    dim           :: Tuple,
-    time          :: Integer,
-    var_data      :: AbstractArray{T};
-    missing_value :: Union{T, Nothing} = nothing,
-) where T where G
-
-#    time        :: Union{Nothing, UnitRange, Integer} = nothing,
-#    time_exists :: Bool = true,
-#    missing_value :: Union{T, Nothing} = nothing,
-#) where T <: float
-
-    local ds_var
-
-    # Create variable if it is not in the file yet
-    if ! ( varname in keys(ds) )
-
-        ds_var = defVar(ds, varname, T, (dim..., "time"))
-        
-        if missing_value != nothing
-            ds_var.attrib["_FillValue"] = missing_value 
-        end
-    else
-        ds_var = ds[varname]
+    open(filename_cfg, "w") do io
+        JSON.print(io, mb.ev.config, 2)
     end
 
     
-    ds_var[repeat([:,], length(dim))..., time] = var_data
-
 end
-=#
+
+
