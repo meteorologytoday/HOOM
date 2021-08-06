@@ -82,7 +82,6 @@ function runModel(
                 OMMODULE.run!(
                     OMDATA;
                     Δt = Δt,
-                    write_restart = write_restart,
                 )
 
                 MPI.Barrier(comm)
@@ -99,6 +98,7 @@ function runModel(
             is_master && println("stage == :END. Break loop now.")
             break
         end
+
     end
     
     OMMODULE.final(OMDATA) 

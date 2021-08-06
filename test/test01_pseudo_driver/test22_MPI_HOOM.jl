@@ -127,7 +127,6 @@ coupler_funcs = (
             if t_end_reached
                 return_values = ( :END, Δt, t_end_reached )
             else
-
                 return_values = ( :RUN, Δt, t_end_reached )
             end
         end

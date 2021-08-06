@@ -1,4 +1,3 @@
-#=
 """
 loadSnapshot
 Usage: It loads a netcdf snapshot file and a config JSON file that is used in Env.
@@ -6,16 +5,16 @@ Usage: It loads a netcdf snapshot file and a config JSON file that is used in En
        timestamp recorded in the netcdf file.
 """
 function loadSnapshot(
-    data_table    :: DataTable,
-    cfg           :: Dict,
     filename_nc   :: AbstractString,   # Field
     filename_cfg  :: AbstractString;   # Configuration
     timestamp     :: Union{AbstractCFDateTime, Nothing} = nothing,
 )
 
-    writeLog("Outputting file: {:s}", filename)
-
-    timestamp_str = Dates.format(timestamp, "yyyy-mm-dd HH:MM:SS")
+    writeLog("Reading files: {:s} and {:s}", filename_nc, filename_cfg)
+    
+    if timestamp != nothing
+        timestamp_str = Dates.format(timestamp, "yyyy-mm-dd HH:MM:SS")
+    end
 
     Dataset(filename_nc, "r") do ds
 
@@ -42,7 +41,6 @@ function loadSnapshot(
 
     return 
 end
-=#
 
 """
 takeSnapshot

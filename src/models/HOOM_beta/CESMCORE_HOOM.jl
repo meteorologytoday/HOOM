@@ -7,8 +7,16 @@ if ! ( :DataManager in names(Main) )
     include(joinpath(@__DIR__, "..", "..", "share", "DataManager.jl"))
 end
 
+if ! ( :DataManager in names(Main) )
+    include(joinpath(@__DIR__, "..", "..", "share", "ModelClockSystem.jl"))
+end
+
+if ! ( :DataManager in names(Main) )
+    include(joinpath(@__DIR__, "..", "..", "share", "LogSystem.jl"))
+end
+
 if ! ( :Parallelization in names(Main) )
-    include(joinpath(@__DIR__, "Parallelization.jl"))
+    include(joinpath(@__DIR__, "..", "..", "share", "Parallelization.jl"))
 end
 
 module CESMCORE_HOOM
@@ -23,17 +31,12 @@ module CESMCORE_HOOM
     using ..DataManager
     using ..Parallization
     using ..ModelClockSystem
+    using ..LogSystem
 
     include(joinpath(@__DIR__, "..", "..", "share", "AppendLine.jl"))
-    include(joinpath(@__DIR__, "..", "..", "share", "Log.jl"))
     include(joinpath(@__DIR__, "snapshot_funcs.jl"))
 
-
-
-
     name = "HOOM_beta"
-
-    days_of_mon = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
     mutable struct HOOM_DATA
         casename    :: AbstractString
@@ -86,7 +89,7 @@ module CESMCORE_HOOM
             cfg_desc = HOOM.getConfigDescriptor()
 
             misc_config = HOOM.validateConfigEntries(config[:MODEL_MISC], cfg_desc[:MODEL_MISC])
-            init_file = misc_config[:init_file]
+            core_config = HOOM.validateConfigEntries(config[:MODEL_CORE], cfg_desc[:MODEL_CORE])
 
             # If `read_restart` is true then read restart file: config[:rpointer_file]
             # If not then initialize ocean with default profile if `initial_file`
@@ -96,69 +99,68 @@ module CESMCORE_HOOM
 
                 println("`read_restart` is on. Look for rpointer file...")
 
-                if !isfile(init_file_config[:rpointer_file])
-                    throw(ErrorException(init_file_config[:rpointer_file] * " does not exist!"))
+                rpointer_file = joinpath(config[:DRIVER][:caserun], config[:MODEL_MISC][:rpointer_file])
+
+                if !isfile(rpointer_file)
+                    throw(ErrorException(format("File {:s} does not exist!", rpointer_file)))
                 end
                 
-                println("Going to read restart pointer file: ", init_file_config[:rpointer_file])
+                writeLog("Reading rpointer file {:s}", rpointer_file)
 
-                open(init_file_config[:rpointer_file], "r") do file
-                    init_file = readline(file)
+                open(rpointer_file, "r") do file
+                    filename_nc  = chomp(readline(file))
+                    filename_cfg = chomp(readline(file))
                 end
 
-                if !isfile(init_file)
-                    throw(ErrorException(format("Initial file \"{:s}\" does not exist!", init_file)))
+                if !isfile(filename_nc)
+                    throw(ErrorException(format("Initial file \"{:s}\" does not exist!", filename_nc)))
                 end
-     
-            end
+ 
+                if !isfile(filename_cfg)
+                    throw(ErrorException(format("Initial file \"{:s}\" does not exist!", filename_cfg)))
+                end
 
-            core_config = HOOM.validateConfigEntries(config[:MODEL_CORE], cfg_desc[:MODEL_CORE])
-
-            if init_file != ""
-
-                println("Initial ocean with profile: ", init_file)
-                println("Initial ocean with domain file: ", core_config[:domain_file])
-                master_mb = HOOM.loadSnapshot(init_file; gridinfo_file=core_config[:domain_file])
-            
+                master_mb = loadSnapshot(filename_nc, filename_cfg)
+                master_ev = my_mb.ev
             else
 
-                writeLog("Debugging status. Initialize an empty ocean.")
+                init_file = misc_config[:init_file]
 
+                if init_file != ""
+
+                    println("Initial ocean with profile: ", init_file)
+                    println("Initial ocean with domain file: ", core_config[:domain_file])
+                    master_mb = HOOM.loadSnapshot(init_file; gridinfo_file=core_config[:domain_file])
                 
+                else
 
-                master_ev = HOOM.Env(core_config)
-                master_mb = HOOM.ModelBlock(master_ev; init_core=false)
+                    writeLog("Debugging status. Initialize an empty ocean.")
 
-                #=
-                master_mb.fi.sv[:TEMP][:, :, :]  .= 10
-                master_mb.fi.sv[:TEMP][1, 20, :] .= 30
+                    
 
-                master_mb.fi.sv[:TEMP][1, :, 21] .= 21
-                master_mb.fi.sv[:TEMP][1, :, 22] .= 22
-                master_mb.fi.sv[:TEMP][1, :, 23] .= 23
-                master_mb.fi.sv[:TEMP][1, :, 24] .= 24
-                master_mb.fi.sv[:TEMP][1, :, 25] .= 25
-                master_mb.fi.sv[:TEMP][1, :, 26] .= 26
-                master_mb.fi.sv[:TEMP][1, :, 27] .= 27
-                master_mb.fi.sv[:TEMP][1, :, 28] .= 28
+                    master_ev = HOOM.Env(core_config)
+                    master_mb = HOOM.ModelBlock(master_ev; init_core=false)
 
-                master_mb.fi.HMXL .= 50.0
-                master_mb.fi.HMXL[1, 20:25, 21:24] .= 75.0
+                    #=
+                    master_mb.fi.sv[:TEMP][:, :, :]  .= 10
+                    master_mb.fi.sv[:TEMP][1, 20, :] .= 30
 
-                #throw(ErrorException("Variable `init_file` is absent in `config`."))
-                =#
+                    master_mb.fi.sv[:TEMP][1, :, 21] .= 21
+                    master_mb.fi.sv[:TEMP][1, :, 22] .= 22
+                    master_mb.fi.sv[:TEMP][1, :, 23] .= 23
+                    master_mb.fi.sv[:TEMP][1, :, 24] .= 24
+                    master_mb.fi.sv[:TEMP][1, :, 25] .= 25
+                    master_mb.fi.sv[:TEMP][1, :, 26] .= 26
+                    master_mb.fi.sv[:TEMP][1, :, 27] .= 27
+                    master_mb.fi.sv[:TEMP][1, :, 28] .= 28
+
+                    master_mb.fi.HMXL .= 50.0
+                    master_mb.fi.HMXL[1, 20:25, 21:24] .= 75.0
+
+                    #throw(ErrorException("Variable `init_file` is absent in `config`."))
+                    =#
+                end
             end
-
-            #in_flds = ocn.in_flds
-            #
-            # If it is "datastream", entrainment speed w_e would be 
-            # calculated from h given. In fact there is no need
-            # to calculate w_e.
-            #
-            # If it is "prognostic", entrainment speed w_e would be
-            # calculated accroding to Niiler-Kraus dynamics.
-            #
-
         end
 
         # Create plans
@@ -170,8 +172,6 @@ module CESMCORE_HOOM
         # First, broadcast ev and create plan 
         master_ev = MPI.bcast(master_ev, 0, comm)
         jdi = JobDistributionInfo(nworkers = comm_size - 1, Ny = master_ev.Ny; overlap=3)
-
-
 
         # Second, create ModelBlocks based on ysplit_info
         if is_master
@@ -458,7 +458,6 @@ module CESMCORE_HOOM
     function run!(
         MD            :: HOOM_DATA;
         Δt            :: Second,
-        write_restart :: Bool,
     )
 
         comm = MPI.COMM_WORLD
@@ -519,97 +518,26 @@ module CESMCORE_HOOM
             HOOM.checkBudget!(MD.mb, Δt_float; stage=:AFTER_STEPPING)
         end
         
-        #if write_restart 
-        #    writeRestart(MD)
-        #end
-        
         syncField!(
             MD.sync_data[:state],
             MD.jdi,
             :S2M,
             :BLOCK,
-        ) 
+        )
+
     end
 
     function final(MD::HOOM_DATA)
  
         comm = MPI.COMM_WORLD
         rank = MPI.Comm_rank(comm)
-        comm_size = MPI.Comm_size(comm)
-        
-        is_master = ( rank == 0 )
 
-        if is_master
-
-            clock_time = MD.clock.time
-
-            timestamp_str = format(
-                "{:s}-{:05d}",
-                Dates.format(clock_time, "yyyy-mm-dd"),
-                floor(Int64, Dates.hour(clock_time)*3600+Dates.minute(clock_time)*60+Dates.second(clock_time)),
-            )
-
-            filename_nc = format(
-                "{:s}.snapshot.{:s}.nc",
-                MD.config[:DRIVER][:casename],
-                timestamp_str,
-            )
-
-            filename_cfg = format(
-                "{:s}.config.{:s}.nc",
-                MD.config[:DRIVER][:casename],
-                timestamp_str,
-            )
-
-
-            takeSnapshot(
-                MD.clock.time,
-                MD.mb,
-                joinpath(
-                    MD.config[:DRIVER][:caserun],
-                    filename_nc,
-                ),
-
-                joinpath(
-                    MD.config[:DRIVER][:caserun],
-                    filename_cfg,
-                ),
-            )
-
-            println("(Over)write restart pointer file: ", MD.config[:MODEL_MISC][:rpointer_file])
-            open(joinpath(MD.config[:DRIVER][:caserun], MD.config[:MODEL_MISC][:rpointer_file]), "w") do io
-                write(io, filename_nc,  "\n")
-                write(io, filename_cfg, "\n")
-            end
-
-
-
-            appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
-                format("cp,{:s},{:s},{:s}",
-                    filename_nc,
-                    MD.config[:DRIVER][:caserun],
-                    joinpath(MD.config[:DRIVER][:archive_root], "rest", timestamp_str),
-                )
-            )
-
-            appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
-                format("cp,{:s},{:s},{:s}",
-                    filename_cfg,
-                    MD.config[:DRIVER][:caserun],
-                    joinpath(MD.config[:DRIVER][:archive_root], "rest", timestamp_str),
-                )
-            )
+        is_master = rank == 0
  
-            appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
-                format("cp,{:s},{:s},{:s}",
-                    MD.config[:MODEL_MISC][:rpointer_file],
-                    MD.config[:DRIVER][:caserun],
-                    joinpath(MD.config[:DRIVER][:archive_root], "rest", timestamp_str),
-                )
-            )
-            
-
-        end
+        if is_master 
+            writeLog("Finalizing the model. Write restart files.")
+            writeRestart(MD)
+        end      
        
     end
 
@@ -668,36 +596,72 @@ module CESMCORE_HOOM
         MD :: HOOM_DATA,
     )
 
-        t = MD.timeinfo.t
+        clock_time = MD.clock.time
 
-        restart_file = format("{}.ocn.r.{:04d}{:02d}{:02d}_{:05d}.nc", MD.config[:casename], t[1], t[2], t[3], t[4])
-        HOOM.takeSnapshot(MD.ocn, restart_file)
-         
-        open(MD.config[:rpointer_file], "w") do file
-            write(file, restart_file)
+        timestamp_str = format(
+            "{:s}-{:05d}",
+            Dates.format(clock_time, "yyyy-mm-dd"),
+            floor(Int64, Dates.hour(clock_time)*3600+Dates.minute(clock_time)*60+Dates.second(clock_time)),
+        )
+
+        filename_nc = format(
+            "{:s}.snapshot.{:s}.nc",
+            MD.config[:DRIVER][:casename],
+            timestamp_str,
+        )
+
+        filename_cfg = format(
+            "{:s}.config.{:s}.nc",
+            MD.config[:DRIVER][:casename],
+            timestamp_str,
+        )
+
+
+        takeSnapshot(
+            MD.clock.time,
+            MD.mb,
+            joinpath(
+                MD.config[:DRIVER][:caserun],
+                filename_nc,
+            ),
+
+            joinpath(
+                MD.config[:DRIVER][:caserun],
+                filename_cfg,
+            ),
+        )
+
+        println("(Over)write restart pointer file: ", MD.config[:MODEL_MISC][:rpointer_file])
+        open(joinpath(MD.config[:DRIVER][:caserun], MD.config[:MODEL_MISC][:rpointer_file]), "w") do io
+            write(io, filename_nc,  "\n")
+            write(io, filename_cfg, "\n")
         end
 
-        println("(Over)write restart pointer file: ", MD.config[:rpointer_file])
-        println("Output restart file: ", restart_file)
 
-        src_dir = MD.config[:caserun]
-        dst_dir = joinpath(MD.config[:archive_root], "rest", format("{:04d}-{:02d}-{:02d}-{:05d}", t[1], t[2], t[3], t[4]))
 
-        appendLine(MD.config[:archive_list], 
+        appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
             format("cp,{:s},{:s},{:s}",
-                restart_file,
-                src_dir,
-                dst_dir,
+                filename_nc,
+                MD.config[:DRIVER][:caserun],
+                joinpath(MD.config[:DRIVER][:archive_root], "rest", timestamp_str),
             )
         )
 
-        appendLine(MD.config[:archive_list], 
+        appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
             format("cp,{:s},{:s},{:s}",
-                MD.config[:rpointer_file],
-                src_dir,
-                dst_dir,
+                filename_cfg,
+                MD.config[:DRIVER][:caserun],
+                joinpath(MD.config[:DRIVER][:archive_root], "rest", timestamp_str),
             )
         )
 
+        appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
+            format("cp,{:s},{:s},{:s}",
+                MD.config[:MODEL_MISC][:rpointer_file],
+                MD.config[:DRIVER][:caserun],
+                joinpath(MD.config[:DRIVER][:archive_root], "rest", timestamp_str),
+            )
+        )
+        
     end
 end
