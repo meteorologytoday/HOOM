@@ -36,9 +36,11 @@ mutable struct Field
     TAUY_north   :: AbstractArray{Float64, 3}
 
     QFLX2ATM     :: AbstractArray{Float64, 3}
+
+
     # sugar view
-    sv       :: Dict 
-    diag     :: Dict
+    sv       :: Union{Nothing, Dict} 
+
 
     function Field(
         ev :: Env,
@@ -99,8 +101,7 @@ mutable struct Field
             :ADVT => reshape(view(_ADVX_, :, 1), Nz, Nx, Ny),
         )
 
-        diag = Dict()
-        return new(
+        fi = new(
 
             _X_,
             _X,
@@ -136,12 +137,33 @@ mutable struct Field
 
             QFLX2ATM,
 
-            sv,
-            diag,
+            nothing,
         )
+
+        fi.sv = getSugarView(ev, fi)
+
+        return fi
 
     end
 
 end
 
+function getSugarView(
+    ev :: Env,
+    fi :: Field,
+)
 
+    Nx, Ny, Nz = ev.Nx, ev.Ny, ev.Nz
+
+    return sv = Dict(
+        :TEMP => reshape(view(fi._X_, :, 1), Nz, Nx, Ny),
+        :SALT => reshape(view(fi._X_, :, 2), Nz, Nx, Ny),
+        :UVEL => reshape(fi._u, Nz, Nx, Ny),
+        :VVEL => reshape(fi._v, Nz, Nx, Ny+1),
+        :WVEL => reshape(fi._w, Nz+1, Nx, Ny),
+        :CHKTEMP => reshape(view(fi._CHKX_, :, 1), 1, Nx, Ny),
+        :CHKSALT => reshape(view(fi._CHKX_, :, 2), 1, Nx, Ny),
+        :ADVT => reshape(view(fi._ADVX_, :, 1), Nz, Nx, Ny),
+    )
+
+end

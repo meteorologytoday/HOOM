@@ -13,3 +13,5 @@ slurm.epilog*
 *.png
 data/*
 *.jl~
+*.jld2
+*.tmp

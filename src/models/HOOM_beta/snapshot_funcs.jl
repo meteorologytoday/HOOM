@@ -5,41 +5,47 @@ Usage: It loads a netcdf snapshot file and a config JSON file that is used in En
        timestamp recorded in the netcdf file.
 """
 function loadSnapshot(
-    filename_nc   :: AbstractString,   # Field
-    filename_cfg  :: AbstractString;   # Configuration
-    timestamp     :: Union{AbstractCFDateTime, Nothing} = nothing,
+    filename   :: AbstractString,   # Field
+    timestamp  :: Union{AbstractCFDateTime, Nothing} = nothing,
 )
 
-    writeLog("Reading files: {:s} and {:s}", filename_nc, filename_cfg)
+    writeLog("Reading files: {:s}", filename)
     
+    snapshot = JLD2.load(filename)
     if timestamp != nothing
+
         timestamp_str = Dates.format(timestamp, "yyyy-mm-dd HH:MM:SS")
-    end
 
-    Dataset(filename_nc, "r") do ds
-
-        if timestamp_str != nothing && timestamp_str != ds.attrib["timestamp"]
-            throw(ErrorException(format
+        if timestamp_str != snapshot["timestamp"]
+            throw(ErrorException(format(
                 "The provided timestamp is {:s}, but the netcdf file timestamp is {:s}",
                 timestamp_str,
-                ds.attrib["timestamp"], 
-            ))
+                snapshot["timestamp"], 
+            )))
         end
+    end
+    println(keys(snapshot))
 
-        for (varname, data_unit) in data_table.data_units # HOOM.getDynamicVariableList(mb; varsets = [:ALL,])
+    ev = Env(snapshot["ev_config"])
+    mb = ModelBlock(ev; init_core = false) 
+ 
+   
+    loaded_fi = snapshot["fi"]
+    for fieldname in fieldnames(Field)
+        println("Loading field: " * string(fieldname))
+        var = getfield(mb.fi, fieldname) 
+        loaded_var = getfield(loaded_fi, fieldname)
 
-            println("Reading ", varname, "... ")
-            data_unit.sdata2[:, :, :] = nomissing(ds[varname][:, :, :, 1], NaN)
-
+        if typeof(var) <: Array
+            var.= loaded_var
+        else
+            println("Skip variable that is not array: ", string(fieldname))
         end
-
     end
-
-    open(filename_nc, "r") do ds
-        cfg = JSON.json(filename_cfg)
-    end
-
-    return 
+ 
+    mb.fi.sv = getSugarView(mb.ev, mb.fi)
+ 
+    return mb
 end
 
 """
@@ -51,7 +57,19 @@ Usage: It output netcdf file that is a copy of variables in the given DataTable
 function takeSnapshot(
     timestamp     :: AbstractCFDateTime,
     mb            :: HOOM.ModelBlock,
-    filename_nc   :: AbstractString,   # Field
+    filename      :: AbstractString,   # Field
+    missing_value :: Float64=1e20,
+)
+
+    JLD2.save(filename, "fi", mb.fi, "ev_config", mb.ev.config, "timestamp", timestamp)
+    
+end
+
+#=
+function takeSnapshot(
+    timestamp     :: AbstractCFDateTime,
+    mb            :: HOOM.ModelBlock,
+    filename      :: AbstractString,   # Field
     filename_cfg  :: AbstractString;   # Configuration
     missing_value :: Float64=1e20,
 )
@@ -92,4 +110,4 @@ function takeSnapshot(
     
 end
 
-
+=#

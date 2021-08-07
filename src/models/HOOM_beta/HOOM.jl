@@ -34,6 +34,7 @@ module HOOM
     using Distributed
     using SparseArrays
     using NCDatasets
+    using JLD2
 
     using ..ModelClockSystem
     using ..ConfigCheck
@@ -76,6 +77,8 @@ module HOOM
     
     @hinclude("var_list.jl")
     @hinclude("var_desc.jl")
+    
+    @hinclude("snapshot_funcs.jl")
     
     @hinclude("updateDatastream.jl")
 

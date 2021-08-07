@@ -1,10 +1,16 @@
 using CFTime
 using Dates
 using Formatting
-using JSON
+using JLD2
 using Distributed
 using SharedArrays
 using MPI
+
+if !(:ModelClockSystem in names(Main))
+    include(normpath(joinpath(dirname(@__FILE__), "..", "share", "LogSystem.jl")))
+end
+using .LogSystem
+
 
 if !(:ModelClockSystem in names(Main))
     include(normpath(joinpath(dirname(@__FILE__), "..", "share", "ModelClockSystem.jl")))
@@ -16,11 +22,20 @@ if !(:ConfigCheck in names(Main))
 end
 using .ConfigCheck
 
+if !(:appendLine in names(Main))
+    include(normpath(joinpath(dirname(@__FILE__), "..", "share", "AppendLine.jl")))
+end
+
+
 
 
 function runModel(
     OMMODULE      :: Any,
-    coupler_funcs :: Any, 
+    coupler_funcs :: Any,
+    t_start       :: AbstractCFDateTime,
+    t_simulation  :: Any,
+    read_restart  :: Bool,
+    config        :: Dict, 
 )
 
     comm = MPI.COMM_WORLD
@@ -32,23 +47,46 @@ function runModel(
 
     is_master = rank == 0
 
-    t_start, read_restart, config = coupler_funcs.before_model_init!()
-
     if is_master
         writeLog("Validate driver config.")
         config[:DRIVER] = validateConfigEntries(config[:DRIVER], getDriverConfigDescriptor())
     end
 
+
     writeLog("Setting working directory: {:s}", config[:DRIVER][:caserun])
     cd(config[:DRIVER][:caserun])
+
+    if is_master
+
+        global t_start, t_end
+
+        if read_restart
+            writeLog("read_restart is true.")
+            restart_info = JLD2.load("model_restart.jld2")
+            t_start = restart_info["timestamp"]
+        end
+
+        t_end = t_start + t_simulation
+
+        writeLog("### Simulation time start: {:s}", Dates.format(t_start, "yyyy-mm-dd HH:MM:SS"))
+        writeLog("### Simulation time end  : {:s}", Dates.format(t_end, "yyyy-mm-dd HH:MM:SS"))
+         
+    end
+
+    writeLog("Passing t_start and config to slaves.")
+    if ! is_master
+        t_start = nothing 
+        config = nothing
+    end
+    t_start = MPI.bcast(t_start, 0, comm) 
+    config = MPI.bcast(config, 0, comm) 
+
+
 
     # copy the start time
     beg_datetime = t_start + Dates.Second(0)
 
-    if is_master
-        println(format("Begin datetime: {:s}", dt2str(beg_datetime) ))
-        println(format("Read restart  : {}", read_restart))
-    end
+    writeLog("Read restart  : {}", read_restart)
 
     # Construct model clock
     clock = ModelClock("Model", beg_datetime)
@@ -71,7 +109,7 @@ function runModel(
 
         step += 1
         
-        is_master && println(format("Current time: {:s}", clock2str(clock)))
+        writeLog("Current time: {:s}", clock2str(clock))
 
         stage, Δt, write_restart = coupler_funcs.before_model_run!(OMMODULE, OMDATA)
 
@@ -87,7 +125,7 @@ function runModel(
                 MPI.Barrier(comm)
 
             end
-            is_master && println(format("Computation cost: {:f} secs.", cost))
+            writeLog("Computation cost: {:f} secs.", cost)
             coupler_funcs.after_model_run!(OMMODULE, OMDATA)
             
             advanceClock!(clock, Δt)
@@ -95,7 +133,7 @@ function runModel(
             
 
         elseif stage == :END
-            is_master && println("stage == :END. Break loop now.")
+            writeLog("stage == :END. Break loop now.")
             break
         end
 
@@ -103,7 +141,33 @@ function runModel(
     
     OMMODULE.final(OMDATA) 
     coupler_funcs.final(OMMODULE, OMDATA)
-  
+        
+    if is_master
+
+        writeLog("Writing restart file of driver")
+        
+        JLD2.save("model_restart.jld2", "timestamp", clock.time)
+        archive_list_file = joinpath(
+            config[:DRIVER][:caserun],
+            config[:DRIVER][:archive_list],
+        )
+
+        timestamp_str = format(
+            "{:s}-{:05d}",
+            Dates.format(clock.time, "yyyy-mm-dd"),
+            floor(Int64, Dates.hour(clock.time)*3600+Dates.minute(clock.time)*60+Dates.second(clock.time)),
+        )
+
+        appendLine(archive_list_file,
+            format("cp,{},{},{}",
+                "model_restart.jld2",
+                config[:DRIVER][:caserun],
+                joinpath(config[:DRIVER][:archive_root], "rest", timestamp_str)
+            )
+        ) 
+
+    end
+
     if is_master
         archive(joinpath(
             config[:DRIVER][:caserun],

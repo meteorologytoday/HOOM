@@ -34,7 +34,6 @@ module CESMCORE_HOOM
     using ..LogSystem
 
     include(joinpath(@__DIR__, "..", "..", "share", "AppendLine.jl"))
-    include(joinpath(@__DIR__, "snapshot_funcs.jl"))
 
     name = "HOOM_beta"
 
@@ -107,21 +106,17 @@ module CESMCORE_HOOM
                 
                 writeLog("Reading rpointer file {:s}", rpointer_file)
 
+                snapshot_filename = ""
                 open(rpointer_file, "r") do file
-                    filename_nc  = chomp(readline(file))
-                    filename_cfg = chomp(readline(file))
+                    snapshot_filename  = chomp(readline(file))
                 end
 
-                if !isfile(filename_nc)
-                    throw(ErrorException(format("Initial file \"{:s}\" does not exist!", filename_nc)))
-                end
- 
-                if !isfile(filename_cfg)
-                    throw(ErrorException(format("Initial file \"{:s}\" does not exist!", filename_cfg)))
+                if !isfile(snapshot_filename)
+                    throw(ErrorException(format("Initial file \"{:s}\" does not exist!", snapshot_filename)))
                 end
 
-                master_mb = loadSnapshot(filename_nc, filename_cfg)
-                master_ev = my_mb.ev
+                master_mb = HOOM.loadSnapshot(snapshot_filename)
+                master_ev = master_mb.ev
             else
 
                 init_file = misc_config[:init_file]
@@ -604,57 +599,35 @@ module CESMCORE_HOOM
             floor(Int64, Dates.hour(clock_time)*3600+Dates.minute(clock_time)*60+Dates.second(clock_time)),
         )
 
-        filename_nc = format(
-            "{:s}.snapshot.{:s}.nc",
-            MD.config[:DRIVER][:casename],
-            timestamp_str,
-        )
-
-        filename_cfg = format(
-            "{:s}.config.{:s}.nc",
+        snapshot_filename = format(
+            "{:s}.snapshot.{:s}.jld2",
             MD.config[:DRIVER][:casename],
             timestamp_str,
         )
 
 
-        takeSnapshot(
+        HOOM.takeSnapshot(
             MD.clock.time,
             MD.mb,
             joinpath(
                 MD.config[:DRIVER][:caserun],
-                filename_nc,
-            ),
-
-            joinpath(
-                MD.config[:DRIVER][:caserun],
-                filename_cfg,
+                snapshot_filename,
             ),
         )
 
         println("(Over)write restart pointer file: ", MD.config[:MODEL_MISC][:rpointer_file])
         open(joinpath(MD.config[:DRIVER][:caserun], MD.config[:MODEL_MISC][:rpointer_file]), "w") do io
-            write(io, filename_nc,  "\n")
-            write(io, filename_cfg, "\n")
+            write(io, snapshot_filename, "\n")
         end
 
-
-
         appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
             format("cp,{:s},{:s},{:s}",
-                filename_nc,
+                snapshot_filename,
                 MD.config[:DRIVER][:caserun],
                 joinpath(MD.config[:DRIVER][:archive_root], "rest", timestamp_str),
             )
         )
-
-        appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
-            format("cp,{:s},{:s},{:s}",
-                filename_cfg,
-                MD.config[:DRIVER][:caserun],
-                joinpath(MD.config[:DRIVER][:archive_root], "rest", timestamp_str),
-            )
-        )
-
+        
         appendLine(joinpath(MD.config[:DRIVER][:caserun], MD.config[:DRIVER][:archive_list]), 
             format("cp,{:s},{:s},{:s}",
                 MD.config[:MODEL_MISC][:rpointer_file],
@@ -664,4 +637,6 @@ module CESMCORE_HOOM
         )
         
     end
+
+    
 end
