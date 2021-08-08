@@ -64,6 +64,7 @@ module HOOM
     @hinclude("VerticalDiffusion.jl")
 
     @hinclude("Env.jl")
+    @hinclude("TempField.jl")
     @hinclude("Field.jl")
     @hinclude("Core.jl")
     
@@ -81,6 +82,7 @@ module HOOM
     @hinclude("snapshot_funcs.jl")
     
     @hinclude("updateDatastream.jl")
+    @hinclude("updateBuoyancy.jl")
 
 end
 

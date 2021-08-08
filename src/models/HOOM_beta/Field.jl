@@ -3,6 +3,8 @@ mutable struct Field
     _X_      :: AbstractArray{Float64, 2}
     _X       :: AbstractArray{Float64, 1}
 
+    _b       :: AbstractArray{Float64, 1}
+    
     _vel      :: AbstractArray{Float64, 1}
     _u        :: AbstractArray{Float64, 1}
     _v        :: AbstractArray{Float64, 1}
@@ -13,21 +15,16 @@ mutable struct Field
     _Xflx_W_  :: AbstractArray{Float64, 2}
 
     _ADVX_    :: AbstractArray{Float64, 2}
-
-
-    _CHKX_   :: AbstractArray{Float64, 2}
-    _CHKX    :: AbstractArray{Float64, 1}
-
-    _TMP_CHKX_   :: AbstractArray{Float64, 2} # Used to store the ∫ X dz before steping
-    _TMP_CHKX    :: AbstractArray{Float64, 1}
-
-    _TMP_SUBSTEP_BUDGET_   :: AbstractArray{Float64, 2} # Used to store substep tracer budget
+    
+    _WKRST_   :: AbstractArray{Float64, 2}
+    _VDIFF_   :: AbstractArray{Float64, 2}
 
 
     HMXL     :: AbstractArray{Float64, 3}
 
     SWFLX    :: AbstractArray{Float64, 3}
     NSWFLX   :: AbstractArray{Float64, 3}
+    VSFLX    :: AbstractArray{Float64, 3}
  
     TAUX         :: AbstractArray{Float64, 3}
     TAUY         :: AbstractArray{Float64, 3}
@@ -36,6 +33,7 @@ mutable struct Field
     TAUY_north   :: AbstractArray{Float64, 3}
 
     QFLX2ATM     :: AbstractArray{Float64, 3}
+
 
 
     # sugar view
@@ -55,17 +53,12 @@ mutable struct Field
 
         _X_ = zeros(Float64, T_pts, 2)
         _X  = view(_X_, :)
+        
+        _b  = zeros(Float64, T_pts)
 
         sT_pts = Nx * Ny * 1
 
-        _CHKX_ = zeros(Float64, sT_pts, 2)
-        _CHKX  = view(_CHKX_, :)
  
-        _TMP_CHKX_ = zeros(Float64, sT_pts, 2)
-        _TMP_CHKX  = view(_TMP_CHKX_, :)
-    
-        _TMP_SUBSTEP_BUDGET_ = zeros(Float64, sT_pts, 2)
-        
         _vel = zeros(Float64, U_pts + V_pts + W_pts)
 
         idx = 0;
@@ -79,9 +72,14 @@ mutable struct Field
         
         _ADVX_ = zeros(Float64, T_pts, 2)
 
+        _WKRST_ = zeros(Float64, T_pts, 2)
+ 
+        _VDIFF_ = zeros(Float64, T_pts, 2)
+
         HMXL = zeros(Float64, 1, Nx, Ny)
         SWFLX = zeros(Float64, 1, Nx, Ny)
         NSWFLX = zeros(Float64, 1, Nx, Ny)
+        VSFLX = zeros(Float64, 1, Nx, Ny)
         TAUX_east = zeros(Float64, 1, Nx, Ny)
         TAUY_north = zeros(Float64, 1, Nx, Ny)
  
@@ -89,22 +87,14 @@ mutable struct Field
         TAUY = zeros(Float64, 1, Nx, Ny)
         
         QFLX2ATM = zeros(Float64, 1, Nx, Ny)
-        
-        sv = Dict(
-            :TEMP => reshape(view(_X_, :, 1), Nz, Nx, Ny),
-            :SALT => reshape(view(_X_, :, 2), Nz, Nx, Ny),
-            :UVEL => reshape(_u, Nz, Nx, Ny),
-            :VVEL => reshape(_v, Nz, Nx, Ny+1),
-            :WVEL => reshape(_w, Nz+1, Nx, Ny),
-            :CHKTEMP => reshape(view(_CHKX_, :, 1), 1, Nx, Ny),
-            :CHKSALT => reshape(view(_CHKX_, :, 2), 1, Nx, Ny),
-            :ADVT => reshape(view(_ADVX_, :, 1), Nz, Nx, Ny),
-        )
-
+ 
+      
         fi = new(
 
             _X_,
             _X,
+
+            _b,
 
             _vel,
             _u,
@@ -116,18 +106,14 @@ mutable struct Field
             _Xflx_W_,
 
             _ADVX_,
+            _WKRST_,
+            _VDIFF_,
 
-            _CHKX_,
-            _CHKX,
-
-            _TMP_CHKX_,
-            _TMP_CHKX,
-
-            _TMP_SUBSTEP_BUDGET_,
             HMXL,
 
             SWFLX,
             NSWFLX,
+            VSFLX,
 
             TAUX,
             TAUY,
@@ -158,11 +144,11 @@ function getSugarView(
     return sv = Dict(
         :TEMP => reshape(view(fi._X_, :, 1), Nz, Nx, Ny),
         :SALT => reshape(view(fi._X_, :, 2), Nz, Nx, Ny),
+        :_TEMP => view(fi._X_, :, 1),
+        :_SALT => view(fi._X_, :, 2), 
         :UVEL => reshape(fi._u, Nz, Nx, Ny),
         :VVEL => reshape(fi._v, Nz, Nx, Ny+1),
         :WVEL => reshape(fi._w, Nz+1, Nx, Ny),
-        :CHKTEMP => reshape(view(fi._CHKX_, :, 1), 1, Nx, Ny),
-        :CHKSALT => reshape(view(fi._CHKX_, :, 2), 1, Nx, Ny),
         :ADVT => reshape(view(fi._ADVX_, :, 1), Nz, Nx, Ny),
     )
 

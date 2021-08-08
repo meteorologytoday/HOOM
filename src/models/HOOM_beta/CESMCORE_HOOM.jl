@@ -481,6 +481,7 @@ module CESMCORE_HOOM
         
         if ! is_master
             #MD.mb.fi.sv[:UVEL] .= (2π / 86400 / 20) * MD.mb.co.gd.R * cos.(MD.mb.co.gd.ϕ_T)
+            HOOM.updateBuoyancy!(MD.mb)
             HOOM.checkBudget!(MD.mb, Δt_float; stage=:BEFORE_STEPPING)
             HOOM.setupForcing!(MD.mb)
         end
@@ -490,7 +491,7 @@ module CESMCORE_HOOM
         
             if ! is_master
                 HOOM.stepAdvection!(MD.mb, Δt_float/substeps)
-                HOOM.checkBudget!(MD.mb, Δt_float; stage=:SUBSTEPS, substeps=substeps)
+                HOOM.checkBudget!(MD.mb, Δt_float; stage=:SUBSTEP_AFTER_ADV, substeps=substeps)
             end
 
             syncField!(
@@ -511,6 +512,9 @@ module CESMCORE_HOOM
         if ! is_master
             HOOM.stepColumn!(MD.mb, Δt_float)
             HOOM.checkBudget!(MD.mb, Δt_float; stage=:AFTER_STEPPING)
+
+            # important: update X
+            MD.mb.fi._X_ .= MD.mb.tmpfi._NEWX_
         end
         
         syncField!(

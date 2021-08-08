@@ -1,9 +1,10 @@
 mutable struct ModelBlock
 
-    ev :: Env
-    fi :: Field
-    co :: Union{Core, Nothing}
-    dt :: Union{DataTable, Nothing}
+    ev   :: Env
+    fi   :: Field
+    tmpfi :: TempField
+    co   :: Union{Core, Nothing}
+    dt   :: Union{DataTable, Nothing}
 
 
     function ModelBlock(
@@ -12,10 +13,12 @@ mutable struct ModelBlock
     ) 
 
         fi = Field(ev)
+        tmpfi = TempField(ev)
 
         mb = new(
             ev,
             fi,
+            tmpfi,
             nothing,
             nothing,
         )

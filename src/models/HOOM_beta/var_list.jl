@@ -18,10 +18,12 @@ function getCompleteVariableList(
             "TAUY_north"         => ( mb.fi.TAUY_north,  :sT ),
             "SWFLX"              => ( mb.fi.SWFLX,       :sT ),
             "NSWFLX"             => ( mb.fi.NSWFLX,      :sT ),
-            "CHKTEMP"            => ( mb.fi.sv[:CHKTEMP],  :sT ),
-            "CHKSALT"            => ( mb.fi.sv[:CHKSALT],  :sT ),
+            "VSFLX"             => ( mb.fi.NSWFLX,      :sT ),
             "ADVT"               => ( mb.fi.sv[:ADVT],     :T ),
             "HMXL"               => ( mb.fi.HMXL,          :sT ),
+            "CHKTEMP"            => ( mb.tmpfi.sv[:CHKTEMP],  :sT ),
+            "CHKSALT"            => ( mb.tmpfi.sv[:CHKSALT],  :sT ),
+
         )
 
     elseif vartype == :static

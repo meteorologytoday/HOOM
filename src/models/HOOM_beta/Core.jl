@@ -74,8 +74,9 @@ mutable struct Core
         swflx_factor_W =  cfg[:rad_R]  * exp.(gd.z_W / cfg[:rad_ζ1]) + (1.0 - cfg[:rad_R]) * exp.(gd.z_W / cfg[:rad_ζ2])
         swflx_factor_W[end, :, :] .= 0.0 # Bottom absorbs everything
 
-        nswflx_factor_W = 0.0 * gd.z_W
-        nswflx_factor_W[1, :, :] .= 1.0
+        # Surface flux is immediately absorbed at the top layer
+        sfcflx_factor_W = 0.0 * gd.z_W
+        sfcflx_factor_W[1, :, :] .= 1.0
 
 
 
@@ -87,7 +88,7 @@ mutable struct Core
 
         mtx = Dict(
             :T_swflxConv_sT  => - amo.T_DIVz_W * spdiagm(0 => view(swflx_factor_W, :)) * W_broadcast_sT,
-            :T_nswflxConv_sT => - amo.T_DIVz_W * spdiagm(0 => view(nswflx_factor_W, :)) * W_broadcast_sT,
+            :T_sfcflxConv_sT => - amo.T_DIVz_W * spdiagm(0 => view(sfcflx_factor_W, :)) * W_broadcast_sT,
             :invD_sT         => invD_sT,
             :f_sT            => f_sT,
             :ϵ_sT            => ϵ_sT,
