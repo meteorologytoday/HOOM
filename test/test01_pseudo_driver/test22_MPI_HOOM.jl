@@ -87,14 +87,15 @@ config = Dict{Any, Any}(
         :MLD_scheme                   => :static,
         :Qflx                         => :off,
         :Qflx_finding                 => :off,
-        :weak_restoring               => :on,
-        :convective_adjustment        => :off,
-        :advection_scheme             => :ekman_codron2012_partition,
+        :convective_adjustment        => :on,
+        :advection_scheme             => :static,#ekman_codron2012_partition,
 
-        :τwk_TEMP => 86400.0 * 30.0,
-        :τwk_SALT => 86400.0 * 30.0,
+        :weak_restoring               => :off,
+        :τwk_TEMP                     => 86400.0 * 365,
+        :τwk_SALT                     => 86400.0 * 365,
 
 
+        :τ_frz                        => 3600.0,
         :Ekman_layers      => 5,
         :Returnflow_layers => 25,
     ),
@@ -147,7 +148,7 @@ coupler_funcs = (
             lat = gf.yc
             lon = gf.xc
 
-            OMDATA.x2o["SWFLX"][1, :, :] .= - (cos.(deg2rad.(lat).+0.1) .+ 1) / 2 .* (sin.(deg2rad.(lon)) .+ 1)/2 * 100.0
+#            OMDATA.x2o["SWFLX"][1, :, :] .= - (cos.(deg2rad.(lat).+0.1) .+ 1) / 2 .* (sin.(deg2rad.(lon)) .+ 1)/2 * 100.0
             #OMDATA.x2o["SWFLX"][1, :, :] .= + 200.0
             OMDATA.x2o["TAUX_east"][1, :, :]   .= 0.2 * (cos.(deg2rad.(lat).+0.1) .+ 1) / 2
             OMDATA.x2o["TAUY_north"][1, :, :]  .= 0.1 * (sin.(deg2rad.(lon)) .+ 1) / 2

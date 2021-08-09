@@ -3,7 +3,7 @@ function updateDatastream!(
     clock :: ModelClock,
 )
     cdatam     = mb.co.cdatam
-    datastream = mb.co.datastream
+    datastream = mb.fi.datastream
     cfg        = mb.ev.config
 
 
@@ -14,6 +14,7 @@ function updateDatastream!(
         if cfg[:MLD_scheme] == :datastream
             mb.fi.HMXL .= datastream["HMXL"]
         end
+            
 
     end
 

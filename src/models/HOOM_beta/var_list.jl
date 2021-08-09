@@ -3,8 +3,10 @@ function getCompleteVariableList(
     vartype :: Symbol,
 )
 
+    d = nothing
+
     if vartype == :dynamic
-        return Dict(
+        d = Dict(
 
             # RECORD
             "TEMP"               => ( mb.fi.sv[:TEMP], :T ),
@@ -18,17 +20,32 @@ function getCompleteVariableList(
             "TAUY_north"         => ( mb.fi.TAUY_north,  :sT ),
             "SWFLX"              => ( mb.fi.SWFLX,       :sT ),
             "NSWFLX"             => ( mb.fi.NSWFLX,      :sT ),
-            "VSFLX"             => ( mb.fi.NSWFLX,      :sT ),
+            "VSFLX"              => ( mb.fi.NSWFLX,      :sT ),
             "ADVT"               => ( mb.fi.sv[:ADVT],     :T ),
             "HMXL"               => ( mb.fi.HMXL,          :sT ),
+            
+            "Q_FRZMLTPOT"        => ( mb.fi.Q_FRZMLTPOT,  :sT ),
             "CHKTEMP"            => ( mb.tmpfi.sv[:CHKTEMP],  :sT ),
             "CHKSALT"            => ( mb.tmpfi.sv[:CHKSALT],  :sT ),
-
         )
+        
+        if mb.fi.datastream != nothing 
+
+            if mb.ev.config[:weak_restoring] == :on
+                d["WKRST_TEMP"] = ( mb.fi.datastream["WKRST_TEMP"], :T )
+                d["WKRST_SALT"] = ( mb.fi.datastream["WKRST_SALT"], :T )
+            end
+
+            if mb.ev.config[:Qflx] == :on
+                d["QFLX_TEMP"] = ( mb.fi.datastream["QFLX_TEMP"], :T )
+                d["QFLX_SALT"] = ( mb.fi.datastream["QFLX_SALT"], :T )
+            end
+
+        end
 
     elseif vartype == :static
 
-        return Dict(
+        d = Dict(
             # COORDINATEi
 #=
             "area"               => ( ocn.mi.area,                  ("Nx", "Ny") ),
@@ -43,6 +60,8 @@ function getCompleteVariableList(
     else
         throw(ErrorException("Unknown vartype: " * string(vartype)))
     end
+
+    return d
 end
 
 function getVarDesc(varname)

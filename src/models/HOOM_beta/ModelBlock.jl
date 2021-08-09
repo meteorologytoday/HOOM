@@ -24,14 +24,14 @@ mutable struct ModelBlock
         )
         
         dt = DataTable(Nz = ev.Nz, Nx = ev.Nx, Ny = ev.Ny)
+        co = (init_core) ? Core(ev, fi) : nothing
+        mb.dt = dt
+        mb.co = co
+
         for (k, (varref, grid_type)) in HOOM.getDynamicVariableList(mb; varsets=[:ALL,])
             regVariable!(dt, k, grid_type, varref) 
         end
 
-        co = (init_core) ? Core(ev) : nothing
-
-        mb.dt = dt
-        mb.co = co
 
         return mb
     end

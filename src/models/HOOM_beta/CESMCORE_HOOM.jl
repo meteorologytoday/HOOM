@@ -135,7 +135,7 @@ module CESMCORE_HOOM
 
                     master_ev = HOOM.Env(core_config)
                     master_mb = HOOM.ModelBlock(master_ev; init_core=false)
-
+                    master_mb.fi.sv[:TEMP][end-5:end, :, :]  .= -10000
                     #=
                     master_mb.fi.sv[:TEMP][:, :, :]  .= 10
                     master_mb.fi.sv[:TEMP][1, 20, :] .= 30
@@ -199,8 +199,8 @@ module CESMCORE_HOOM
 
 
         o2x = Dict(
-            "SST"      => view(my_mb.fi.sv[:TEMP], 1, :, :),
-            "QFLX2ATM" => my_mb.fi.QFLX2ATM,
+            "SST"      => my_mb.fi.sv[:SST],
+            "Q_FRZMLTPOT" => my_mb.fi.Q_FRZMLTPOT,
         )
 
         # Synchronizing Data

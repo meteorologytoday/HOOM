@@ -16,9 +16,10 @@ mutable struct Core
     vd        :: VerticalDiffusion
 
     cdatam     :: Union{CyclicDataManager, Nothing}
-    datastream :: Dict 
+
     function Core(
         ev :: Env,
+        fi :: Field,
     )
 
         cfg = ev.config
@@ -87,8 +88,9 @@ mutable struct Core
         invD_sT = D_sT.^(-1.0)
 
         mtx = Dict(
-            :T_swflxConv_sT  => - amo.T_DIVz_W * spdiagm(0 => view(swflx_factor_W, :)) * W_broadcast_sT,
-            :T_sfcflxConv_sT => - amo.T_DIVz_W * spdiagm(0 => view(sfcflx_factor_W, :)) * W_broadcast_sT,
+            :ones_T          => ones(Float64, amo.bmo.T_pts),
+            :T_swflxConv_sT  => - amo.T_mask_T * amo.T_DIVz_W * spdiagm(0 => view(swflx_factor_W, :)) * W_broadcast_sT,
+            :T_sfcflxConv_sT => - amo.T_mask_T * amo.T_DIVz_W * spdiagm(0 => view(sfcflx_factor_W, :)) * W_broadcast_sT,
             :invD_sT         => invD_sT,
             :f_sT            => f_sT,
             :ϵ_sT            => ϵ_sT,
@@ -101,6 +103,15 @@ mutable struct Core
             K_cva=(cfg[:convective_adjustment] == :on) ? cfg[:Ks_V_cva] : cfg[:Ks_V],
         )
 
+        # freezing operator
+        mtx[:T_invτ_frz_T] = - amo.T_mask_T * spdiagm(0 => ones(Float64, amo.bmo.T_pts)) / cfg[:τ_frz]
+        
+        # surface mask
+        sfcmask_T = zeros(Float64, amo.bmo.T_dim...)
+        sfcmask_T[1, :, :] .= 1
+        mtx[:T_sfcmask_T] = spdiagm(0 => amo.T_mask_T * reshape(sfcmask_T, :))
+
+
 
         cdata_varnames = []
 
@@ -109,13 +120,13 @@ mutable struct Core
         end
 
         if cfg[:Qflx] == :on
-            push!(cdata_varnames, "Qflx_T")
-            push!(cdata_varnames, "Qflx_S")
+            push!(cdata_varnames, "QFLX_TEMP")
+            push!(cdata_varnames, "QFLX_SALT")
         end
         
         if cfg[:weak_restoring] == :on || cfg[:Qflx_finding] == :on
-            push!(cdata_varnames, "TEMP")
-            push!(cdata_varnames, "SALT")
+            push!(cdata_varnames, "WKRST_TEMP")
+            push!(cdata_varnames, "WKRST_SALT")
         end
 
         if length(cdata_varnames) == 0
@@ -137,7 +148,8 @@ mutable struct Core
                     sub_yrng     = ev.sub_yrng,
                 )
 
-                datastream = makeDataContainer(cdatam)
+
+                fi.datastream = makeDataContainer(cdatam)
             end
         end
 
@@ -161,7 +173,6 @@ mutable struct Core
             vd,
 
             cdatam,
-            datastream,
         )
     end
 

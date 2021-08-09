@@ -32,9 +32,11 @@ mutable struct Field
     TAUX_east    :: AbstractArray{Float64, 3}
     TAUY_north   :: AbstractArray{Float64, 3}
 
-    QFLX2ATM     :: AbstractArray{Float64, 3}
+    Q_FRZHEAT       :: AbstractArray{Float64, 3}
+    Q_FRZMLTPOT_NEG :: AbstractArray{Float64, 3}
+    Q_FRZMLTPOT     :: AbstractArray{Float64, 3}
 
-
+    datastream   :: Union{Dict, Nothing}
 
     # sugar view
     sv       :: Union{Nothing, Dict} 
@@ -86,9 +88,11 @@ mutable struct Field
         TAUX = zeros(Float64, 1, Nx, Ny)
         TAUY = zeros(Float64, 1, Nx, Ny)
         
-        QFLX2ATM = zeros(Float64, 1, Nx, Ny)
+        Q_FRZHEAT       = zeros(Float64, 1, Nx, Ny)
+        Q_FRZMLTPOT_NEG = zeros(Float64, 1, Nx, Ny)
+        Q_FRZMLTPOT     = zeros(Float64, 1, Nx, Ny)
  
-      
+         
         fi = new(
 
             _X_,
@@ -121,8 +125,11 @@ mutable struct Field
             TAUX_east,
             TAUY_north,
 
-            QFLX2ATM,
+            Q_FRZHEAT,
+            Q_FRZMLTPOT_NEG,
+            Q_FRZMLTPOT,
 
+            nothing,
             nothing,
         )
 
@@ -141,7 +148,7 @@ function getSugarView(
 
     Nx, Ny, Nz = ev.Nx, ev.Ny, ev.Nz
 
-    return sv = Dict(
+    sv = Dict(
         :TEMP => reshape(view(fi._X_, :, 1), Nz, Nx, Ny),
         :SALT => reshape(view(fi._X_, :, 2), Nz, Nx, Ny),
         :_TEMP => view(fi._X_, :, 1),
@@ -151,5 +158,8 @@ function getSugarView(
         :WVEL => reshape(fi._w, Nz+1, Nx, Ny),
         :ADVT => reshape(view(fi._ADVX_, :, 1), Nz, Nx, Ny),
     )
-
+        
+    sv[:SST] = view(sv[:TEMP], 1:1, :, :)
+    
+    return sv
 end
