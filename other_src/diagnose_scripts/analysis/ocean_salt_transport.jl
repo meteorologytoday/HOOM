@@ -91,9 +91,11 @@ sum_valid_area = MapTransform.∫∂a(r, _1flux)[end]
 println("Sum of valid area: ", sum_valid_area, "; ratio: ", sum_valid_area / sum(area))
 
 ocn_frac = MapTransform.f∂a(r, _1flux) ./ MapTransform.f∂a(r_aqua, _1flux)
+println("[After]  ocn_frac size: ", size(ocn_frac))
+
 
 let
-    global TFLUX_DIV_implied, OHT, TSAS_clim, OHT_TSAS_clim, TSAS_clim_mean
+    global SFLUX_DIV_implied, OST, SSAS_clim, OST_SSAS_clim, SSAS_clim_mean
 
     if parsed["data-file-timestamp-form"] == "YEAR"
         filename_format = format("{:s}{{:04d}}.nc", joinpath(parsed["data-file-prefix"]))
@@ -110,36 +112,39 @@ let
 
     Nt = end_t - beg_t + 1
 
-    TFLUX_DIV_implied = zeros(Float64, length(r.lat_bnd)-1, Nt)
-    OHT               = zeros(Float64, length(r.lat_bnd)  , Nt)
-    TSAS_clim         = zeros(Float64, length(r.lat_bnd)-1, Nt)
-    OHT_TSAS_clim     = zeros(Float64, length(r.lat_bnd)  , Nt)
-    TSAS_clim_mean    = zeros(Float64, Nt)
+    SFLUX_DIV_implied = zeros(Float64, length(r.lat_bnd)-1, Nt)
+    OST               = zeros(Float64, length(r.lat_bnd)  , Nt)
+    SSAS_clim         = zeros(Float64, length(r.lat_bnd)-1, Nt)
+    OST_SSAS_clim     = zeros(Float64, length(r.lat_bnd)  , Nt)
+    SSAS_clim_mean    = zeros(Float64, Nt)
 
  
-    TFLUX_DIV, seaice_nudge_energy, _TSAS_clim = getData(fh, ["TFLUX_DIV_implied", "seaice_nudge_energy", "TSAS_clim"], (parsed["beg-year"], parsed["end-year"]), (:, :))
+    SFLUX_DIV, _SSAS_clim = getData(fh, ["SFLUX_DIV_implied", "SSAS_clim"], (parsed["beg-year"], parsed["end-year"]), (:, :))
 
-    adjust_TFLUX_DIV = TFLUX_DIV * ρc + seaice_nudge_energy
+    adjust_SFLUX_DIV = SFLUX_DIV
     for t = 1:Nt
-        _data = view(adjust_TFLUX_DIV, :, :, t)
-        TFLUX_DIV_implied[:, t] = MapTransform.transform(r, _data) 
-        OHT[:, t] = MapTransform.∫∂a(r, _data)
+        _data = view(adjust_SFLUX_DIV, :, :, t)
+
+        if mod(t-1, 12) == 0
+            _data ./= 86400.0
+        end
+
+        SFLUX_DIV_implied[:, t] = MapTransform.transform(r, _data) 
+        OST[:, t] = MapTransform.∫∂a(r, _data)
+
+        OST_mean = MapTransform.mean(r, _data)
+        OST[:, t] = - MapTransform.∫∂a(r, _data .- OST_mean) 
     end
 
-    adjust_TSAS_clim = _TSAS_clim * ρc
+    adjust_SSAS_clim = _SSAS_clim
     for t = 1:Nt
-        _data = view(adjust_TSAS_clim, :, :, t)
-        TSAS_clim[:, t] = MapTransform.transform(r, _data)
-        TSAS_clim_mean[t] = MapTransform.mean(r, _data) 
-        OHT_TSAS_clim[:, t] = - MapTransform.∫∂a(r, _data .- TSAS_clim_mean[t]) 
+        _data = view(adjust_SSAS_clim, :, :, t)
+        SSAS_clim[:, t] = MapTransform.transform(r, _data)
+        SSAS_clim_mean[t] = MapTransform.mean(r, _data) 
+        OST_SSAS_clim[:, t] = - MapTransform.∫∂a(r, _data .- SSAS_clim_mean[t]) 
     end
 
 end
-
-
-
-
-
 
 Dataset(parsed["output-file"], "c") do ds
 
@@ -147,22 +152,22 @@ Dataset(parsed["output-file"], "c") do ds
     defDim(ds, "lat_bnd", length(r.lat_bnd))
     defDim(ds, "lat",     length(r.lat_bnd)-1)
         
-    ds.attrib["TSAS_clim_mean_MEAN"] = mean(TSAS_clim_mean)
+    ds.attrib["SSAS_clim_mean_MEAN"] = mean(SSAS_clim_mean)
 
     for (varname, vardata, vardim, attrib) in [
         ("ocn_frac",          ocn_frac,          ("lat_bnd", ), Dict()),
-        ("TFLUX_DIV_implied", TFLUX_DIV_implied, ("lat", "time", ), Dict()),
-        ("OHT",               OHT,               ("lat_bnd", "time", ), Dict()),
-        ("TSAS_clim",         TSAS_clim,         ("lat", "time", ), Dict()),
-        ("TSAS_clim_mean",    TSAS_clim_mean,    ("time", ), Dict()),
-        ("OHT_TSAS_clim",     OHT_TSAS_clim,     ("lat_bnd", "time", ), Dict()),
-        ("OHT_TOTAL",         OHT + OHT_TSAS_clim,     ("lat_bnd", "time", ), Dict()),
+        ("SFLUX_DIV_implied", SFLUX_DIV_implied, ("lat", "time", ), Dict()),
+        ("OST",               OST,               ("lat_bnd", "time", ), Dict()),
+        ("SSAS_clim",         SSAS_clim,         ("lat", "time", ), Dict()),
+        ("SSAS_clim_mean",    SSAS_clim_mean,    ("time", ), Dict()),
+        ("OST_SSAS_clim",     OST_SSAS_clim,     ("lat_bnd", "time", ), Dict()),
+        ("OST_TOTAL",         OST + OST_SSAS_clim,     ("lat_bnd", "time", ), Dict()),
 
-        ("TFLUX_DIV_implied_MEAN", mean(TFLUX_DIV_implied, dims=2)[:, 1],    ("lat",), Dict()),
-        ("OHT_MEAN",               mean(OHT, dims=2)[:, 1],                  ("lat_bnd",), Dict()),
-        ("TSAS_clim_MEAN",         mean(TSAS_clim, dims=2)[:, 1],            ("lat",), Dict()),
-        ("OHT_TSAS_clim_MEAN",     mean(OHT_TSAS_clim, dims=2)[:, 1],        ("lat_bnd",), Dict()),
-        ("OHT_TOTAL_MEAN",         mean(OHT + OHT_TSAS_clim, dims=2)[:, 1],  ("lat_bnd",), Dict()),
+        ("SFLUX_DIV_implied_MEAN", mean(SFLUX_DIV_implied, dims=2)[:, 1],    ("lat",), Dict()),
+        ("OST_MEAN",               mean(OST, dims=2)[:, 1],                  ("lat_bnd",), Dict()),
+        ("SSAS_clim_MEAN",         mean(SSAS_clim, dims=2)[:, 1],            ("lat",), Dict()),
+        ("OST_SSAS_clim_MEAN",     mean(OST_SSAS_clim, dims=2)[:, 1],        ("lat_bnd",), Dict()),
+        ("OST_TOTAL_MEAN",         mean(OST + OST_SSAS_clim, dims=2)[:, 1],  ("lat_bnd",), Dict()),
     ]
 
         println("Doing var: ", varname)

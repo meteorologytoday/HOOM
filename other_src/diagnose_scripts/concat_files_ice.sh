@@ -11,7 +11,7 @@ if [ ! -f flag_notrans_ice ] ; then
         for m in $( seq 1 12 ); do
 
             # vice
-            old_file=$full_casename.cice.h.$( printf "%04d-%02d" $y $m ).nc
+            old_file=$casename.cice.h.$( printf "%04d-%02d" $y $m ).nc
             new_file=$( echo "$old_file" | sed -e 's/\.cice\./.cice_extra./' )
 
             if [ ! -f "$concat_dir/$new_file" ]; then 
@@ -30,7 +30,7 @@ if [ ! -f flag_notrans_ice ] ; then
     for y in $( seq $diag_beg_year $diag_end_year ); do
         for m in $( seq 1 12 ); do
 
-            old_file=$full_casename.cice_extra.h.$( printf "%04d-%02d" $y $m ).nc
+            old_file=$casename.cice_extra.h.$( printf "%04d-%02d" $y $m ).nc
             new_file_bilinear=$( echo "$old_file" | sed -e 's/\.cice_extra\./.cice_extra2_rg./' )
             
             if [ ! -f "$concat_dir/$new_file_bilinear" ]; then 

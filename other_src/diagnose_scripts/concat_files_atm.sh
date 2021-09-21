@@ -12,7 +12,7 @@ if [ ! -f flag_notrans_atm ] ; then
         for m in $( seq 1 12 ); do
 
             # PREC_TOTAL
-            old_file=$full_casename.cam.h0.$( printf "%04d-%02d" $y $m ).nc
+            old_file=$casename.cam.h0.$( printf "%04d-%02d" $y $m ).nc
             new_file=$( echo "$old_file" | sed -e 's/\.cam\./.cam_extra./' )
 
             if [ ! -f "$concat_dir/$new_file" ]; then 
@@ -23,7 +23,7 @@ if [ ! -f flag_notrans_atm ] ; then
 
 
             # Zonal mean field such as T, U, V
-            old_file=$full_casename.cam.h0.$( printf "%04d-%02d" $y $m ).nc
+            old_file=$casename.cam.h0.$( printf "%04d-%02d" $y $m ).nc
             new_file=$( echo "$old_file" | sed -e 's/\.cam\./.cam_extra2_zonal_mean./' )
             if [ ! -f "$concat_dir/$new_file" ]; then 
                 ((i=i%4)); ((i++==0)) && wait

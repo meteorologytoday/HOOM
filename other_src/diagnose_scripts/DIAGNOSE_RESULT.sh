@@ -139,6 +139,7 @@ if [ "$plot_mc_only" == "" ]; then
         (( i = (i + 1) % ptasks )); (( i == 0 )) && wait
 
         casename=${casenames[$k]}
+        legend=${legends[$k]}
         offset_year=${offset_years[$k]}
 
         echo "Case: $casename"
@@ -152,6 +153,7 @@ if [ "$plot_mc_only" == "" ]; then
         full_casename=${label}_${res}_${casename}
         $script_dir/diagnose_single_model.sh \
             --casename=$casename                \
+            --output-name=$legend               \
             --sim-data-dir=$sim_data_dir        \
             --concat-data-dir=$concat_data_dir  \
             --diag-data-dir=$diag_data_dir      \

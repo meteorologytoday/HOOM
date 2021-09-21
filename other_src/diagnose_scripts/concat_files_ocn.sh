@@ -13,7 +13,7 @@ if [ ! -f flag_notrans_ocn ] ; then
 
     for y in $( seq $diag_beg_year $diag_end_year ); do
         for m in $( seq 1 12 ); do
-            old_file=$full_casename.ocn.h.monthly.$( printf "%04d-%02d" $y $m ).nc
+            old_file=$casename.ocn.h.monthly.$( printf "%04d-%02d" $y $m ).nc
             new_file_bilinear=$( echo "$old_file" | sed -e 's/\.ocn\./.ocn_rg./' )
             new_file_conserve2nd=$( echo "$old_file" | sed -e 's/\.ocn\./.ocn_rg2./' )
             #new_file_vec_bilinear=$( echo "$old_file" | sed -e 's/\.ocn\./.ocn_rg3./' )
